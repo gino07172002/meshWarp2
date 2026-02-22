@@ -1,0 +1,658 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Web Spine-like Mesh Deformer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button id="fileNewBtn">New</button>
+        <button id="fileOpenBtn">Import Image/PSD</button>
+        <button id="fileSaveBtn">Save</button>
+        <button id="fileLoadBtn">Load</button>
+        <button id="fileExportSpineBtn">Export Spine</button>
+        <input id="fileInput" type="file" accept=".psd,image/*" multiple hidden />
+        <input id="projectLoadInput" type="file" accept="application/json,.json" hidden />
+      </div>
+      <div class="topbar-mid">
+        <label>
+          <span>Edit Mode</span>
+          <select id="editMode">
+            <option value="skeleton">Skeleton</option>
+            <option value="vertex">Vertex</option>
+            <option value="slotmesh">Slot Mesh</option>
+          </select>
+        </label>
+        <label>
+          <span>Bone Mode</span>
+          <select id="boneMode">
+            <option value="edit" selected>Edit Rig</option>
+            <option value="pose">Pose Animate</option>
+          </select>
+        </label>
+        <label>
+          <span>Slot</span>
+          <select id="slotSelect"></select>
+        </label>
+        <label>
+          <span>Slot View</span>
+          <select id="slotViewMode">
+            <option value="single" selected>Single</option>
+            <option value="all">All Visible</option>
+          </select>
+        </label>
+      </div>
+      <div class="topbar-right muted">Blender-style Layout</div>
+    </header>
+
+    <aside class="left-tools">
+      <h2>Canvas Tools</h2>
+      <p id="leftToolModeHint" class="muted">Mode-aware tools</p>
+      <div id="leftToolTabs" class="left-tool-tabs">
+        <button id="leftTabSetup" class="left-tab-btn" data-left-tab="setup" type="button">Setup</button>
+        <button id="leftTabRig" class="left-tab-btn" data-left-tab="rig" type="button">Rig</button>
+        <button id="leftTabIK" class="left-tab-btn" data-left-tab="ik" type="button">IK</button>
+        <button id="leftTabConstraint" class="left-tab-btn" data-left-tab="constraint" type="button">Constraint</button>
+        <button id="leftTabPath" class="left-tab-btn" data-left-tab="path" type="button">Path</button>
+        <button id="leftTabSkin" class="left-tab-btn" data-left-tab="skin" type="button">Skin</button>
+        <button id="leftTabTools" class="left-tab-btn" data-left-tab="tools" type="button">Tools</button>
+        <button id="leftTabSlotMesh" class="left-tab-btn" data-left-tab="slotmesh" type="button">Slot Mesh</button>
+      </div>
+      <section id="leftMeshSetup" class="group left-tab-panel" data-left-panel="setup">
+        <h3>Mesh Setup</h3>
+        <div class="field two-col">
+          <label>
+            <span>Grid X</span>
+            <input id="gridX" type="number" min="2" max="120" value="24" />
+          </label>
+          <label>
+            <span>Grid Y</span>
+            <input id="gridY" type="number" min="2" max="120" value="24" />
+          </label>
+        </div>
+        <button id="remeshBtn">Rebuild Mesh</button>
+      </section>
+
+      <section id="leftRigBuild" class="group left-tab-panel" data-left-panel="rig">
+        <h3>Rig Build</h3>
+        <div class="field two-col">
+          <button id="addBoneBtn">Add Bone</button>
+          <button id="deleteBoneBtn">Delete Bone</button>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Add Parent</span>
+            <select id="addBoneParent"></select>
+          </label>
+          <label>
+            <span>Add Link</span>
+            <select id="addBoneConnect">
+              <option value="true" selected>Connected</option>
+              <option value="false">Disconnected</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section id="leftIKTools" class="group left-tab-panel" data-left-panel="ik">
+        <h3>IK Constraints</h3>
+        <div class="field two-col">
+          <button id="ikAdd1Btn" type="button">+ IK 1-Bone</button>
+          <button id="ikAdd2Btn" type="button">+ IK 2-Bone</button>
+        </div>
+        <div class="field">
+          <span>IK List</span>
+          <div id="ikList" class="bone-tree"></div>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Constraint</span>
+            <select id="ikSelect"></select>
+          </label>
+          <label>
+            <span>Name</span>
+            <input id="ikName" type="text" value="" />
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Enabled</span>
+            <select id="ikEnabled">
+              <option value="true" selected>On</option>
+              <option value="false">Off</option>
+            </select>
+          </label>
+          <label>
+            <span>Bend</span>
+            <select id="ikBendDir">
+              <option value="1" selected>Positive</option>
+              <option value="-1">Negative</option>
+            </select>
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>End Control</span>
+            <select id="ikEndMode">
+              <option value="head" selected>End Bone Head</option>
+              <option value="tail">End Bone Tail</option>
+            </select>
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Target Bone</span>
+            <select id="ikTargetBone"></select>
+          </label>
+          <button id="ikPickTargetBtn" type="button">Pick Target in Canvas</button>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Bone A</span>
+            <select id="ikBoneA"></select>
+          </label>
+          <label>
+            <span>Bone B (optional)</span>
+            <select id="ikBoneB"></select>
+          </label>
+        </div>
+        <label class="field">
+          <span>Mix</span>
+          <input id="ikMix" type="range" min="0" max="1" step="0.01" value="1" />
+        </label>
+        <div class="field two-col">
+          <button id="ikMoveUpBtn" type="button">Move Up</button>
+          <button id="ikMoveDownBtn" type="button">Move Down</button>
+        </div>
+        <button id="ikRemoveBtn" type="button">Remove IK</button>
+        <p id="ikHint" class="muted">IK applies in Pose mode. IK bones are highlighted in canvas/tree.</p>
+      </section>
+
+      <section id="leftConstraintTools" class="group left-tab-panel" data-left-panel="constraint">
+        <h3>Transform Constraints</h3>
+        <div class="field two-col">
+          <button id="tfcAddBtn" type="button">+ Transform</button>
+          <button id="tfcRemoveBtn" type="button">Remove</button>
+        </div>
+        <div class="field two-col">
+          <button id="tfcMoveUpBtn" type="button">Move Up</button>
+          <button id="tfcMoveDownBtn" type="button">Move Down</button>
+        </div>
+        <div class="field">
+          <span>Transform List</span>
+          <div id="tfcList" class="bone-tree"></div>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Constraint</span>
+            <select id="tfcSelect"></select>
+          </label>
+          <label>
+            <span>Name</span>
+            <input id="tfcName" type="text" value="" />
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Target Bone</span>
+            <select id="tfcTargetBone"></select>
+          </label>
+          <label>
+            <span>Enabled</span>
+            <select id="tfcEnabled">
+              <option value="true" selected>On</option>
+              <option value="false">Off</option>
+            </select>
+          </label>
+        </div>
+        <label class="field">
+          <span>Constrained Bones (multi)</span>
+          <input id="tfcBoneSearch" type="text" value="" placeholder="Search bones..." />
+          <select id="tfcBones" multiple size="4"></select>
+          <div class="three-col">
+            <button id="tfcBonesAllBtn" type="button">All</button>
+            <button id="tfcBonesClearBtn" type="button">Clear</button>
+            <button id="tfcBonesInvertBtn" type="button">Invert</button>
+          </div>
+        </label>
+        <div class="field two-col">
+          <label>
+            <span>Local</span>
+            <select id="tfcLocal">
+              <option value="false" selected>World</option>
+              <option value="true">Local</option>
+            </select>
+          </label>
+          <label>
+            <span>Relative</span>
+            <select id="tfcRelative">
+              <option value="false" selected>Absolute</option>
+              <option value="true">Relative</option>
+            </select>
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Rotate Mix</span>
+            <input id="tfcRotateMix" type="number" min="0" max="1" step="0.01" value="1" />
+          </label>
+          <label>
+            <span>Translate Mix</span>
+            <input id="tfcTranslateMix" type="number" min="0" max="1" step="0.01" value="1" />
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Scale Mix</span>
+            <input id="tfcScaleMix" type="number" min="0" max="1" step="0.01" value="1" />
+          </label>
+          <label>
+            <span>Shear Mix</span>
+            <input id="tfcShearMix" type="number" min="0" max="1" step="0.01" value="1" />
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Offset X</span>
+            <input id="tfcOffsetX" type="number" step="1" value="0" />
+          </label>
+          <label>
+            <span>Offset Y</span>
+            <input id="tfcOffsetY" type="number" step="1" value="0" />
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Offset Rot</span>
+            <input id="tfcOffsetRot" type="number" step="1" value="0" />
+          </label>
+          <label>
+            <span>Offset Shear Y</span>
+            <input id="tfcOffsetShearY" type="number" step="1" value="0" />
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Offset Scale X</span>
+            <input id="tfcOffsetScaleX" type="number" step="0.01" value="0" />
+          </label>
+          <label>
+            <span>Offset Scale Y</span>
+            <input id="tfcOffsetScaleY" type="number" step="0.01" value="0" />
+          </label>
+        </div>
+        <p id="tfcHint" class="muted">Spine-like transform constraints. Timeline supports mix keyframes.</p>
+      </section>
+
+      <section id="leftPathTools" class="group left-tab-panel" data-left-panel="path">
+        <h3>Path Constraints</h3>
+        <div class="field two-col">
+          <button id="pathAddBtn" type="button">+ Path</button>
+          <button id="pathRemoveBtn" type="button">Remove</button>
+        </div>
+        <div class="field two-col">
+          <button id="pathMoveUpBtn" type="button">Move Up</button>
+          <button id="pathMoveDownBtn" type="button">Move Down</button>
+        </div>
+        <div class="field">
+          <span>Path List</span>
+          <div id="pathList" class="bone-tree"></div>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Constraint</span>
+            <select id="pathSelect"></select>
+          </label>
+          <label>
+            <span>Name</span>
+            <input id="pathName" type="text" value="" />
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Target Bone</span>
+            <select id="pathTargetBone"></select>
+          </label>
+          <label>
+            <span>Path Source</span>
+            <select id="pathSourceType">
+              <option value="slot" selected>Slot Contour</option>
+              <option value="bone_chain">Bone Chain</option>
+            </select>
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Path Slot</span>
+            <select id="pathTargetSlot"></select>
+          </label>
+          <label>
+            <span>Enabled</span>
+            <select id="pathEnabled">
+              <option value="true" selected>On</option>
+              <option value="false">Off</option>
+            </select>
+          </label>
+        </div>
+        <label class="field">
+          <span>Constrained Bones (multi)</span>
+          <select id="pathBones" multiple size="4"></select>
+        </label>
+        <div class="field two-col">
+          <label>
+            <span>Position</span>
+            <input id="pathPosition" type="number" step="1" value="0" />
+          </label>
+          <label>
+            <span>Spacing</span>
+            <input id="pathSpacing" type="number" step="1" value="40" />
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Rotate Mix</span>
+            <input id="pathRotateMix" type="number" min="0" max="1" step="0.01" value="1" />
+          </label>
+          <label>
+            <span>Translate Mix</span>
+            <input id="pathTranslateMix" type="number" min="0" max="1" step="0.01" value="1" />
+          </label>
+        </div>
+        <label class="field">
+          <span>Closed Path</span>
+          <select id="pathClosed">
+            <option value="false" selected>No</option>
+            <option value="true">Yes</option>
+          </select>
+        </label>
+        <p id="pathHint" class="muted">Path is derived from target bone chain (target -> first-child chain).</p>
+      </section>
+
+      <section id="leftSkinTools" class="group left-tab-panel" data-left-panel="skin">
+        <h3>Skin</h3>
+        <label class="field">
+          <span>Weight Mode</span>
+          <select id="weightMode">
+            <option value="hard" selected>Hard (Single Bone)</option>
+            <option value="smooth">Smooth Blend</option>
+          </select>
+        </label>
+        <button id="autoWeightBtn">Auto Weight</button>
+      </section>
+
+      <section id="leftGeneralTools" class="group left-tab-panel" data-left-panel="tools">
+        <h3>Tools</h3>
+        <label>
+          <span>Available in current mode</span>
+        </label>
+        <div class="field two-col">
+          <button id="resetPoseBtn">Reset Pose</button>
+          <button id="resetVertexBtn">Reset Vertex</button>
+        </div>
+      </section>
+
+      <section id="slotMeshTools" class="group left-tab-panel" data-left-panel="slotmesh">
+        <h3>Slot Mesh Edit</h3>
+        <label class="field">
+          <span>New Contour Mode</span>
+          <select id="slotMeshNewMode">
+            <option value="new_slot" selected>Create New Slot (Shared Texture)</option>
+            <option value="reset_current">Reset Current Slot Contour</option>
+          </select>
+        </label>
+        <div class="field two-col">
+          <button id="slotMeshNewBtn">New Contour</button>
+          <button id="slotMeshCloseBtn">Close Loop</button>
+        </div>
+        <div class="field two-col">
+          <button id="slotMeshTriangulateBtn">Triangulate</button>
+          <button id="slotMeshGridFillBtn">Grid Fill</button>
+        </div>
+        <div class="field two-col">
+          <button id="slotMeshLinkEdgeBtn">Link Edge (L)</button>
+          <button id="slotMeshUnlinkEdgeBtn">Unlink Edge (U)</button>
+        </div>
+        <div class="field two-col">
+          <button id="slotMeshApplyBtn">Apply Mesh</button>
+          <button id="slotMeshResetBtn">Reset To Grid</button>
+        </div>
+        <p class="muted">Click add/drag vertices, Shift+Click pick 2 vertices, L/U link or unlink edge, Delete/X remove vertex.</p>
+      </section>
+
+      <p id="status" class="status">Load an image to start.</p>
+    </aside>
+
+    <main class="stage-wrap">
+      <div id="stage" class="stage">
+        <canvas id="glCanvas"></canvas>
+        <canvas id="overlay"></canvas>
+      </div>
+    </main>
+
+    <div class="right-col">
+      <aside class="right-tree">
+        <h2>Bone / Slot Tree</h2>
+        <div id="boneTree" class="bone-tree"></div>
+        <p class="muted">Spine-style hierarchy: bone -> slot.</p>
+      </aside>
+
+      <aside class="right-props">
+        <h2>Properties</h2>
+        <section class="group">
+          <h3>Slot</h3>
+          <label class="field">
+            <span>Name</span>
+            <input id="slotName" type="text" value="" />
+          </label>
+          <label class="field">
+            <span>Bone</span>
+            <select id="slotBone"></select>
+          </label>
+          <div class="field two-col">
+            <button id="slotBindBoneBtn">Bind to Selected Bone</button>
+            <button id="slotBindWeightedBtn">Use Selected Bones</button>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Visible</span>
+              <input id="slotVisible" type="checkbox" checked />
+            </label>
+            <label>
+              <span>Alpha</span>
+              <input id="slotAlpha" type="range" min="0" max="1" step="0.01" value="1" />
+            </label>
+          </div>
+          <label class="field">
+            <span>Color</span>
+            <input id="slotColor" type="color" value="#ffffff" />
+          </label>
+          <label class="field">
+            <span>Skinning</span>
+            <select id="slotWeightMode">
+              <option value="single" selected>Single Bone</option>
+              <option value="weighted">Weighted Mesh</option>
+              <option value="free">Free (No Bone)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Influence Bones</span>
+            <select id="slotInfluenceBones" multiple size="5"></select>
+          </label>
+          <div class="field two-col">
+            <label>
+              <span>Slot X</span>
+              <input id="slotTx" type="number" step="1" value="0" />
+            </label>
+            <label>
+              <span>Slot Y</span>
+              <input id="slotTy" type="number" step="1" value="0" />
+            </label>
+          </div>
+          <label class="field">
+            <span>Slot Rotation</span>
+            <input id="slotRot" type="range" min="-180" max="180" step="1" value="0" />
+          </label>
+          <div class="field two-col">
+            <button id="slotOrderUp">Slot Up</button>
+            <button id="slotOrderDown">Slot Down</button>
+          </div>
+        </section>
+        <div class="field">
+          <span>Selected Bone</span>
+          <select id="boneSelect"></select>
+        </div>
+        <label class="field">
+          <span>Bone Name</span>
+          <input id="boneName" type="text" value="" />
+        </label>
+        <label class="field">
+          <span>Parent</span>
+          <select id="boneParent"></select>
+        </label>
+        <label class="field">
+          <span>Bone Link</span>
+          <select id="boneConnect">
+            <option value="true" selected>Connected</option>
+            <option value="false">Disconnected</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Pose Length</span>
+          <select id="bonePoseLen">
+            <option value="false" selected>Lock</option>
+            <option value="true">Allow</option>
+          </select>
+        </label>
+        <div class="field two-col">
+          <label>
+            <span>TX</span>
+            <input id="boneTx" type="number" step="1" value="0" />
+          </label>
+          <label>
+            <span>TY</span>
+            <input id="boneTy" type="number" step="1" value="0" />
+          </label>
+        </div>
+        <label class="field">
+          <span>Rotation</span>
+          <input id="boneRot" type="range" min="-180" max="180" value="0" />
+        </label>
+        <label class="field">
+          <span>Length</span>
+          <input id="boneLen" type="number" min="1" step="1" value="100" />
+        </label>
+        <div class="field two-col">
+          <label>
+            <span>Scale X</span>
+            <input id="boneScaleX" type="number" step="0.01" value="1" />
+          </label>
+          <label>
+            <span>Scale Y</span>
+            <input id="boneScaleY" type="number" step="0.01" value="1" />
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Shear X</span>
+            <input id="boneShearX" type="number" step="0.1" value="0" />
+          </label>
+          <label>
+            <span>Shear Y</span>
+            <input id="boneShearY" type="number" step="0.1" value="0" />
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Head X</span>
+            <input id="boneHeadX" type="number" step="1" value="0" />
+          </label>
+          <label>
+            <span>Head Y</span>
+            <input id="boneHeadY" type="number" step="1" value="0" />
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Tip X</span>
+            <input id="boneTipX" type="number" step="1" value="0" />
+          </label>
+          <label>
+            <span>Tip Y</span>
+            <input id="boneTipY" type="number" step="1" value="0" />
+          </label>
+        </div>
+      </aside>
+    </div>
+
+    <div id="timelineResizer" class="timeline-resizer" title="Drag to resize timeline"></div>
+
+    <section class="timeline-dock">
+      <div class="timeline-head">Timeline</div>
+      <div class="field anim-toolbar">
+        <select id="animSelect" title="Animation"></select>
+        <button id="addAnimBtn">+Anim</button>
+        <button id="deleteAnimBtn">-Anim</button>
+        <button id="duplicateAnimBtn">Dup</button>
+        <input id="animName" type="text" value="Anim 1" placeholder="Name" title="Animation Name" />
+        <input id="animTime" type="number" min="0" step="0.01" value="0" title="Time" />
+        <input id="animDuration" type="number" min="0.1" step="0.1" value="5" title="Duration" />
+        <label class="mini-flag"><input id="animLoop" type="checkbox" checked />Loop</label>
+        <label class="mini-flag"><input id="animSnap" type="checkbox" />Snap</label>
+        <label class="mini-flag">FPS <input id="animFps" type="number" min="1" step="1" value="30" /></label>
+        <label class="mini-flag">Step <input id="animTimeStep" type="number" min="0.001" step="0.001" value="0.01" /></label>
+      </div>
+      <div class="field timeline-meta timeline-meta-tight">
+        <select id="trackSelect" title="Track"></select>
+        <input id="keyInfo" type="text" value="(none)" readonly title="Current Key" />
+      </div>
+      <div class="field timeline-actions">
+        <button id="addKeyBtn">+Key</button>
+        <button id="deleteKeyBtn">Del Key</button>
+        <button id="copyKeyBtn">Copy</button>
+        <button id="pasteKeyBtn">Paste</button>
+        <button id="playBtn">Play</button>
+        <button id="stopBtn">Stop</button>
+        <select id="animMixTo" title="Mix To Animation"></select>
+        <input id="animMixDur" type="number" min="0.01" step="0.01" value="0.2" title="Mix Duration (s)" />
+        <button id="animMixBtn" type="button">Mix To</button>
+        <input id="animMixInfo" type="text" value="State: idle" readonly title="Mix State" />
+      </div>
+      <div class="timeline-main">
+        <div id="timelineTracks" class="timeline-tracks"></div>
+        <aside id="curveEditorWrap" class="curve-side collapsed">
+          <div class="curve-side-head">Curve Editor</div>
+          <div class="curve-side-tools">
+            <select id="keyInterp" title="Interpolation">
+              <option value="linear" selected>Linear</option>
+              <option value="stepped">Stepped</option>
+              <option value="bezier">Bezier</option>
+            </select>
+            <button id="curveToggleBtn" type="button" title="Toggle Curve Editor">Curve</button>
+          </div>
+          <canvas id="curveEditor" width="280" height="170"></canvas>
+          <details class="event-side">
+            <summary>Events</summary>
+            <div class="event-side-grid">
+              <input id="eventName" type="text" value="event_hit" title="Event Name" />
+              <input id="eventInt" type="number" step="1" value="0" title="Event Int" />
+              <input id="eventFloat" type="number" step="0.01" value="0" title="Event Float" />
+              <input id="eventString" type="text" value="" title="Event String" />
+              <button id="addEventBtn" type="button">+Event</button>
+              <button id="deleteEventBtn" type="button">Del Event</button>
+              <select id="eventKeyList" title="Event Key List"></select>
+              <button id="eventJumpBtn" type="button">Jump</button>
+              <button id="eventDeleteSelBtn" type="button">Del Sel</button>
+            </div>
+          </details>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
