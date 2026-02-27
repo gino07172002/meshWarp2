@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="app">
+  <div id="appRoot" class="app">
     <header class="topbar">
       <div class="topbar-left">
         <button id="fileNewBtn">New</button>
@@ -15,11 +15,17 @@
         <button id="fileSaveBtn">Save</button>
         <button id="fileLoadBtn">Load</button>
         <button id="fileExportSpineBtn">Export Spine</button>
+        <button id="openExportPanelBtn" type="button">Export...</button>
+        <button id="commandPaletteBtn" type="button" title="Commands (Ctrl/Cmd+K)">Commands</button>
+        <div class="topbar-global-actions" aria-label="Global edit actions">
+          <button id="undoBtn" title="Undo (Ctrl/Cmd+Z)">Undo</button>
+          <button id="redoBtn" title="Redo (Ctrl/Cmd+Y, Ctrl/Cmd+Shift+Z)">Redo</button>
+        </div>
         <input id="fileInput" type="file" accept=".psd,image/*" multiple hidden />
         <input id="projectLoadInput" type="file" accept="application/json,.json" hidden />
       </div>
       <div class="topbar-mid">
-        <label>
+        <label id="editModeWrap">
           <span>Edit Mode</span>
           <select id="editMode">
             <option value="skeleton">Skeleton</option>
@@ -27,30 +33,61 @@
             <option value="slotmesh">Slot Mesh</option>
           </select>
         </label>
-        <label>
+        <label id="boneModeWrap">
           <span>Bone Mode</span>
           <select id="boneMode">
             <option value="edit" selected>Edit Rig</option>
             <option value="pose">Pose Animate</option>
           </select>
         </label>
-        <label>
+        <label id="slotSelectWrap">
           <span>Slot</span>
           <select id="slotSelect"></select>
         </label>
-        <label>
+        <label id="slotViewWrap">
           <span>Slot View</span>
           <select id="slotViewMode">
             <option value="single" selected>Single</option>
             <option value="all">All Visible</option>
           </select>
         </label>
+        <label id="activeSkinWrap">
+          <span>Active Skin</span>
+          <select id="activeSkinSelect"></select>
+        </label>
+        <div id="activeSkinQuickWrap" class="topbar-inline-actions" aria-label="Skin quick actions">
+          <button id="activeSkinAddBtn" type="button" title="Add skin from current setup">+Skin</button>
+          <button id="activeSkinCaptureBtn" type="button" title="Capture current attachments to selected skin">Capture</button>
+          <button id="activeSkinApplyBtn" type="button" title="Apply selected skin">Apply</button>
+        </div>
+        <label id="spineCompatWrap">
+          <span>Spine Compat</span>
+          <select id="spineCompat">
+            <option value="4.2" selected>4.2 Runtime</option>
+            <option value="4.1">4.1 Runtime</option>
+          </select>
+        </label>
+        <div id="viewZoomWrap" class="view-zoom" title="Canvas Zoom">
+          <button id="viewZoomOutBtn" type="button">-</button>
+          <button id="viewZoomResetBtn" type="button">100%</button>
+          <button id="viewZoomInBtn" type="button">+</button>
+        </div>
       </div>
       <div class="topbar-right muted">Blender-style Layout</div>
     </header>
 
-    <aside class="left-tools">
+    <aside id="leftTools" class="left-tools">
       <h2>Canvas Tools</h2>
+      <div id="workspaceTabs" class="workspace-tabs">
+        <button id="workspaceTabSlot" class="workspace-tab-btn" type="button">Slot Build</button>
+        <button id="workspaceTabRig" class="workspace-tab-btn" type="button">Rig</button>
+        <button id="workspaceTabAnimate" class="workspace-tab-btn" type="button">Animate</button>
+      </div>
+      <div id="animateSubTabs" class="animate-subtabs">
+        <button id="animSubTabTimeline" class="workspace-tab-btn" type="button">Timeline</button>
+        <button id="animSubTabLayers" class="workspace-tab-btn" type="button">Animation Layers</button>
+        <button id="animSubTabState" class="workspace-tab-btn" type="button">State Machine</button>
+      </div>
       <p id="leftToolModeHint" class="muted">Mode-aware tools</p>
       <div id="leftToolTabs" class="left-tool-tabs">
         <button id="leftTabSetup" class="left-tab-btn" data-left-tab="setup" type="button">Setup</button>
@@ -163,6 +200,28 @@
         <label class="field">
           <span>Mix</span>
           <input id="ikMix" type="range" min="0" max="1" step="0.01" value="1" />
+        </label>
+        <label class="field">
+          <span>Softness</span>
+          <input id="ikSoftness" type="number" min="0" step="0.1" value="0" />
+        </label>
+        <div class="field two-col">
+          <label class="slot-inline-check">
+            <input id="ikCompress" type="checkbox" />
+            <span>Compress</span>
+          </label>
+          <label class="slot-inline-check">
+            <input id="ikStretch" type="checkbox" />
+            <span>Stretch</span>
+          </label>
+        </div>
+        <label class="slot-inline-check">
+          <input id="ikUniform" type="checkbox" />
+          <span>Uniform</span>
+        </label>
+        <label class="slot-inline-check">
+          <input id="ikSkinRequired" type="checkbox" />
+          <span>Skin Required</span>
         </label>
         <div class="field two-col">
           <button id="ikMoveUpBtn" type="button">Move Up</button>
@@ -285,6 +344,10 @@
             <input id="tfcOffsetScaleY" type="number" step="0.01" value="0" />
           </label>
         </div>
+        <label class="slot-inline-check">
+          <input id="tfcSkinRequired" type="checkbox" />
+          <span>Skin Required</span>
+        </label>
         <p id="tfcHint" class="muted">Spine-like transform constraints. Timeline supports mix keyframes.</p>
       </section>
 
@@ -320,10 +383,30 @@
           <label>
             <span>Path Source</span>
             <select id="pathSourceType">
-              <option value="slot" selected>Slot Contour</option>
+              <option value="drawn" selected>Drawn Path</option>
+              <option value="slot">Slot Contour (Legacy)</option>
               <option value="bone_chain">Bone Chain</option>
             </select>
           </label>
+        </div>
+        <div class="field two-col">
+          <button id="pathDrawBtn" type="button">Draw On Canvas</button>
+          <button id="pathStopDrawBtn" type="button">Stop Draw</button>
+        </div>
+        <div class="field two-col">
+          <button id="pathCloseShapeBtn" type="button">Close Path</button>
+          <button id="pathClearShapeBtn" type="button">Clear Path</button>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Handle Mode</span>
+            <select id="pathHandleMode">
+              <option value="auto">Auto</option>
+              <option value="aligned" selected>Aligned</option>
+              <option value="broken">Broken</option>
+            </select>
+          </label>
+          <button id="pathApplyHandleModeBtn" type="button">Apply To Selected</button>
         </div>
         <div class="field two-col">
           <label>
@@ -344,6 +427,41 @@
         </label>
         <div class="field two-col">
           <label>
+            <span>Position Mode</span>
+            <select id="pathPositionMode">
+              <option value="fixed" selected>Fixed</option>
+              <option value="percent">Percent</option>
+            </select>
+          </label>
+          <label>
+            <span>Spacing Mode</span>
+            <select id="pathSpacingMode">
+              <option value="length" selected>Length</option>
+              <option value="fixed">Fixed</option>
+              <option value="percent">Percent</option>
+              <option value="proportional">Proportional</option>
+            </select>
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
+            <span>Rotate Mode</span>
+            <select id="pathRotateMode">
+              <option value="tangent" selected>Tangent</option>
+              <option value="chain">Chain</option>
+              <option value="chainScale">Chain Scale</option>
+            </select>
+          </label>
+          <label>
+            <span>Closed Path</span>
+            <select id="pathClosed">
+              <option value="false" selected>No</option>
+              <option value="true">Yes</option>
+            </select>
+          </label>
+        </div>
+        <div class="field two-col">
+          <label>
             <span>Position</span>
             <input id="pathPosition" type="number" step="1" value="0" />
           </label>
@@ -362,18 +480,31 @@
             <input id="pathTranslateMix" type="number" min="0" max="1" step="0.01" value="1" />
           </label>
         </div>
-        <label class="field">
-          <span>Closed Path</span>
-          <select id="pathClosed">
-            <option value="false" selected>No</option>
-            <option value="true">Yes</option>
-          </select>
+        <label class="slot-inline-check">
+          <input id="pathSkinRequired" type="checkbox" />
+          <span>Skin Required</span>
         </label>
-        <p id="pathHint" class="muted">Path is derived from target bone chain (target -> first-child chain).</p>
+        <p id="pathHint" class="muted">Default source is Drawn Path. Click Draw On Canvas, then click on canvas to place points.</p>
       </section>
 
       <section id="leftSkinTools" class="group left-tab-panel" data-left-panel="skin">
         <h3>Skin</h3>
+        <div class="field two-col">
+          <button id="skinAddBtn" type="button">+ Skin</button>
+          <button id="skinDeleteBtn" type="button">Del Skin</button>
+        </div>
+        <label class="field">
+          <span>Skin</span>
+          <select id="skinSelect"></select>
+        </label>
+        <label class="field">
+          <span>Skin Name</span>
+          <input id="skinName" type="text" value="" />
+        </label>
+        <div class="field two-col">
+          <button id="skinCaptureBtn" type="button">Capture Current</button>
+          <button id="skinApplyBtn" type="button">Apply Skin</button>
+        </div>
         <label class="field">
           <span>Weight Mode</span>
           <select id="weightMode">
@@ -393,6 +524,36 @@
           <button id="resetPoseBtn">Reset Pose</button>
           <button id="resetVertexBtn">Reset Vertex</button>
         </div>
+        <section id="vertexDeformTools" class="vertex-deform-tools">
+          <h4>Vertex Deform (FFD)</h4>
+          <label class="slot-inline-check">
+            <input id="vertexProportionalToggle" type="checkbox" checked />
+            <span>Proportional Edit (O)</span>
+          </label>
+          <label class="slot-inline-check">
+            <input id="vertexMirrorToggle" type="checkbox" />
+            <span>Mirror Edit (H)</span>
+          </label>
+          <label class="slot-inline-check">
+            <input id="vertexHeatmapToggle" type="checkbox" />
+            <span>Heatmap Preview (J)</span>
+          </label>
+          <div class="field two-col">
+            <label>
+              <span>Radius</span>
+              <input id="vertexProportionalRadius" type="number" min="4" max="400" step="1" value="80" />
+            </label>
+            <label>
+              <span>Falloff</span>
+              <select id="vertexProportionalFalloff">
+                <option value="smooth" selected>Smooth</option>
+                <option value="linear">Linear</option>
+                <option value="sharp">Sharp</option>
+              </select>
+            </label>
+          </div>
+          <p class="muted">Drag vertex in Vertex mode to move nearby vertices smoothly. Hotkeys: O, H, J, [, ], Shift+[ / ], Alt+Wheel radius, Shift/Ctrl+Click multi-select, box select drag, P pin, U unpin, M relax</p>
+        </section>
       </section>
 
       <section id="slotMeshTools" class="group left-tab-panel" data-left-panel="slotmesh">
@@ -412,6 +573,10 @@
           <button id="slotMeshTriangulateBtn">Triangulate</button>
           <button id="slotMeshGridFillBtn">Grid Fill</button>
         </div>
+        <label class="slot-inline-check">
+          <input id="slotMeshGridReplaceContour" type="checkbox" />
+          <span>Grid Fill replaces contour points with uniform grid points</span>
+        </label>
         <div class="field two-col">
           <button id="slotMeshLinkEdgeBtn">Link Edge (L)</button>
           <button id="slotMeshUnlinkEdgeBtn">Unlink Edge (U)</button>
@@ -433,21 +598,153 @@
       </div>
     </main>
 
-    <div class="right-col">
-      <aside class="right-tree">
+    <div id="rightCol" class="right-col">
+      <aside id="rightTree" class="right-tree">
         <h2>Bone / Slot Tree</h2>
+        <div class="tree-tools">
+          <button id="boneTreeOnlyActiveSlotBtn" type="button" title="Show only current active slot in tree">Only Active Slot</button>
+        </div>
         <div id="boneTree" class="bone-tree"></div>
-        <p class="muted">Spine-style hierarchy: bone -> slot.</p>
+        <p class="muted">Spine-style hierarchy: bone -> slot. Drag slot row to reorder/assign bone, click [+]/[-] on bone to fold slots, and double-click or right-click to rename slot.</p>
+        <div id="boneTreeContextMenu" class="context-menu collapsed" role="menu" aria-label="Bone tree actions">
+          <button id="treeCtxSlotAddBtn" type="button" role="menuitem">+ Slot</button>
+          <button id="treeCtxSlotDupBtn" type="button" role="menuitem">Duplicate Slot</button>
+          <button id="treeCtxSlotRenameBtn" type="button" role="menuitem">Rename Slot</button>
+          <button id="treeCtxSlotDeleteBtn" type="button" role="menuitem">Delete Slot</button>
+          <button id="treeCtxSlotLoadImageBtn" type="button" role="menuitem">Load Image</button>
+        </div>
       </aside>
 
-      <aside class="right-props">
+      <aside id="rightProps" class="right-props">
         <h2>Properties</h2>
-        <section class="group">
+        <section id="slotPropsGroup" class="group">
           <h3>Slot</h3>
           <label class="field">
             <span>Name</span>
             <input id="slotName" type="text" value="" />
           </label>
+          <label class="field">
+            <span>Attachment</span>
+            <select id="slotAttachment">
+              <option value="__none__">(none)</option>
+              <option value="main" selected>main</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Attachment Name</span>
+            <input id="slotAttachmentName" type="text" value="" />
+          </label>
+          <label class="field">
+            <span>Slot Placeholder</span>
+            <input id="slotPlaceholderName" type="text" value="main" />
+          </label>
+          <label class="field">
+            <span>Attachment Placeholder</span>
+            <input id="slotAttachmentPlaceholderName" type="text" value="main" />
+          </label>
+          <div class="field two-col">
+            <label>
+              <span>Attachment Type</span>
+              <select id="slotAttachmentType">
+                <option value="region" selected>Region</option>
+                <option value="mesh">Mesh</option>
+                <option value="linkedmesh">Linked Mesh</option>
+                <option value="boundingbox">Bounding Box</option>
+                <option value="point">Point</option>
+              </select>
+            </label>
+            <label>
+              <span>Linked Parent</span>
+              <select id="slotAttachmentLinkedParent"></select>
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Point X</span>
+              <input id="slotAttachmentPointX" type="number" step="1" value="0" />
+            </label>
+            <label>
+              <span>Point Y</span>
+              <input id="slotAttachmentPointY" type="number" step="1" value="0" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Point Rot</span>
+              <input id="slotAttachmentPointRot" type="number" step="1" value="0" />
+            </label>
+            <label>
+              <span>BBox Source</span>
+              <select id="slotAttachmentBBoxSource">
+                <option value="fill" selected>Fill Polygon</option>
+                <option value="contour">Contour Polygon</option>
+              </select>
+            </label>
+          </div>
+          <div class="field two-col">
+            <label class="slot-inline-check">
+              <input id="slotAttachmentSequenceEnabled" type="checkbox" />
+              <span>Sequence</span>
+            </label>
+            <label>
+              <span>Seq Count</span>
+              <input id="slotAttachmentSequenceCount" type="number" min="1" step="1" value="1" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Seq Start</span>
+              <input id="slotAttachmentSequenceStart" type="number" min="0" step="1" value="0" />
+            </label>
+            <label>
+              <span>Seq Digits</span>
+              <input id="slotAttachmentSequenceDigits" type="number" min="1" step="1" value="2" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <button id="slotAttachmentAddBtn" type="button">+ Attachment</button>
+            <button id="slotAttachmentDeleteBtn" type="button">Del Attachment</button>
+          </div>
+          <div class="field two-col">
+            <button id="slotAttachmentRenameBtn" type="button">Rename</button>
+            <button id="slotAttachmentLoadBtn" type="button">Load Image</button>
+            <input id="slotAttachmentFileInput" type="file" accept="image/*" hidden />
+          </div>
+          <section class="slot-subgroup">
+            <div class="slot-subhead">Clipping</div>
+            <label class="slot-inline-check">
+              <input id="slotClipEnabled" type="checkbox" />
+              <span>Enable Clipping</span>
+            </label>
+            <div class="field two-col slot-compact-row">
+              <label>
+                <span>Source</span>
+                <select id="slotClipSource">
+                  <option value="fill" selected>Fill Polygon</option>
+                  <option value="contour">Contour Polygon</option>
+                </select>
+              </label>
+              <label>
+                <span>End Slot</span>
+                <select id="slotClipEnd"></select>
+              </label>
+            </div>
+            <div class="field two-col slot-compact-row">
+              <button id="slotClipSetKeyBtn" type="button">Set Clip Key</button>
+              <button id="slotClipDelKeyBtn" type="button">Del Clip Key</button>
+            </div>
+            <div class="field two-col slot-compact-row">
+              <button id="slotClipSourceSetKeyBtn" type="button">Set Source Key</button>
+              <button id="slotClipSourceDelKeyBtn" type="button">Del Source Key</button>
+            </div>
+            <div class="field slot-compact-row">
+              <button id="slotClipComboSetKeyBtn" type="button">Set Clip+Src+End Key</button>
+            </div>
+            <div class="field two-col slot-compact-row">
+              <button id="slotClipEndSetKeyBtn" type="button">Set End Key</button>
+              <button id="slotClipEndDelKeyBtn" type="button">Del End Key</button>
+            </div>
+          </section>
           <label class="field">
             <span>Bone</span>
             <select id="slotBone"></select>
@@ -458,7 +755,7 @@
           </div>
           <div class="field two-col">
             <label>
-              <span>Visible</span>
+              <span>Show In Editor</span>
               <input id="slotVisible" type="checkbox" checked />
             </label>
             <label>
@@ -469,6 +766,25 @@
           <label class="field">
             <span>Color</span>
             <input id="slotColor" type="color" value="#ffffff" />
+          </label>
+          <div class="field two-col">
+            <label>
+              <span>Blend</span>
+              <select id="slotBlend">
+                <option value="normal" selected>Normal</option>
+                <option value="additive">Additive</option>
+                <option value="multiply">Multiply</option>
+                <option value="screen">Screen</option>
+              </select>
+            </label>
+            <label class="slot-inline-check">
+              <input id="slotDarkEnabled" type="checkbox" />
+              <span>Dark Tint</span>
+            </label>
+          </div>
+          <label class="field">
+            <span>Dark Color</span>
+            <input id="slotDarkColor" type="color" value="#000000" />
           </label>
           <label class="field">
             <span>Skinning</span>
@@ -501,6 +817,8 @@
             <button id="slotOrderDown">Slot Down</button>
           </div>
         </section>
+        <section id="bonePropsGroup" class="group">
+        <h3>Bone</h3>
         <div class="field">
           <span>Selected Bone</span>
           <select id="boneSelect"></select>
@@ -512,6 +830,16 @@
         <label class="field">
           <span>Parent</span>
           <select id="boneParent"></select>
+        </label>
+        <label class="field">
+          <span>Transform Inherit</span>
+          <select id="boneInherit">
+            <option value="normal" selected>Normal</option>
+            <option value="onlyTranslation">Only Translation</option>
+            <option value="noRotationOrReflection">No Rotation Or Reflection</option>
+            <option value="noScale">No Scale</option>
+            <option value="noScaleOrReflection">No Scale Or Reflection</option>
+          </select>
         </label>
         <label class="field">
           <span>Bone Link</span>
@@ -585,12 +913,32 @@
             <input id="boneTipY" type="number" step="1" value="0" />
           </label>
         </div>
+        </section>
+        <section id="diagnosticsGroup" class="group diagnostics-group">
+          <h3>Diagnostics</h3>
+          <div class="field two-col">
+            <button id="diagnosticsRunBtn" type="button">Run Diagnostics</button>
+            <label class="slot-inline-check">
+              <input id="diagnosticsExportCheck" type="checkbox" checked />
+              <span>Include Export Check</span>
+            </label>
+          </div>
+          <div class="field two-col">
+            <button id="diagnosticsAutoFixBtn" type="button">Auto Fix (Safe)</button>
+            <button id="diagnosticsClearBtn" type="button">Clear</button>
+          </div>
+          <div class="field two-col diagnostics-summary">
+            <div><strong id="diagnosticsErrorsCount">0</strong> Errors</div>
+            <div><strong id="diagnosticsWarningsCount">0</strong> Warnings</div>
+          </div>
+          <div id="diagnosticsList" class="diagnostics-list muted">Run diagnostics to view issues.</div>
+        </section>
       </aside>
     </div>
 
     <div id="timelineResizer" class="timeline-resizer" title="Drag to resize timeline"></div>
 
-    <section class="timeline-dock">
+    <section id="timelineDock" class="timeline-dock">
       <div class="timeline-head">Timeline</div>
       <div class="field anim-toolbar">
         <select id="animSelect" title="Animation"></select>
@@ -608,9 +956,22 @@
       <div class="field timeline-meta timeline-meta-tight">
         <select id="trackSelect" title="Track"></select>
         <input id="keyInfo" type="text" value="(none)" readonly title="Current Key" />
+        <input id="timelineFilter" type="text" value="" placeholder="Filter tracks" title="Filter tracks" />
+        <label class="mini-flag"><input id="timelineOnlyKeyed" type="checkbox" />Only Keyed</label>
+        <button id="timelineClearSoloMuteBtn" type="button" title="Clear all solo/mute">Clear S/M</button>
       </div>
       <div class="field timeline-actions">
+        <button id="autoKeyBtn" title="Auto Key">● Rec</button>
         <button id="addKeyBtn">+Key</button>
+        <button id="addAttachmentKeyBtn">Set Attach Key</button>
+        <button id="addClipKeyBtn">Set Clip Key</button>
+        <button id="addClipSourceKeyBtn">Set ClipSrc Key</button>
+        <button id="addClipComboKeyBtn">Set Clip+End Key</button>
+        <button id="addClipEndKeyBtn">Set ClipEnd Key</button>
+        <button id="addDrawOrderKeyBtn">Set DrawOrder Key</button>
+        <button id="loopMakeSeamBtn" type="button">Loop Seam</button>
+        <button id="loopPingPongBtn" type="button">Loop PingPong</button>
+        <button id="drawOrderToggleBtn" type="button">DrawOrder Edit</button>
         <button id="deleteKeyBtn">Del Key</button>
         <button id="copyKeyBtn">Copy</button>
         <button id="pasteKeyBtn">Paste</button>
@@ -620,6 +981,22 @@
         <input id="animMixDur" type="number" min="0.01" step="0.01" value="0.2" title="Mix Duration (s)" />
         <button id="animMixBtn" type="button">Mix To</button>
         <input id="animMixInfo" type="text" value="State: idle" readonly title="Mix State" />
+        <label class="mini-flag"><input id="onionEnabled" type="checkbox" />Onion</label>
+        <label class="mini-flag">Prev <input id="onionPrev" type="number" min="0" max="12" step="1" value="2" /></label>
+        <label class="mini-flag">Next <input id="onionNext" type="number" min="0" max="12" step="1" value="2" /></label>
+        <label class="mini-flag">A <input id="onionAlpha" type="number" min="0.01" max="1" step="0.01" value="0.22" /></label>
+      </div>
+      <div id="drawOrderEditor" class="field draworder-editor collapsed">
+        <div class="draworder-head">Draw Order Editor</div>
+        <div class="draworder-body">
+          <select id="drawOrderList" size="6" title="Draw Order List"></select>
+          <div class="draworder-actions">
+            <button id="drawOrderUpBtn" type="button">Up</button>
+            <button id="drawOrderDownBtn" type="button">Down</button>
+            <button id="drawOrderApplyBtn" type="button">Apply</button>
+            <button id="drawOrderApplyKeyBtn" type="button">Apply +Key</button>
+          </div>
+        </div>
       </div>
       <div class="timeline-main">
         <div id="timelineTracks" class="timeline-tracks"></div>
@@ -631,6 +1008,7 @@
               <option value="stepped">Stepped</option>
               <option value="bezier">Bezier</option>
             </select>
+            <button id="keyInterpApplySelectedBtn" type="button" title="Apply interpolation to selected keys">Apply Sel</button>
             <button id="curveToggleBtn" type="button" title="Toggle Curve Editor">Curve</button>
           </div>
           <canvas id="curveEditor" width="280" height="170"></canvas>
@@ -650,6 +1028,149 @@
           </details>
         </aside>
       </div>
+    </section>
+
+    <section id="exportDock" class="export-dock">
+      <div class="timeline-head">Export</div>
+      <p class="muted">Preview and batch export are isolated from timeline editing.</p>
+      <div class="field timeline-actions">
+        <button id="exportPreviewWebmBtn" type="button" title="Export preview as WebM">Preview WebM</button>
+        <button id="exportPreviewGifBtn" type="button" title="Export preview as GIF">Preview GIF</button>
+        <button id="batchExportToggleBtn" type="button" title="Batch export multiple animations">Batch Export</button>
+      </div>
+      <div id="batchExportPanel" class="field batch-export-panel collapsed">
+        <label>Format
+          <select id="batchExportFormat">
+            <option value="webm" selected>WebM</option>
+            <option value="gif">GIF</option>
+            <option value="pngseq">PNG Sequence</option>
+          </select>
+        </label>
+        <label>FPS
+          <input id="batchExportFps" type="number" min="1" max="60" step="1" value="15" />
+        </label>
+        <label>Prefix
+          <input id="batchExportPrefix" type="text" value="batch" />
+        </label>
+        <label>Retry
+          <input id="batchExportRetries" type="number" min="0" max="5" step="1" value="1" />
+        </label>
+        <label>Delay(ms)
+          <input id="batchExportDelayMs" type="number" min="0" max="5000" step="10" value="120" />
+        </label>
+        <label class="slot-inline-check">
+          <input id="batchExportZipPng" type="checkbox" checked />
+          <span>PNG Zip</span>
+        </label>
+        <select id="batchExportAnimList" multiple size="5" title="Animations for batch export"></select>
+        <div class="batch-export-actions">
+          <button id="batchExportSelectAllBtn" type="button">All</button>
+          <button id="batchExportSelectNoneBtn" type="button">None</button>
+          <button id="batchExportRunBtn" type="button">Export Selected</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="stateDock" class="state-dock">
+      <div class="timeline-head">State Machine</div>
+      <p class="muted">State and transition tools are isolated from timeline editing.</p>
+      <div class="field timeline-layerbar">
+        <span class="mini-label">State Machine</span>
+        <label class="mini-flag"><input id="smEnabled" type="checkbox" checked />On</label>
+        <select id="smStateSelect" title="State"></select>
+        <button id="smStateAddBtn" type="button">+State</button>
+        <button id="smStateDeleteBtn" type="button">-State</button>
+        <input id="smStateName" type="text" value="" title="State Name" />
+        <select id="smStateAnim" title="State Animation"></select>
+        <select id="smTransitionTo" title="Transition Target"></select>
+        <input id="smTransitionDur" type="number" min="0.01" step="0.01" value="0.2" title="Transition Duration" />
+        <button id="smTransitionAddBtn" type="button">+Transition</button>
+        <select id="smTransitionList" title="Transition List"></select>
+        <button id="smTransitionDeleteBtn" type="button">-Transition</button>
+        <button id="smTransitionGoBtn" type="button">Go</button>
+      </div>
+      <div class="field timeline-layerbar">
+        <span class="mini-label">SM Params</span>
+        <select id="smParamSelect" title="State Parameter"></select>
+        <button id="smParamAddBtn" type="button">+Param</button>
+        <button id="smParamDeleteBtn" type="button">-Param</button>
+        <input id="smParamName" type="text" value="" title="Parameter Name" />
+        <select id="smParamType" title="Parameter Type">
+          <option value="float" selected>Float</option>
+          <option value="bool">Bool</option>
+        </select>
+        <input id="smParamDefault" type="text" value="0" title="Default Value" />
+        <input id="smParamValue" type="text" value="0" title="Current Value" />
+        <button id="smParamSetBtn" type="button">Set</button>
+        <button id="smParamKeyBtn" type="button">Set Param Key</button>
+        <span class="mini-label">Conditions</span>
+        <label class="mini-flag"><input id="smTransitionAuto" type="checkbox" />Auto</label>
+        <select id="smCondParam" title="Condition Parameter"></select>
+        <select id="smCondOp" title="Condition Operator">
+          <option value="eq" selected>==</option>
+          <option value="neq">!=</option>
+          <option value="gt">&gt;</option>
+          <option value="gte">&gt;=</option>
+          <option value="lt">&lt;</option>
+          <option value="lte">&lt;=</option>
+        </select>
+        <input id="smCondValue" type="text" value="0" title="Condition Value" />
+        <button id="smCondAddBtn" type="button">+Cond</button>
+        <select id="smCondList" title="Transition Conditions"></select>
+        <button id="smCondDeleteBtn" type="button">-Cond</button>
+      </div>
+      <div class="field timeline-layerbar">
+        <span class="mini-label">SM Bridge</span>
+        <button id="smBridgeExportBtn" type="button" title="Export state machine bridge metadata JSON">Export Bridge JSON</button>
+        <button id="smBridgeCodeBtn" type="button" title="Export Unity/JS integration sample code">Export Bridge Code</button>
+        <select id="smBridgeParamSelect" title="Bridge Test Param"></select>
+        <input id="smBridgeParamValue" type="text" value="0" title="Bridge Test Value" />
+        <button id="smBridgeSetBtn" type="button" title="Apply via runtime bridge API">Apply Param</button>
+        <input id="smBridgeApiInfo" type="text" value="window.setAnimParam(name, value)" readonly title="Runtime Bridge API" />
+      </div>
+    </section>
+
+    <section id="layerDock" class="layer-dock">
+      <div class="timeline-head">Layers</div>
+      <p class="muted">Layer mixing and masking are isolated from timeline editing.</p>
+      <div class="field timeline-layerbar">
+        <span class="mini-label">Layers</span>
+        <select id="layerTrackSelect" title="Layer Track"></select>
+        <button id="layerTrackAddBtn" type="button">+Layer</button>
+        <button id="layerTrackDeleteBtn" type="button">-Layer</button>
+        <label class="mini-flag"><input id="layerTrackEnabled" type="checkbox" checked />On</label>
+        <select id="layerTrackAnim" title="Layer Animation"></select>
+        <label class="mini-flag"><input id="layerTrackLoop" type="checkbox" checked />Loop</label>
+        <label class="mini-flag">Spd <input id="layerTrackSpeed" type="number" step="0.01" value="1" /></label>
+        <label class="mini-flag">Off <input id="layerTrackOffset" type="number" step="0.01" value="0" /></label>
+        <label class="mini-flag">A <input id="layerTrackAlpha" type="number" min="0" max="1" step="0.01" value="1" /></label>
+        <select id="layerTrackMode" title="Blend Mode">
+          <option value="replace" selected>Replace</option>
+          <option value="add">Add</option>
+        </select>
+        <select id="layerTrackMaskMode" title="Bone Mask">
+          <option value="all" selected>Mask: All</option>
+          <option value="include">Mask: Include</option>
+          <option value="exclude">Mask: Exclude</option>
+        </select>
+        <select id="layerTrackBone" title="Pick Bone"></select>
+        <button id="layerTrackBoneAddBtn" type="button">+Bone</button>
+        <button id="layerTrackBoneClearBtn" type="button">Clear</button>
+        <input id="layerTrackBoneList" type="text" value="" readonly title="Masked Bones" />
+      </div>
+    </section>
+  </div>
+
+  <div id="commandPaletteWrap" class="command-palette-wrap collapsed" aria-hidden="true">
+    <div id="commandPaletteBackdrop" class="command-palette-backdrop"></div>
+    <section id="commandPalettePanel" class="command-palette-panel" role="dialog" aria-modal="true" aria-label="Command Palette">
+      <div class="command-palette-head">
+        <strong>Command Palette</strong>
+        <span id="commandPaletteMode" class="muted">All Commands</span>
+      </div>
+      <input id="commandPaletteInput" type="text" placeholder="Type to search commands and hotkeys..." autocomplete="off" />
+      <div id="commandPaletteHint" class="muted">Enter run, Esc close, ? hotkeys only.</div>
+      <div id="commandPaletteList" class="command-palette-list"></div>
     </section>
   </div>
 

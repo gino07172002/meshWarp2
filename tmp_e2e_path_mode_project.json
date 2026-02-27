@@ -1,0 +1,182 @@
+{
+  "version": 2,
+  "export": {
+    "spineCompat": "4.2"
+  },
+  "slotMeshGridReplaceContour": false,
+  "imageWidth": 16,
+  "imageHeight": 16,
+  "gridX": 24,
+  "gridY": 24,
+  "rigBones": [
+    {
+      "name": "slot_root_0",
+      "parent": -1,
+      "inherit": "normal",
+      "tx": 8,
+      "ty": 8,
+      "rot": -1.5707963267948966,
+      "length": 16,
+      "sx": 1,
+      "sy": 1,
+      "shx": 0,
+      "shy": 0,
+      "connected": true,
+      "poseLenEditable": false
+    }
+  ],
+  "ikConstraints": [],
+  "transformConstraints": [],
+  "pathConstraints": [
+    {
+      "name": "path_0",
+      "bones": [
+        0
+      ],
+      "target": 0,
+      "sourceType": "slot",
+      "targetSlot": 0,
+      "points": [],
+      "positionMode": "percent",
+      "spacingMode": "proportional",
+      "rotateMode": "chainScale",
+      "position": 35,
+      "spacing": 22,
+      "rotateMix": 0.65,
+      "translateMix": 0.4,
+      "skinRequired": false,
+      "closed": false,
+      "order": 0,
+      "enabled": true
+    }
+  ],
+  "animations": [
+    {
+      "id": "anim_mm2vt8zl_pnevs",
+      "name": "Anim 1",
+      "duration": 5,
+      "tracks": {
+        "deform:0": [],
+        "event:timeline": [],
+        "draworder:timeline": [],
+        "slot:0:attachment": [],
+        "slot:0:clip": [],
+        "slot:0:clipSource": [],
+        "slot:0:clipEnd": [],
+        "slot:0:color": [],
+        "bone:0:translate": [],
+        "bone:0:rotate": [],
+        "bone:0:scale": [],
+        "bone:0:scaleX": [],
+        "bone:0:scaleY": [],
+        "bone:0:shearX": [],
+        "bone:0:shearY": [],
+        "pth:0:position": [],
+        "pth:0:spacing": [],
+        "pth:0:rotateMix": [],
+        "pth:0:translateMix": []
+      }
+    }
+  ],
+  "animationState": {
+    "layerTracks": [],
+    "selectedLayerTrackId": "",
+    "stateMachine": {
+      "enabled": true,
+      "states": [
+        {
+          "id": "st_mm2vt8ts_oh4y5",
+          "name": "State 1",
+          "animId": "",
+          "transitions": []
+        }
+      ],
+      "parameters": [],
+      "currentStateId": "st_mm2vt8ts_oh4y5",
+      "selectedParamId": "",
+      "selectedTransitionId": "",
+      "selectedConditionId": "",
+      "pendingStateId": "",
+      "pendingDuration": 0.2
+    }
+  },
+  "skinSets": [
+    {
+      "id": "skin_mm2vt8tx_mv5tn3",
+      "name": "default",
+      "slotAttachments": {},
+      "slotPlaceholderAttachments": {}
+    }
+  ],
+  "selectedSkinSet": 0,
+  "slotViewMode": "single",
+  "activeSlot": 0,
+  "slotImages": [
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAKElEQVR4AeyTMQ0AAAyDSP173jINPfaAgB6kZEpCiQOgAx1cRv8/WAAAAP//KtUEDAAAAAZJREFUAwA79T/hrZRdJwAAAABJRU5ErkJggg=="
+  ],
+  "slots": [
+    {
+      "id": "slot_mm2vt8zg_epaz7b",
+      "name": "tmp_e2e_path_mode_big",
+      "attachmentName": "main",
+      "placeholderName": "main",
+      "activeAttachment": "main",
+      "editorVisible": true,
+      "bone": 0,
+      "visible": true,
+      "alpha": 1,
+      "r": 1,
+      "g": 1,
+      "b": 1,
+      "tx": 0,
+      "ty": 0,
+      "rot": 0,
+      "useWeights": true,
+      "weightBindMode": "auto",
+      "weightMode": "weighted",
+      "influenceBones": [
+        0
+      ],
+      "clipEnabled": false,
+      "clipSource": "fill",
+      "clipEndSlotId": null,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "docWidth": 16,
+      "docHeight": 16,
+      "imageIndex": 0,
+      "attachments": [
+        {
+          "name": "main",
+          "placeholder": "main",
+          "imageIndex": 0,
+          "type": "region",
+          "linkedParent": "",
+          "pointX": 0,
+          "pointY": 0,
+          "pointRot": 0,
+          "bboxSource": "fill",
+          "sequence": {
+            "enabled": false,
+            "count": 1,
+            "start": 0,
+            "digits": 2
+          }
+        }
+      ],
+      "meshContour": {
+        "points": [],
+        "closed": false,
+        "triangles": [],
+        "fillPoints": [],
+        "fillTriangles": [],
+        "manualEdges": [],
+        "fillManualEdges": []
+      }
+    }
+  ]
+}

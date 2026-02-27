@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "api": {
+    "set": "window.setAnimParam(name, value)",
+    "get": "window.getAnimParam(name)",
+    "list": "window.listAnimParams()"
+  },
+  "stateMachine": {
+    "enabled": true,
+    "currentStateId": "st_mm2zysyt_ba3fd",
+    "states": [
+      {
+        "id": "st_mm2zysyt_ba3fd",
+        "name": "State 1",
+        "animId": "",
+        "transitions": []
+      }
+    ],
+    "parameters": [
+      {
+        "id": "pm_mm2zyt38_zex7s",
+        "name": "speed",
+        "type": "float",
+        "defaultValue": 0,
+        "value": 1.25
+      }
+    ]
+  }
+}

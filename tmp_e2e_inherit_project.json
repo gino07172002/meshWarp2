@@ -1,0 +1,156 @@
+{
+  "version": 2,
+  "export": {
+    "spineCompat": "4.2"
+  },
+  "slotMeshGridReplaceContour": false,
+  "imageWidth": 1,
+  "imageHeight": 1,
+  "gridX": 24,
+  "gridY": 24,
+  "rigBones": [
+    {
+      "name": "slot_root_0",
+      "parent": -1,
+      "inherit": "noScale",
+      "tx": 0.5,
+      "ty": 0.5,
+      "rot": -1.5707963267948966,
+      "length": 16,
+      "sx": 1,
+      "sy": 1,
+      "shx": 0,
+      "shy": 0,
+      "connected": true,
+      "poseLenEditable": false
+    }
+  ],
+  "ikConstraints": [],
+  "transformConstraints": [],
+  "pathConstraints": [],
+  "animations": [
+    {
+      "id": "anim_mm2vu8kw_3bkgm",
+      "name": "Anim 1",
+      "duration": 5,
+      "tracks": {
+        "deform:0": [],
+        "event:timeline": [],
+        "draworder:timeline": [],
+        "slot:0:attachment": [],
+        "slot:0:clip": [],
+        "slot:0:clipSource": [],
+        "slot:0:clipEnd": [],
+        "slot:0:color": [],
+        "bone:0:translate": [],
+        "bone:0:rotate": [],
+        "bone:0:scale": [],
+        "bone:0:scaleX": [],
+        "bone:0:scaleY": [],
+        "bone:0:shearX": [],
+        "bone:0:shearY": []
+      }
+    }
+  ],
+  "animationState": {
+    "layerTracks": [],
+    "selectedLayerTrackId": "",
+    "stateMachine": {
+      "enabled": true,
+      "states": [
+        {
+          "id": "st_mm2vu8el_n1q3j",
+          "name": "State 1",
+          "animId": "",
+          "transitions": []
+        }
+      ],
+      "parameters": [],
+      "currentStateId": "st_mm2vu8el_n1q3j",
+      "selectedParamId": "",
+      "selectedTransitionId": "",
+      "selectedConditionId": "",
+      "pendingStateId": "",
+      "pendingDuration": 0.2
+    }
+  },
+  "skinSets": [
+    {
+      "id": "skin_mm2vu8ew_x4s6io",
+      "name": "default",
+      "slotAttachments": {},
+      "slotPlaceholderAttachments": {}
+    }
+  ],
+  "selectedSkinSet": 0,
+  "slotViewMode": "single",
+  "activeSlot": 0,
+  "slotImages": [
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADklEQVR4AWL6////fwAAAAD//w7I1cwAAAAGSURBVAMACgUD/9k79a8AAAAASUVORK5CYII="
+  ],
+  "slots": [
+    {
+      "id": "slot_mm2vu8kt_sa882l",
+      "name": "tmp_e2e_inherit",
+      "attachmentName": "main",
+      "placeholderName": "main",
+      "activeAttachment": "main",
+      "editorVisible": true,
+      "bone": 0,
+      "visible": true,
+      "alpha": 1,
+      "r": 1,
+      "g": 1,
+      "b": 1,
+      "tx": 0,
+      "ty": 0,
+      "rot": 0,
+      "useWeights": true,
+      "weightBindMode": "auto",
+      "weightMode": "weighted",
+      "influenceBones": [
+        0
+      ],
+      "clipEnabled": false,
+      "clipSource": "fill",
+      "clipEndSlotId": null,
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1
+      },
+      "docWidth": 1,
+      "docHeight": 1,
+      "imageIndex": 0,
+      "attachments": [
+        {
+          "name": "main",
+          "placeholder": "main",
+          "imageIndex": 0,
+          "type": "region",
+          "linkedParent": "",
+          "pointX": 0,
+          "pointY": 0,
+          "pointRot": 0,
+          "bboxSource": "fill",
+          "sequence": {
+            "enabled": false,
+            "count": 1,
+            "start": 0,
+            "digits": 2
+          }
+        }
+      ],
+      "meshContour": {
+        "points": [],
+        "closed": false,
+        "triangles": [],
+        "fillPoints": [],
+        "fillTriangles": [],
+        "manualEdges": [],
+        "fillManualEdges": []
+      }
+    }
+  ]
+}
