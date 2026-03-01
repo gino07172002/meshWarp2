@@ -1,7 +1,0 @@
-tmp_e2e_bundle.png
-	size: 5, 5
-	format: RGBA8888
-	filter: Linear, Linear
-	repeat: none
-main
-	bounds: 2, 2, 1, 1

@@ -1,79 +1,115 @@
 ﻿<!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Web Spine-like Mesh Deformer</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
   <div id="appRoot" class="app">
     <header class="topbar">
-      <div class="topbar-left">
-        <button id="fileNewBtn">New</button>
-        <button id="fileOpenBtn">Import Image/PSD</button>
-        <button id="fileSaveBtn">Save</button>
-        <button id="fileLoadBtn">Load</button>
-        <button id="fileExportSpineBtn">Export Spine</button>
-        <button id="openExportPanelBtn" type="button">Export...</button>
-        <button id="commandPaletteBtn" type="button" title="Commands (Ctrl/Cmd+K)">Commands</button>
-        <div class="topbar-global-actions" aria-label="Global edit actions">
-          <button id="undoBtn" title="Undo (Ctrl/Cmd+Z)">Undo</button>
-          <button id="redoBtn" title="Redo (Ctrl/Cmd+Y, Ctrl/Cmd+Shift+Z)">Redo</button>
+      <nav id="appMenuBar" class="app-menubar" aria-label="Application menu">
+        <div class="menu-root" data-menu-root>
+          <button class="menu-root-btn" type="button" data-menu-trigger="file" aria-haspopup="true"
+            aria-expanded="false">File</button>
+          <div class="menu-panel" data-menu-panel="file" role="menu">
+            <button type="button" role="menuitem" data-menu-action="file.new"><span>New Project</span><span
+                class="menu-shortcut">Ctrl+N</span></button>
+            <button type="button" role="menuitem" data-menu-action="file.import"><span>Import Image/PSD</span><span
+                class="menu-shortcut">Ctrl+O</span></button>
+            <hr />
+            <button type="button" role="menuitem" data-menu-action="file.save"><span>Save Project</span><span
+                class="menu-shortcut">Ctrl+S</span></button>
+            <button type="button" role="menuitem" data-menu-action="file.load"><span>Load Project</span><span
+                class="menu-shortcut">Ctrl+L</span></button>
+            <hr />
+            <button type="button" role="menuitem" data-menu-action="file.export"><span>Export Spine</span><span
+                class="menu-shortcut">Ctrl+E</span></button>
+          </div>
         </div>
-        <input id="fileInput" type="file" accept=".psd,image/*" multiple hidden />
-        <input id="projectLoadInput" type="file" accept="application/json,.json" hidden />
-      </div>
-      <div class="topbar-mid">
-        <label id="editModeWrap">
-          <span>Edit Mode</span>
-          <select id="editMode">
-            <option value="skeleton">Skeleton</option>
-            <option value="vertex">Vertex</option>
-            <option value="slotmesh">Slot Mesh</option>
-          </select>
-        </label>
-        <label id="boneModeWrap">
-          <span>Bone Mode</span>
-          <select id="boneMode">
-            <option value="edit" selected>Edit Rig</option>
-            <option value="pose">Pose Animate</option>
-          </select>
-        </label>
-        <label id="slotSelectWrap">
-          <span>Slot</span>
-          <select id="slotSelect"></select>
-        </label>
-        <label id="slotViewWrap">
-          <span>Slot View</span>
-          <select id="slotViewMode">
-            <option value="single" selected>Single</option>
-            <option value="all">All Visible</option>
-          </select>
-        </label>
-        <label id="activeSkinWrap">
-          <span>Active Skin</span>
-          <select id="activeSkinSelect"></select>
-        </label>
-        <div id="activeSkinQuickWrap" class="topbar-inline-actions" aria-label="Skin quick actions">
-          <button id="activeSkinAddBtn" type="button" title="Add skin from current setup">+Skin</button>
-          <button id="activeSkinCaptureBtn" type="button" title="Capture current attachments to selected skin">Capture</button>
-          <button id="activeSkinApplyBtn" type="button" title="Apply selected skin">Apply</button>
+        <div class="menu-root" data-menu-root>
+          <button class="menu-root-btn" type="button" data-menu-trigger="edit" aria-haspopup="true"
+            aria-expanded="false">Edit</button>
+          <div class="menu-panel" data-menu-panel="edit" role="menu">
+            <button type="button" role="menuitem" data-menu-action="edit.undo"><span>Undo</span><span
+                class="menu-shortcut">Ctrl+Z</span></button>
+            <button type="button" role="menuitem" data-menu-action="edit.redo"><span>Redo</span><span
+                class="menu-shortcut">Ctrl+Y</span></button>
+            <hr />
+            <button type="button" role="menuitem" data-menu-action="edit.palette"><span>Command Palette</span><span
+                class="menu-shortcut">Ctrl+K</span></button>
+          </div>
         </div>
-        <label id="spineCompatWrap">
-          <span>Spine Compat</span>
-          <select id="spineCompat">
-            <option value="4.2" selected>4.2 Runtime</option>
-            <option value="4.1">4.1 Runtime</option>
-          </select>
-        </label>
-        <div id="viewZoomWrap" class="view-zoom" title="Canvas Zoom">
-          <button id="viewZoomOutBtn" type="button">-</button>
-          <button id="viewZoomResetBtn" type="button">100%</button>
-          <button id="viewZoomInBtn" type="button">+</button>
+        <div class="menu-root" data-menu-root>
+          <button class="menu-root-btn" type="button" data-menu-trigger="view" aria-haspopup="true"
+            aria-expanded="false">View</button>
+          <div class="menu-panel" data-menu-panel="view" role="menu">
+            <button type="button" role="menuitem" data-menu-action="view.zoomin"><span>Zoom In</span><span
+                class="menu-shortcut">+</span></button>
+            <button type="button" role="menuitem" data-menu-action="view.zoomout"><span>Zoom Out</span><span
+                class="menu-shortcut">-</span></button>
+            <button type="button" role="menuitem" data-menu-action="view.zoomreset"><span>Zoom 100%</span><span
+                class="menu-shortcut">0</span></button>
+          </div>
         </div>
-      </div>
-      <div class="topbar-right muted">Blender-style Layout</div>
+        <div class="menu-root" data-menu-root>
+          <button class="menu-root-btn" type="button" data-menu-trigger="tools" aria-haspopup="true"
+            aria-expanded="false">Tools</button>
+          <div class="menu-panel" data-menu-panel="tools" role="menu">
+            <button type="button" role="menuitem" data-menu-action="tools.resetpose"><span>Reset Pose</span></button>
+            <button type="button" role="menuitem" data-menu-action="tools.resetvertex"><span>Reset
+                Vertex</span></button>
+          </div>
+        </div>
+        <div class="menu-root" data-menu-root>
+          <button class="menu-root-btn" type="button" data-menu-trigger="help" aria-haspopup="true"
+            aria-expanded="false">Help</button>
+          <div class="menu-panel" data-menu-panel="help" role="menu">
+            <button type="button" role="menuitem" data-menu-action="help.quick"><span>Quick Help</span></button>
+          </div>
+        </div>
+        <div class="mode-bar menu-mode-bar" aria-label="Mode switch bar">
+          <label id="systemModeWrap" title="System Mode">
+            <span>Mode</span>
+            <select id="systemMode">
+              <option value="setup" selected>Setup</option>
+              <option value="animate">Animate</option>
+            </select>
+          </label>
+          <label id="editModeWrap" title="Edit Target">
+            <span>Target</span>
+            <select id="editMode">
+              <option value="object">Object</option>
+              <option value="skeleton" selected>Skeleton</option>
+              <option value="slotmesh">Slot Mesh</option>
+              <option value="vertex">Vertex</option>
+            </select>
+          </label>
+        </div>
+        <div class="topbar-left">
+          <button id="fileNewBtn">New</button>
+          <button id="fileOpenBtn">Import Image/PSD</button>
+          <button id="fileSaveBtn">Save</button>
+          <button id="fileLoadBtn">Load</button>
+          <button id="fileExportSpineBtn">Export Spine</button>
+          <button id="openExportPanelBtn" type="button">Export...</button>
+          <button id="commandPaletteBtn" type="button" title="Commands (Ctrl/Cmd+K)">Commands</button>
+          <div class="topbar-global-actions" aria-label="Global edit actions">
+            <button id="undoBtn" title="Undo (Ctrl/Cmd+Z)">Undo</button>
+            <button id="redoBtn" title="Redo (Ctrl/Cmd+Y, Ctrl/Cmd+Shift+Z)">Redo</button>
+          </div>
+          <input id="fileInput" type="file" accept=".psd,image/*" multiple hidden />
+          <input id="projectLoadInput" type="file" accept="application/json,.json" hidden />
+        </div>
+        <div class="topbar-mid">
+          <label id="slotSelectWrap">
+            <span>Slot</span>
+            <select id="slotSelect"></select>
+          </label>
+        </div>
     </header>
 
     <aside id="leftTools" class="left-tools">
@@ -81,6 +117,7 @@
       <div id="workspaceTabs" class="workspace-tabs">
         <button id="workspaceTabSlot" class="workspace-tab-btn" type="button">Slot Build</button>
         <button id="workspaceTabRig" class="workspace-tab-btn" type="button">Rig</button>
+        <button id="workspaceTabObject" class="workspace-tab-btn" type="button">Object</button>
         <button id="workspaceTabAnimate" class="workspace-tab-btn" type="button">Animate</button>
       </div>
       <div id="animateSubTabs" class="animate-subtabs">
@@ -88,29 +125,75 @@
         <button id="animSubTabLayers" class="workspace-tab-btn" type="button">Animation Layers</button>
         <button id="animSubTabState" class="workspace-tab-btn" type="button">State Machine</button>
       </div>
+      <details id="workspacePropsGroup" class="group workspace-group" open>
+        <summary>Workspace</summary>
+        <div class="workspace-grid">
+          <label id="slotViewWrap" class="field workspace-field">
+            <span>Slot View</span>
+            <select id="slotViewMode">
+              <option value="single">Single</option>
+              <option value="all" selected>All Visible</option>
+            </select>
+          </label>
+          <label id="spineCompatWrap" class="field workspace-field">
+            <span>Spine Compat</span>
+            <select id="spineCompat">
+              <option value="4.2" selected>4.2 Runtime</option>
+              <option value="4.1">4.1 Runtime</option>
+            </select>
+          </label>
+          <label id="activeSkinWrap" class="field workspace-field">
+            <span>Active Skin</span>
+            <select id="activeSkinSelect"></select>
+          </label>
+          <div id="activeSkinQuickWrap" class="topbar-inline-actions workspace-inline-actions"
+            aria-label="Skin quick actions">
+            <button id="activeSkinAddBtn" type="button" title="Add skin from current setup">+Skin</button>
+            <button id="activeSkinCaptureBtn" type="button"
+              title="Capture current attachments to selected skin">Capture</button>
+            <button id="activeSkinApplyBtn" type="button" title="Apply selected skin">Apply</button>
+          </div>
+        </div>
+      </details>
       <p id="leftToolModeHint" class="muted">Mode-aware tools</p>
       <div id="leftToolTabs" class="left-tool-tabs">
+        <button id="leftTabCanvas" class="left-tab-btn" data-left-tab="canvas" type="button">Base Transform</button>
         <button id="leftTabSetup" class="left-tab-btn" data-left-tab="setup" type="button">Setup</button>
         <button id="leftTabRig" class="left-tab-btn" data-left-tab="rig" type="button">Rig</button>
-        <button id="leftTabIK" class="left-tab-btn" data-left-tab="ik" type="button">IK</button>
-        <button id="leftTabConstraint" class="left-tab-btn" data-left-tab="constraint" type="button">Constraint</button>
-        <button id="leftTabPath" class="left-tab-btn" data-left-tab="path" type="button">Path</button>
-        <button id="leftTabSkin" class="left-tab-btn" data-left-tab="skin" type="button">Skin</button>
+        <button id="leftTabObject" class="left-tab-btn" data-left-tab="object" type="button">Object</button>
         <button id="leftTabTools" class="left-tab-btn" data-left-tab="tools" type="button">Tools</button>
         <button id="leftTabSlotMesh" class="left-tab-btn" data-left-tab="slotmesh" type="button">Slot Mesh</button>
       </div>
+      <section id="leftCanvasTools" class="group left-tab-panel" data-left-panel="canvas">
+        <h3>Base Transform</h3>
+        <section class="slot-subgroup">
+          <div class="slot-subhead">Base Image Transform</div>
+          <div class="field two-col">
+            <label>
+              <span>Offset X</span>
+              <input id="baseImageTx" type="number" step="1" value="0" />
+            </label>
+            <label>
+              <span>Offset Y</span>
+              <input id="baseImageTy" type="number" step="1" value="0" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Scale</span>
+              <input id="baseImageScale" type="number" min="0.01" step="0.01" value="1" />
+            </label>
+            <label>
+              <span>Rotation</span>
+              <input id="baseImageRot" type="range" min="-180" max="180" step="1" value="0" />
+            </label>
+          </div>
+          <button id="baseImageTransformResetBtn" type="button">Reset Base Transform</button>
+          <p id="baseImageTransformHint" class="muted">Editable in Slot Mesh mode (Base Transform tab).</p>
+        </section>
+      </section>
       <section id="leftMeshSetup" class="group left-tab-panel" data-left-panel="setup">
         <h3>Mesh Setup</h3>
-        <div class="field two-col">
-          <label>
-            <span>Grid X</span>
-            <input id="gridX" type="number" min="2" max="120" value="24" />
-          </label>
-          <label>
-            <span>Grid Y</span>
-            <input id="gridY" type="number" min="2" max="120" value="24" />
-          </label>
-        </div>
         <button id="remeshBtn">Rebuild Mesh</button>
       </section>
 
@@ -135,384 +218,14 @@
         </div>
       </section>
 
-      <section id="leftIKTools" class="group left-tab-panel" data-left-panel="ik">
-        <h3>IK Constraints</h3>
+      <section id="leftObjectTools" class="group left-tab-panel" data-left-panel="object">
+        <h3>Object Tools</h3>
         <div class="field two-col">
-          <button id="ikAdd1Btn" type="button">+ IK 1-Bone</button>
-          <button id="ikAdd2Btn" type="button">+ IK 2-Bone</button>
+          <button id="objectPanelMoveBtn" type="button">Move / Scale</button>
+          <button id="objectPanelRotateBtn" type="button">Rotate</button>
         </div>
-        <div class="field">
-          <span>IK List</span>
-          <div id="ikList" class="bone-tree"></div>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Constraint</span>
-            <select id="ikSelect"></select>
-          </label>
-          <label>
-            <span>Name</span>
-            <input id="ikName" type="text" value="" />
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Enabled</span>
-            <select id="ikEnabled">
-              <option value="true" selected>On</option>
-              <option value="false">Off</option>
-            </select>
-          </label>
-          <label>
-            <span>Bend</span>
-            <select id="ikBendDir">
-              <option value="1" selected>Positive</option>
-              <option value="-1">Negative</option>
-            </select>
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>End Control</span>
-            <select id="ikEndMode">
-              <option value="head" selected>End Bone Head</option>
-              <option value="tail">End Bone Tail</option>
-            </select>
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Target Bone</span>
-            <select id="ikTargetBone"></select>
-          </label>
-          <button id="ikPickTargetBtn" type="button">Pick Target in Canvas</button>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Bone A</span>
-            <select id="ikBoneA"></select>
-          </label>
-          <label>
-            <span>Bone B (optional)</span>
-            <select id="ikBoneB"></select>
-          </label>
-        </div>
-        <label class="field">
-          <span>Mix</span>
-          <input id="ikMix" type="range" min="0" max="1" step="0.01" value="1" />
-        </label>
-        <label class="field">
-          <span>Softness</span>
-          <input id="ikSoftness" type="number" min="0" step="0.1" value="0" />
-        </label>
-        <div class="field two-col">
-          <label class="slot-inline-check">
-            <input id="ikCompress" type="checkbox" />
-            <span>Compress</span>
-          </label>
-          <label class="slot-inline-check">
-            <input id="ikStretch" type="checkbox" />
-            <span>Stretch</span>
-          </label>
-        </div>
-        <label class="slot-inline-check">
-          <input id="ikUniform" type="checkbox" />
-          <span>Uniform</span>
-        </label>
-        <label class="slot-inline-check">
-          <input id="ikSkinRequired" type="checkbox" />
-          <span>Skin Required</span>
-        </label>
-        <div class="field two-col">
-          <button id="ikMoveUpBtn" type="button">Move Up</button>
-          <button id="ikMoveDownBtn" type="button">Move Down</button>
-        </div>
-        <button id="ikRemoveBtn" type="button">Remove IK</button>
-        <p id="ikHint" class="muted">IK applies in Pose mode. IK bones are highlighted in canvas/tree.</p>
-      </section>
-
-      <section id="leftConstraintTools" class="group left-tab-panel" data-left-panel="constraint">
-        <h3>Transform Constraints</h3>
-        <div class="field two-col">
-          <button id="tfcAddBtn" type="button">+ Transform</button>
-          <button id="tfcRemoveBtn" type="button">Remove</button>
-        </div>
-        <div class="field two-col">
-          <button id="tfcMoveUpBtn" type="button">Move Up</button>
-          <button id="tfcMoveDownBtn" type="button">Move Down</button>
-        </div>
-        <div class="field">
-          <span>Transform List</span>
-          <div id="tfcList" class="bone-tree"></div>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Constraint</span>
-            <select id="tfcSelect"></select>
-          </label>
-          <label>
-            <span>Name</span>
-            <input id="tfcName" type="text" value="" />
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Target Bone</span>
-            <select id="tfcTargetBone"></select>
-          </label>
-          <label>
-            <span>Enabled</span>
-            <select id="tfcEnabled">
-              <option value="true" selected>On</option>
-              <option value="false">Off</option>
-            </select>
-          </label>
-        </div>
-        <label class="field">
-          <span>Constrained Bones (multi)</span>
-          <input id="tfcBoneSearch" type="text" value="" placeholder="Search bones..." />
-          <select id="tfcBones" multiple size="4"></select>
-          <div class="three-col">
-            <button id="tfcBonesAllBtn" type="button">All</button>
-            <button id="tfcBonesClearBtn" type="button">Clear</button>
-            <button id="tfcBonesInvertBtn" type="button">Invert</button>
-          </div>
-        </label>
-        <div class="field two-col">
-          <label>
-            <span>Local</span>
-            <select id="tfcLocal">
-              <option value="false" selected>World</option>
-              <option value="true">Local</option>
-            </select>
-          </label>
-          <label>
-            <span>Relative</span>
-            <select id="tfcRelative">
-              <option value="false" selected>Absolute</option>
-              <option value="true">Relative</option>
-            </select>
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Rotate Mix</span>
-            <input id="tfcRotateMix" type="number" min="0" max="1" step="0.01" value="1" />
-          </label>
-          <label>
-            <span>Translate Mix</span>
-            <input id="tfcTranslateMix" type="number" min="0" max="1" step="0.01" value="1" />
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Scale Mix</span>
-            <input id="tfcScaleMix" type="number" min="0" max="1" step="0.01" value="1" />
-          </label>
-          <label>
-            <span>Shear Mix</span>
-            <input id="tfcShearMix" type="number" min="0" max="1" step="0.01" value="1" />
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Offset X</span>
-            <input id="tfcOffsetX" type="number" step="1" value="0" />
-          </label>
-          <label>
-            <span>Offset Y</span>
-            <input id="tfcOffsetY" type="number" step="1" value="0" />
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Offset Rot</span>
-            <input id="tfcOffsetRot" type="number" step="1" value="0" />
-          </label>
-          <label>
-            <span>Offset Shear Y</span>
-            <input id="tfcOffsetShearY" type="number" step="1" value="0" />
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Offset Scale X</span>
-            <input id="tfcOffsetScaleX" type="number" step="0.01" value="0" />
-          </label>
-          <label>
-            <span>Offset Scale Y</span>
-            <input id="tfcOffsetScaleY" type="number" step="0.01" value="0" />
-          </label>
-        </div>
-        <label class="slot-inline-check">
-          <input id="tfcSkinRequired" type="checkbox" />
-          <span>Skin Required</span>
-        </label>
-        <p id="tfcHint" class="muted">Spine-like transform constraints. Timeline supports mix keyframes.</p>
-      </section>
-
-      <section id="leftPathTools" class="group left-tab-panel" data-left-panel="path">
-        <h3>Path Constraints</h3>
-        <div class="field two-col">
-          <button id="pathAddBtn" type="button">+ Path</button>
-          <button id="pathRemoveBtn" type="button">Remove</button>
-        </div>
-        <div class="field two-col">
-          <button id="pathMoveUpBtn" type="button">Move Up</button>
-          <button id="pathMoveDownBtn" type="button">Move Down</button>
-        </div>
-        <div class="field">
-          <span>Path List</span>
-          <div id="pathList" class="bone-tree"></div>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Constraint</span>
-            <select id="pathSelect"></select>
-          </label>
-          <label>
-            <span>Name</span>
-            <input id="pathName" type="text" value="" />
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Target Bone</span>
-            <select id="pathTargetBone"></select>
-          </label>
-          <label>
-            <span>Path Source</span>
-            <select id="pathSourceType">
-              <option value="drawn" selected>Drawn Path</option>
-              <option value="slot">Slot Contour (Legacy)</option>
-              <option value="bone_chain">Bone Chain</option>
-            </select>
-          </label>
-        </div>
-        <div class="field two-col">
-          <button id="pathDrawBtn" type="button">Draw On Canvas</button>
-          <button id="pathStopDrawBtn" type="button">Stop Draw</button>
-        </div>
-        <div class="field two-col">
-          <button id="pathCloseShapeBtn" type="button">Close Path</button>
-          <button id="pathClearShapeBtn" type="button">Clear Path</button>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Handle Mode</span>
-            <select id="pathHandleMode">
-              <option value="auto">Auto</option>
-              <option value="aligned" selected>Aligned</option>
-              <option value="broken">Broken</option>
-            </select>
-          </label>
-          <button id="pathApplyHandleModeBtn" type="button">Apply To Selected</button>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Path Slot</span>
-            <select id="pathTargetSlot"></select>
-          </label>
-          <label>
-            <span>Enabled</span>
-            <select id="pathEnabled">
-              <option value="true" selected>On</option>
-              <option value="false">Off</option>
-            </select>
-          </label>
-        </div>
-        <label class="field">
-          <span>Constrained Bones (multi)</span>
-          <select id="pathBones" multiple size="4"></select>
-        </label>
-        <div class="field two-col">
-          <label>
-            <span>Position Mode</span>
-            <select id="pathPositionMode">
-              <option value="fixed" selected>Fixed</option>
-              <option value="percent">Percent</option>
-            </select>
-          </label>
-          <label>
-            <span>Spacing Mode</span>
-            <select id="pathSpacingMode">
-              <option value="length" selected>Length</option>
-              <option value="fixed">Fixed</option>
-              <option value="percent">Percent</option>
-              <option value="proportional">Proportional</option>
-            </select>
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Rotate Mode</span>
-            <select id="pathRotateMode">
-              <option value="tangent" selected>Tangent</option>
-              <option value="chain">Chain</option>
-              <option value="chainScale">Chain Scale</option>
-            </select>
-          </label>
-          <label>
-            <span>Closed Path</span>
-            <select id="pathClosed">
-              <option value="false" selected>No</option>
-              <option value="true">Yes</option>
-            </select>
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Position</span>
-            <input id="pathPosition" type="number" step="1" value="0" />
-          </label>
-          <label>
-            <span>Spacing</span>
-            <input id="pathSpacing" type="number" step="1" value="40" />
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Rotate Mix</span>
-            <input id="pathRotateMix" type="number" min="0" max="1" step="0.01" value="1" />
-          </label>
-          <label>
-            <span>Translate Mix</span>
-            <input id="pathTranslateMix" type="number" min="0" max="1" step="0.01" value="1" />
-          </label>
-        </div>
-        <label class="slot-inline-check">
-          <input id="pathSkinRequired" type="checkbox" />
-          <span>Skin Required</span>
-        </label>
-        <p id="pathHint" class="muted">Default source is Drawn Path. Click Draw On Canvas, then click on canvas to place points.</p>
-      </section>
-
-      <section id="leftSkinTools" class="group left-tab-panel" data-left-panel="skin">
-        <h3>Skin</h3>
-        <div class="field two-col">
-          <button id="skinAddBtn" type="button">+ Skin</button>
-          <button id="skinDeleteBtn" type="button">Del Skin</button>
-        </div>
-        <label class="field">
-          <span>Skin</span>
-          <select id="skinSelect"></select>
-        </label>
-        <label class="field">
-          <span>Skin Name</span>
-          <input id="skinName" type="text" value="" />
-        </label>
-        <div class="field two-col">
-          <button id="skinCaptureBtn" type="button">Capture Current</button>
-          <button id="skinApplyBtn" type="button">Apply Skin</button>
-        </div>
-        <label class="field">
-          <span>Weight Mode</span>
-          <select id="weightMode">
-            <option value="hard" selected>Hard (Single Bone)</option>
-            <option value="smooth">Smooth Blend</option>
-          </select>
-        </label>
-        <button id="autoWeightBtn">Auto Weight</button>
+        <p class="muted">Operate whole object chains directly on canvas. Drag S handle (or Shift+Drag in Move/Scale) to
+          scale.</p>
       </section>
 
       <section id="leftGeneralTools" class="group left-tab-panel" data-left-panel="tools">
@@ -552,40 +265,54 @@
               </select>
             </label>
           </div>
-          <p class="muted">Drag vertex in Vertex mode to move nearby vertices smoothly. Hotkeys: O, H, J, [, ], Shift+[ / ], Alt+Wheel radius, Shift/Ctrl+Click multi-select, box select drag, P pin, U unpin, M relax</p>
+          <p class="muted">Drag vertex in Vertex mode to move nearby vertices smoothly. Hotkeys: O, H, J, [, ], Shift+[
+            / ], Alt+Wheel radius, Shift/Ctrl+Click multi-select, box select drag, P pin, U unpin, M relax</p>
         </section>
       </section>
 
       <section id="slotMeshTools" class="group left-tab-panel" data-left-panel="slotmesh">
         <h3>Slot Mesh Edit</h3>
-        <label class="field">
-          <span>New Contour Mode</span>
-          <select id="slotMeshNewMode">
-            <option value="new_slot" selected>Create New Slot (Shared Texture)</option>
-            <option value="reset_current">Reset Current Slot Contour</option>
-          </select>
-        </label>
         <div class="field two-col">
-          <button id="slotMeshNewBtn">New Contour</button>
+          <label>
+            <span>Mesh Density X</span>
+            <input id="gridX" type="number" min="2" max="120" value="24" />
+          </label>
+          <label>
+            <span>Mesh Density Y</span>
+            <input id="gridY" type="number" min="2" max="120" value="24" />
+          </label>
+        </div>
+        <div class="field two-col">
+          <button id="slotMeshNewBtn" type="button">Tool: Select (V)</button>
           <button id="slotMeshCloseBtn">Close Loop</button>
         </div>
+        <p id="slotMeshToolModeHint" class="slotmesh-mode-hint">Tool: Select (V)</p>
         <div class="field two-col">
           <button id="slotMeshTriangulateBtn">Triangulate</button>
           <button id="slotMeshGridFillBtn">Grid Fill</button>
         </div>
+        <button id="slotMeshAutoForegroundBtn">Auto Foreground Mesh</button>
         <label class="slot-inline-check">
           <input id="slotMeshGridReplaceContour" type="checkbox" />
-          <span>Grid Fill replaces contour points with uniform grid points</span>
+          <span>Grid Fill replaces contour points with triangular lattice contour</span>
         </label>
+        <p id="slotMeshContourRefHint" class="slotmesh-ref-hint">Ref: Source contour</p>
         <div class="field two-col">
           <button id="slotMeshLinkEdgeBtn">Link Edge (L)</button>
           <button id="slotMeshUnlinkEdgeBtn">Unlink Edge (U)</button>
         </div>
         <div class="field two-col">
           <button id="slotMeshApplyBtn">Apply Mesh</button>
+          <button id="slotMeshCreateApplyBtn">Create Slot + Apply Mesh</button>
+        </div>
+        <div class="field two-col">
           <button id="slotMeshResetBtn">Reset To Grid</button>
         </div>
-        <p class="muted">Click add/drag vertices, Shift+Click pick 2 vertices, L/U link or unlink edge, Delete/X remove vertex.</p>
+        <p class="muted">Density controls Grid Fill and Auto Foreground Mesh. Grid Fill uses equilateral-triangle
+          lattice and always references your persistent source contour. Default tool is Select (box-select/move). Press
+          V or click Tool button to switch Add Vertex mode; press again to return Select. Use Apply Mesh to modify
+          current slot, or Create Slot + Apply Mesh to create a new shared-texture slot from current contour. Alt+Click
+          multi-select, Shift+Click pick 2 vertices, L/U link or unlink edge, Delete/X remove selected vertices.</p>
       </section>
 
       <p id="status" class="status">Load an image to start.</p>
@@ -595,6 +322,17 @@
       <div id="stage" class="stage">
         <canvas id="glCanvas"></canvas>
         <canvas id="overlay"></canvas>
+        <div id="objectTransformTools" class="object-transform-tools" aria-label="Object Transform Tools">
+          <button id="objectToolMoveBtn" type="button" title="Object Move / Scale">Move / Scale</button>
+          <button id="objectToolRotateBtn" type="button" title="Object Rotate">Rotate</button>
+        </div>
+        <div id="viewZoomWrap" class="view-zoom" title="Canvas Zoom">
+          <button id="viewPanToggleBtn" type="button" title="Pan Canvas">✋</button>
+          <button id="viewFitAllBtn" type="button" title="Fit All">⊙</button>
+          <button id="viewZoomOutBtn" type="button">-</button>
+          <button id="viewZoomResetBtn" type="button">100%</button>
+          <button id="viewZoomInBtn" type="button">+</button>
+        </div>
       </div>
     </main>
 
@@ -602,15 +340,38 @@
       <aside id="rightTree" class="right-tree">
         <h2>Bone / Slot Tree</h2>
         <div class="tree-tools">
-          <button id="boneTreeOnlyActiveSlotBtn" type="button" title="Show only current active slot in tree">Only Active Slot</button>
+          <button id="boneTreeAddBoneBtn" type="button" title="Add default bone (no slot required)">+ Bone</button>
+          <div class="tree-split-wrap">
+            <button id="boneTreeDeleteBoneBtn" type="button" title="Delete selected bone (slots -> staging)">Delete
+              Bone</button>
+            <button id="boneTreeDeleteBoneMenuBtn" class="split-caret-btn" type="button" title="Delete options"
+              aria-haspopup="true" aria-expanded="false">▾</button>
+            <div id="boneTreeDeleteBoneMenu" class="tree-mini-menu collapsed" role="menu"
+              aria-label="Delete bone options">
+              <button id="boneTreeDeleteBoneToStagingBtn" type="button" role="menuitem">Delete Bone (Slots ->
+                Staging)</button>
+              <button id="boneTreeDeleteBoneWithSlotsBtn" type="button" role="menuitem">Delete Bone + Delete
+                Slots</button>
+            </div>
+          </div>
+          <button id="boneTreeOnlyActiveSlotBtn" type="button" title="Show only current active slot in tree">Only Active
+            Slot</button>
+          <button id="boneTreeBindSelectedUnassignedBtn" type="button"
+            title="Create default bone(s) for selected unassigned slots">Bind Selected Staging</button>
         </div>
         <div id="boneTree" class="bone-tree"></div>
-        <p class="muted">Spine-style hierarchy: bone -> slot. Drag slot row to reorder/assign bone, click [+]/[-] on bone to fold slots, and double-click or right-click to rename slot.</p>
+        <p class="muted">Spine-style hierarchy: bone -> slot. Use + Bone to create default bones without slots. Slot
+          label A = current active slot, B = this bone's selected slot. Drag slot row to reorder/assign bone, or drop to
+          Unassigned/Staging area to keep it unbound. Right-click bone: delete bone and move slots to staging, or delete
+          bone with its slots. Click S/B to fold, H cycles Work Hide (off -> bone -> bone+slots), A sets Anim Hide key
+          (bone+slots) in Pose mode.</p>
         <div id="boneTreeContextMenu" class="context-menu collapsed" role="menu" aria-label="Bone tree actions">
           <button id="treeCtxSlotAddBtn" type="button" role="menuitem">+ Slot</button>
           <button id="treeCtxSlotDupBtn" type="button" role="menuitem">Duplicate Slot</button>
           <button id="treeCtxSlotRenameBtn" type="button" role="menuitem">Rename Slot</button>
           <button id="treeCtxSlotDeleteBtn" type="button" role="menuitem">Delete Slot</button>
+          <button id="treeCtxBoneDeleteBtn" type="button" role="menuitem">Delete Bone (Slots -> Staging)</button>
+          <button id="treeCtxBoneDeleteWithSlotsBtn" type="button" role="menuitem">Delete Bone + Delete Slots</button>
           <button id="treeCtxSlotLoadImageBtn" type="button" role="menuitem">Load Image</button>
         </div>
       </aside>
@@ -624,23 +385,8 @@
             <input id="slotName" type="text" value="" />
           </label>
           <label class="field">
-            <span>Attachment</span>
-            <select id="slotAttachment">
-              <option value="__none__">(none)</option>
-              <option value="main" selected>main</option>
-            </select>
-          </label>
-          <label class="field">
             <span>Attachment Name</span>
             <input id="slotAttachmentName" type="text" value="" />
-          </label>
-          <label class="field">
-            <span>Slot Placeholder</span>
-            <input id="slotPlaceholderName" type="text" value="main" />
-          </label>
-          <label class="field">
-            <span>Attachment Placeholder</span>
-            <input id="slotAttachmentPlaceholderName" type="text" value="main" />
           </label>
           <div class="field two-col">
             <label>
@@ -650,29 +396,17 @@
                 <option value="mesh">Mesh</option>
                 <option value="linkedmesh">Linked Mesh</option>
                 <option value="boundingbox">Bounding Box</option>
-                <option value="point">Point</option>
+                <option value="clipping">Clipping</option>
               </select>
             </label>
+          </div>
+          <div id="slotAttachmentLinkedParentWrap" class="field" style="display:none">
             <label>
               <span>Linked Parent</span>
               <select id="slotAttachmentLinkedParent"></select>
             </label>
           </div>
-          <div class="field two-col">
-            <label>
-              <span>Point X</span>
-              <input id="slotAttachmentPointX" type="number" step="1" value="0" />
-            </label>
-            <label>
-              <span>Point Y</span>
-              <input id="slotAttachmentPointY" type="number" step="1" value="0" />
-            </label>
-          </div>
-          <div class="field two-col">
-            <label>
-              <span>Point Rot</span>
-              <input id="slotAttachmentPointRot" type="number" step="1" value="0" />
-            </label>
+          <div id="slotAttachmentBBoxWrap" class="field" style="display:none">
             <label>
               <span>BBox Source</span>
               <select id="slotAttachmentBBoxSource">
@@ -681,36 +415,129 @@
               </select>
             </label>
           </div>
-          <div class="field two-col">
-            <label class="slot-inline-check">
-              <input id="slotAttachmentSequenceEnabled" type="checkbox" />
-              <span>Sequence</span>
+          <div id="slotSkinningWrap">
+            <div class="field">
+              <span>Skinning</span>
+              <div id="slotWeightQuickBar" class="slot-weight-quick">
+                <button id="slotWeightQuickSingleBtn" type="button" title="Single owner bone attachment">Single</button>
+                <button id="slotWeightQuickWeightedBtn" type="button"
+                  title="Weighted mesh (multi-bone deformation)">Weighted</button>
+                <button id="slotWeightQuickFreeBtn" type="button" title="No bone binding">Free</button>
+              </div>
+              <!-- hidden select kept for backward compat with JS that reads it -->
+              <select id="slotWeightMode" style="display:none">
+                <option value="single" selected>Single Bone Attachment</option>
+                <option value="weighted">Weighted Attachment (Mesh)</option>
+                <option value="free">Free (No Bone)</option>
+              </select>
+            </div>
+            <div class="field">
+              <button id="slotWeightQuickEditBtn" type="button" title="Switch to Vertex mode for weight editing">Edit
+                Weights</button>
+            </div>
+            <p id="slotWeightModeHint" class="muted" style="display:none"></p>
+            <div id="slotInfluenceWrap">
+              <label class="field">
+                <span>Influence Bones</span>
+                <select id="slotInfluenceBones" multiple size="4"></select>
+              </label>
+            </div>
+          </div>
+          <div id="slotVisualFieldsWrap">
+            <label class="field">
+              <span>Bone</span>
+              <select id="slotBone"></select>
             </label>
-            <label>
-              <span>Seq Count</span>
-              <input id="slotAttachmentSequenceCount" type="number" min="1" step="1" value="1" />
+            <div class="field two-col">
+              <button id="slotBindBoneBtn">Bind to Selected Bone</button>
+              <button id="slotBindWeightedBtn">Use Selected Bones</button>
+            </div>
+            <div class="field two-col">
+              <label>
+                <span>Show In Editor</span>
+                <input id="slotVisible" type="checkbox" checked />
+              </label>
+              <label>
+                <span>Alpha</span>
+                <input id="slotAlpha" type="range" min="0" max="1" step="0.01" value="1" />
+              </label>
+            </div>
+            <label class="field">
+              <span>Color</span>
+              <input id="slotColor" type="color" value="#ffffff" />
+            </label>
+            <div class="field two-col">
+              <label>
+                <span>Blend</span>
+                <select id="slotBlend">
+                  <option value="normal" selected>Normal</option>
+                  <option value="additive">Additive</option>
+                  <option value="multiply">Multiply</option>
+                  <option value="screen">Screen</option>
+                </select>
+              </label>
+              <label class="slot-inline-check">
+                <input id="slotDarkEnabled" type="checkbox" />
+                <span>Dark Tint</span>
+              </label>
+            </div>
+            <label class="field">
+              <span>Dark Color</span>
+              <input id="slotDarkColor" type="color" value="#000000" />
             </label>
           </div>
-          <div class="field two-col">
-            <label>
-              <span>Seq Start</span>
-              <input id="slotAttachmentSequenceStart" type="number" min="0" step="1" value="0" />
-            </label>
-            <label>
-              <span>Seq Digits</span>
-              <input id="slotAttachmentSequenceDigits" type="number" min="1" step="1" value="2" />
-            </label>
+          <div id="slotImageFieldsWrap">
+            <details id="slotAttachmentSequenceWrap" class="slot-subgroup">
+              <summary>Sequence (Spine 4.x)</summary>
+              <div class="field two-col">
+                <label class="slot-inline-check">
+                  <input id="slotAttachmentSequenceEnabled" type="checkbox" />
+                  <span>Enable</span>
+                </label>
+                <label>
+                  <span>Count</span>
+                  <input id="slotAttachmentSequenceCount" type="number" min="1" step="1" value="1" />
+                </label>
+              </div>
+              <div class="field two-col">
+                <label>
+                  <span>Start</span>
+                  <input id="slotAttachmentSequenceStart" type="number" min="0" step="1" value="1" />
+                </label>
+                <label>
+                  <span>Digits</span>
+                  <input id="slotAttachmentSequenceDigits" type="number" min="1" step="1" value="2" />
+                </label>
+              </div>
+              <div class="field two-col">
+                <label>
+                  <span>Setup Index</span>
+                  <input id="slotAttachmentSequenceSetupIndex" type="number" min="0" step="1" value="0" />
+                </label>
+                <label>
+                  <span>Mode</span>
+                  <select id="slotAttachmentSequenceMode">
+                    <option value="0" selected>Hold</option>
+                    <option value="1">Once</option>
+                    <option value="2">Loop</option>
+                    <option value="3">Pingpong</option>
+                    <option value="4">Once Reverse</option>
+                    <option value="5">Loop Reverse</option>
+                    <option value="6">Pingpong Reverse</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field">
+                <span>Path (prefix)</span>
+                <input id="slotAttachmentSequencePath" type="text" value="" placeholder="(uses attachment name)" />
+              </label>
+            </details>
+            <div class="field two-col">
+              <button id="slotAttachmentLoadBtn" type="button">Load Image</button>
+              <input id="slotAttachmentFileInput" type="file" accept="image/*" hidden />
+            </div>
           </div>
-          <div class="field two-col">
-            <button id="slotAttachmentAddBtn" type="button">+ Attachment</button>
-            <button id="slotAttachmentDeleteBtn" type="button">Del Attachment</button>
-          </div>
-          <div class="field two-col">
-            <button id="slotAttachmentRenameBtn" type="button">Rename</button>
-            <button id="slotAttachmentLoadBtn" type="button">Load Image</button>
-            <input id="slotAttachmentFileInput" type="file" accept="image/*" hidden />
-          </div>
-          <section class="slot-subgroup">
+          <section id="slotClipWrap" class="slot-subgroup" style="display:none">
             <div class="slot-subhead">Clipping</div>
             <label class="slot-inline-check">
               <input id="slotClipEnabled" type="checkbox" />
@@ -745,175 +572,517 @@
               <button id="slotClipEndDelKeyBtn" type="button">Del End Key</button>
             </div>
           </section>
-          <label class="field">
-            <span>Bone</span>
-            <select id="slotBone"></select>
-          </label>
-          <div class="field two-col">
-            <button id="slotBindBoneBtn">Bind to Selected Bone</button>
-            <button id="slotBindWeightedBtn">Use Selected Bones</button>
-          </div>
-          <div class="field two-col">
-            <label>
-              <span>Show In Editor</span>
-              <input id="slotVisible" type="checkbox" checked />
-            </label>
-            <label>
-              <span>Alpha</span>
-              <input id="slotAlpha" type="range" min="0" max="1" step="0.01" value="1" />
-            </label>
-          </div>
-          <label class="field">
-            <span>Color</span>
-            <input id="slotColor" type="color" value="#ffffff" />
-          </label>
-          <div class="field two-col">
-            <label>
-              <span>Blend</span>
-              <select id="slotBlend">
-                <option value="normal" selected>Normal</option>
-                <option value="additive">Additive</option>
-                <option value="multiply">Multiply</option>
-                <option value="screen">Screen</option>
-              </select>
-            </label>
-            <label class="slot-inline-check">
-              <input id="slotDarkEnabled" type="checkbox" />
-              <span>Dark Tint</span>
+
+          <div id="slotTransformWrap">
+            <div class="field two-col">
+              <label>
+                <span>Slot X</span>
+                <input id="slotTx" type="number" step="1" value="0" />
+              </label>
+              <label>
+                <span>Slot Y</span>
+                <input id="slotTy" type="number" step="1" value="0" />
+              </label>
+            </div>
+            <label class="field">
+              <span>Slot Rotation</span>
+              <input id="slotRot" type="range" min="-180" max="180" step="1" value="0" />
             </label>
           </div>
-          <label class="field">
-            <span>Dark Color</span>
-            <input id="slotDarkColor" type="color" value="#000000" />
-          </label>
-          <label class="field">
-            <span>Skinning</span>
-            <select id="slotWeightMode">
-              <option value="single" selected>Single Bone</option>
-              <option value="weighted">Weighted Mesh</option>
-              <option value="free">Free (No Bone)</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Influence Bones</span>
-            <select id="slotInfluenceBones" multiple size="5"></select>
-          </label>
-          <div class="field two-col">
-            <label>
-              <span>Slot X</span>
-              <input id="slotTx" type="number" step="1" value="0" />
-            </label>
-            <label>
-              <span>Slot Y</span>
-              <input id="slotTy" type="number" step="1" value="0" />
-            </label>
-          </div>
-          <label class="field">
-            <span>Slot Rotation</span>
-            <input id="slotRot" type="range" min="-180" max="180" step="1" value="0" />
-          </label>
           <div class="field two-col">
             <button id="slotOrderUp">Slot Up</button>
             <button id="slotOrderDown">Slot Down</button>
           </div>
         </section>
         <section id="bonePropsGroup" class="group">
-        <h3>Bone</h3>
-        <div class="field">
-          <span>Selected Bone</span>
-          <select id="boneSelect"></select>
-        </div>
-        <label class="field">
-          <span>Bone Name</span>
-          <input id="boneName" type="text" value="" />
-        </label>
-        <label class="field">
-          <span>Parent</span>
-          <select id="boneParent"></select>
-        </label>
-        <label class="field">
-          <span>Transform Inherit</span>
-          <select id="boneInherit">
-            <option value="normal" selected>Normal</option>
-            <option value="onlyTranslation">Only Translation</option>
-            <option value="noRotationOrReflection">No Rotation Or Reflection</option>
-            <option value="noScale">No Scale</option>
-            <option value="noScaleOrReflection">No Scale Or Reflection</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Bone Link</span>
-          <select id="boneConnect">
-            <option value="true" selected>Connected</option>
-            <option value="false">Disconnected</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Pose Length</span>
-          <select id="bonePoseLen">
-            <option value="false" selected>Lock</option>
-            <option value="true">Allow</option>
-          </select>
-        </label>
-        <div class="field two-col">
-          <label>
-            <span>TX</span>
-            <input id="boneTx" type="number" step="1" value="0" />
+          <h3>Bone</h3>
+          <div class="field">
+            <span>Selected Bone</span>
+            <select id="boneSelect"></select>
+          </div>
+          <label class="field">
+            <span>Bone Name</span>
+            <input id="boneName" type="text" value="" />
           </label>
-          <label>
-            <span>TY</span>
-            <input id="boneTy" type="number" step="1" value="0" />
+          <label class="field">
+            <span>Parent</span>
+            <select id="boneParent"></select>
           </label>
-        </div>
-        <label class="field">
-          <span>Rotation</span>
-          <input id="boneRot" type="range" min="-180" max="180" value="0" />
-        </label>
-        <label class="field">
-          <span>Length</span>
-          <input id="boneLen" type="number" min="1" step="1" value="100" />
-        </label>
-        <div class="field two-col">
-          <label>
-            <span>Scale X</span>
-            <input id="boneScaleX" type="number" step="0.01" value="1" />
+          <label class="field">
+            <span>Transform Inherit</span>
+            <select id="boneInherit">
+              <option value="normal" selected>Normal</option>
+              <option value="onlyTranslation">Only Translation</option>
+              <option value="noRotationOrReflection">No Rotation Or Reflection</option>
+              <option value="noScale">No Scale</option>
+              <option value="noScaleOrReflection">No Scale Or Reflection</option>
+            </select>
           </label>
-          <label>
-            <span>Scale Y</span>
-            <input id="boneScaleY" type="number" step="0.01" value="1" />
+          <label class="field">
+            <span>Bone Link</span>
+            <select id="boneConnect">
+              <option value="true" selected>Connected</option>
+              <option value="false">Disconnected</option>
+            </select>
           </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Shear X</span>
-            <input id="boneShearX" type="number" step="0.1" value="0" />
+          <label class="field">
+            <span>Pose Length</span>
+            <select id="bonePoseLen">
+              <option value="false" selected>Lock</option>
+              <option value="true">Allow</option>
+            </select>
           </label>
-          <label>
-            <span>Shear Y</span>
-            <input id="boneShearY" type="number" step="0.1" value="0" />
+          <div class="field two-col">
+            <label>
+              <span>TX</span>
+              <input id="boneTx" type="number" step="1" value="0" />
+            </label>
+            <label>
+              <span>TY</span>
+              <input id="boneTy" type="number" step="1" value="0" />
+            </label>
+          </div>
+          <label class="field">
+            <span>Rotation</span>
+            <input id="boneRot" type="range" min="-180" max="180" value="0" />
           </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Head X</span>
-            <input id="boneHeadX" type="number" step="1" value="0" />
+          <label class="field">
+            <span>Length</span>
+            <input id="boneLen" type="number" min="1" step="1" value="100" />
           </label>
-          <label>
-            <span>Head Y</span>
-            <input id="boneHeadY" type="number" step="1" value="0" />
-          </label>
-        </div>
-        <div class="field two-col">
-          <label>
-            <span>Tip X</span>
-            <input id="boneTipX" type="number" step="1" value="0" />
-          </label>
-          <label>
-            <span>Tip Y</span>
-            <input id="boneTipY" type="number" step="1" value="0" />
-          </label>
-        </div>
+          <div class="field two-col">
+            <label>
+              <span>Scale X</span>
+              <input id="boneScaleX" type="number" step="0.01" value="1" />
+            </label>
+            <label>
+              <span>Scale Y</span>
+              <input id="boneScaleY" type="number" step="0.01" value="1" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Shear X</span>
+              <input id="boneShearX" type="number" step="0.1" value="0" />
+            </label>
+            <label>
+              <span>Shear Y</span>
+              <input id="boneShearY" type="number" step="0.1" value="0" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Head X</span>
+              <input id="boneHeadX" type="number" step="1" value="0" />
+            </label>
+            <label>
+              <span>Head Y</span>
+              <input id="boneHeadY" type="number" step="1" value="0" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Tip X</span>
+              <input id="boneTipX" type="number" step="1" value="0" />
+            </label>
+            <label>
+              <span>Tip Y</span>
+              <input id="boneTipY" type="number" step="1" value="0" />
+            </label>
+          </div>
         </section>
+
+        <h2>Hierarchy Details</h2>
+        <div id="leftToolTabsSecondary" class="left-tool-tabs" style="margin-bottom: 8px;">
+          <button id="leftTabIK" class="left-tab-btn" data-left-tab="ik" type="button">IK</button>
+          <button id="leftTabConstraint" class="left-tab-btn" data-left-tab="constraint"
+            type="button">Constraint</button>
+          <button id="leftTabPath" class="left-tab-btn" data-left-tab="path" type="button">Path</button>
+          <button id="leftTabSkin" class="left-tab-btn" data-left-tab="skin" type="button">Skin</button>
+        </div>
+
+        <section id="leftIKTools" class="group left-tab-panel" data-left-panel="ik">
+          <h3>IK Constraints</h3>
+          <div class="field two-col">
+            <button id="ikAdd1Btn" type="button">+ IK 1-Bone</button>
+            <button id="ikAdd2Btn" type="button">+ IK 2-Bone</button>
+          </div>
+          <div class="field">
+            <span>IK List</span>
+            <div id="ikList" class="bone-tree"></div>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Constraint</span>
+              <select id="ikSelect"></select>
+            </label>
+            <label>
+              <span>Name</span>
+              <input id="ikName" type="text" value="" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Enabled</span>
+              <select id="ikEnabled">
+                <option value="true" selected>On</option>
+                <option value="false">Off</option>
+              </select>
+            </label>
+            <label>
+              <span>Bend</span>
+              <select id="ikBendDir">
+                <option value="1" selected>Positive</option>
+                <option value="-1">Negative</option>
+              </select>
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>End Control</span>
+              <select id="ikEndMode">
+                <option value="head" selected>End Bone Head</option>
+                <option value="tail">End Bone Tail</option>
+              </select>
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Target Bone</span>
+              <select id="ikTargetBone"></select>
+            </label>
+            <button id="ikPickTargetBtn" type="button">Pick Target in Canvas</button>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Bone A</span>
+              <select id="ikBoneA"></select>
+            </label>
+            <label>
+              <span>Bone B (optional)</span>
+              <select id="ikBoneB"></select>
+            </label>
+          </div>
+          <label class="field">
+            <span>Mix</span>
+            <input id="ikMix" type="range" min="0" max="1" step="0.01" value="1" />
+          </label>
+          <label class="field">
+            <span>Softness</span>
+            <input id="ikSoftness" type="number" min="0" step="0.1" value="0" />
+          </label>
+          <div class="field two-col">
+            <label class="slot-inline-check">
+              <input id="ikCompress" type="checkbox" />
+              <span>Compress</span>
+            </label>
+            <label class="slot-inline-check">
+              <input id="ikStretch" type="checkbox" />
+              <span>Stretch</span>
+            </label>
+          </div>
+          <label class="slot-inline-check">
+            <input id="ikUniform" type="checkbox" />
+            <span>Uniform</span>
+          </label>
+          <label class="slot-inline-check">
+            <input id="ikSkinRequired" type="checkbox" />
+            <span>Skin Required</span>
+          </label>
+          <div class="field two-col">
+            <button id="ikMoveUpBtn" type="button">Move Up</button>
+            <button id="ikMoveDownBtn" type="button">Move Down</button>
+          </div>
+          <button id="ikRemoveBtn" type="button">Remove IK</button>
+          <p id="ikHint" class="muted">IK applies in Pose mode. IK bones are highlighted in canvas/tree.</p>
+        </section>
+
+        <section id="leftConstraintTools" class="group left-tab-panel" data-left-panel="constraint">
+          <h3>Transform Constraints</h3>
+          <div class="field two-col">
+            <button id="tfcAddBtn" type="button">+ Transform</button>
+            <button id="tfcRemoveBtn" type="button">Remove</button>
+          </div>
+          <div class="field two-col">
+            <button id="tfcMoveUpBtn" type="button">Move Up</button>
+            <button id="tfcMoveDownBtn" type="button">Move Down</button>
+          </div>
+          <div class="field">
+            <span>Transform List</span>
+            <div id="tfcList" class="bone-tree"></div>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Constraint</span>
+              <select id="tfcSelect"></select>
+            </label>
+            <label>
+              <span>Name</span>
+              <input id="tfcName" type="text" value="" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Target Bone</span>
+              <select id="tfcTargetBone"></select>
+            </label>
+            <label>
+              <span>Enabled</span>
+              <select id="tfcEnabled">
+                <option value="true" selected>On</option>
+                <option value="false">Off</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span>Constrained Bones (multi)</span>
+            <input id="tfcBoneSearch" type="text" value="" placeholder="Search bones..." />
+            <select id="tfcBones" multiple size="4"></select>
+            <div class="three-col">
+              <button id="tfcBonesAllBtn" type="button">All</button>
+              <button id="tfcBonesClearBtn" type="button">Clear</button>
+              <button id="tfcBonesInvertBtn" type="button">Invert</button>
+            </div>
+          </label>
+          <div class="field two-col">
+            <label>
+              <span>Local</span>
+              <select id="tfcLocal">
+                <option value="false" selected>World</option>
+                <option value="true">Local</option>
+              </select>
+            </label>
+            <label>
+              <span>Relative</span>
+              <select id="tfcRelative">
+                <option value="false" selected>Absolute</option>
+                <option value="true">Relative</option>
+              </select>
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Rotate Mix</span>
+              <input id="tfcRotateMix" type="number" min="0" max="1" step="0.01" value="1" />
+            </label>
+            <label>
+              <span>Translate Mix</span>
+              <input id="tfcTranslateMix" type="number" min="0" max="1" step="0.01" value="1" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Scale Mix</span>
+              <input id="tfcScaleMix" type="number" min="0" max="1" step="0.01" value="1" />
+            </label>
+            <label>
+              <span>Shear Mix</span>
+              <input id="tfcShearMix" type="number" min="0" max="1" step="0.01" value="1" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Offset X</span>
+              <input id="tfcOffsetX" type="number" step="1" value="0" />
+            </label>
+            <label>
+              <span>Offset Y</span>
+              <input id="tfcOffsetY" type="number" step="1" value="0" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Offset Rot</span>
+              <input id="tfcOffsetRot" type="number" step="1" value="0" />
+            </label>
+            <label>
+              <span>Offset Shear Y</span>
+              <input id="tfcOffsetShearY" type="number" step="1" value="0" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Offset Scale X</span>
+              <input id="tfcOffsetScaleX" type="number" step="0.01" value="0" />
+            </label>
+            <label>
+              <span>Offset Scale Y</span>
+              <input id="tfcOffsetScaleY" type="number" step="0.01" value="0" />
+            </label>
+          </div>
+          <label class="slot-inline-check">
+            <input id="tfcSkinRequired" type="checkbox" />
+            <span>Skin Required</span>
+          </label>
+          <p id="tfcHint" class="muted">Spine-like transform constraints. Timeline supports mix keyframes.</p>
+        </section>
+
+        <section id="leftPathTools" class="group left-tab-panel" data-left-panel="path">
+          <h3>Path Constraints</h3>
+          <div class="field two-col">
+            <button id="pathAddBtn" type="button">+ Path</button>
+            <button id="pathRemoveBtn" type="button">Remove</button>
+          </div>
+          <div class="field two-col">
+            <button id="pathMoveUpBtn" type="button">Move Up</button>
+            <button id="pathMoveDownBtn" type="button">Move Down</button>
+          </div>
+          <div class="field">
+            <span>Path List</span>
+            <div id="pathList" class="bone-tree"></div>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Constraint</span>
+              <select id="pathSelect"></select>
+            </label>
+            <label>
+              <span>Name</span>
+              <input id="pathName" type="text" value="" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Target Bone</span>
+              <select id="pathTargetBone"></select>
+            </label>
+            <label>
+              <span>Path Source</span>
+              <select id="pathSourceType">
+                <option value="drawn" selected>Drawn Path</option>
+                <option value="slot">Slot Contour (Legacy)</option>
+                <option value="bone_chain">Bone Chain</option>
+              </select>
+            </label>
+          </div>
+          <div class="field two-col">
+            <button id="pathDrawBtn" type="button">Draw On Canvas</button>
+            <button id="pathStopDrawBtn" type="button">Stop Draw</button>
+          </div>
+          <div class="field two-col">
+            <button id="pathCloseShapeBtn" type="button">Close Path</button>
+            <button id="pathClearShapeBtn" type="button">Clear Path</button>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Handle Mode</span>
+              <select id="pathHandleMode">
+                <option value="auto">Auto</option>
+                <option value="aligned" selected>Aligned</option>
+                <option value="broken">Broken</option>
+              </select>
+            </label>
+            <button id="pathApplyHandleModeBtn" type="button">Apply To Selected</button>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Path Slot</span>
+              <select id="pathTargetSlot"></select>
+            </label>
+            <label>
+              <span>Enabled</span>
+              <select id="pathEnabled">
+                <option value="true" selected>On</option>
+                <option value="false">Off</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span>Constrained Bones (multi)</span>
+            <select id="pathBones" multiple size="4"></select>
+          </label>
+          <div class="field two-col">
+            <label>
+              <span>Position Mode</span>
+              <select id="pathPositionMode">
+                <option value="fixed" selected>Fixed</option>
+                <option value="percent">Percent</option>
+              </select>
+            </label>
+            <label>
+              <span>Spacing Mode</span>
+              <select id="pathSpacingMode">
+                <option value="length" selected>Length</option>
+                <option value="fixed">Fixed</option>
+                <option value="percent">Percent</option>
+                <option value="proportional">Proportional</option>
+              </select>
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Rotate Mode</span>
+              <select id="pathRotateMode">
+                <option value="tangent" selected>Tangent</option>
+                <option value="chain">Chain</option>
+                <option value="chainScale">Chain Scale</option>
+              </select>
+            </label>
+            <label>
+              <span>Closed Path</span>
+              <select id="pathClosed">
+                <option value="false" selected>No</option>
+                <option value="true">Yes</option>
+              </select>
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Position</span>
+              <input id="pathPosition" type="number" step="1" value="0" />
+            </label>
+            <label>
+              <span>Spacing</span>
+              <input id="pathSpacing" type="number" step="1" value="40" />
+            </label>
+          </div>
+          <div class="field two-col">
+            <label>
+              <span>Rotate Mix</span>
+              <input id="pathRotateMix" type="number" min="0" max="1" step="0.01" value="1" />
+            </label>
+            <label>
+              <span>Translate Mix</span>
+              <input id="pathTranslateMix" type="number" min="0" max="1" step="0.01" value="1" />
+            </label>
+          </div>
+          <label class="slot-inline-check">
+            <input id="pathSkinRequired" type="checkbox" />
+            <span>Skin Required</span>
+          </label>
+          <p id="pathHint" class="muted">Default source is Drawn Path. Click Draw On Canvas, then click on canvas to
+            place
+            points.</p>
+        </section>
+
+        <section id="leftSkinTools" class="group left-tab-panel" data-left-panel="skin">
+          <h3>Skin</h3>
+          <div class="field two-col">
+            <button id="skinAddBtn" type="button">+ Skin</button>
+            <button id="skinDeleteBtn" type="button">Del Skin</button>
+          </div>
+          <label class="field">
+            <span>Skin</span>
+            <select id="skinSelect"></select>
+          </label>
+          <label class="field">
+            <span>Skin Name</span>
+            <input id="skinName" type="text" value="" />
+          </label>
+          <div class="field two-col">
+            <button id="skinCaptureBtn" type="button">Capture Current</button>
+            <button id="skinApplyBtn" type="button">Apply Skin</button>
+          </div>
+          <label class="field">
+            <span>Weight Mode</span>
+            <select id="weightMode">
+              <option value="hard" selected>Hard (Single Bone)</option>
+              <option value="smooth">Smooth Blend</option>
+            </select>
+          </label>
+          <button id="autoWeightBtn">Auto Weight</button>
+        </section>
+
         <section id="diagnosticsGroup" class="group diagnostics-group">
           <h3>Diagnostics</h3>
           <div class="field two-col">
@@ -951,7 +1120,8 @@
         <label class="mini-flag"><input id="animLoop" type="checkbox" checked />Loop</label>
         <label class="mini-flag"><input id="animSnap" type="checkbox" />Snap</label>
         <label class="mini-flag">FPS <input id="animFps" type="number" min="1" step="1" value="30" /></label>
-        <label class="mini-flag">Step <input id="animTimeStep" type="number" min="0.001" step="0.001" value="0.01" /></label>
+        <label class="mini-flag">Step <input id="animTimeStep" type="number" min="0.001" step="0.001"
+            value="0.01" /></label>
       </div>
       <div class="field timeline-meta timeline-meta-tight">
         <select id="trackSelect" title="Track"></select>
@@ -963,12 +1133,15 @@
       <div class="field timeline-actions">
         <button id="autoKeyBtn" title="Auto Key">● Rec</button>
         <button id="addKeyBtn">+Key</button>
-        <button id="addAttachmentKeyBtn">Set Attach Key</button>
-        <button id="addClipKeyBtn">Set Clip Key</button>
-        <button id="addClipSourceKeyBtn">Set ClipSrc Key</button>
-        <button id="addClipComboKeyBtn">Set Clip+End Key</button>
-        <button id="addClipEndKeyBtn">Set ClipEnd Key</button>
-        <button id="addDrawOrderKeyBtn">Set DrawOrder Key</button>
+        <select id="addSpecialKeySelect" title="Special Keys">
+          <option value="attachment">Attach Key</option>
+          <option value="clip">Clip Key</option>
+          <option value="clipSource">ClipSrc Key</option>
+          <option value="clipCombo">Clip+End Key</option>
+          <option value="clipEnd">ClipEnd Key</option>
+          <option value="drawOrder">DrawOrder Key</option>
+        </select>
+        <button id="addSpecialKeyBtn">+Special Key</button>
         <button id="loopMakeSeamBtn" type="button">Loop Seam</button>
         <button id="loopPingPongBtn" type="button">Loop PingPong</button>
         <button id="drawOrderToggleBtn" type="button">DrawOrder Edit</button>
@@ -984,7 +1157,8 @@
         <label class="mini-flag"><input id="onionEnabled" type="checkbox" />Onion</label>
         <label class="mini-flag">Prev <input id="onionPrev" type="number" min="0" max="12" step="1" value="2" /></label>
         <label class="mini-flag">Next <input id="onionNext" type="number" min="0" max="12" step="1" value="2" /></label>
-        <label class="mini-flag">A <input id="onionAlpha" type="number" min="0.01" max="1" step="0.01" value="0.22" /></label>
+        <label class="mini-flag">A <input id="onionAlpha" type="number" min="0.01" max="1" step="0.01"
+            value="0.22" /></label>
       </div>
       <div id="drawOrderEditor" class="field draworder-editor collapsed">
         <div class="draworder-head">Draw Order Editor</div>
@@ -1008,7 +1182,8 @@
               <option value="stepped">Stepped</option>
               <option value="bezier">Bezier</option>
             </select>
-            <button id="keyInterpApplySelectedBtn" type="button" title="Apply interpolation to selected keys">Apply Sel</button>
+            <button id="keyInterpApplySelectedBtn" type="button" title="Apply interpolation to selected keys">Apply
+              Sel</button>
             <button id="curveToggleBtn" type="button" title="Toggle Curve Editor">Curve</button>
           </div>
           <canvas id="curveEditor" width="280" height="170"></canvas>
@@ -1121,12 +1296,15 @@
       </div>
       <div class="field timeline-layerbar">
         <span class="mini-label">SM Bridge</span>
-        <button id="smBridgeExportBtn" type="button" title="Export state machine bridge metadata JSON">Export Bridge JSON</button>
-        <button id="smBridgeCodeBtn" type="button" title="Export Unity/JS integration sample code">Export Bridge Code</button>
+        <button id="smBridgeExportBtn" type="button" title="Export state machine bridge metadata JSON">Export Bridge
+          JSON</button>
+        <button id="smBridgeCodeBtn" type="button" title="Export Unity/JS integration sample code">Export Bridge
+          Code</button>
         <select id="smBridgeParamSelect" title="Bridge Test Param"></select>
         <input id="smBridgeParamValue" type="text" value="0" title="Bridge Test Value" />
         <button id="smBridgeSetBtn" type="button" title="Apply via runtime bridge API">Apply Param</button>
-        <input id="smBridgeApiInfo" type="text" value="window.setAnimParam(name, value)" readonly title="Runtime Bridge API" />
+        <input id="smBridgeApiInfo" type="text" value="window.setAnimParam(name, value)" readonly
+          title="Runtime Bridge API" />
       </div>
     </section>
 
@@ -1143,7 +1321,8 @@
         <label class="mini-flag"><input id="layerTrackLoop" type="checkbox" checked />Loop</label>
         <label class="mini-flag">Spd <input id="layerTrackSpeed" type="number" step="0.01" value="1" /></label>
         <label class="mini-flag">Off <input id="layerTrackOffset" type="number" step="0.01" value="0" /></label>
-        <label class="mini-flag">A <input id="layerTrackAlpha" type="number" min="0" max="1" step="0.01" value="1" /></label>
+        <label class="mini-flag">A <input id="layerTrackAlpha" type="number" min="0" max="1" step="0.01"
+            value="1" /></label>
         <select id="layerTrackMode" title="Blend Mode">
           <option value="replace" selected>Replace</option>
           <option value="add">Add</option>
@@ -1163,17 +1342,20 @@
 
   <div id="commandPaletteWrap" class="command-palette-wrap collapsed" aria-hidden="true">
     <div id="commandPaletteBackdrop" class="command-palette-backdrop"></div>
-    <section id="commandPalettePanel" class="command-palette-panel" role="dialog" aria-modal="true" aria-label="Command Palette">
+    <section id="commandPalettePanel" class="command-palette-panel" role="dialog" aria-modal="true"
+      aria-label="Command Palette">
       <div class="command-palette-head">
         <strong>Command Palette</strong>
         <span id="commandPaletteMode" class="muted">All Commands</span>
       </div>
-      <input id="commandPaletteInput" type="text" placeholder="Type to search commands and hotkeys..." autocomplete="off" />
+      <input id="commandPaletteInput" type="text" placeholder="Type to search commands and hotkeys..."
+        autocomplete="off" />
       <div id="commandPaletteHint" class="muted">Enter run, Esc close, ? hotkeys only.</div>
       <div id="commandPaletteList" class="command-palette-list"></div>
     </section>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <script src="app.js"></script>
 </body>
+
 </html>

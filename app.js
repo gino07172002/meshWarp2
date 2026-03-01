@@ -12,6 +12,7 @@
   workspaceTabs: document.getElementById("workspaceTabs"),
   workspaceTabSlot: document.getElementById("workspaceTabSlot"),
   workspaceTabRig: document.getElementById("workspaceTabRig"),
+  workspaceTabObject: document.getElementById("workspaceTabObject"),
   workspaceTabAnimate: document.getElementById("workspaceTabAnimate"),
   animateSubTabs: document.getElementById("animateSubTabs"),
   animSubTabTimeline: document.getElementById("animSubTabTimeline"),
@@ -34,22 +35,33 @@
   spineCompatWrap: document.getElementById("spineCompatWrap"),
   spineCompat: document.getElementById("spineCompat"),
   viewZoomWrap: document.getElementById("viewZoomWrap"),
+  viewPanToggleBtn: document.getElementById("viewPanToggleBtn"),
+  viewFitAllBtn: document.getElementById("viewFitAllBtn"),
   viewZoomOutBtn: document.getElementById("viewZoomOutBtn"),
   viewZoomResetBtn: document.getElementById("viewZoomResetBtn"),
   viewZoomInBtn: document.getElementById("viewZoomInBtn"),
+  objectTransformTools: document.getElementById("objectTransformTools"),
+  objectToolMoveBtn: document.getElementById("objectToolMoveBtn"),
+  objectToolRotateBtn: document.getElementById("objectToolRotateBtn"),
+  objectPanelMoveBtn: document.getElementById("objectPanelMoveBtn"),
+  objectPanelRotateBtn: document.getElementById("objectPanelRotateBtn"),
   workspaceMode: document.getElementById("workspaceMode"),
   leftToolModeHint: document.getElementById("leftToolModeHint"),
   leftToolTabs: document.getElementById("leftToolTabs"),
+  leftTabCanvas: document.getElementById("leftTabCanvas"),
   leftTabSetup: document.getElementById("leftTabSetup"),
   leftTabRig: document.getElementById("leftTabRig"),
+  leftTabObject: document.getElementById("leftTabObject"),
   leftTabIK: document.getElementById("leftTabIK"),
   leftTabConstraint: document.getElementById("leftTabConstraint"),
   leftTabPath: document.getElementById("leftTabPath"),
   leftTabSkin: document.getElementById("leftTabSkin"),
   leftTabTools: document.getElementById("leftTabTools"),
   leftTabSlotMesh: document.getElementById("leftTabSlotMesh"),
+  leftCanvasTools: document.getElementById("leftCanvasTools"),
   leftMeshSetup: document.getElementById("leftMeshSetup"),
   leftRigBuild: document.getElementById("leftRigBuild"),
+  leftObjectTools: document.getElementById("leftObjectTools"),
   leftIKTools: document.getElementById("leftIKTools"),
   leftConstraintTools: document.getElementById("leftConstraintTools"),
   leftPathTools: document.getElementById("leftPathTools"),
@@ -60,6 +72,13 @@
   rightTree: document.getElementById("rightTree"),
   rightProps: document.getElementById("rightProps"),
   boneTreeOnlyActiveSlotBtn: document.getElementById("boneTreeOnlyActiveSlotBtn"),
+  boneTreeAddBoneBtn: document.getElementById("boneTreeAddBoneBtn"),
+  boneTreeDeleteBoneBtn: document.getElementById("boneTreeDeleteBoneBtn"),
+  boneTreeDeleteBoneMenuBtn: document.getElementById("boneTreeDeleteBoneMenuBtn"),
+  boneTreeDeleteBoneMenu: document.getElementById("boneTreeDeleteBoneMenu"),
+  boneTreeDeleteBoneToStagingBtn: document.getElementById("boneTreeDeleteBoneToStagingBtn"),
+  boneTreeDeleteBoneWithSlotsBtn: document.getElementById("boneTreeDeleteBoneWithSlotsBtn"),
+  boneTreeBindSelectedUnassignedBtn: document.getElementById("boneTreeBindSelectedUnassignedBtn"),
   slotPropsGroup: document.getElementById("slotPropsGroup"),
   bonePropsGroup: document.getElementById("bonePropsGroup"),
   slotSelect: document.getElementById("slotSelect"),
@@ -67,8 +86,16 @@
   gridX: document.getElementById("gridX"),
   gridY: document.getElementById("gridY"),
   remeshBtn: document.getElementById("remeshBtn"),
+  baseImageTransformEnabled: document.getElementById("baseImageTransformEnabled"),
+  baseImageTx: document.getElementById("baseImageTx"),
+  baseImageTy: document.getElementById("baseImageTy"),
+  baseImageScale: document.getElementById("baseImageScale"),
+  baseImageRot: document.getElementById("baseImageRot"),
+  baseImageTransformResetBtn: document.getElementById("baseImageTransformResetBtn"),
+  baseImageTransformHint: document.getElementById("baseImageTransformHint"),
+  systemMode: document.getElementById("systemMode"),
+  systemModeWrap: document.getElementById("systemModeWrap"),
   editMode: document.getElementById("editMode"),
-  boneMode: document.getElementById("boneMode"),
   boneSelect: document.getElementById("boneSelect"),
   addBoneBtn: document.getElementById("addBoneBtn"),
   deleteBoneBtn: document.getElementById("deleteBoneBtn"),
@@ -158,6 +185,10 @@
   boneInherit: document.getElementById("boneInherit"),
   boneConnect: document.getElementById("boneConnect"),
   bonePoseLen: document.getElementById("bonePoseLen"),
+  boneWorkHidden: document.getElementById("boneWorkHidden"),
+  boneAnimHidden: document.getElementById("boneAnimHidden"),
+  boneAnimHideSetKeyBtn: document.getElementById("boneAnimHideSetKeyBtn"),
+  boneAnimHideDelKeyBtn: document.getElementById("boneAnimHideDelKeyBtn"),
   boneTx: document.getElementById("boneTx"),
   boneTy: document.getElementById("boneTy"),
   boneRot: document.getElementById("boneRot"),
@@ -297,12 +328,8 @@
   redoBtn: document.getElementById("redoBtn"),
   addKeyBtn: document.getElementById("addKeyBtn"),
   autoKeyBtn: document.getElementById("autoKeyBtn"),
-  addAttachmentKeyBtn: document.getElementById("addAttachmentKeyBtn"),
-  addClipKeyBtn: document.getElementById("addClipKeyBtn"),
-  addClipSourceKeyBtn: document.getElementById("addClipSourceKeyBtn"),
-  addClipComboKeyBtn: document.getElementById("addClipComboKeyBtn"),
-  addClipEndKeyBtn: document.getElementById("addClipEndKeyBtn"),
-  addDrawOrderKeyBtn: document.getElementById("addDrawOrderKeyBtn"),
+  addSpecialKeySelect: document.getElementById("addSpecialKeySelect"),
+  addSpecialKeyBtn: document.getElementById("addSpecialKeyBtn"),
   loopMakeSeamBtn: document.getElementById("loopMakeSeamBtn"),
   loopPingPongBtn: document.getElementById("loopPingPongBtn"),
   drawOrderToggleBtn: document.getElementById("drawOrderToggleBtn"),
@@ -338,6 +365,8 @@
   treeCtxSlotDupBtn: document.getElementById("treeCtxSlotDupBtn"),
   treeCtxSlotRenameBtn: document.getElementById("treeCtxSlotRenameBtn"),
   treeCtxSlotDeleteBtn: document.getElementById("treeCtxSlotDeleteBtn"),
+  treeCtxBoneDeleteBtn: document.getElementById("treeCtxBoneDeleteBtn"),
+  treeCtxBoneDeleteWithSlotsBtn: document.getElementById("treeCtxBoneDeleteWithSlotsBtn"),
   treeCtxSlotLoadImageBtn: document.getElementById("treeCtxSlotLoadImageBtn"),
   boneTree: document.getElementById("boneTree"),
   slotName: document.getElementById("slotName"),
@@ -355,6 +384,9 @@
   slotAttachmentSequenceCount: document.getElementById("slotAttachmentSequenceCount"),
   slotAttachmentSequenceStart: document.getElementById("slotAttachmentSequenceStart"),
   slotAttachmentSequenceDigits: document.getElementById("slotAttachmentSequenceDigits"),
+  slotAttachmentSequenceSetupIndex: document.getElementById("slotAttachmentSequenceSetupIndex"),
+  slotAttachmentSequenceMode: document.getElementById("slotAttachmentSequenceMode"),
+  slotAttachmentSequencePath: document.getElementById("slotAttachmentSequencePath"),
   slotAttachmentAddBtn: document.getElementById("slotAttachmentAddBtn"),
   slotAttachmentDeleteBtn: document.getElementById("slotAttachmentDeleteBtn"),
   slotAttachmentRenameBtn: document.getElementById("slotAttachmentRenameBtn"),
@@ -373,6 +405,11 @@
   slotBone: document.getElementById("slotBone"),
   slotBindBoneBtn: document.getElementById("slotBindBoneBtn"),
   slotBindWeightedBtn: document.getElementById("slotBindWeightedBtn"),
+  slotWeightQuickBar: document.getElementById("slotWeightQuickBar"),
+  slotWeightQuickWeightedBtn: document.getElementById("slotWeightQuickWeightedBtn"),
+  slotWeightQuickSingleBtn: document.getElementById("slotWeightQuickSingleBtn"),
+  slotWeightQuickFreeBtn: document.getElementById("slotWeightQuickFreeBtn"),
+  slotWeightQuickEditBtn: document.getElementById("slotWeightQuickEditBtn"),
   slotVisible: document.getElementById("slotVisible"),
   slotAlpha: document.getElementById("slotAlpha"),
   slotColor: document.getElementById("slotColor"),
@@ -380,6 +417,7 @@
   slotDarkEnabled: document.getElementById("slotDarkEnabled"),
   slotDarkColor: document.getElementById("slotDarkColor"),
   slotWeightMode: document.getElementById("slotWeightMode"),
+  slotWeightModeHint: document.getElementById("slotWeightModeHint"),
   slotInfluenceBones: document.getElementById("slotInfluenceBones"),
   slotTx: document.getElementById("slotTx"),
   slotTy: document.getElementById("slotTy"),
@@ -387,15 +425,18 @@
   slotOrderUp: document.getElementById("slotOrderUp"),
   slotOrderDown: document.getElementById("slotOrderDown"),
   slotMeshTools: document.getElementById("slotMeshTools"),
-  slotMeshNewMode: document.getElementById("slotMeshNewMode"),
   slotMeshNewBtn: document.getElementById("slotMeshNewBtn"),
+  slotMeshToolModeHint: document.getElementById("slotMeshToolModeHint"),
   slotMeshCloseBtn: document.getElementById("slotMeshCloseBtn"),
   slotMeshTriangulateBtn: document.getElementById("slotMeshTriangulateBtn"),
   slotMeshGridFillBtn: document.getElementById("slotMeshGridFillBtn"),
+  slotMeshAutoForegroundBtn: document.getElementById("slotMeshAutoForegroundBtn"),
   slotMeshGridReplaceContour: document.getElementById("slotMeshGridReplaceContour"),
+  slotMeshContourRefHint: document.getElementById("slotMeshContourRefHint"),
   slotMeshLinkEdgeBtn: document.getElementById("slotMeshLinkEdgeBtn"),
   slotMeshUnlinkEdgeBtn: document.getElementById("slotMeshUnlinkEdgeBtn"),
   slotMeshApplyBtn: document.getElementById("slotMeshApplyBtn"),
+  slotMeshCreateApplyBtn: document.getElementById("slotMeshCreateApplyBtn"),
   slotMeshResetBtn: document.getElementById("slotMeshResetBtn"),
   stage: document.getElementById("stage"),
   glCanvas: document.getElementById("glCanvas"),
@@ -427,7 +468,7 @@ const state = {
   imageHeight: 0,
   slots: [],
   activeSlot: -1,
-  slotViewMode: "single",
+  slotViewMode: "all",
   leftToolTab: "setup",
   workspaceMode: "rig",
   uiPage: "rig",
@@ -449,6 +490,8 @@ const state = {
   dragTool: "auto",
   parentPickArmed: false,
   parentHoverBone: -1,
+  objectHoverRoot: -1,
+  objectScaleHoverRoot: -1,
   addBoneArmed: false,
   addBoneDraft: null,
   treeSlotDrag: null,
@@ -457,10 +500,13 @@ const state = {
   treeBoneLastClickIndex: -1,
   treeBoneLastClickTs: 0,
   boneTreeOnlyActiveSlot: false,
+  boneTreeSelectedUnassignedSlotIds: [],
+  boneTreeSelectedSlotByBone: Object.create(null),
   boneTreeSlotCollapse: Object.create(null),
   boneTreeChildCollapse: Object.create(null),
   boneTreeInlineRename: { kind: "", index: -1 },
   boneTreeMenuOpen: false,
+  boneTreeMenuContextKind: "",
   rightPropsFocus: "slot",
   anim: {
     duration: 5,
@@ -554,14 +600,22 @@ const state = {
     filtered: [],
     lastFocus: null,
   },
-  view: { scale: 1, cx: 0, cy: 0, fitScale: 1, initialized: false, lastW: 0, lastH: 0 },
+  view: { scale: 1, cx: 0, cy: 0, fitScale: 1, initialized: false, lastW: 0, lastH: 0, panMode: false },
+  baseImageTransform: {
+    enabled: false,
+    tx: 0,
+    ty: 0,
+    rot: 0,
+    scale: 1,
+  },
   drag: null,
   slotMesh: {
     activePoint: -1,
     activeSet: "contour",
     edgeSelection: [],
     edgeSelectionSet: "contour",
-    newContourMode: "new_slot",
+    selectedPoints: { contour: [], fill: [] },
+    toolMode: "select",
     gridReplaceContour: false,
   },
   pathEdit: {
@@ -597,6 +651,434 @@ const math = {
   clamp: (v, lo, hi) => Math.max(lo, Math.min(hi, v)),
 };
 
+function normalizeBaseImageTransform(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  const scaleRaw = Number(src.scale);
+  return {
+    enabled: src.enabled === true,
+    tx: Number(src.tx) || 0,
+    ty: Number(src.ty) || 0,
+    rot: Number(src.rot) || 0,
+    scale: math.clamp(Number.isFinite(scaleRaw) ? scaleRaw : 1, 0.01, 100),
+  };
+}
+
+function getSlotBaseImageTransform(slot = null) {
+  const targetSlot = slot || getActiveSlot();
+  if (targetSlot && typeof targetSlot === "object") {
+    const tr = normalizeBaseImageTransform(targetSlot.baseImageTransform);
+    targetSlot.baseImageTransform = tr;
+    return tr;
+  }
+  const fallback = normalizeBaseImageTransform(state.baseImageTransform);
+  state.baseImageTransform = fallback;
+  return fallback;
+}
+
+function setSlotBaseImageTransform(next, slot = null) {
+  const tr = normalizeBaseImageTransform(next);
+  const targetSlot = slot || getActiveSlot();
+  if (targetSlot && typeof targetSlot === "object") {
+    targetSlot.baseImageTransform = tr;
+    return tr;
+  }
+  state.baseImageTransform = tr;
+  return tr;
+}
+
+function isSlotMeshModeActive() {
+  return state.editMode === "slotmesh";
+}
+
+function isSlotMeshEditTabActive() {
+  return state.editMode === "slotmesh" && state.leftToolTab === "slotmesh";
+}
+
+function isBaseImageEditTabActive() {
+  return state.editMode === "slotmesh" && state.leftToolTab === "canvas";
+}
+
+function isBaseImageTransformEditable() {
+  return isBaseImageEditTabActive();
+}
+
+function getSlotBaseSpaceBoneIndex(slot, m = state.mesh) {
+  if (!slot || !m || !Array.isArray(m.rigBones)) return -1;
+  const boneCount = m.rigBones.length;
+  const mode = getSlotWeightMode(slot);
+  const inf = getSlotInfluenceBones(slot, m);
+  const pickDominantWeightedBone = () => {
+    const sm = slot && slot.meshData ? slot.meshData : null;
+    if (!sm || !sm.weights || !sm.positions) return -1;
+    const vCount = Math.floor((Number(sm.positions.length) || 0) / 2);
+    if (vCount <= 0) return -1;
+    const weights = sm.weights;
+    if ((Number(weights.length) || 0) !== vCount * boneCount) return -1;
+    const candidateSet = new Set();
+    if (Array.isArray(inf) && inf.length > 0) {
+      for (const biRaw of inf) {
+        const bi = Number(biRaw);
+        if (Number.isFinite(bi) && bi >= 0 && bi < boneCount) candidateSet.add(bi);
+      }
+    }
+    if (candidateSet.size <= 0) {
+      for (let bi = 0; bi < boneCount; bi += 1) candidateSet.add(bi);
+    }
+    let best = -1;
+    let bestSum = 1e-8;
+    for (const bi of candidateSet) {
+      let sum = 0;
+      for (let vi = 0; vi < vCount; vi += 1) {
+        sum += Number(weights[vi * boneCount + bi]) || 0;
+      }
+      if (sum > bestSum) {
+        bestSum = sum;
+        best = bi;
+      }
+    }
+    return best;
+  };
+  if (mode === "weighted") {
+    const dominant = pickDominantWeightedBone();
+    if (dominant >= 0) return dominant;
+    for (const biRaw of inf) {
+      const bi = Number(biRaw);
+      if (Number.isFinite(bi) && bi >= 0 && bi < boneCount) return bi;
+    }
+  }
+  const direct = Number(slot.bone);
+  if (Number.isFinite(direct) && direct >= 0 && direct < boneCount) return direct;
+  for (const biRaw of inf) {
+    const bi = Number(biRaw);
+    if (Number.isFinite(bi) && bi >= 0 && bi < boneCount) return bi;
+  }
+  return -1;
+}
+
+function shouldRenderBaseImageReference() {
+  // Base image is the same source used for slot binding, always visible when source exists.
+  if (!state.sourceCanvas) return false;
+  if (!(Number(state.imageWidth) > 0 && Number(state.imageHeight) > 0)) return false;
+  return true;
+}
+
+function drawBaseImageReference2D(ctx) {
+  if (!ctx || !shouldRenderBaseImageReference()) return false;
+  const docW = Math.max(1, Number(state.imageWidth) || Number(state.sourceCanvas && state.sourceCanvas.width) || 1);
+  const docH = Math.max(1, Number(state.imageHeight) || Number(state.sourceCanvas && state.sourceCanvas.height) || 1);
+  const activeSlot = getActiveSlot();
+  const poseWorld = state.mesh ? getSolvedPoseWorld(state.mesh) : null;
+
+  let drawTm = getBaseImageTransformMatrix(activeSlot, poseWorld, docW, docH);
+  if (state.mesh && activeSlot) {
+    const bi = getSlotBaseSpaceBoneIndex(activeSlot, state.mesh);
+    if (Number.isFinite(bi) && bi >= 0 && Array.isArray(poseWorld) && poseWorld[bi] && state.mesh.invBind && state.mesh.invBind[bi]) {
+      const delta = mul(poseWorld[bi], state.mesh.invBind[bi]);
+      drawTm = mul(drawTm, delta);
+    }
+  }
+
+  const scale = Math.max(1e-6, Number(state.view.scale) || 1);
+  const alpha = isBaseImageEditTabActive() ? 1 : state.slots.length > 0 ? 0.35 : 1;
+
+  ctx.save();
+  ctx.translate(state.view.cx, state.view.cy);
+  ctx.scale(scale, scale);
+  ctx.translate(-docW * 0.5, -docH * 0.5);
+  ctx.transform(drawTm[0], drawTm[2], drawTm[1], drawTm[3], drawTm[4], drawTm[5]);
+  ctx.globalAlpha = alpha;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(state.sourceCanvas, 0, 0, docW, docH);
+  ctx.restore();
+  return true;
+}
+
+function refreshBaseImageTransformUI() {
+  const tr = getSlotBaseImageTransform();
+  const hasSource = !!state.sourceCanvas && Number(state.imageWidth) > 0 && Number(state.imageHeight) > 0;
+  const editable = hasSource && isBaseImageTransformEditable();
+  if (els.baseImageTx) {
+    els.baseImageTx.value = String(Math.round(tr.tx));
+    els.baseImageTx.disabled = !editable;
+  }
+  if (els.baseImageTy) {
+    els.baseImageTy.value = String(Math.round(tr.ty));
+    els.baseImageTy.disabled = !editable;
+  }
+  if (els.baseImageScale) {
+    els.baseImageScale.value = String(Number(tr.scale).toFixed(3));
+    els.baseImageScale.disabled = !editable;
+  }
+  if (els.baseImageRot) {
+    els.baseImageRot.value = String(Math.round(math.radToDeg(tr.rot)));
+    els.baseImageRot.disabled = !editable;
+  }
+  if (els.baseImageTransformResetBtn) {
+    els.baseImageTransformResetBtn.disabled = !editable;
+  }
+  if (els.baseImageTransformHint) {
+    if (!hasSource) {
+      els.baseImageTransformHint.textContent = "Import image/PSD first.";
+    } else if (!editable) {
+      els.baseImageTransformHint.textContent = "Switch to Slot Mesh mode and open Base Transform tab to edit base image transform.";
+    } else {
+      els.baseImageTransformHint.textContent =
+        "Setup-style base transform in owner-bone local space: directly affects bound slot rendering, not keyed in animation timeline.";
+    }
+  }
+}
+
+function applyBaseImageTransformFromInputs() {
+  const tr = getSlotBaseImageTransform();
+  tr.enabled = true;
+  tr.tx = Number(els.baseImageTx && els.baseImageTx.value) || 0;
+  tr.ty = Number(els.baseImageTy && els.baseImageTy.value) || 0;
+  tr.scale = math.clamp(Number(els.baseImageScale && els.baseImageScale.value) || 1, 0.01, 100);
+  tr.rot = math.degToRad(Number(els.baseImageRot && els.baseImageRot.value) || 0);
+  setSlotBaseImageTransform(tr);
+  refreshBaseImageTransformUI();
+}
+
+function syncBaseImageTransformInputs() {
+  const tr = getSlotBaseImageTransform();
+  if (els.baseImageTx) els.baseImageTx.value = String(Math.round(tr.tx));
+  if (els.baseImageTy) els.baseImageTy.value = String(Math.round(tr.ty));
+  if (els.baseImageScale) els.baseImageScale.value = String(Number(tr.scale).toFixed(3));
+  if (els.baseImageRot) els.baseImageRot.value = String(Math.round(math.radToDeg(tr.rot)));
+}
+
+function syncActiveSlotTransformInputs() {
+  const s = getActiveSlot();
+  if (!s) return;
+  if (els.slotTx) els.slotTx.value = String(Math.round(Number(s.tx) || 0));
+  if (els.slotTy) els.slotTy.value = String(Math.round(Number(s.ty) || 0));
+  if (els.slotRot) els.slotRot.value = String(Math.round(math.radToDeg(Number(s.rot) || 0)));
+}
+
+function isCanvasTransformGizmoAllowed() {
+  if (state.uiPage === "anim") return false;
+  if (state.editMode === "vertex") return false;
+  if (state.editMode === "skeleton" && state.leftToolTab === "path") return false;
+  const baseTab = isBaseImageEditTabActive();
+  if (!baseTab && !state.mesh) return false;
+  if (!baseTab && (state.ikPickArmed || state.parentPickArmed || state.pathEdit.drawArmed || state.addBoneArmed)) return false;
+  return true;
+}
+
+function getSlotBoneOriginLocal(slot, poseWorld = null) {
+  if (!slot || !state.mesh) return null;
+  const bi = getSlotBaseSpaceBoneIndex(slot, state.mesh);
+  if (!Number.isFinite(bi) || bi < 0) return null;
+  const world = Array.isArray(poseWorld) ? poseWorld : getSolvedPoseWorld(state.mesh);
+  if (!Array.isArray(world) || bi >= world.length || !world[bi]) return null;
+  const p = transformPoint(world[bi], 0, 0);
+  return { x: Number(p.x) || 0, y: Number(p.y) || 0 };
+}
+
+function getBaseImagePivotLocal(slot = null, poseWorld = null, docW = null, docH = null) {
+  const width = Math.max(1, Number(docW) || Number(state.imageWidth) || Number(state.sourceCanvas && state.sourceCanvas.width) || 1);
+  const height = Math.max(1, Number(docH) || Number(state.imageHeight) || Number(state.sourceCanvas && state.sourceCanvas.height) || 1);
+  const targetSlot = slot || getActiveSlot();
+  const bonePivot = getSlotBoneOriginLocal(targetSlot, poseWorld);
+  if (bonePivot) return bonePivot;
+  return { x: width * 0.5, y: height * 0.5 };
+}
+
+function getBaseImageSpaceWorldMatrix(slot = null, poseWorld = null, docW = null, docH = null) {
+  const width = Math.max(1, Number(docW) || Number(state.imageWidth) || Number(state.sourceCanvas && state.sourceCanvas.width) || 1);
+  const height = Math.max(1, Number(docH) || Number(state.imageHeight) || Number(state.sourceCanvas && state.sourceCanvas.height) || 1);
+  const targetSlot = slot || getActiveSlot();
+  const bi = getSlotBaseSpaceBoneIndex(targetSlot, state.mesh);
+  const world = Array.isArray(poseWorld) ? poseWorld : state.mesh ? getSolvedPoseWorld(state.mesh) : null;
+  if (Array.isArray(world) && Number.isFinite(bi) && bi >= 0 && bi < world.length && world[bi]) {
+    return world[bi].slice(0, 6);
+  }
+  const pivot = getBaseImagePivotLocal(targetSlot, world, width, height);
+  return matFromTR(Number(pivot.x) || width * 0.5, Number(pivot.y) || height * 0.5, 0);
+}
+
+function getBaseImageLocalTransformMatrix(slot = null) {
+  const tr = getSlotBaseImageTransform(slot);
+  const scale = Number(tr && tr.scale) || 1;
+  const rot = Number(tr && tr.rot) || 0;
+  const tx = Number(tr && tr.tx) || 0;
+  const ty = Number(tr && tr.ty) || 0;
+  if (Math.abs(tx) < 1e-6 && Math.abs(ty) < 1e-6 && Math.abs(rot) < 1e-6 && Math.abs(scale - 1) < 1e-6) {
+    return createIdentity();
+  }
+  const scaleM = [scale, 0, 0, scale, 0, 0];
+  return mul(matFromTR(tx, ty, rot), scaleM);
+}
+
+function transformBaseImageLocalPoint(x, y, baseMatrix) {
+  return transformPoint(baseMatrix, Number(x) || 0, Number(y) || 0);
+}
+
+function getBaseImageTransformMatrix(slot = null, poseWorld = null, docW = null, docH = null) {
+  if (!state.sourceCanvas) return createIdentity();
+  const spaceWorld = getBaseImageSpaceWorldMatrix(slot, poseWorld, docW, docH);
+  const local = getBaseImageLocalTransformMatrix(slot);
+  return mul(mul(spaceWorld, local), invert(spaceWorld));
+}
+
+function worldDeltaToBaseLocal(delta, spaceWorld = null) {
+  const dx = Number(delta && delta.x) || 0;
+  const dy = Number(delta && delta.y) || 0;
+  const space = Array.isArray(spaceWorld) ? spaceWorld : null;
+  if (!space) return { x: dx, y: dy };
+  const inv = invert(space);
+  return {
+    x: inv[0] * dx + inv[1] * dy,
+    y: inv[2] * dx + inv[3] * dy,
+  };
+}
+
+function getCanvasTransformGizmos(poseWorld = null) {
+  const out = { slot: null, base: null };
+  if (!isCanvasTransformGizmoAllowed()) return out;
+  if (isBaseImageEditTabActive() && shouldRenderBaseImageReference() && isBaseImageTransformEditable()) {
+    const activeSlot = getActiveSlot();
+    const docW = Math.max(1, Number(state.imageWidth) || Number(state.sourceCanvas && state.sourceCanvas.width) || 1);
+    const docH = Math.max(1, Number(state.imageHeight) || Number(state.sourceCanvas && state.sourceCanvas.height) || 1);
+    const pivotBase = getBaseImagePivotLocal(activeSlot, poseWorld, docW, docH);
+
+    let drawTm = getBaseImageTransformMatrix(activeSlot, poseWorld, docW, docH);
+    if (state.mesh && activeSlot) {
+      const bi = getSlotBaseSpaceBoneIndex(activeSlot, state.mesh);
+      if (Number.isFinite(bi) && bi >= 0 && Array.isArray(poseWorld) && poseWorld[bi] && state.mesh.invBind && state.mesh.invBind[bi]) {
+        const delta = mul(poseWorld[bi], state.mesh.invBind[bi]);
+        drawTm = mul(drawTm, delta);
+      }
+    }
+
+    const pivotLocal = transformPoint(drawTm, Number(pivotBase.x) || 0, Number(pivotBase.y) || 0);
+    const pivot = localToScreen(pivotLocal.x, pivotLocal.y);
+    const cornersLocal = [
+      transformBaseImageLocalPoint(0, 0, drawTm),
+      transformBaseImageLocalPoint(docW, 0, drawTm),
+      transformBaseImageLocalPoint(docW, docH, drawTm),
+      transformBaseImageLocalPoint(0, docH, drawTm),
+    ];
+    const cornersScreen = cornersLocal.map((p) => localToScreen(p.x, p.y));
+    const topMidScreen = {
+      x: (cornersScreen[0].x + cornersScreen[1].x) * 0.5,
+      y: (cornersScreen[0].y + cornersScreen[1].y) * 0.5,
+    };
+    const vx = topMidScreen.x - pivot.x;
+    const vy = topMidScreen.y - pivot.y;
+    const vLen = Math.hypot(vx, vy);
+    const ux = vLen > 1e-6 ? vx / vLen : 0;
+    const uy = vLen > 1e-6 ? vy / vLen : -1;
+    const stemLen = 28;
+    const rotateStemEnd = {
+      x: topMidScreen.x + ux * stemLen,
+      y: topMidScreen.y + uy * stemLen,
+    };
+    out.base = {
+      pivotLocal,
+      pivot,
+      spaceWorld: getBaseImageSpaceWorldMatrix(activeSlot, poseWorld, docW, docH),
+      cornersLocal,
+      cornersScreen,
+      cornerHandles: cornersScreen.map((p, index) => ({ x: p.x, y: p.y, size: 10, index })),
+      rotateStemStart: topMidScreen,
+      rotateStemEnd,
+      rotateHandle: { x: rotateStemEnd.x, y: rotateStemEnd.y, r: 9 },
+    };
+  }
+  return out;
+}
+
+function pickCanvasTransformHandle(mx, my, poseWorld = null) {
+  const giz = getCanvasTransformGizmos(poseWorld);
+  const local = screenToLocal(mx, my);
+  const picks = [];
+  const pushCirclePick = (key, handle, meta, priority) => {
+    if (!handle) return;
+    const dx = Number(handle.x) - mx;
+    const dy = Number(handle.y) - my;
+    const r = Number(handle.r) || 8;
+    const d2 = dx * dx + dy * dy;
+    if (d2 > r * r) return;
+    picks.push({ key, h: handle, meta, priority, d2 });
+  };
+  const pushSquarePick = (key, handle, meta, priority) => {
+    if (!handle) return;
+    const half = Math.max(3, (Number(handle.size) || 10) * 0.5);
+    const dx = Math.abs(Number(handle.x) - mx);
+    const dy = Math.abs(Number(handle.y) - my);
+    if (dx > half || dy > half) return;
+    picks.push({ key, h: handle, meta, priority, d2: dx * dx + dy * dy });
+  };
+  if (giz.base) {
+    pushCirclePick("base_rotate", giz.base.rotateHandle, giz.base, 8);
+    if (Array.isArray(giz.base.cornerHandles)) {
+      for (const c of giz.base.cornerHandles) {
+        pushSquarePick("base_scale", c, { ...giz.base, cornerIndex: Number(c.index) || 0 }, 7);
+      }
+    }
+    if (Array.isArray(giz.base.cornersLocal) && giz.base.cornersLocal.length >= 3 && pointInPolygon2D(local, giz.base.cornersLocal)) {
+      picks.push({ key: "base_move", h: null, meta: giz.base, priority: 4, d2: 0 });
+    }
+  }
+  let best = null;
+  for (const p of picks) {
+    if (!best || p.priority > best.priority || (p.priority === best.priority && p.d2 < best.d2)) {
+      best = p;
+    }
+  }
+  return best;
+}
+
+function drawCanvasTransformGizmos(ctx, poseWorld = null) {
+  if (!ctx) return;
+  const giz = getCanvasTransformGizmos(poseWorld);
+  const drawBase = (g, color) => {
+    if (!g || !Array.isArray(g.cornersScreen) || g.cornersScreen.length < 4) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 1.8;
+    ctx.globalAlpha = 0.96;
+    ctx.beginPath();
+    ctx.moveTo(g.cornersScreen[0].x, g.cornersScreen[0].y);
+    for (let i = 1; i < g.cornersScreen.length; i += 1) {
+      ctx.lineTo(g.cornersScreen[i].x, g.cornersScreen[i].y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    if (g.rotateStemStart && g.rotateStemEnd) {
+      ctx.beginPath();
+      ctx.moveTo(g.rotateStemStart.x, g.rotateStemStart.y);
+      ctx.lineTo(g.rotateStemEnd.x, g.rotateStemEnd.y);
+      ctx.stroke();
+    }
+    if (Array.isArray(g.cornerHandles)) {
+      for (const h of g.cornerHandles) {
+        const size = Number(h.size) || 10;
+        const half = size * 0.5;
+        ctx.fillStyle = "rgba(24, 31, 39, 0.95)";
+        ctx.fillRect(h.x - half, h.y - half, size, size);
+        ctx.strokeStyle = color;
+        ctx.strokeRect(h.x - half, h.y - half, size, size);
+      }
+    }
+    if (g.rotateHandle) {
+      ctx.beginPath();
+      ctx.arc(g.rotateHandle.x, g.rotateHandle.y, g.rotateHandle.r || 8, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(24, 31, 39, 0.96)";
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.stroke();
+    }
+    ctx.fillStyle = color;
+    ctx.font = "10px Segoe UI, sans-serif";
+    ctx.fillText("BASE", g.cornersScreen[0].x + 8, g.cornersScreen[0].y - 10);
+    ctx.restore();
+  };
+  drawBase(giz.base, "rgba(255, 184, 92, 0.92)");
+}
+
 function setStatus(text) {
   els.status.textContent = text;
 }
@@ -622,10 +1104,22 @@ function buildCommandPaletteItems() {
     { id: "edit.undo", label: "Edit: Undo", group: "Edit", hotkey: "Ctrl/Cmd+Z", action: async () => undoAction() },
     { id: "edit.redo", label: "Edit: Redo", group: "Edit", hotkey: "Ctrl/Cmd+Y", action: async () => redoAction() },
     { id: "mode.skeleton", label: "Mode: Skeleton", group: "Mode", hotkey: "", action: () => setSelectValueAndTrigger(els.editMode, "skeleton") },
+    {
+      id: "mode.slotmesh.canvas",
+      label: "Mode: Slot Mesh (Base Transform)",
+      group: "Mode",
+      hotkey: "",
+      action: () => {
+        setSelectValueAndTrigger(els.editMode, "slotmesh");
+        state.leftToolTab = "canvas";
+        updateWorkspaceUI();
+      },
+    },
     { id: "mode.vertex", label: "Mode: Vertex", group: "Mode", hotkey: "", action: () => setSelectValueAndTrigger(els.editMode, "vertex") },
     { id: "mode.slotmesh", label: "Mode: Slot Mesh", group: "Mode", hotkey: "", action: () => setSelectValueAndTrigger(els.editMode, "slotmesh") },
-    { id: "mode.rig", label: "Bone Mode: Edit Rig", group: "Mode", hotkey: "", action: () => setSelectValueAndTrigger(els.boneMode, "edit") },
-    { id: "mode.pose", label: "Bone Mode: Pose Animate", group: "Mode", hotkey: "", action: () => setSelectValueAndTrigger(els.boneMode, "pose") },
+    { id: "mode.rig", label: "Bone Mode: Edit Rig", group: "Mode", hotkey: "", action: () => { state.boneMode = "edit"; if (els.systemMode) els.systemMode.value = "setup"; updateWorkspaceUI(); updateBoneUI(); } },
+    { id: "mode.object", label: "Bone Mode: Object", group: "Mode", hotkey: "", action: () => { if (els.editMode) setSelectValueAndTrigger(els.editMode, "object"); else { state.editMode = "object"; state.boneMode = "object"; updateWorkspaceUI(); updateBoneUI(); } } },
+    { id: "mode.pose", label: "Bone Mode: Pose Animate", group: "Mode", hotkey: "", action: () => { state.boneMode = "pose"; if (els.systemMode) els.systemMode.value = "animate"; if (state.mesh) { syncPoseFromRig(state.mesh); samplePoseAtTime(state.mesh, state.anim.time); } updateWorkspaceUI(); updateBoneUI(); } },
     { id: "view.fit", label: "View: Fit (100%)", group: "View", hotkey: "0", action: () => resetViewToFit() },
     {
       id: "view.zoom.in",
@@ -808,6 +1302,115 @@ function moveCommandPaletteSelection(dir) {
 function sanitizeVertexFalloff(v) {
   const s = String(v || "").toLowerCase();
   return s === "linear" || s === "sharp" ? s : "smooth";
+}
+
+function setupApplicationMenuBar() {
+  const bar = document.getElementById("appMenuBar");
+  if (!bar) return;
+  const triggers = [...bar.querySelectorAll("[data-menu-trigger]")];
+  const panels = [...bar.querySelectorAll("[data-menu-panel]")];
+  let openKey = "";
+  const setOpen = (key = "") => {
+    openKey = String(key || "");
+    for (const t of triggers) {
+      const k = String(t.getAttribute("data-menu-trigger") || "");
+      const active = !!openKey && k === openKey;
+      t.classList.toggle("active", active);
+      t.setAttribute("aria-expanded", active ? "true" : "false");
+    }
+    for (const p of panels) {
+      const k = String(p.getAttribute("data-menu-panel") || "");
+      p.classList.toggle("open", !!openKey && k === openKey);
+    }
+  };
+  const runAction = (action) => {
+    const click = (el) => {
+      if (el && !el.disabled) el.click();
+    };
+    switch (String(action || "")) {
+      case "file.new":
+        click(els.fileNewBtn);
+        return;
+      case "file.import":
+        click(els.fileOpenBtn);
+        return;
+      case "file.save":
+        click(els.fileSaveBtn);
+        return;
+      case "file.load":
+        click(els.fileLoadBtn);
+        return;
+      case "file.export":
+        click(els.fileExportSpineBtn);
+        return;
+      case "edit.undo":
+        click(els.undoBtn);
+        return;
+      case "edit.redo":
+        click(els.redoBtn);
+        return;
+      case "edit.palette":
+        click(els.commandPaletteBtn);
+        return;
+      case "view.zoomin":
+        click(els.viewZoomInBtn);
+        return;
+      case "view.zoomout":
+        click(els.viewZoomOutBtn);
+        return;
+      case "view.zoomreset":
+        click(els.viewZoomResetBtn);
+        return;
+      case "tools.resetpose":
+        click(els.resetPoseBtn);
+        return;
+      case "tools.resetvertex":
+        click(els.resetVertexBtn);
+        return;
+      case "help.quick":
+        setStatus("Quick Help: File/Edit/View/Tools menus are available from the top menu bar.");
+        return;
+      default:
+        return;
+    }
+  };
+  for (const t of triggers) {
+    t.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const key = String(t.getAttribute("data-menu-trigger") || "");
+      if (!key) return;
+      setOpen(openKey === key ? "" : key);
+    });
+    t.addEventListener("mouseenter", () => {
+      const key = String(t.getAttribute("data-menu-trigger") || "");
+      if (!openKey || !key) return;
+      if (openKey !== key) setOpen(key);
+    });
+  }
+  bar.addEventListener("click", (ev) => {
+    const item = ev.target instanceof Element ? ev.target.closest("[data-menu-action]") : null;
+    if (!item) return;
+    ev.preventDefault();
+    const action = String(item.getAttribute("data-menu-action") || "");
+    if (!action) return;
+    setOpen("");
+    runAction(action);
+  });
+  document.addEventListener("pointerdown", (ev) => {
+    const target = ev.target;
+    if (!(target instanceof Element)) {
+      setOpen("");
+      return;
+    }
+    if (target.closest("#appMenuBar")) return;
+    setOpen("");
+  });
+  window.addEventListener("blur", () => {
+    setOpen("");
+  });
+  window.addEventListener("keydown", (ev) => {
+    if (String(ev.key || "").toLowerCase() === "escape" && openKey) setOpen("");
+  });
 }
 
 function getVertexFalloffWeight(normDist, mode = state.vertexDeform.falloff) {
@@ -1119,6 +1722,39 @@ function createProgram(vsSrc, fsSrc) {
 }
 
 let program = null;
+
+function refreshContextUI() {
+  const isSetup = els.systemMode && els.systemMode.value === "setup";
+  const isAnim = !isSetup;
+
+  // High-level tab toggling
+  if (els.workspaceTabAnimate) els.workspaceTabAnimate.style.display = isAnim ? "" : "none";
+  if (els.workspaceTabObject) els.workspaceTabObject.style.display = isAnim ? "" : "none";
+  if (els.workspaceTabSlot) els.workspaceTabSlot.style.display = isSetup ? "" : "none";
+  if (els.workspaceTabRig) els.workspaceTabRig.style.display = isSetup ? "" : "none";
+
+  if (isAnim) {
+    if (state.leftToolTab === "canvas" || state.leftToolTab === "setup" || state.leftToolTab === "rig") {
+      switchLeftToolTab("object");
+    }
+    // Setup Internal logic for Pose / Object mode
+    if (state.editMode === "object") {
+      state.boneMode = "object";
+    } else if (state.editMode === "skeleton") {
+      state.boneMode = "pose";
+    }
+  } else {
+    if (state.leftToolTab === "object" || state.leftToolTab === "animate") {
+      switchLeftToolTab("canvas");
+    }
+    // Setup Internal logic for Rig / Object mode
+    if (state.editMode === "object") {
+      state.boneMode = "object";
+    } else if (state.editMode === "skeleton") {
+      state.boneMode = "edit";
+    }
+  }
+}
 let loc = null;
 let vbo = null;
 let ibo = null;
@@ -1237,6 +1873,9 @@ function normalizeBoneChannels(b) {
   if (!Number.isFinite(b.sy)) b.sy = 1;
   if (!Number.isFinite(b.shx)) b.shx = 0;
   if (!Number.isFinite(b.shy)) b.shy = 0;
+  if (typeof b.workHidden !== "boolean") b.workHidden = false;
+  if (typeof b.workHideSlots !== "boolean") b.workHideSlots = false;
+  if (typeof b.animHidden !== "boolean") b.animHidden = false;
   b.inherit = normalizeBoneInheritValue(b.inherit);
   return b;
 }
@@ -1388,6 +2027,26 @@ function getPoseBones(m) {
 
 function getActiveBones(m) {
   return state.boneMode === "pose" ? getPoseBones(m) : getRigBones(m);
+}
+
+function isBoneWorkspaceHidden(m, boneIndex) {
+  if (!m || !Number.isFinite(boneIndex) || boneIndex < 0) return false;
+  const rig = m.rigBones && m.rigBones[boneIndex];
+  normalizeBoneChannels(rig);
+  return !!(rig && rig.workHidden);
+}
+
+function isBoneAnimationHidden(bones, boneIndex) {
+  if (!Array.isArray(bones) || !Number.isFinite(boneIndex) || boneIndex < 0 || boneIndex >= bones.length) return false;
+  const b = bones[boneIndex];
+  normalizeBoneChannels(b);
+  return !!(b && b.animHidden);
+}
+
+function isBoneVisibleInWorkspace(m, bones, boneIndex) {
+  if (isBoneWorkspaceHidden(m, boneIndex)) return false;
+  if (state.boneMode === "pose" && isBoneAnimationHidden(bones, boneIndex)) return false;
+  return true;
 }
 
 function syncPoseFromRig(m) {
@@ -1578,6 +2237,111 @@ function getSlotWeightMode(slot) {
   return "single";
 }
 
+function getSlotWeightModeHintText(mode) {
+  const m = mode === "weighted" || mode === "free" ? mode : "single";
+  if (m === "weighted") {
+    return "Weighted Attachment (mesh): supports multiple influence bones and weighted deformation.";
+  }
+  if (m === "free") {
+    return "Free attachment: no bone binding, behaves like editor-only free transform.";
+  }
+  return "Single Bone Attachment (region-style): follows one owner bone.";
+}
+
+function refreshSlotWeightQuickUI(slot = null) {
+  const s = slot || getActiveSlot();
+  const hasSlot = !!(s && state.mesh);
+  const mode = hasSlot ? getSlotWeightMode(s) : "single";
+  const setBtnState = (btn, active) => {
+    if (!btn) return;
+    btn.disabled = !hasSlot;
+    btn.classList.toggle("active", !!active);
+  };
+  setBtnState(els.slotWeightQuickWeightedBtn, mode === "weighted");
+  setBtnState(els.slotWeightQuickSingleBtn, mode === "single");
+  setBtnState(els.slotWeightQuickFreeBtn, mode === "free");
+  if (els.slotWeightQuickEditBtn) {
+    els.slotWeightQuickEditBtn.disabled = !hasSlot;
+    els.slotWeightQuickEditBtn.classList.toggle("active", state.editMode === "vertex");
+  }
+  if (els.slotWeightQuickBar) {
+    els.slotWeightQuickBar.classList.toggle("disabled", !hasSlot);
+  }
+}
+
+function switchToVertexWeightEditing() {
+  if (!els.editMode) return;
+  if (els.editMode.value !== "vertex") {
+    els.editMode.value = "vertex";
+    els.editMode.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  state.leftToolTab = "skin";
+  updateWorkspaceUI();
+}
+
+function applyActiveSlotWeightMode(modeRaw, options = {}) {
+  const s = getActiveSlot();
+  if (!s || !state.mesh) return false;
+  const mode = modeRaw === "weighted" || modeRaw === "free" ? modeRaw : "single";
+  const focusWeighted = !!(options && options.focusWeighted);
+  const boneCount = Array.isArray(state.mesh.rigBones) ? state.mesh.rigBones.length : 0;
+  const isValidBone = (bi) => Number.isFinite(bi) && bi >= 0 && bi < boneCount;
+  s.weightMode = mode;
+  if (s.weightMode === "weighted") {
+    const fallback = isValidBone(Number(s.bone))
+      ? Number(s.bone)
+      : Number.isFinite(getPrimarySelectedBoneIndex())
+        ? getPrimarySelectedBoneIndex()
+        : boneCount > 0
+          ? 0
+          : -1;
+    if (isValidBone(fallback)) s.bone = fallback;
+    s.useWeights = true;
+    s.weightBindMode = "auto";
+    const weightedInfluences = Array.isArray(s.influenceBones)
+      ? s.influenceBones.filter((v) => isValidBone(Number(v))).map((v) => Number(v))
+      : [];
+    if (isValidBone(Number(s.bone)) && !weightedInfluences.includes(Number(s.bone))) {
+      weightedInfluences.unshift(Number(s.bone));
+    }
+    s.influenceBones = weightedInfluences.length > 0 ? [...new Set(weightedInfluences)] : getSlotInfluenceBones(s, state.mesh);
+    if (!isValidBone(Number(s.bone))) ensureSlotsHaveBoneBinding();
+    if (focusWeighted) {
+      switchToVertexWeightEditing();
+      setStatus("Weighted Mesh enabled. Switched to Vertex mode for direct weight editing.");
+    } else {
+      setStatus("Attachment mode switched to Weighted Attachment (Mesh).");
+    }
+  } else if (s.weightMode === "single") {
+    const weighted = getSlotInfluenceBones(s, state.mesh);
+    const fallback = isValidBone(Number(s.bone))
+      ? Number(s.bone)
+      : weighted.length > 0 && isValidBone(Number(weighted[0]))
+        ? Number(weighted[0])
+        : Number.isFinite(getPrimarySelectedBoneIndex())
+          ? getPrimarySelectedBoneIndex()
+          : boneCount > 0
+            ? 0
+            : -1;
+    s.bone = isValidBone(fallback) ? fallback : -1;
+    s.useWeights = true;
+    s.weightBindMode = "single";
+    s.influenceBones = isValidBone(Number(s.bone)) ? [Number(s.bone)] : [];
+    ensureSlotsHaveBoneBinding();
+    setStatus("Attachment mode switched to Single Bone Attachment.");
+  } else {
+    s.useWeights = false;
+    s.weightBindMode = "none";
+    s.bone = -1;
+    s.influenceBones = [];
+    setStatus("Attachment mode switched to Free (No Bone).");
+  }
+  rebuildSlotWeights(s, state.mesh);
+  refreshSlotUI();
+  renderBoneTree();
+  return true;
+}
+
 function getSlotInfluenceBones(slot, m) {
   if (!slot || !m) return [];
   const boneCount = m.rigBones.length;
@@ -1587,7 +2351,7 @@ function getSlotInfluenceBones(slot, m) {
   }
   const b = Number(slot.bone);
   if (Number.isFinite(b) && b >= 0 && b < boneCount) return [b];
-  return boneCount > 0 ? [0] : [];
+  return [];
 }
 
 function rebuildSlotWeights(slot, m) {
@@ -1610,9 +2374,31 @@ function rebuildSlotWeights(slot, m) {
   slot.useWeights = true;
   const allowed = getSlotInfluenceBones(slot, m);
   slot.influenceBones = allowed;
-  slot.meshData.weights = autoWeightForPositions(slot.meshData.positions, m.rigBones, allowed);
+  slot.meshData.weights = autoWeightForPositions(getSlotWeightedAutoWeightPositions(slot, m), m.rigBones, allowed);
   slot.weightBindMode = "auto";
   slot.weightMode = "weighted";
+}
+
+function getSlotWeightedAutoWeightPositions(slot, m) {
+  if (!slot || !m || !slot.meshData || !slot.meshData.positions) return new Float32Array(0);
+  const src = slot.meshData.positions;
+  const poseWorld = computeWorld(getRigBones(m));
+  const tm = getSlotTransformMatrix(slot, poseWorld);
+  const isIdentity =
+    Math.abs((tm[0] || 1) - 1) < 1e-6 &&
+    Math.abs(tm[1] || 0) < 1e-6 &&
+    Math.abs(tm[2] || 0) < 1e-6 &&
+    Math.abs((tm[3] || 1) - 1) < 1e-6 &&
+    Math.abs(tm[4] || 0) < 1e-6 &&
+    Math.abs(tm[5] || 0) < 1e-6;
+  if (isIdentity) return src;
+  const out = new Float32Array(src.length);
+  for (let i = 0; i < src.length / 2; i += 1) {
+    const p = transformPoint(tm, src[i * 2], src[i * 2 + 1]);
+    out[i * 2] = Number(p.x) || 0;
+    out[i * 2 + 1] = Number(p.y) || 0;
+  }
+  return out;
 }
 
 function createSlotMeshData(rect, docW, docH, baseCols, baseRows) {
@@ -1735,7 +2521,7 @@ function rebuildMesh() {
   state.selectedIK = -1;
   state.selectedTransform = -1;
   state.selectedPath = -1;
-  state.boneMode = els.boneMode.value || "edit";
+  state.boneMode = (els.boneMode && els.boneMode.value) || "edit";
   state.weightMode = els.weightMode.value || "hard";
   state.anim.animations = [createAnimation("Anim 1")];
   state.anim.currentAnimId = state.anim.animations[0].id;
@@ -1795,7 +2581,11 @@ function autoWeightActiveSlot() {
   slot.useWeights = true;
   slot.weightBindMode = "auto";
   slot.weightMode = "weighted";
-  slot.meshData.weights = autoWeightForPositions(slot.meshData.positions, m.rigBones, getSlotInfluenceBones(slot, m));
+  slot.meshData.weights = autoWeightForPositions(
+    getSlotWeightedAutoWeightPositions(slot, m),
+    m.rigBones,
+    getSlotInfluenceBones(slot, m)
+  );
   refreshSlotUI();
   return true;
 }
@@ -1872,12 +2662,80 @@ function updateBoneSelectors() {
 }
 
 function refreshBoneTreeFilterUI() {
-  if (!els.boneTreeOnlyActiveSlotBtn) return;
-  const on = !!state.boneTreeOnlyActiveSlot;
-  els.boneTreeOnlyActiveSlotBtn.classList.toggle("active", on);
-  els.boneTreeOnlyActiveSlotBtn.textContent = on ? "Show All Slots" : "Only Active Slot";
-  els.boneTreeOnlyActiveSlotBtn.title = on ? "Currently showing only active slot in tree." : "Show only current active slot in tree.";
-  els.boneTreeOnlyActiveSlotBtn.disabled = state.slots.length <= 1;
+  const canDeleteBone =
+    !!state.mesh &&
+    state.boneMode === "edit" &&
+    Number.isFinite(state.selectedBone) &&
+    state.selectedBone >= 0 &&
+    state.selectedBone < state.mesh.rigBones.length &&
+    state.mesh.rigBones.length > 1;
+  if (els.boneTreeAddBoneBtn) {
+    els.boneTreeAddBoneBtn.disabled = !state.mesh || state.boneMode !== "edit";
+  }
+  if (els.boneTreeDeleteBoneBtn) {
+    els.boneTreeDeleteBoneBtn.disabled = !canDeleteBone;
+    const boundCount = getSlotIndicesBoundToBone(Number(state.selectedBone)).length;
+    els.boneTreeDeleteBoneBtn.title =
+      boundCount > 0
+        ? `Delete selected bone and move ${boundCount} bound slot(s) to staging.`
+        : "Delete selected bone (slots -> staging).";
+  }
+  if (els.boneTreeDeleteBoneMenuBtn) {
+    els.boneTreeDeleteBoneMenuBtn.disabled = !canDeleteBone;
+  }
+  if (els.boneTreeOnlyActiveSlotBtn) {
+    const on = !!state.boneTreeOnlyActiveSlot;
+    els.boneTreeOnlyActiveSlotBtn.classList.toggle("active", on);
+    els.boneTreeOnlyActiveSlotBtn.textContent = on ? "Show All Slots" : "Only Active Slot";
+    els.boneTreeOnlyActiveSlotBtn.title = on ? "Currently showing only active slot in tree." : "Show only current active slot in tree.";
+    els.boneTreeOnlyActiveSlotBtn.disabled = state.slots.length <= 1;
+  }
+  if (els.boneTreeBindSelectedUnassignedBtn) {
+    const selected = getSelectedUnassignedSlotIndices();
+    els.boneTreeBindSelectedUnassignedBtn.disabled = !state.mesh || selected.length <= 0;
+    els.boneTreeBindSelectedUnassignedBtn.textContent =
+      selected.length > 1 ? `Bind Selected Staging (${selected.length})` : "Bind Selected Staging";
+  }
+  refreshBoneDeleteQuickMenuUI();
+}
+
+function closeBoneDeleteQuickMenu() {
+  if (els.boneTreeDeleteBoneMenu) els.boneTreeDeleteBoneMenu.classList.add("collapsed");
+  if (els.boneTreeDeleteBoneMenuBtn) els.boneTreeDeleteBoneMenuBtn.setAttribute("aria-expanded", "false");
+}
+
+function openBoneDeleteQuickMenu() {
+  refreshBoneDeleteQuickMenuUI();
+  if (els.boneTreeDeleteBoneMenu) els.boneTreeDeleteBoneMenu.classList.remove("collapsed");
+  if (els.boneTreeDeleteBoneMenuBtn) els.boneTreeDeleteBoneMenuBtn.setAttribute("aria-expanded", "true");
+}
+
+function toggleBoneDeleteQuickMenu() {
+  if (!els.boneTreeDeleteBoneMenu) return;
+  const open = !els.boneTreeDeleteBoneMenu.classList.contains("collapsed");
+  if (open) closeBoneDeleteQuickMenu();
+  else openBoneDeleteQuickMenu();
+}
+
+function refreshBoneDeleteQuickMenuUI() {
+  const canDeleteBone =
+    !!state.mesh &&
+    state.boneMode === "edit" &&
+    Number.isFinite(state.selectedBone) &&
+    state.selectedBone >= 0 &&
+    state.selectedBone < state.mesh.rigBones.length &&
+    state.mesh.rigBones.length > 1;
+  const boundCount = getSlotIndicesBoundToBone(Number(state.selectedBone)).length;
+  if (els.boneTreeDeleteBoneToStagingBtn) {
+    els.boneTreeDeleteBoneToStagingBtn.disabled = !canDeleteBone;
+    els.boneTreeDeleteBoneToStagingBtn.textContent =
+      boundCount > 0 ? `Delete Bone (Slots -> Staging, ${boundCount})` : "Delete Bone (Slots -> Staging)";
+  }
+  if (els.boneTreeDeleteBoneWithSlotsBtn) {
+    els.boneTreeDeleteBoneWithSlotsBtn.disabled = !canDeleteBone;
+    els.boneTreeDeleteBoneWithSlotsBtn.textContent =
+      boundCount > 0 ? `Delete Bone + Delete Slots (${boundCount})` : "Delete Bone + Delete Slots";
+  }
 }
 
 function isBoneTreeInlineRename(kind, index) {
@@ -1990,12 +2848,16 @@ function renderBoneTree() {
   refreshBoneTreeFilterUI();
   const bones = m && m.rigBones ? m.rigBones : [];
   const hasBones = bones.length > 0;
+  const activeBones = m ? getActiveBones(m) : [];
   if (!hasBones && state.slots.length === 0) {
     els.boneTree.innerHTML = "<div class='muted'>No bones or slots yet.</div>";
     return;
   }
 
   const slotsByBone = new Map();
+  const selectedUnassignedIds = new Set(
+    (Array.isArray(state.boneTreeSelectedUnassignedSlotIds) ? state.boneTreeSelectedUnassignedSlotIds : []).map((v) => String(v))
+  );
   for (let i = 0; i < state.slots.length; i += 1) {
     const s = state.slots[i];
     const b = Number.isFinite(s.bone) && s.bone >= 0 && s.bone < bones.length ? s.bone : -1;
@@ -2051,23 +2913,33 @@ function renderBoneTree() {
     for (const si of list) {
       if (!isTreeSlotVisible(si)) continue;
       const s = state.slots[si];
+      const isActiveSlot = state.activeSlot === si;
+      const selectedForBone = getSelectedSlotIndexForBone(parentBone) === si;
+      const stagedSelected = parentBone < 0 && s && s.id != null && selectedUnassignedIds.has(String(s.id));
+      const hiddenByBone = isSlotHiddenByBoneVisibility(s);
       const row = document.createElement("div");
-      row.className = `tree-item tree-slot${state.activeSlot === si ? " selected" : ""}`;
+      row.className = `tree-item tree-slot${isActiveSlot ? " active-slot" : ""}${selectedForBone ? " bone-slot-picked" : ""}${stagedSelected ? " staging-slot-picked" : ""
+        }${hiddenByBone ? " slot-hidden-by-bone" : ""
+        }`;
       row.style.marginLeft = `${depth * 14 + 16}px`;
       row.dataset.slotIndex = String(si);
       row.dataset.slotDraggable = "1";
       row.draggable = true;
-      row.title = "Drag onto bone/slot row to reorder or reassign. Double-click to rename.";
+      row.title = "A = active slot, B = selected slot for this bone. Drag to reorder/reassign, double-click to rename.";
       const eye = document.createElement("button");
       eye.type = "button";
       eye.className = "slot-eye";
       eye.dataset.slotEye = String(si);
       eye.title = isSlotEditorVisible(s) ? "Hide slot in editor" : "Show slot in editor";
-      eye.textContent = isSlotEditorVisible(s) ? "◉" : "◌";
+      eye.textContent = isSlotEditorVisible(s) ? "👁ˢ" : "👁̶ˢ";
       const editing = isBoneTreeInlineRename("slot", si);
       const prefix = document.createElement("span");
       prefix.className = "tree-slot-prefix";
-      prefix.textContent = "Slot:";
+      if (parentBone < 0) {
+        prefix.textContent = isActiveSlot ? "Staged A:" : "Staged:";
+      } else {
+        prefix.textContent = isActiveSlot && selectedForBone ? "Slot A/B:" : isActiveSlot ? "Slot A:" : selectedForBone ? "Slot B:" : "Slot:";
+      }
       row.appendChild(eye);
       row.appendChild(prefix);
       if (editing) {
@@ -2081,6 +2953,21 @@ function renderBoneTree() {
       }
       els.boneTree.appendChild(row);
     }
+  }
+
+  function appendUnassignedSection() {
+    const list = (slotsByBone.get(-1) || []).filter((si) => isTreeSlotVisible(si));
+    if (list.length <= 0) return;
+    const head = document.createElement("div");
+    head.className = "tree-item tree-unassigned-head";
+    head.dataset.slotStagingDrop = "1";
+    head.title = "Unassigned slots staging area. Drag slot here to unbind from bone.";
+    const name = document.createElement("span");
+    name.className = "tree-unassigned-title";
+    name.textContent = `Unassigned / Staging Slots (${list.length})`;
+    head.appendChild(name);
+    els.boneTree.appendChild(head);
+    appendSlotRows(-1, 0);
   }
 
   function walk(parent, depth) {
@@ -2097,36 +2984,24 @@ function renderBoneTree() {
       const isTFCTarget = tfcTargets.has(i);
       const isPath = pathBones.has(i);
       const isPathTarget = pathTargets.has(i);
-      row.className = `tree-item${state.selectedBone === i ? " selected" : ""}${picked ? " weight-picked" : ""}${
-        parentCandidate ? " parent-candidate" : ""
-      }${ikTargetCandidate ? " ik-target-candidate" : ""}${isIK ? " ik-bone" : ""}${isIKTarget ? " ik-target-bone" : ""}${
-        isTFC ? " ik-bone" : ""
-      }${isTFCTarget ? " ik-target-bone" : ""}${isPath ? " ik-bone" : ""}${isPathTarget ? " ik-target-bone" : ""}`;
+      const hiddenWork = isBoneWorkspaceHidden(m, i);
+      const hiddenWorkSlots = hiddenWork && !!b.workHideSlots;
+      const hiddenAnim = state.boneMode === "pose" && isBoneAnimationHidden(activeBones, i);
+      row.className = `tree-item${state.selectedBone === i ? " selected" : ""}${picked ? " weight-picked" : ""}${parentCandidate ? " parent-candidate" : ""
+        }${ikTargetCandidate ? " ik-target-candidate" : ""}${isIK ? " ik-bone" : ""}${isIKTarget ? " ik-target-bone" : ""}${isTFC ? " ik-bone" : ""
+        }${isTFCTarget ? " ik-target-bone" : ""}${isPath ? " ik-bone" : ""}${isPathTarget ? " ik-target-bone" : ""}${hiddenWork || hiddenAnim ? " bone-hidden" : ""
+        }`;
       row.style.marginLeft = `${depth * 14}px`;
       row.dataset.boneIndex = String(i);
       const slotCount = (slotsByBone.get(i) || []).length;
       const childCount = (byParent.get(i) || []).length;
       const slotCollapsed = !!state.boneTreeSlotCollapse[i];
       const childCollapsed = !!state.boneTreeChildCollapse[i];
-      const slotBtn = document.createElement("button");
-      slotBtn.type = "button";
-      slotBtn.className = "tree-bone-slot-toggle";
-      slotBtn.dataset.boneSlotToggle = String(i);
-      slotBtn.textContent = slotCollapsed ? "S+" : "S-";
-      slotBtn.title =
-        slotCount > 0
-          ? slotCollapsed
-            ? `Expand ${slotCount} slot(s) under this bone`
-            : `Collapse ${slotCount} slot(s) under this bone`
-          : "No slots under this bone";
-      slotBtn.disabled = slotCount <= 0;
-      row.appendChild(slotBtn);
-
       const childBtn = document.createElement("button");
       childBtn.type = "button";
       childBtn.className = "tree-bone-child-toggle";
       childBtn.dataset.boneChildToggle = String(i);
-      childBtn.textContent = childCollapsed ? "B+" : "B-";
+      childBtn.textContent = childCollapsed ? "+" : "-";
       childBtn.title =
         childCount > 0
           ? childCollapsed
@@ -2136,9 +3011,48 @@ function renderBoneTree() {
       childBtn.disabled = childCount <= 0;
       row.appendChild(childBtn);
 
-      const badgeText = `${isIK ? " [IK]" : ""}${isIKTarget ? " [IK-T]" : ""}${isTFC ? " [TC]" : ""}${
-        isTFCTarget ? " [TC-T]" : ""
-      }${isPath ? " [PATH]" : ""}${isPathTarget ? " [PATH-T]" : ""}`;
+      normalizeBoneChannels(b);
+      const workHideMode = b.workHidden ? (b.workHideSlots ? "bone_and_slots" : "bone_only") : "off";
+      const workBtn = document.createElement("button");
+      workBtn.type = "button";
+      workBtn.className = `tree-bone-hide-toggle ${workHideMode === "off" ? "" : "active"}`.trim();
+      workBtn.dataset.boneWorkHideToggle = String(i);
+      workBtn.textContent = workHideMode === "bone_and_slots" ? "👁̶+" : workHideMode === "bone_only" ? "👁̶" : "👁";
+      workBtn.title =
+        workHideMode === "off"
+          ? "Work eye: visible (click to hide bone only)"
+          : workHideMode === "bone_only"
+            ? "Work eye: bone hidden (click to hide bone+slots)"
+            : "Work eye: bone+slots hidden (click to show)";
+
+      const animHiddenNow = state.boneMode === "pose" && isBoneAnimationHidden(activeBones, i);
+      const animBtn = document.createElement("button");
+      animBtn.type = "button";
+      animBtn.className = `tree-bone-anim-hide-toggle ${animHiddenNow ? "active" : ""}`.trim();
+      animBtn.dataset.boneAnimHideToggle = String(i);
+      animBtn.textContent = animHiddenNow ? "👁̶ᵃ" : "👁ᵃ";
+      animBtn.title =
+        state.boneMode === "pose"
+          ? "Anim eye key at current time (bone + slots)"
+          : "Switch to Pose mode to set anim eye key";
+      animBtn.disabled = state.boneMode !== "pose";
+
+      const slotBtn = document.createElement("button");
+      slotBtn.type = "button";
+      slotBtn.className = "tree-bone-slot-toggle";
+      slotBtn.dataset.boneSlotToggle = String(i);
+      slotBtn.textContent = slotCollapsed ? `▸ ${slotCount}` : `▾ ${slotCount}`;
+      slotBtn.title =
+        slotCount > 0
+          ? slotCollapsed
+            ? `Expand ${slotCount} slot(s) under this bone`
+            : `Collapse ${slotCount} slot(s) under this bone`
+          : "No slots under this bone";
+      slotBtn.disabled = slotCount <= 0;
+
+      const badgeText = `${isIK ? " [IK]" : ""}${isIKTarget ? " [IK-T]" : ""}${isTFC ? " [TC]" : ""}${isTFCTarget ? " [TC-T]" : ""
+        }${isPath ? " [PATH]" : ""}${isPathTarget ? " [PATH-T]" : ""}${hiddenWork ? (hiddenWorkSlots ? " [HS]" : " [H]") : ""}${hiddenAnim ? " [AH]" : ""
+        }`;
       if (isBoneTreeInlineRename("bone", i)) {
         const input = makeRenameInput("bone", i, b.name || `bone_${i}`);
         row.appendChild(input);
@@ -2154,6 +3068,13 @@ function renderBoneTree() {
         label.textContent = `Bone: ${b.name}${badgeText}`;
         row.appendChild(label);
       }
+      const post = document.createElement("span");
+      post.className = "tree-bone-post-controls";
+      post.appendChild(slotBtn);
+      post.appendChild(workBtn);
+      post.appendChild(animBtn);
+      row.appendChild(post);
+
       els.boneTree.appendChild(row);
       if (!slotCollapsed) appendSlotRows(i, depth);
       if (!childCollapsed) walk(i, depth + 1);
@@ -2162,9 +3083,9 @@ function renderBoneTree() {
 
   if (hasBones) {
     walk(-1, 0);
-    appendSlotRows(-1, 0);
+    appendUnassignedSection();
   } else {
-    appendSlotRows(-1, 0);
+    appendUnassignedSection();
   }
 }
 
@@ -2196,6 +3117,16 @@ function updateBoneUI() {
     els.boneHeadY.value = "0";
     els.boneTipX.value = "0";
     els.boneTipY.value = "0";
+    if (els.boneWorkHidden) {
+      els.boneWorkHidden.checked = false;
+      els.boneWorkHidden.disabled = true;
+    }
+    if (els.boneAnimHidden) {
+      els.boneAnimHidden.checked = false;
+      els.boneAnimHidden.disabled = true;
+    }
+    if (els.boneAnimHideSetKeyBtn) els.boneAnimHideSetKeyBtn.disabled = true;
+    if (els.boneAnimHideDelKeyBtn) els.boneAnimHideDelKeyBtn.disabled = true;
     refreshIKUI();
     refreshAnimationLayerUI();
     refreshTrackSelect();
@@ -2213,6 +3144,17 @@ function updateBoneUI() {
   if (els.boneInherit) els.boneInherit.value = normalizeBoneInheritValue(b.inherit);
   if (!els.addBoneParent.value) {
     els.addBoneParent.value = String(i);
+  }
+  if (els.boneWorkHidden) {
+    const rigBone = m.rigBones[i];
+    normalizeBoneChannels(rigBone);
+    els.boneWorkHidden.checked = !!(rigBone && rigBone.workHidden);
+    els.boneWorkHidden.disabled = false;
+  }
+  if (els.boneAnimHidden) {
+    normalizeBoneChannels(b);
+    els.boneAnimHidden.checked = !!b.animHidden;
+    els.boneAnimHidden.disabled = state.boneMode !== "pose";
   }
   els.boneConnect.value = b.connected ? "true" : "false";
   els.bonePoseLen.value = b.poseLenEditable === false ? "false" : "true";
@@ -2251,6 +3193,8 @@ function updateBoneUI() {
   if (els.boneScaleY) els.boneScaleY.disabled = false;
   if (els.boneShearX) els.boneShearX.disabled = false;
   if (els.boneShearY) els.boneShearY.disabled = false;
+  if (els.boneAnimHideSetKeyBtn) els.boneAnimHideSetKeyBtn.disabled = !poseMode;
+  if (els.boneAnimHideDelKeyBtn) els.boneAnimHideDelKeyBtn.disabled = !poseMode;
   refreshIKUI();
   refreshAnimationLayerUI();
   refreshTrackSelect();
@@ -2335,13 +3279,71 @@ function addBone(opts = null) {
   return idx;
 }
 
-function deleteBone() {
+function getSlotIndicesBoundToBone(boneIndex) {
+  const bi = Number(boneIndex);
+  if (!Number.isFinite(bi) || bi < 0) return [];
+  const out = [];
+  for (let i = 0; i < state.slots.length; i += 1) {
+    const s = state.slots[i];
+    if (!s) continue;
+    if (Number(s.bone) === bi) out.push(i);
+  }
+  return out;
+}
+
+function deleteSlotsByIndices(indices) {
+  const list = [...new Set((Array.isArray(indices) ? indices : []).map((v) => Number(v)).filter((v) => Number.isFinite(v) && v >= 0 && v < state.slots.length))].sort((a, b) => b - a);
+  if (list.length <= 0) return { removed: 0, names: [] };
+  const names = [];
+  let nextActive = Number(state.activeSlot);
+  for (const idx of list) {
+    const removed = state.slots[idx];
+    if (!removed) continue;
+    const removedId = removed && removed.id ? String(removed.id) : "";
+    names.push(removed.name || `slot_${idx}`);
+    state.slots.splice(idx, 1);
+    removeSlotReferencesFromSkins(removedId);
+    remapAnimationTracksForRemovedSlot(idx, removedId);
+    if (removedId) {
+      for (const s of state.slots) {
+        if (!s) continue;
+        if (s.clipEndSlotId && String(s.clipEndSlotId) === removedId) s.clipEndSlotId = null;
+      }
+    }
+    if (Number.isFinite(nextActive)) {
+      if (nextActive === idx) nextActive = Math.max(0, idx - 1);
+      else if (nextActive > idx) nextActive -= 1;
+    }
+  }
+  clearTimelineKeySelection();
+  state.anim.selectedTrack = "";
+  state.anim.dirtyTracks = [];
+  state.boneTreeSelectedUnassignedSlotIds = [];
+  if (state.slots.length > 0) {
+    const ai = Number.isFinite(nextActive) ? math.clamp(nextActive, 0, state.slots.length - 1) : 0;
+    setActiveSlot(ai);
+  } else {
+    state.activeSlot = -1;
+    state.sourceCanvas = null;
+    refreshSlotUI();
+    renderBoneTree();
+  }
+  refreshAnimationUI();
+  return { removed: list.length, names };
+}
+
+function deleteBoneWithSlotPolicy(slotPolicy = "to_staging") {
   const m = state.mesh;
-  if (!m || state.boneMode !== "edit") return;
+  if (!m || state.boneMode !== "edit") return false;
   const bones = getRigBones(m);
-  if (bones.length <= 1) return;
+  if (bones.length <= 1) return false;
 
   const removed = state.selectedBone;
+  if (!Number.isFinite(removed) || removed < 0 || removed >= bones.length) return false;
+  const boundSlotIndices = getSlotIndicesBoundToBone(removed);
+  if (slotPolicy === "delete_slots" && boundSlotIndices.length > 0) {
+    deleteSlotsByIndices(boundSlotIndices);
+  }
   bones.splice(removed, 1);
 
   for (const b of bones) {
@@ -2356,6 +3358,14 @@ function deleteBone() {
     if (s.bone === removed) s.bone = -1;
     else if (s.bone > removed) s.bone -= 1;
   }
+  const selectedByBone = state.boneTreeSelectedSlotByBone || Object.create(null);
+  const remappedSelectedByBone = Object.create(null);
+  for (const [k, v] of Object.entries(selectedByBone)) {
+    const bi = Number(k);
+    if (!Number.isFinite(bi) || bi < 0 || bi === removed) continue;
+    remappedSelectedByBone[bi > removed ? bi - 1 : bi] = v;
+  }
+  state.boneTreeSelectedSlotByBone = remappedSelectedByBone;
   remapIKAfterBoneRemoved(m, removed);
   ensureSlotsHaveBoneBinding();
 
@@ -2366,6 +3376,11 @@ function deleteBone() {
   refreshWeightsForBoneCount();
   updateBoneUI();
   pushUndoCheckpoint(true);
+  return true;
+}
+
+function deleteBone() {
+  return deleteBoneWithSlotPolicy("to_staging");
 }
 
 function commitRigEdit(m, reweight = false) {
@@ -2382,6 +3397,345 @@ function commitRigEdit(m, reweight = false) {
 
 function getBonesForCurrentMode(m) {
   return state.boneMode === "pose" ? getPoseBones(m) : getRigBones(m);
+}
+
+function getBoneSubtreeIndices(bones, rootIndex) {
+  if (!Array.isArray(bones) || !Number.isFinite(rootIndex) || rootIndex < 0 || rootIndex >= bones.length) return [];
+  const root = Math.floor(rootIndex);
+  const out = [root];
+  for (let i = 0; i < out.length; i += 1) {
+    const parent = out[i];
+    for (let bi = 0; bi < bones.length; bi += 1) {
+      if (Number(bones[bi] && bones[bi].parent) === parent && !out.includes(bi)) {
+        out.push(bi);
+      }
+    }
+  }
+  return out;
+}
+
+function getBoneRootIndexFromBones(bones, boneIndex) {
+  if (!Array.isArray(bones)) return -1;
+  let i = Number(boneIndex);
+  if (!Number.isFinite(i) || i < 0 || i >= bones.length) return -1;
+  i = Math.floor(i);
+  let guard = 0;
+  while (guard < bones.length) {
+    const parent = Number(bones[i] && bones[i].parent);
+    if (!Number.isFinite(parent) || parent < 0 || parent >= bones.length) return i;
+    i = Math.floor(parent);
+    guard += 1;
+  }
+  return i;
+}
+
+function collectObjectModeTargets(m, bones, world, poseWorld) {
+  if (!m || !Array.isArray(bones) || bones.length <= 0 || !Array.isArray(world)) return [];
+  const targetsByRoot = new Map();
+  const ensureTarget = (rootIndex) => {
+    if (!Number.isFinite(rootIndex) || rootIndex < 0 || rootIndex >= bones.length) return null;
+    const key = Math.floor(rootIndex);
+    let t = targetsByRoot.get(key);
+    if (!t) {
+      const rootHead = transformPoint(world[key], 0, 0);
+      const rootScreen = localToScreen(rootHead.x, rootHead.y);
+      t = {
+        rootIndex: key,
+        rootScreen,
+        minX: Number.POSITIVE_INFINITY,
+        minY: Number.POSITIVE_INFINITY,
+        maxX: Number.NEGATIVE_INFINITY,
+        maxY: Number.NEGATIVE_INFINITY,
+        zOrder: -1,
+        slotGeometries: [],
+      };
+      targetsByRoot.set(key, t);
+    }
+    return t;
+  };
+  const includePoint = (target, x, y) => {
+    if (!target || !Number.isFinite(x) || !Number.isFinite(y)) return;
+    if (x < target.minX) target.minX = x;
+    if (y < target.minY) target.minY = y;
+    if (x > target.maxX) target.maxX = x;
+    if (y > target.maxY) target.maxY = y;
+  };
+
+  for (let i = 0; i < bones.length; i += 1) {
+    if (!isBoneVisibleInWorkspace(m, bones, i)) continue;
+    const rootIndex = getBoneRootIndexFromBones(bones, i);
+    const target = ensureTarget(rootIndex);
+    if (!target) continue;
+    const ep = getBoneWorldEndpointsFromBones(bones, i, world);
+    if (!ep) continue;
+    const hs = localToScreen(ep.head.x, ep.head.y);
+    const ts = localToScreen(ep.tip.x, ep.tip.y);
+    includePoint(target, hs.x, hs.y);
+    includePoint(target, ts.x, ts.y);
+  }
+
+  const items = getRenderableSlotItems();
+  const pose = Array.isArray(poseWorld) ? poseWorld : getSolvedPoseWorld(m);
+  for (const it of items) {
+    if (!it || !it.slot || !hasRenderableAttachment(it.slot)) continue;
+    const slot = it.slot;
+    const roots = new Set();
+    const primary = Number(slot.bone);
+    if (Number.isFinite(primary) && primary >= 0 && primary < bones.length) {
+      const root = getBoneRootIndexFromBones(bones, primary);
+      if (root >= 0) roots.add(root);
+    }
+    const inf = getSlotInfluenceBones(slot, m);
+    for (const biRaw of inf) {
+      const bi = Number(biRaw);
+      if (!Number.isFinite(bi) || bi < 0 || bi >= bones.length) continue;
+      const root = getBoneRootIndexFromBones(bones, bi);
+      if (root >= 0) roots.add(root);
+    }
+    if (roots.size <= 0) continue;
+    const geom = buildSlotGeometry(slot, pose);
+    const screen = geom && geom.screen;
+    if (!screen || screen.length < 6) continue;
+    const indices = (geom && geom.indices) || (slot.meshData && slot.meshData.indices) || m.indices || [];
+    for (const root of roots) {
+      const target = ensureTarget(root);
+      if (!target) continue;
+      if (Number.isFinite(it.idx)) target.zOrder = Math.max(target.zOrder, Number(it.idx));
+      target.slotGeometries.push({ screen, indices });
+      for (let i = 0; i < screen.length; i += 2) {
+        includePoint(target, Number(screen[i]) || 0, Number(screen[i + 1]) || 0);
+      }
+    }
+  }
+
+  const out = [];
+  for (const target of targetsByRoot.values()) {
+    const pad = 10;
+    const pivot = target.rootScreen || { x: 0, y: 0 };
+    const hasBounds =
+      Number.isFinite(target.minX) && Number.isFinite(target.minY) && Number.isFinite(target.maxX) && Number.isFinite(target.maxY);
+    const minX = hasBounds ? target.minX - pad : (Number(pivot.x) || 0) - 16;
+    const minY = hasBounds ? target.minY - pad : (Number(pivot.y) || 0) - 16;
+    const maxX = hasBounds ? target.maxX + pad : (Number(pivot.x) || 0) + 16;
+    const maxY = hasBounds ? target.maxY + pad : (Number(pivot.y) || 0) + 16;
+    out.push({
+      rootIndex: target.rootIndex,
+      rootScreen: pivot,
+      zOrder: target.zOrder,
+      slotGeometries: target.slotGeometries,
+      bounds: { minX, minY, maxX, maxY },
+      label: (bones[target.rootIndex] && bones[target.rootIndex].name) || `bone_${target.rootIndex}`,
+    });
+  }
+  return out;
+}
+
+function pointInScreenTriangles(mx, my, screen, indices) {
+  if (!screen || screen.length < 6 || !indices || indices.length < 3) return false;
+  const p = { x: Number(mx) || 0, y: Number(my) || 0 };
+  for (let i = 0; i + 2 < indices.length; i += 3) {
+    const i0 = Number(indices[i]);
+    const i1 = Number(indices[i + 1]);
+    const i2 = Number(indices[i + 2]);
+    if (!Number.isFinite(i0) || !Number.isFinite(i1) || !Number.isFinite(i2)) continue;
+    const a = { x: Number(screen[i0 * 2]) || 0, y: Number(screen[i0 * 2 + 1]) || 0 };
+    const b = { x: Number(screen[i1 * 2]) || 0, y: Number(screen[i1 * 2 + 1]) || 0 };
+    const c = { x: Number(screen[i2 * 2]) || 0, y: Number(screen[i2 * 2 + 1]) || 0 };
+    if (pointInTriangle2D(p, a, b, c)) return true;
+  }
+  return false;
+}
+
+function getSelectedObjectRootSet(m, bones) {
+  const out = new Set();
+  if (!m || !Array.isArray(bones) || bones.length <= 0) return out;
+  const picked = getSelectedBonesForWeight(m);
+  for (const biRaw of picked) {
+    const bi = Number(biRaw);
+    if (!Number.isFinite(bi) || bi < 0 || bi >= bones.length) continue;
+    const root = getBoneRootIndexFromBones(bones, bi);
+    if (root >= 0) out.add(root);
+  }
+  if (out.size <= 0 && Number.isFinite(state.selectedBone) && state.selectedBone >= 0 && state.selectedBone < bones.length) {
+    const root = getBoneRootIndexFromBones(bones, state.selectedBone);
+    if (root >= 0) out.add(root);
+  }
+  return out;
+}
+
+function pickObjectModeRootAtCanvas(mx, my) {
+  const m = state.mesh;
+  if (!m || (state.editMode !== "skeleton" && state.editMode !== "object") || state.boneMode !== "object") return -1;
+  const bones = getBonesForCurrentMode(m);
+  if (!Array.isArray(bones) || bones.length <= 0) return -1;
+  enforceConnectedHeads(bones);
+  const world = computeWorld(bones);
+  const poseWorld = getSolvedPoseWorld(m);
+  const targets = collectObjectModeTargets(m, bones, world, poseWorld);
+  if (targets.length <= 0) return -1;
+
+  const ordered = [...targets].sort((a, b) => (Number(b.zOrder) || -1) - (Number(a.zOrder) || -1));
+  for (const t of ordered) {
+    const b = t.bounds;
+    if (!b) continue;
+    if (mx < b.minX || mx > b.maxX || my < b.minY || my > b.maxY) continue;
+    for (const g of t.slotGeometries || []) {
+      if (pointInScreenTriangles(mx, my, g.screen, g.indices)) return t.rootIndex;
+    }
+  }
+  for (const t of ordered) {
+    const b = t.bounds;
+    if (b && mx >= b.minX && mx <= b.maxX && my >= b.minY && my <= b.maxY) return t.rootIndex;
+  }
+  let bestRoot = -1;
+  let bestD2 = 14 * 14;
+  for (const t of targets) {
+    const p = t.rootScreen || { x: 0, y: 0 };
+    const dx = (Number(p.x) || 0) - mx;
+    const dy = (Number(p.y) || 0) - my;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      bestRoot = t.rootIndex;
+    }
+  }
+  return bestRoot;
+}
+
+function getObjectModeScaleHandle(target) {
+  const b = target && target.bounds;
+  if (!b) return null;
+  const anchorX = Number(b.maxX) || 0;
+  const anchorY = Number(b.minY) || 0;
+  const x = anchorX + 14;
+  const y = anchorY - 14;
+  return {
+    x,
+    y,
+    anchorX,
+    anchorY,
+    size: 7,
+    hitR: 12,
+  };
+}
+
+function collectObjectScaleHandleRoots(m, bones) {
+  const roots = getSelectedObjectRootSet(m, bones);
+  if (roots.size > 0) return roots;
+  const bi = Number(state.selectedBone);
+  if (Number.isFinite(bi) && bi >= 0 && bi < bones.length) {
+    const root = getBoneRootIndexFromBones(bones, bi);
+    if (root >= 0) roots.add(root);
+  }
+  return roots;
+}
+
+function pickObjectModeScaleHandleAtCanvas(mx, my) {
+  const m = state.mesh;
+  if (!m || (state.editMode !== "skeleton" && state.editMode !== "object") || state.boneMode !== "object") return -1;
+  const bones = getBonesForCurrentMode(m);
+  if (!Array.isArray(bones) || bones.length <= 0) return -1;
+  enforceConnectedHeads(bones);
+  const world = computeWorld(bones);
+  const poseWorld = getSolvedPoseWorld(m);
+  const targets = collectObjectModeTargets(m, bones, world, poseWorld);
+  if (targets.length <= 0) return -1;
+  const handleRoots = collectObjectScaleHandleRoots(m, bones);
+  if (handleRoots.size <= 0) return -1;
+  const ordered = [...targets].sort((a, b) => (Number(b.zOrder) || -1) - (Number(a.zOrder) || -1));
+  let bestRoot = -1;
+  let bestD2 = Number.POSITIVE_INFINITY;
+  for (const t of ordered) {
+    if (!handleRoots.has(t.rootIndex)) continue;
+    const h = getObjectModeScaleHandle(t);
+    if (!h) continue;
+    const dx = (Number(h.x) || 0) - mx;
+    const dy = (Number(h.y) || 0) - my;
+    const d2 = dx * dx + dy * dy;
+    const hitR = Number(h.hitR) || 12;
+    if (d2 <= hitR * hitR && d2 < bestD2) {
+      bestD2 = d2;
+      bestRoot = t.rootIndex;
+    }
+  }
+  return bestRoot;
+}
+
+function drawObjectModeTargetsOverlay(ctx, m, bones, world) {
+  if (!ctx || !m || (state.editMode !== "skeleton" && state.editMode !== "object") || state.boneMode !== "object") return;
+  const poseWorld = getSolvedPoseWorld(m);
+  const targets = collectObjectModeTargets(m, bones, world, poseWorld);
+  if (targets.length <= 0) return;
+  const selectedRoots = getSelectedObjectRootSet(m, bones);
+  const hoverRoot = Number(state.objectHoverRoot);
+  const hoverScaleRoot = Number(state.objectScaleHoverRoot);
+  const handleRoots = collectObjectScaleHandleRoots(m, bones);
+  const activeScaleDrag = state.drag && state.drag.type === "bone_object_scale" ? state.drag : null;
+  const activeScaleRoots = new Set();
+  if (activeScaleDrag && Array.isArray(activeScaleDrag.items)) {
+    for (const it of activeScaleDrag.items) {
+      const ri = Number(it && it.rootIndex);
+      if (Number.isFinite(ri) && ri >= 0) activeScaleRoots.add(ri);
+    }
+  }
+  for (const t of targets) {
+    const b = t.bounds;
+    if (!b) continue;
+    const isSelected = selectedRoots.has(t.rootIndex);
+    const isHover = hoverRoot === t.rootIndex;
+    ctx.save();
+    ctx.setLineDash(isSelected ? [] : [5, 4]);
+    ctx.strokeStyle = isSelected ? "rgba(255, 228, 110, 0.95)" : isHover ? "rgba(166, 236, 255, 0.9)" : "rgba(120, 210, 255, 0.45)";
+    ctx.lineWidth = isSelected ? 2.4 : isHover ? 2 : 1.2;
+    ctx.strokeRect(b.minX, b.minY, Math.max(1, b.maxX - b.minX), Math.max(1, b.maxY - b.minY));
+    ctx.setLineDash([]);
+    const p = t.rootScreen || { x: b.minX, y: b.minY };
+    ctx.beginPath();
+    ctx.fillStyle = isSelected ? "rgba(255, 228, 110, 0.95)" : isHover ? "rgba(180, 245, 255, 0.95)" : "rgba(125, 211, 252, 0.88)";
+    ctx.arc(Number(p.x) || 0, Number(p.y) || 0, isSelected ? 5.2 : 4.4, 0, Math.PI * 2);
+    ctx.fill();
+    const tag = `${isSelected ? "Selected" : "Object"}: ${t.label}`;
+    ctx.font = "11px Segoe UI, sans-serif";
+    const tw = Math.ceil(ctx.measureText(tag).width);
+    const tx = (Number(p.x) || 0) + 9;
+    const ty = (Number(p.y) || 0) - 10;
+    ctx.fillStyle = isSelected ? "rgba(60, 50, 20, 0.88)" : "rgba(17, 34, 42, 0.84)";
+    ctx.fillRect(tx - 4, ty - 11, tw + 8, 14);
+    ctx.fillStyle = isSelected ? "#ffe46e" : "#bdefff";
+    ctx.fillText(tag, tx, ty);
+    if (handleRoots.has(t.rootIndex)) {
+      const h = getObjectModeScaleHandle(t);
+      if (h) {
+        const isScaleHover = hoverScaleRoot === t.rootIndex;
+        const isScaleActive = activeScaleRoots.has(t.rootIndex);
+        ctx.strokeStyle = isScaleActive
+          ? "rgba(255, 228, 110, 0.98)"
+          : isScaleHover
+            ? "rgba(166, 236, 255, 0.98)"
+            : "rgba(141, 224, 255, 0.86)";
+        ctx.lineWidth = isScaleActive ? 2.2 : 1.4;
+        ctx.beginPath();
+        ctx.moveTo(Number(h.anchorX) || 0, Number(h.anchorY) || 0);
+        ctx.lineTo(Number(h.x) || 0, Number(h.y) || 0);
+        ctx.stroke();
+        const hs = Number(h.size) || 7;
+        const hx = (Number(h.x) || 0) - hs;
+        const hy = (Number(h.y) || 0) - hs;
+        const side = hs * 2;
+        ctx.fillStyle = isScaleActive
+          ? "rgba(66, 52, 18, 0.95)"
+          : isScaleHover
+            ? "rgba(13, 38, 50, 0.95)"
+            : "rgba(15, 34, 44, 0.88)";
+        ctx.fillRect(hx, hy, side, side);
+        ctx.strokeRect(hx, hy, side, side);
+        ctx.fillStyle = isScaleActive ? "#ffe46e" : "#c8f4ff";
+        ctx.font = "9px Segoe UI, sans-serif";
+        ctx.fillText("S", hx + 2.2, hy + side - 2.3);
+      }
+    }
+    ctx.restore();
+  }
 }
 
 function updateTexture() {
@@ -2467,9 +3821,6 @@ function refreshSlotUI() {
   }
   if (els.slotViewMode) {
     els.slotViewMode.value = state.slotViewMode;
-  }
-  if (els.slotMeshNewMode) {
-    els.slotMeshNewMode.value = state.slotMesh.newContourMode === "reset_current" ? "reset_current" : "new_slot";
   }
   if (els.slotMeshGridReplaceContour) {
     els.slotMeshGridReplaceContour.checked = !!state.slotMesh.gridReplaceContour;
@@ -2559,6 +3910,23 @@ function refreshSlotUI() {
     const t = activeAttachmentEntry ? normalizeAttachmentType(activeAttachmentEntry.type) : "region";
     els.slotAttachmentType.value = t;
     els.slotAttachmentType.disabled = !activeAttachmentEntry;
+    const isVisual = t === "region" || t === "mesh" || t === "linkedmesh";
+    const isBBox = t === "boundingbox";
+    const isClip = t === "clipping";
+    const lpWrap = document.getElementById("slotAttachmentLinkedParentWrap");
+    if (lpWrap) lpWrap.style.display = t === "linkedmesh" ? "" : "none";
+    const bbWrap = document.getElementById("slotAttachmentBBoxWrap");
+    if (bbWrap) bbWrap.style.display = isBBox ? "" : "none";
+    const imgWrap = document.getElementById("slotImageFieldsWrap");
+    if (imgWrap) imgWrap.style.display = isVisual ? "" : "none";
+    const clipWrap = document.getElementById("slotClipWrap");
+    if (clipWrap) clipWrap.style.display = isClip ? "" : "none";
+    const visWrap = document.getElementById("slotVisualFieldsWrap");
+    if (visWrap) visWrap.style.display = isVisual ? "" : "none";
+    const skinWrap = document.getElementById("slotSkinningWrap");
+    if (skinWrap) skinWrap.style.display = isVisual ? "" : "none";
+    const txWrap = document.getElementById("slotTransformWrap");
+    if (txWrap) txWrap.style.display = isVisual ? "" : "none";
   }
   if (els.slotAttachmentLinkedParent) {
     els.slotAttachmentLinkedParent.innerHTML = "";
@@ -2626,6 +3994,24 @@ function refreshSlotUI() {
     const can = !!(activeAttachmentEntry && (normalizeAttachmentType(activeAttachmentEntry.type) === "region" || normalizeAttachmentType(activeAttachmentEntry.type) === "mesh" || normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh"));
     els.slotAttachmentSequenceDigits.disabled = !can;
   }
+  if (els.slotAttachmentSequenceSetupIndex) {
+    const seq = activeAttachmentEntry && activeAttachmentEntry.sequence ? activeAttachmentEntry.sequence : { setupIndex: 0 };
+    els.slotAttachmentSequenceSetupIndex.value = String(Math.max(0, Math.round(Number(seq.setupIndex) || 0)));
+    const can = !!(activeAttachmentEntry && (normalizeAttachmentType(activeAttachmentEntry.type) === "region" || normalizeAttachmentType(activeAttachmentEntry.type) === "mesh" || normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh"));
+    els.slotAttachmentSequenceSetupIndex.disabled = !can;
+  }
+  if (els.slotAttachmentSequenceMode) {
+    const seq = activeAttachmentEntry && activeAttachmentEntry.sequence ? activeAttachmentEntry.sequence : { mode: 0 };
+    els.slotAttachmentSequenceMode.value = String(Number(seq.mode) || 0);
+    const can = !!(activeAttachmentEntry && (normalizeAttachmentType(activeAttachmentEntry.type) === "region" || normalizeAttachmentType(activeAttachmentEntry.type) === "mesh" || normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh"));
+    els.slotAttachmentSequenceMode.disabled = !can;
+  }
+  if (els.slotAttachmentSequencePath) {
+    const seq = activeAttachmentEntry && activeAttachmentEntry.sequence ? activeAttachmentEntry.sequence : { path: "" };
+    els.slotAttachmentSequencePath.value = String(seq.path || "");
+    const can = !!(activeAttachmentEntry && (normalizeAttachmentType(activeAttachmentEntry.type) === "region" || normalizeAttachmentType(activeAttachmentEntry.type) === "mesh" || normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh"));
+    els.slotAttachmentSequencePath.disabled = !can;
+  }
   if (els.slotClipEnabled) {
     els.slotClipEnabled.checked = !!(s && s.clipEnabled);
     els.slotClipEnabled.disabled = !s;
@@ -2681,19 +4067,31 @@ function refreshSlotUI() {
     els.slotDarkColor.value = s ? rgb01ToHex(Number(s.dr) || 0, Number(s.dg) || 0, Number(s.db) || 0) : "#000000";
     els.slotDarkColor.disabled = !s || !(s && s.darkEnabled);
   }
-  if (els.slotWeightMode) els.slotWeightMode.value = getSlotWeightMode(s);
+  const slotWeightMode = getSlotWeightMode(s);
+  if (els.slotWeightMode) {
+    els.slotWeightMode.value = slotWeightMode;
+    els.slotWeightMode.disabled = !s;
+  }
+  refreshSlotWeightQuickUI(s);
+  if (els.slotWeightModeHint) {
+    els.slotWeightModeHint.textContent = getSlotWeightModeHintText(slotWeightMode);
+  }
   if (els.slotInfluenceBones && s && state.mesh) {
     const allow = new Set(getSlotInfluenceBones(s, state.mesh).map((x) => String(x)));
     for (const opt of els.slotInfluenceBones.options) {
       opt.selected = allow.has(opt.value);
     }
-    els.slotInfluenceBones.disabled = getSlotWeightMode(s) !== "weighted";
+    els.slotInfluenceBones.disabled = slotWeightMode !== "weighted";
   } else if (els.slotInfluenceBones) {
     els.slotInfluenceBones.disabled = true;
   }
+  const infWrap = document.getElementById("slotInfluenceWrap");
+  if (infWrap) infWrap.style.display = slotWeightMode === "weighted" ? "" : "none";
   if (els.slotTx) els.slotTx.value = String(Math.round(s ? Number(s.tx) || 0 : 0));
   if (els.slotTy) els.slotTy.value = String(Math.round(s ? Number(s.ty) || 0 : 0));
   if (els.slotRot) els.slotRot.value = String(Math.round(math.radToDeg(s ? Number(s.rot) || 0 : 0)));
+  refreshBaseImageTransformUI();
+  refreshSlotMeshContourReferenceHint();
   refreshSkinUI();
   refreshDrawOrderUI();
   refreshRightPropsPanelVisibility();
@@ -2724,10 +4122,20 @@ function setRightPropsFocus(mode) {
 }
 
 function updateWorkspaceUI() {
-  const page = state.uiPage === "slot" || state.uiPage === "anim" ? state.uiPage : "rig";
+  const canBuildPages = state.boneMode === "edit";
+  const canObjectPage = state.boneMode === "object" && (state.editMode === "skeleton" || state.editMode === "object");
+  let page = state.uiPage === "slot" || state.uiPage === "anim" || state.uiPage === "object" ? state.uiPage : "rig";
+  if (!canBuildPages && (page === "slot" || page === "rig")) {
+    page = canObjectPage ? "object" : "anim";
+    state.uiPage = page;
+  }
+  if (page === "object" && !canObjectPage) {
+    page = canBuildPages ? "rig" : "anim";
+    state.uiPage = page;
+  }
   const sub = state.animSubPanel === "layers" || state.animSubPanel === "state" ? state.animSubPanel : "timeline";
   const animAuxMode = page === "anim" && (sub === "layers" || sub === "state");
-  const isSlotMesh = state.editMode === "slotmesh";
+  const isSlotMesh = isSlotMeshModeActive();
   const setVisible = (el, show) => {
     if (!el) return;
     el.style.display = show ? "" : "none";
@@ -2735,38 +4143,64 @@ function updateWorkspaceUI() {
   if (els.appRoot) {
     els.appRoot.classList.toggle("page-slot", page === "slot");
     els.appRoot.classList.toggle("page-rig", page === "rig");
+    els.appRoot.classList.toggle("page-object", page === "object");
     els.appRoot.classList.toggle("page-anim", page === "anim");
   }
+  if (els.workspaceTabSlot) setVisible(els.workspaceTabSlot, canBuildPages);
+  if (els.workspaceTabRig) setVisible(els.workspaceTabRig, canBuildPages);
+  if (els.workspaceTabObject) setVisible(els.workspaceTabObject, canObjectPage);
+  if (els.workspaceTabAnimate) setVisible(els.workspaceTabAnimate, true);
   if (els.workspaceTabSlot) els.workspaceTabSlot.classList.toggle("active", page === "slot");
   if (els.workspaceTabRig) els.workspaceTabRig.classList.toggle("active", page === "rig");
+  if (els.workspaceTabObject) els.workspaceTabObject.classList.toggle("active", page === "object");
   if (els.workspaceTabAnimate) els.workspaceTabAnimate.classList.toggle("active", page === "anim");
+  if (els.workspaceTabSlot) els.workspaceTabSlot.disabled = !canBuildPages;
+  if (els.workspaceTabRig) els.workspaceTabRig.disabled = !canBuildPages;
+  if (els.workspaceTabObject) els.workspaceTabObject.disabled = !canObjectPage;
   if (els.editModeWrap) setVisible(els.editModeWrap, true);
-  if (els.boneModeWrap) setVisible(els.boneModeWrap, page !== "slot");
-  if (els.slotSelectWrap) setVisible(els.slotSelectWrap, true);
+  if (els.boneModeWrap) setVisible(els.boneModeWrap, true);
+  if (els.slotSelectWrap) setVisible(els.slotSelectWrap, false);
   if (els.slotViewWrap) setVisible(els.slotViewWrap, true);
   if (els.editMode) els.editMode.value = state.editMode;
   const isSkeleton = state.editMode === "skeleton";
   const isVertex = state.editMode === "vertex";
   const isRigEdit = !isSlotMesh && isSkeleton && state.boneMode === "edit";
+  const isRigObject = !isSlotMesh && (isSkeleton || state.editMode === "object") && state.boneMode === "object";
   const isRigPose = !isSlotMesh && isSkeleton && state.boneMode === "pose";
   const isRigVertex = !isSlotMesh && isVertex;
 
-  const tabVisible = {
-    setup: page !== "slot" && !isSlotMesh && !animAuxMode,
-    rig: page !== "slot" && isRigEdit && !animAuxMode,
-    ik: page !== "slot" && !isSlotMesh && isSkeleton && !animAuxMode,
-    constraint: page !== "slot" && !isSlotMesh && isSkeleton && !animAuxMode,
-    path: page !== "slot" && !isSlotMesh && isSkeleton && !animAuxMode,
-    skin: page !== "slot" && (isRigEdit || isRigVertex) && !animAuxMode,
-    tools: page !== "slot" && !isSlotMesh && !animAuxMode,
-    slotmesh: page === "slot" || isSlotMesh,
-  };
+  const tabVisible = isSlotMesh
+    ? {
+      canvas: !animAuxMode,
+      setup: false,
+      rig: false,
+      ik: false,
+      constraint: false,
+      path: false,
+      skin: false,
+      tools: false,
+      slotmesh: !animAuxMode,
+    }
+    : {
+      canvas: !animAuxMode,
+      setup: page === "rig" && !isSlotMesh && !animAuxMode,
+      rig: page === "rig" && isRigEdit && !animAuxMode,
+      object: page === "object" && isRigObject && !animAuxMode,
+      ik: (page === "rig" || page === "object") && !isSlotMesh && isSkeleton && !animAuxMode,
+      constraint: (page === "rig" || page === "object") && !isSlotMesh && isSkeleton && !animAuxMode,
+      path: (page === "rig" || page === "object") && !isSlotMesh && isSkeleton && !animAuxMode,
+      skin: (page === "rig" || page === "object") && (isRigEdit || isRigObject || isRigVertex) && !animAuxMode,
+      tools: (page === "rig" || page === "object") && !isSlotMesh && !animAuxMode,
+      slotmesh: page === "slot" || isSlotMesh,
+    };
   const visibleTabs = Object.keys(tabVisible).filter((k) => tabVisible[k]);
   if (!animAuxMode && !visibleTabs.includes(state.leftToolTab)) state.leftToolTab = visibleTabs[0] || "setup";
 
   const tabButtonById = {
+    canvas: els.leftTabCanvas,
     setup: els.leftTabSetup,
     rig: els.leftTabRig,
+    object: els.leftTabObject,
     ik: els.leftTabIK,
     constraint: els.leftTabConstraint,
     path: els.leftTabPath,
@@ -2775,8 +4209,10 @@ function updateWorkspaceUI() {
     slotmesh: els.leftTabSlotMesh,
   };
   const tabPanelById = {
+    canvas: els.leftCanvasTools,
     setup: els.leftMeshSetup,
     rig: els.leftRigBuild,
+    object: els.leftObjectTools,
     ik: els.leftIKTools,
     constraint: els.leftConstraintTools,
     path: els.leftPathTools,
@@ -2806,15 +4242,17 @@ function updateWorkspaceUI() {
 
   if (els.leftToolModeHint) {
     if (page === "slot") {
-      els.leftToolModeHint.textContent = "Slot Build page: import image/attachments and edit slot mesh.";
+      els.leftToolModeHint.textContent = "Slot Build page: use Base Transform tab for base image transform, Slot Mesh tab for mesh editing.";
     } else if (page === "anim" && sub === "layers") {
       els.leftToolModeHint.textContent = "Animate > Animation Layers: tools are shown below in Canvas Tools.";
     } else if (page === "anim" && sub === "state") {
       els.leftToolModeHint.textContent = "Animate > State Machine: tools are shown below in Canvas Tools.";
     } else if (isSlotMesh) {
-      els.leftToolModeHint.textContent = "Slot Mesh mode: only slot mesh related tabs are shown.";
+      els.leftToolModeHint.textContent = "Slot Mesh mode: use Base Transform tab for base image transform, Slot Mesh tab for mesh edit.";
     } else if (isRigEdit) {
-      els.leftToolModeHint.textContent = "Rig Edit mode: rig, IK, constraint, path, skin, and tools tabs are shown.";
+      els.leftToolModeHint.textContent = "Edit mode: rig, IK, constraint, path, skin, and tools tabs are shown.";
+    } else if (isRigObject) {
+      els.leftToolModeHint.textContent = "Object page: whole-object transform tools without entering Animate.";
     } else if (isRigPose) {
       els.leftToolModeHint.textContent = "Pose mode: IK, constraint, path, setup, and tools tabs are shown.";
     } else if (isRigVertex) {
@@ -2823,18 +4261,26 @@ function updateWorkspaceUI() {
       els.leftToolModeHint.textContent = "Mode-aware tabs";
     }
   }
+  refreshBaseImageTransformUI();
   refreshVertexDeformUI();
+  refreshSlotMeshToolModeUI();
+  refreshCanvasInteractionAffordance();
 }
 
 function setWorkspacePage(page) {
-  const next = page === "slot" || page === "anim" ? page : "rig";
+  const next = page === "slot" || page === "anim" || page === "object" ? page : "rig";
   state.uiPage = next;
   if (next === "slot") {
     state.editMode = "slotmesh";
-    state.leftToolTab = "slotmesh";
+    if (state.leftToolTab !== "slotmesh" && state.leftToolTab !== "canvas") state.leftToolTab = "slotmesh";
+  } else if (next === "object") {
+    state.editMode = "skeleton";
+    state.boneMode = "object";
+    if (els.boneMode) els.boneMode.value = "object";
+    if (state.leftToolTab === "slotmesh") state.leftToolTab = "object";
   } else if (state.editMode === "slotmesh") {
     state.editMode = "skeleton";
-    if (state.leftToolTab === "slotmesh") state.leftToolTab = "setup";
+    if (state.leftToolTab === "slotmesh" || state.leftToolTab === "canvas") state.leftToolTab = "setup";
   }
   if (els.editMode) els.editMode.value = state.editMode;
   state.workspaceMode = state.editMode === "slotmesh" ? "slotmesh" : "rig";
@@ -2856,7 +4302,9 @@ function setupLeftToolTabs() {
     });
   };
   bind(els.leftTabSetup, "setup");
+  bind(els.leftTabCanvas, "canvas");
   bind(els.leftTabRig, "rig");
+  bind(els.leftTabObject, "object");
   bind(els.leftTabIK, "ik");
   bind(els.leftTabConstraint, "constraint");
   bind(els.leftTabPath, "path");
@@ -2869,11 +4317,25 @@ function setupWorkspaceTabs() {
   const bind = (el, page) => {
     if (!el) return;
     el.addEventListener("click", () => {
+      if ((page === "slot" || page === "rig") && state.boneMode !== "edit") {
+        setStatus("Switch Bone Mode to Edit to enter Slot Build or Rig.");
+        return;
+      }
+      if (page === "object" && !(state.boneMode === "object" && (state.editMode === "skeleton" || state.editMode === "object"))) {
+        if (state.mesh && (state.editMode === "skeleton" || state.editMode === "object")) {
+          state.boneMode = "object";
+          if (els.boneMode) els.boneMode.value = "object";
+        } else {
+          setStatus("Switch to Skeleton/Object mode to enter Object page.");
+          return;
+        }
+      }
       setWorkspacePage(page);
     });
   };
   bind(els.workspaceTabSlot, "slot");
   bind(els.workspaceTabRig, "rig");
+  bind(els.workspaceTabObject, "object");
   bind(els.workspaceTabAnimate, "anim");
 }
 
@@ -2919,13 +4381,20 @@ function mountAnimateAuxPanelsInLeftTools() {
 function setActiveSlot(index) {
   if (!Number.isFinite(index) || index < 0 || index >= state.slots.length) return;
   state.activeSlot = index;
-  setRightPropsFocus("slot");
   const slot = state.slots[index];
+  const bi = Number(slot && slot.bone);
+  if (Number.isFinite(bi) && bi >= 0) {
+    const sid = slot && slot.id != null ? String(slot.id) : "";
+    if (sid) state.boneTreeSelectedSlotByBone[bi] = sid;
+  }
+  setRightPropsFocus("slot");
   ensureSlotContour(slot);
   state.slotMesh.activePoint = -1;
   state.slotMesh.activeSet = "contour";
   state.slotMesh.edgeSelection = [];
   state.slotMesh.edgeSelectionSet = "contour";
+  clearSlotMeshSelection();
+  setSlotMeshToolMode("select", false);
   state.sourceCanvas = slot.canvas;
   state.imageWidth = Number.isFinite(slot.docWidth) ? slot.docWidth : slot.canvas.width;
   state.imageHeight = Number.isFinite(slot.docHeight) ? slot.docHeight : slot.canvas.height;
@@ -2950,7 +4419,7 @@ function addSlotEntry(entry, activate = true) {
     h: Math.max(1, srcRect.h * sy),
   };
   const canvas = normalizeSlotCanvas(entry.canvas, Math.max(1, rect.w), Math.max(1, rect.h));
-  const defaultBone = state.mesh && state.selectedBone >= 0 ? state.selectedBone : -1;
+  const defaultBone = -1;
   const slot = {
     id: entry.id || makeSlotId(),
     name: entry.name || `slot_${state.slots.length}`,
@@ -2979,6 +4448,7 @@ function addSlotEntry(entry, activate = true) {
     tx: Number.isFinite(entry.tx) ? entry.tx : 0,
     ty: Number.isFinite(entry.ty) ? entry.ty : 0,
     rot: Number.isFinite(entry.rot) ? entry.rot : 0,
+    baseImageTransform: normalizeBaseImageTransform(entry && entry.baseImageTransform),
     rect,
     docWidth: targetW,
     docHeight: targetH,
@@ -2986,41 +4456,41 @@ function addSlotEntry(entry, activate = true) {
     meshData: null,
     attachments: Array.isArray(entry.attachments)
       ? entry.attachments
-          .map((a) => ({
-            name: String(a && a.name ? a.name : "").trim(),
-            placeholder: String(a && a.placeholder ? a.placeholder : entry.placeholderName || entry.attachmentName || "main").trim(),
-            canvas: a && a.canvas ? normalizeSlotCanvas(a.canvas, Math.max(1, rect.w), Math.max(1, rect.h)) : canvas,
-            type: normalizeAttachmentType(a && a.type),
-            linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
-            pointX: Number(a && a.pointX) || 0,
-            pointY: Number(a && a.pointY) || 0,
-            pointRot: Number(a && a.pointRot) || 0,
-            bboxSource: a && a.bboxSource === "contour" ? "contour" : "fill",
-            sequence:
-              a && a.sequence
-                ? {
-                    enabled: !!a.sequence.enabled,
-                    count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
-                    start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
-                    digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
-                  }
-                : { enabled: false, count: 1, start: 0, digits: 2 },
-          }))
-          .filter((a) => a.name.length > 0 && (a.canvas || a.type === "point" || a.type === "boundingbox"))
+        .map((a) => ({
+          name: String(a && a.name ? a.name : "").trim(),
+          placeholder: String(a && a.placeholder ? a.placeholder : entry.placeholderName || entry.attachmentName || "main").trim(),
+          canvas: a && a.canvas ? normalizeSlotCanvas(a.canvas, Math.max(1, rect.w), Math.max(1, rect.h)) : canvas,
+          type: normalizeAttachmentType(a && a.type),
+          linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
+          pointX: Number(a && a.pointX) || 0,
+          pointY: Number(a && a.pointY) || 0,
+          pointRot: Number(a && a.pointRot) || 0,
+          bboxSource: a && a.bboxSource === "contour" ? "contour" : "fill",
+          sequence:
+            a && a.sequence
+              ? {
+                enabled: !!a.sequence.enabled,
+                count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
+                start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
+                digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
+              }
+              : { enabled: false, count: 1, start: 0, digits: 2 },
+        }))
+        .filter((a) => a.name.length > 0 && (a.canvas || a.type === "point" || a.type === "boundingbox"))
       : [
-          {
-            name: String(entry.attachmentName || "main"),
-            placeholder: String(entry.placeholderName || entry.attachmentName || "main"),
-            canvas,
-            type: "region",
-            linkedParent: "",
-            pointX: 0,
-            pointY: 0,
-            pointRot: 0,
-            bboxSource: "fill",
-            sequence: { enabled: false, count: 1, start: 0, digits: 2 },
-          },
-        ],
+        {
+          name: String(entry.attachmentName || "main"),
+          placeholder: String(entry.placeholderName || entry.attachmentName || "main"),
+          canvas,
+          type: "region",
+          linkedParent: "",
+          pointX: 0,
+          pointY: 0,
+          pointRot: 0,
+          bboxSource: "fill",
+          sequence: { enabled: false, count: 1, start: 0, digits: 2 },
+        },
+      ],
     useWeights: entry.useWeights === true,
     weightBindMode: entry.weightBindMode || (entry.useWeights ? "single" : "none"),
     weightMode:
@@ -3055,18 +4525,18 @@ function buildEmptySlotEntryForQuickAdd() {
     1,
     Math.round(
       Number(state.imageWidth) ||
-        Number(source && source.docWidth) ||
-        Number(source && source.canvas && source.canvas.width) ||
-        512
+      Number(source && source.docWidth) ||
+      Number(source && source.canvas && source.canvas.width) ||
+      512
     )
   );
   const projectH = Math.max(
     1,
     Math.round(
       Number(state.imageHeight) ||
-        Number(source && source.docHeight) ||
-        Number(source && source.canvas && source.canvas.height) ||
-        512
+      Number(source && source.docHeight) ||
+      Number(source && source.canvas && source.canvas.height) ||
+      512
     )
   );
   const rectW = Math.max(
@@ -3079,14 +4549,7 @@ function buildEmptySlotEntryForQuickAdd() {
   );
   const rectXBase = Number(source && source.rect && source.rect.x) || 0;
   const rectYBase = Number(source && source.rect && source.rect.y) || 0;
-  const selectedBone = getPrimarySelectedBoneIndex();
-  const sourceBone = Number(source && source.bone);
-  const bindBone =
-    Number.isFinite(selectedBone) && selectedBone >= 0
-      ? selectedBone
-      : Number.isFinite(sourceBone) && sourceBone >= 0
-        ? sourceBone
-        : -1;
+  const bindBone = -1;
   const canvas = makeCanvas(rectW, rectH);
   const placeholder = "main";
   const baseName = source && source.name ? `${source.name}_slot` : "slot";
@@ -3119,10 +4582,10 @@ function buildEmptySlotEntryForQuickAdd() {
     tx: Number(source && source.tx) || 0,
     ty: Number(source && source.ty) || 0,
     rot: Number(source && source.rot) || 0,
-    useWeights: bindBone >= 0,
-    weightBindMode: bindBone >= 0 ? "single" : "none",
-    weightMode: bindBone >= 0 ? "single" : "free",
-    influenceBones: bindBone >= 0 ? [bindBone] : [],
+    useWeights: true,
+    weightBindMode: "single",
+    weightMode: "single",
+    influenceBones: [],
     clipEnabled: false,
     clipSource: "fill",
     clipEndSlotId: null,
@@ -3147,6 +4610,7 @@ function addEmptySlotQuick() {
   if (!state.mesh && state.slots.length === 0 && !state.sourceCanvas) return null;
   const entry = buildEmptySlotEntryForQuickAdd();
   addSlotEntry(entry, true);
+  if (state.mesh) ensureSlotsHaveBoneBinding();
   refreshAnimationUI();
   return getActiveSlot();
 }
@@ -3166,11 +4630,13 @@ function cloneSlotContourData(src) {
   const cloneEdges = (arr) =>
     Array.isArray(arr)
       ? arr
-          .filter((e) => Array.isArray(e) && e.length >= 2)
-          .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
+        .filter((e) => Array.isArray(e) && e.length >= 2)
+        .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
       : [];
   return {
     points: clonePoints(c.points),
+    sourcePoints: clonePoints(c.sourcePoints),
+    authorContourPoints: clonePoints(c.authorContourPoints),
     closed: !!c.closed,
     triangles: Array.isArray(c.triangles) ? c.triangles.map((v) => Number(v) || 0) : [],
     fillPoints: clonePoints(c.fillPoints),
@@ -3199,6 +4665,7 @@ function cloneSlotMeshData(src) {
 function duplicateActiveSlotQuick() {
   const source = getActiveSlot();
   if (!source) return null;
+  const sourceWeightMode = getSlotWeightMode(source);
   ensureSlotAttachmentState(source);
   const rect = source.rect || { x: 0, y: 0, w: source.canvas ? source.canvas.width : 1, h: source.canvas ? source.canvas.height : 1 };
   const canvasMap = new Map();
@@ -3222,7 +4689,7 @@ function duplicateActiveSlotQuick() {
         : String(source.attachmentName || "main"),
     editorVisible: isSlotEditorVisible(source),
     canvas: sourceCanvasClone,
-    bone: Number(source.bone),
+    bone: sourceWeightMode === "weighted" ? Number(source.bone) : -1,
     visible: source.visible !== false,
     alpha: Number(source.alpha),
     r: Number(source.r),
@@ -3244,10 +4711,15 @@ function duplicateActiveSlotQuick() {
     },
     docWidth: Number(source.docWidth) || Math.max(1, Number(state.imageWidth) || sourceCanvasClone.width),
     docHeight: Number(source.docHeight) || Math.max(1, Number(state.imageHeight) || sourceCanvasClone.height),
-    useWeights: source.useWeights === true,
-    weightBindMode: source.weightBindMode || "none",
-    weightMode: source.weightMode || getSlotWeightMode(source),
-    influenceBones: Array.isArray(source.influenceBones) ? source.influenceBones.filter((v) => Number.isFinite(v)) : [],
+    useWeights: sourceWeightMode !== "free",
+    weightBindMode: sourceWeightMode === "weighted" ? "auto" : sourceWeightMode === "single" ? "single" : "none",
+    weightMode: sourceWeightMode,
+    influenceBones:
+      sourceWeightMode === "weighted"
+        ? Array.isArray(source.influenceBones)
+          ? source.influenceBones.filter((v) => Number.isFinite(v))
+          : []
+        : [],
     clipEnabled: !!source.clipEnabled,
     clipSource: source.clipSource === "contour" ? "contour" : "fill",
     clipEndSlotId:
@@ -3269,11 +4741,11 @@ function duplicateActiveSlotQuick() {
       sequence:
         a && a.sequence
           ? {
-              enabled: !!a.sequence.enabled,
-              count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
-              start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
-              digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
-            }
+            enabled: !!a.sequence.enabled,
+            count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
+            start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
+            digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
+          }
           : { enabled: false, count: 1, start: 0, digits: 2 },
     })),
   };
@@ -3289,6 +4761,7 @@ function duplicateActiveSlotQuick() {
   }
   ensureSlotClipState(dst);
   ensureSlotVisualState(dst);
+  if (state.mesh) ensureSlotsHaveBoneBinding();
   rebuildSlotTriangleIndices();
   refreshSlotUI();
   renderBoneTree();
@@ -3416,6 +4889,31 @@ function applySlotBoneAssignment(slot, boneIndex, mesh = state.mesh) {
   const bi = Number(boneIndex);
   const m = mesh;
   if (!slot) return false;
+  if (bi === -1) {
+    slot.bone = -1;
+    if (!m) {
+      slot.influenceBones = [];
+      return true;
+    }
+    const mode = getSlotWeightMode(slot);
+    if (mode === "single") {
+      setSlotSingleBoneWeight(slot, m, -1);
+      slot.influenceBones = [];
+    } else if (mode === "weighted") {
+      slot.weightMode = "weighted";
+      slot.weightBindMode = "auto";
+      slot.useWeights = true;
+      slot.influenceBones = [];
+      rebuildSlotWeights(slot, m);
+    } else {
+      slot.weightMode = "free";
+      slot.weightBindMode = "none";
+      slot.useWeights = false;
+      slot.influenceBones = [];
+      rebuildSlotWeights(slot, m);
+    }
+    return true;
+  }
   if (!m || !Array.isArray(m.rigBones) || m.rigBones.length <= 0) return false;
   if (!Number.isFinite(bi) || bi < 0 || bi >= m.rigBones.length) return false;
   slot.bone = bi;
@@ -3517,25 +5015,56 @@ function openLoadImageForActiveSlotFromTree() {
 
 function refreshBoneTreeContextMenuUI() {
   const active = getActiveSlot();
+  const isBoneCtx = state.boneTreeMenuContextKind === "bone";
+  const isSlotCtx = state.boneTreeMenuContextKind === "slot";
+  const boneIndex = Number(state.selectedBone);
+  const boundSlots = getSlotIndicesBoundToBone(boneIndex);
+  const boundCount = boundSlots.length;
+  const canDeleteBone =
+    isBoneCtx &&
+    !!state.mesh &&
+    state.boneMode === "edit" &&
+    Number.isFinite(state.selectedBone) &&
+    state.selectedBone >= 0 &&
+    state.selectedBone < state.mesh.rigBones.length &&
+    state.mesh.rigBones.length > 1;
   if (els.treeCtxSlotAddBtn) {
     els.treeCtxSlotAddBtn.disabled = !state.mesh && state.slots.length === 0 && !state.sourceCanvas;
+    els.treeCtxSlotAddBtn.hidden = false;
   }
   if (els.treeCtxSlotDupBtn) {
     els.treeCtxSlotDupBtn.disabled = !active;
+    els.treeCtxSlotDupBtn.hidden = !isSlotCtx;
   }
   if (els.treeCtxSlotRenameBtn) {
     els.treeCtxSlotRenameBtn.disabled = !active;
+    els.treeCtxSlotRenameBtn.hidden = !isSlotCtx;
   }
   if (els.treeCtxSlotDeleteBtn) {
     els.treeCtxSlotDeleteBtn.disabled = !active;
+    els.treeCtxSlotDeleteBtn.hidden = !isSlotCtx;
   }
   if (els.treeCtxSlotLoadImageBtn) {
     els.treeCtxSlotLoadImageBtn.disabled = !active;
+    els.treeCtxSlotLoadImageBtn.hidden = !isSlotCtx;
+  }
+  if (els.treeCtxBoneDeleteBtn) {
+    els.treeCtxBoneDeleteBtn.disabled = !canDeleteBone;
+    els.treeCtxBoneDeleteBtn.hidden = !isBoneCtx;
+    els.treeCtxBoneDeleteBtn.textContent =
+      boundCount > 0 ? `Delete Bone (Slots -> Staging, ${boundCount})` : "Delete Bone (Slots -> Staging)";
+  }
+  if (els.treeCtxBoneDeleteWithSlotsBtn) {
+    els.treeCtxBoneDeleteWithSlotsBtn.disabled = !canDeleteBone;
+    els.treeCtxBoneDeleteWithSlotsBtn.hidden = !isBoneCtx;
+    els.treeCtxBoneDeleteWithSlotsBtn.textContent =
+      boundCount > 0 ? `Delete Bone + Delete Slots (${boundCount})` : "Delete Bone + Delete Slots";
   }
 }
 
 function closeBoneTreeContextMenu() {
   state.boneTreeMenuOpen = false;
+  state.boneTreeMenuContextKind = "";
   if (els.boneTreeContextMenu) {
     els.boneTreeContextMenu.classList.add("collapsed");
   }
@@ -3543,6 +5072,7 @@ function closeBoneTreeContextMenu() {
 
 function openBoneTreeContextMenu(clientX, clientY) {
   if (!els.boneTreeContextMenu) return;
+  closeBoneDeleteQuickMenu();
   refreshBoneTreeContextMenuUI();
   els.boneTreeContextMenu.classList.remove("collapsed");
   state.boneTreeMenuOpen = true;
@@ -3606,6 +5136,85 @@ function getActiveSlot() {
   return state.slots[state.activeSlot];
 }
 
+function getSelectedSlotIndexForBone(boneIndex) {
+  const bi = Number(boneIndex);
+  if (!Number.isFinite(bi) || bi < 0) return -1;
+  const pickedId = state.boneTreeSelectedSlotByBone ? state.boneTreeSelectedSlotByBone[bi] : null;
+  if (!pickedId) return -1;
+  const idx = state.slots.findIndex((s) => s && s.id != null && String(s.id) === String(pickedId));
+  if (idx < 0) {
+    delete state.boneTreeSelectedSlotByBone[bi];
+    return -1;
+  }
+  const slot = state.slots[idx];
+  if (!slot || Number(slot.bone) !== bi) {
+    delete state.boneTreeSelectedSlotByBone[bi];
+    return -1;
+  }
+  return idx;
+}
+
+function getSelectedUnassignedSlotIndices() {
+  const selectedIds = Array.isArray(state.boneTreeSelectedUnassignedSlotIds) ? state.boneTreeSelectedUnassignedSlotIds : [];
+  const out = [];
+  for (const id of selectedIds) {
+    const idx = state.slots.findIndex((s) => s && s.id != null && String(s.id) === String(id) && Number(s.bone) === -1);
+    if (idx >= 0 && !out.includes(idx)) out.push(idx);
+  }
+  if (out.length <= 0) {
+    const ai = Number(state.activeSlot);
+    if (Number.isFinite(ai) && ai >= 0 && ai < state.slots.length) {
+      const s = state.slots[ai];
+      if (s && Number(s.bone) === -1) out.push(ai);
+    }
+  }
+  state.boneTreeSelectedUnassignedSlotIds = out.map((i) => String(state.slots[i] && state.slots[i].id != null ? state.slots[i].id : ""));
+  return out;
+}
+
+function setSelectedUnassignedSlotIndices(indices, append = false) {
+  const next = [];
+  const base = append ? getSelectedUnassignedSlotIndices() : [];
+  for (const i of base) {
+    const s = state.slots[i];
+    if (!s || Number(s.bone) !== -1 || s.id == null) continue;
+    const sid = String(s.id);
+    if (!next.includes(sid)) next.push(sid);
+  }
+  for (const raw of Array.isArray(indices) ? indices : []) {
+    const i = Number(raw);
+    if (!Number.isFinite(i) || i < 0 || i >= state.slots.length) continue;
+    const s = state.slots[i];
+    if (!s || Number(s.bone) !== -1 || s.id == null) continue;
+    const sid = String(s.id);
+    if (!next.includes(sid)) next.push(sid);
+  }
+  state.boneTreeSelectedUnassignedSlotIds = next;
+}
+
+function bindSelectedUnassignedSlotsToDefaultBones() {
+  const m = state.mesh;
+  if (!m) return 0;
+  const selected = getSelectedUnassignedSlotIndices();
+  if (selected.length <= 0) return 0;
+  let bound = 0;
+  for (const si of selected) {
+    const slot = state.slots[si];
+    if (!slot || Number(slot.bone) !== -1) continue;
+    const bi = createTempBoneForSlot(slot, "slot_stage");
+    if (!Number.isFinite(bi) || bi < 0) continue;
+    if (!applySlotBoneAssignment(slot, bi, m)) continue;
+    bound += 1;
+  }
+  if (bound > 0) {
+    state.boneTreeSelectedUnassignedSlotIds = [];
+    updateBoneUI();
+    refreshSlotUI();
+    renderBoneTree();
+  }
+  return bound;
+}
+
 function makeUniqueSlotName(base) {
   const used = new Set((state.slots || []).map((s) => (s && s.name ? s.name : "")));
   const stem = (base || "slot").trim() || "slot";
@@ -3640,6 +5249,7 @@ function normalizeAttachmentType(type) {
   if (t === "mesh") return "mesh";
   if (t === "linkedmesh") return "linkedmesh";
   if (t === "boundingbox") return "boundingbox";
+  if (t === "clipping") return "clipping";
   if (t === "point") return "point";
   return "region";
 }
@@ -3662,11 +5272,11 @@ function normalizeSlotAttachmentRecord(slot, a, fallbackName, fallbackPlaceholde
     sequence:
       rec && rec.sequence && typeof rec.sequence === "object"
         ? {
-            enabled: !!rec.sequence.enabled,
-            count: Math.max(1, Math.round(Number(rec.sequence.count) || 1)),
-            start: Math.max(0, Math.round(Number(rec.sequence.start) || 0)),
-            digits: Math.max(1, Math.round(Number(rec.sequence.digits) || 2)),
-          }
+          enabled: !!rec.sequence.enabled,
+          count: Math.max(1, Math.round(Number(rec.sequence.count) || 1)),
+          start: Math.max(0, Math.round(Number(rec.sequence.start) || 0)),
+          digits: Math.max(1, Math.round(Number(rec.sequence.digits) || 2)),
+        }
         : { enabled: false, count: 1, start: 0, digits: 2 },
   };
   if ((out.type === "region" || out.type === "mesh" || out.type === "linkedmesh") && !out.canvas) {
@@ -3791,6 +5401,7 @@ function getSlotClipPointsLocal(slot) {
 
 function addContourSlotFromActiveSlot(sourceSlot) {
   if (!sourceSlot) return null;
+  const sourceWeightMode = getSlotWeightMode(sourceSlot);
   const rectSrc = sourceSlot.rect || { x: 0, y: 0, w: sourceSlot.canvas.width, h: sourceSlot.canvas.height };
   const rect = {
     x: Number(rectSrc.x) || 0,
@@ -3814,7 +5425,7 @@ function addContourSlotFromActiveSlot(sourceSlot) {
         ? sourceSlot.editorVisible !== false
         : sourceSlot.visible !== false,
     canvas: sourceSlot.canvas,
-    bone: Number.isFinite(sourceSlot.bone) ? sourceSlot.bone : -1,
+    bone: sourceWeightMode === "weighted" ? (Number.isFinite(sourceSlot.bone) ? sourceSlot.bone : -1) : -1,
     visible: sourceSlot.visible !== false,
     alpha: Number.isFinite(sourceSlot.alpha) ? math.clamp(sourceSlot.alpha, 0, 1) : 1,
     r: Number.isFinite(sourceSlot.r) ? math.clamp(sourceSlot.r, 0, 1) : 1,
@@ -3828,6 +5439,7 @@ function addContourSlotFromActiveSlot(sourceSlot) {
     tx: Number(sourceSlot.tx) || 0,
     ty: Number(sourceSlot.ty) || 0,
     rot: Number(sourceSlot.rot) || 0,
+    baseImageTransform: normalizeBaseImageTransform(sourceSlot && sourceSlot.baseImageTransform),
     rect,
     docWidth: Number.isFinite(sourceSlot.docWidth) ? sourceSlot.docWidth : state.imageWidth,
     docHeight: Number.isFinite(sourceSlot.docHeight) ? sourceSlot.docHeight : state.imageHeight,
@@ -3835,45 +5447,50 @@ function addContourSlotFromActiveSlot(sourceSlot) {
     meshData: null,
     attachments: Array.isArray(sourceSlot.attachments) && sourceSlot.attachments.length > 0
       ? sourceSlot.attachments
-          .map((a) => ({
-            name: String(a && a.name ? a.name : "").trim(),
-            placeholder: String(a && a.placeholder ? a.placeholder : sourceSlot.placeholderName || sourceSlot.attachmentName || "main").trim(),
-            canvas: a && a.canvas ? a.canvas : sourceSlot.canvas,
-            type: normalizeAttachmentType(a && a.type),
-            linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
-            pointX: Number(a && a.pointX) || 0,
-            pointY: Number(a && a.pointY) || 0,
-            pointRot: Number(a && a.pointRot) || 0,
-            bboxSource: a && a.bboxSource === "contour" ? "contour" : "fill",
-            sequence:
-              a && a.sequence
-                ? {
-                    enabled: !!a.sequence.enabled,
-                    count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
-                    start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
-                    digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
-                  }
-                : { enabled: false, count: 1, start: 0, digits: 2 },
-          }))
-          .filter((a) => a.name.length > 0 && (a.canvas || a.type === "point" || a.type === "boundingbox"))
+        .map((a) => ({
+          name: String(a && a.name ? a.name : "").trim(),
+          placeholder: String(a && a.placeholder ? a.placeholder : sourceSlot.placeholderName || sourceSlot.attachmentName || "main").trim(),
+          canvas: a && a.canvas ? a.canvas : sourceSlot.canvas,
+          type: normalizeAttachmentType(a && a.type),
+          linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
+          pointX: Number(a && a.pointX) || 0,
+          pointY: Number(a && a.pointY) || 0,
+          pointRot: Number(a && a.pointRot) || 0,
+          bboxSource: a && a.bboxSource === "contour" ? "contour" : "fill",
+          sequence:
+            a && a.sequence
+              ? {
+                enabled: !!a.sequence.enabled,
+                count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
+                start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
+                digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
+              }
+              : { enabled: false, count: 1, start: 0, digits: 2 },
+        }))
+        .filter((a) => a.name.length > 0 && (a.canvas || a.type === "point" || a.type === "boundingbox"))
       : [
-          {
-            name: String(sourceSlot.attachmentName || "main"),
-            placeholder: String(sourceSlot.placeholderName || sourceSlot.attachmentName || "main"),
-            canvas: sourceSlot.canvas,
-            type: "region",
-            linkedParent: "",
-            pointX: 0,
-            pointY: 0,
-            pointRot: 0,
-            bboxSource: "fill",
-            sequence: { enabled: false, count: 1, start: 0, digits: 2 },
-          },
-        ],
-    useWeights: sourceSlot.useWeights !== false,
-    weightBindMode: sourceSlot.weightBindMode || "single",
-    weightMode: sourceSlot.weightMode || getSlotWeightMode(sourceSlot),
-    influenceBones: Array.isArray(sourceSlot.influenceBones) ? sourceSlot.influenceBones.filter((v) => Number.isFinite(v)) : [],
+        {
+          name: String(sourceSlot.attachmentName || "main"),
+          placeholder: String(sourceSlot.placeholderName || sourceSlot.attachmentName || "main"),
+          canvas: sourceSlot.canvas,
+          type: "region",
+          linkedParent: "",
+          pointX: 0,
+          pointY: 0,
+          pointRot: 0,
+          bboxSource: "fill",
+          sequence: { enabled: false, count: 1, start: 0, digits: 2 },
+        },
+      ],
+    useWeights: sourceWeightMode !== "free",
+    weightBindMode: sourceWeightMode === "weighted" ? "auto" : sourceWeightMode === "single" ? "single" : "none",
+    weightMode: sourceWeightMode,
+    influenceBones:
+      sourceWeightMode === "weighted"
+        ? Array.isArray(sourceSlot.influenceBones)
+          ? sourceSlot.influenceBones.filter((v) => Number.isFinite(v))
+          : []
+        : [],
     clipEnabled: !!sourceSlot.clipEnabled,
     clipSource: sourceSlot && sourceSlot.clipSource === "contour" ? "contour" : "fill",
     clipEndSlotId:
@@ -3884,6 +5501,8 @@ function addContourSlotFromActiveSlot(sourceSlot) {
         : null,
     meshContour: {
       points: [],
+      sourcePoints: [],
+      authorContourPoints: [],
       closed: false,
       triangles: [],
       fillPoints: [],
@@ -3901,6 +5520,7 @@ function addContourSlotFromActiveSlot(sourceSlot) {
   ensureSlotClipState(slot);
   ensureSlotVisualState(slot);
   state.slots.push(slot);
+  if (state.mesh) ensureSlotsHaveBoneBinding();
   rebuildSlotTriangleIndices();
   setActiveSlot(state.slots.length - 1);
   return slot;
@@ -3937,6 +5557,7 @@ function bindActiveSlotToSelectedBone() {
   } else {
     slot.influenceBones = [bone];
   }
+  ensureSlotsHaveBoneBinding();
   rebuildSlotWeights(slot, m);
   refreshSlotUI();
   renderBoneTree();
@@ -3954,6 +5575,7 @@ function bindActiveSlotWeightedToSelectedBones() {
   slot.weightBindMode = "auto";
   slot.useWeights = true;
   slot.influenceBones = [...new Set(picked)];
+  ensureSlotsHaveBoneBinding();
   rebuildSlotWeights(slot, m);
   refreshSlotUI();
   renderBoneTree();
@@ -3986,42 +5608,153 @@ function linkSelectedSlotMeshEdge(shouldLink) {
   if (!slot) return false;
   const contour = ensureSlotContour(slot);
   const activeSet = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
+  const activePoints = activeSet === "fill" ? contour.fillPoints : contour.points;
   const activeEdges = activeSet === "fill" ? contour.fillManualEdges : contour.manualEdges;
-  if (state.slotMesh.edgeSelectionSet !== activeSet || state.slotMesh.edgeSelection.length !== 2) return false;
-  const [a0, b0] = state.slotMesh.edgeSelection;
-  const a = Math.min(a0, b0);
-  const b = Math.max(a0, b0);
-  if (!shouldLink) {
-    const prevLen = activeEdges.length;
+
+  const getTriangles = () => activeSet === "fill" ? contour.fillTriangles : contour.triangles;
+  const setTriangles = (t) => { if (activeSet === "fill") contour.fillTriangles = t; else contour.triangles = t; };
+
+  if (shouldLink) {
+    // Link: require exactly 2 vertices
+    let pair = null;
+    if (state.slotMesh.edgeSelectionSet === activeSet && state.slotMesh.edgeSelection.length === 2) {
+      pair = state.slotMesh.edgeSelection;
+    } else {
+      const sel = getSlotMeshSelection(activeSet, activePoints.length);
+      if (sel.length === 2) pair = sel;
+    }
+    if (!pair) return false;
+    const [a0, b0] = pair;
+    const a = Math.min(a0, b0);
+    const b = Math.max(a0, b0);
+    if (a < 0 || b >= activePoints.length || a === b) return false;
+
+    // Add to contourEdges (visual edge)
+    if (activeSet === "contour" && Array.isArray(contour.contourEdges)) {
+      const cHad = contour.contourEdges.some(e => Math.min(e[0], e[1]) === a && Math.max(e[0], e[1]) === b);
+      if (!cHad) contour.contourEdges.push([a0, b0]);
+    }
+    // Persist as manual edge constraint (for re-triangulation)
+    const key = `${a}:${b}`;
+    const had = new Set(activeEdges.map((e) => `${Math.min(e[0], e[1])}:${Math.max(e[0], e[1])}`)).has(key);
+    if (!had) activeEdges.push([a, b]);
+    // Force into existing triangulation if present (don't create new one)
+    let tris = getTriangles();
+    if (tris.length >= 3) {
+      tris = forceEdgeByFlip(activePoints, tris, a, b);
+      setTriangles(tris);
+    }
+    return true;
+  } else {
+    // Unlink: support 2 or more selected vertices — remove ALL edges among them
+    let sel = null;
+    if (state.slotMesh.edgeSelectionSet === activeSet && state.slotMesh.edgeSelection.length >= 2) {
+      sel = state.slotMesh.edgeSelection;
+    }
+    if (!sel || sel.length < 2) {
+      sel = getSlotMeshSelection(activeSet, activePoints.length);
+    }
+    if (!sel || sel.length < 2) return false;
+
+    // Build set of all edge pairs among selected vertices
+    const selSet = new Set(sel);
+    const edgePairs = [];
+    const selArr = [...selSet].sort((x, y) => x - y);
+    for (let i = 0; i < selArr.length; i++) {
+      for (let j = i + 1; j < selArr.length; j++) {
+        edgePairs.push([selArr[i], selArr[j]]);
+      }
+    }
+
+    let didSomething = false;
+
+    // Remove from contourEdges
+    if (activeSet === "contour" && Array.isArray(contour.contourEdges)) {
+      const before = contour.contourEdges.length;
+      const pairSet = new Set(edgePairs.map(([a, b]) => `${a}:${b}`));
+      const cFiltered = contour.contourEdges.filter(e => {
+        const lo = Math.min(e[0], e[1]);
+        const hi = Math.max(e[0], e[1]);
+        return !pairSet.has(`${lo}:${hi}`);
+      });
+      if (cFiltered.length < before) {
+        contour.contourEdges.length = 0;
+        for (const e of cFiltered) contour.contourEdges.push(e);
+        didSomething = true;
+      }
+    }
+
+    // Remove from triangulation via edge flips
+    let tris = getTriangles();
+    if (tris.length >= 6) {
+      for (const [a, b] of edgePairs) {
+        tris = getTriangles();
+        if (!hasTriangleEdge(tris, a, b)) continue;
+        const triList = [];
+        for (let i = 0; i + 2 < tris.length; i += 3) triList.push([tris[i], tris[i + 1], tris[i + 2]]);
+        let flipped = false;
+        for (let ti = 0; ti < triList.length && !flipped; ti++) {
+          for (let tj = ti + 1; tj < triList.length && !flipped; tj++) {
+            const ta = triList[ti];
+            const tb = triList[tj];
+            if (!ta.includes(a) || !ta.includes(b) || !tb.includes(a) || !tb.includes(b)) continue;
+            const oa = ta.find((v) => v !== a && v !== b);
+            const ob = tb.find((v) => v !== a && v !== b);
+            if (oa == null || ob == null || oa === ob) continue;
+            triList[ti] = [oa, ob, a];
+            triList[tj] = [ob, oa, b];
+            flipped = true;
+          }
+        }
+        if (flipped) {
+          const out = [];
+          for (const tri of triList) out.push(tri[0], tri[1], tri[2]);
+          setTriangles(out);
+          didSomething = true;
+        }
+      }
+    }
+
+    if (!didSomething) return false;
+    // Remove from manual edge constraints
+    const pairSet = new Set(edgePairs.map(([a, b]) => `${a}:${b}`));
     const filtered = activeEdges.filter((e) => {
       const lo = Math.min(e[0], e[1]);
       const hi = Math.max(e[0], e[1]);
-      return lo !== a || hi !== b;
+      return !pairSet.has(`${lo}:${hi}`);
     });
     activeEdges.length = 0;
     for (const e of filtered) activeEdges.push(e);
-    if (activeSet === "contour" && contour.triangles.length >= 3) {
-      contour.triangles = applyManualEdgesToTriangles(contour.points, contour.triangles, contour.manualEdges);
-    } else if (activeSet === "fill" && contour.fillTriangles.length >= 3) {
-      contour.fillTriangles = applyManualEdgesToTriangles(contour.fillPoints, contour.fillTriangles, contour.fillManualEdges);
-    }
-    return prevLen !== activeEdges.length;
+    return true;
   }
-  const key = `${a}:${b}`;
-  const had = new Set(activeEdges.map((e) => `${Math.min(e[0], e[1])}:${Math.max(e[0], e[1])}`)).has(key);
-  if (!had) activeEdges.push([a, b]);
-  if (activeSet === "contour" && contour.triangles.length >= 3) {
-    contour.triangles = applyManualEdgesToTriangles(contour.points, contour.triangles, contour.manualEdges);
-  } else if (activeSet === "fill" && contour.fillTriangles.length >= 3) {
-    contour.fillTriangles = applyManualEdgesToTriangles(contour.fillPoints, contour.fillTriangles, contour.fillManualEdges);
-  }
-  return !had;
 }
 
 function ensureSlotContour(slot) {
   if (!slot) return { points: [], closed: false, triangles: [] };
   if (!slot.meshContour || !Array.isArray(slot.meshContour.points)) {
-    slot.meshContour = { points: [], closed: false, triangles: [], fillPoints: [], fillTriangles: [], manualEdges: [], fillManualEdges: [] };
+    slot.meshContour = {
+      points: [],
+      sourcePoints: [],
+      authorContourPoints: [],
+      closed: false,
+      contourEdges: [],
+      triangles: [],
+      fillPoints: [],
+      fillTriangles: [],
+      manualEdges: [],
+      fillManualEdges: [],
+    };
+  }
+  if (!Array.isArray(slot.meshContour.sourcePoints)) slot.meshContour.sourcePoints = [];
+  if (!Array.isArray(slot.meshContour.authorContourPoints)) slot.meshContour.authorContourPoints = [];
+  if (slot.meshContour.authorContourPoints.length < 3 && slot.meshContour.sourcePoints.length >= 3) {
+    slot.meshContour.authorContourPoints = cloneSlotMeshPoints(slot.meshContour.sourcePoints);
+  }
+  if (slot.meshContour.authorContourPoints.length < 3 && slot.meshContour.points.length >= 3) {
+    slot.meshContour.authorContourPoints = cloneSlotMeshPoints(slot.meshContour.points);
+  }
+  if (slot.meshContour.sourcePoints.length < 3 && slot.meshContour.authorContourPoints.length >= 3) {
+    slot.meshContour.sourcePoints = cloneSlotMeshPoints(slot.meshContour.authorContourPoints);
   }
   if (!Array.isArray(slot.meshContour.triangles)) slot.meshContour.triangles = [];
   if (!Array.isArray(slot.meshContour.fillPoints)) slot.meshContour.fillPoints = [];
@@ -4031,7 +5764,44 @@ function ensureSlotContour(slot) {
   slot.meshContour.manualEdges = normalizeEdgePairs(slot.meshContour.manualEdges, slot.meshContour.points.length);
   slot.meshContour.fillManualEdges = normalizeEdgePairs(slot.meshContour.fillManualEdges, slot.meshContour.fillPoints.length);
   slot.meshContour.closed = !!slot.meshContour.closed;
+  if (!Array.isArray(slot.meshContour.contourEdges)) {
+    // Backward compat: generate contourEdges from sequential points
+    slot.meshContour.contourEdges = [];
+    for (let i = 0; i + 1 < slot.meshContour.points.length; i++) {
+      slot.meshContour.contourEdges.push([i, i + 1]);
+    }
+    if (slot.meshContour.closed && slot.meshContour.points.length >= 3) {
+      slot.meshContour.contourEdges.push([slot.meshContour.points.length - 1, 0]);
+    }
+  }
   return slot.meshContour;
+}
+
+function cloneSlotMeshPoints(points) {
+  if (!Array.isArray(points)) return [];
+  return points.map((p) => ({ x: Number(p && p.x) || 0, y: Number(p && p.y) || 0 }));
+}
+
+function syncSlotContourSourcePoints(contour) {
+  if (!contour) return [];
+  contour.authorContourPoints = cloneSlotMeshPoints(contour.points);
+  contour.sourcePoints = cloneSlotMeshPoints(contour.authorContourPoints);
+  refreshSlotMeshContourReferenceHint();
+  return contour.authorContourPoints;
+}
+
+function getSlotContourSourcePoints(contour) {
+  if (!contour) return [];
+  if (!Array.isArray(contour.authorContourPoints)) contour.authorContourPoints = [];
+  if (!Array.isArray(contour.sourcePoints)) contour.sourcePoints = [];
+  if (contour.authorContourPoints.length >= 3) return cloneSlotMeshPoints(contour.authorContourPoints);
+  if (contour.sourcePoints.length >= 3) {
+    contour.authorContourPoints = cloneSlotMeshPoints(contour.sourcePoints);
+    return cloneSlotMeshPoints(contour.authorContourPoints);
+  }
+  contour.authorContourPoints = cloneSlotMeshPoints(contour.points);
+  contour.sourcePoints = cloneSlotMeshPoints(contour.authorContourPoints);
+  return cloneSlotMeshPoints(contour.authorContourPoints);
 }
 
 function pointInPolygon2D(p, poly) {
@@ -4122,9 +5892,42 @@ function triangulatePolygon(points) {
       earFound = true;
       break;
     }
-    if (!earFound) return [];
   }
   return out;
+}
+
+function triangulateContourPoints(points, contourEdges, manualEdges) {
+  if (!Array.isArray(points) || points.length < 3) return [];
+  let tris = delaunayTriangulate(points);
+  const pip = (px, py, pts, edges) => {
+    let inside = false;
+    for (const edge of edges) {
+      if (!Array.isArray(edge) || edge.length < 2) continue;
+      const p1 = pts[edge[0]], p2 = pts[edge[1]];
+      if (!p1 || !p2) continue;
+      const xi = p1.x, yi = p1.y;
+      const xj = p2.x, yj = p2.y;
+      if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  };
+  const activeEdgesForPip = (Array.isArray(contourEdges) && contourEdges.length > 0)
+    ? contourEdges
+    : points.map((_, i) => [i, (i + 1) % points.length]);
+
+  const filtered = [];
+  for (let t = 0; t + 2 < tris.length; t += 3) {
+    const a = points[tris[t]], b = points[tris[t + 1]], cc2 = points[tris[t + 2]];
+    if (!a || !b || !cc2) continue;
+    const cx = (a.x + b.x + cc2.x) / 3;
+    const cy = (a.y + b.y + cc2.y) / 3;
+    if (pip(cx, cy, points, activeEdgesForPip)) {
+      filtered.push(tris[t], tris[t + 1], tris[t + 2]);
+    }
+  }
+  return applyManualEdgesToTriangles(points, filtered, manualEdges);
 }
 
 function makePointKey(x, y) {
@@ -4309,6 +6112,123 @@ function sanitizeTriangles(points, triangles, poly = null) {
   return out;
 }
 
+function buildSafeFillTriangles(points, triangles, clipPoly = null, manualEdges = []) {
+  if (!Array.isArray(points) || points.length < 3) return [];
+  let out = applyManualEdgesToTriangles(points, Array.isArray(triangles) ? triangles : [], manualEdges);
+  out = sanitizeTriangles(points, out, clipPoly);
+  if (out.length >= 3) return out;
+  // Fallback: Delaunay over generated fill points, then clip back into polygon.
+  out = applyManualEdgesToTriangles(points, delaunayTriangulate(points), manualEdges);
+  out = sanitizeTriangles(points, out, clipPoly);
+  return out;
+}
+
+function dilateBinaryMask(mask, w, h, radius = 1) {
+  const r = Math.max(0, Math.floor(Number(radius) || 0));
+  if (!mask || r <= 0) return mask;
+  let src = new Uint8Array(mask);
+  for (let pass = 0; pass < r; pass += 1) {
+    const dst = new Uint8Array(src.length);
+    for (let y = 0; y < h; y += 1) {
+      const y0 = Math.max(0, y - 1);
+      const y1 = Math.min(h - 1, y + 1);
+      for (let x = 0; x < w; x += 1) {
+        let on = 0;
+        const x0 = Math.max(0, x - 1);
+        const x1 = Math.min(w - 1, x + 1);
+        for (let yy = y0; yy <= y1 && !on; yy += 1) {
+          const row = yy * w;
+          for (let xx = x0; xx <= x1; xx += 1) {
+            if (src[row + xx]) {
+              on = 1;
+              break;
+            }
+          }
+        }
+        if (on) dst[y * w + x] = 1;
+      }
+    }
+    src = dst;
+  }
+  return src;
+}
+
+function extractLargestBoundaryLoopFromTriangles(points, triangles) {
+  if (!Array.isArray(points) || points.length < 3 || !Array.isArray(triangles) || triangles.length < 3) return [];
+  const edgeCount = new Map();
+  const edges = [];
+  const addEdge = (a, b) => {
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    const key = `${lo}:${hi}`;
+    edgeCount.set(key, (edgeCount.get(key) || 0) + 1);
+    edges.push([a, b, key]);
+  };
+  for (let i = 0; i + 2 < triangles.length; i += 3) {
+    const a = Number(triangles[i]);
+    const b = Number(triangles[i + 1]);
+    const c = Number(triangles[i + 2]);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(c)) continue;
+    addEdge(a, b);
+    addEdge(b, c);
+    addEdge(c, a);
+  }
+  const boundary = edges.filter((e) => edgeCount.get(e[2]) === 1).map((e) => [e[0], e[1]]);
+  if (boundary.length < 3) return [];
+  const adj = new Map();
+  const pushAdj = (a, b) => {
+    const list = adj.get(a);
+    if (list) list.push(b);
+    else adj.set(a, [b]);
+  };
+  for (const [a, b] of boundary) {
+    pushAdj(a, b);
+    pushAdj(b, a);
+  }
+  const used = new Set();
+  const loops = [];
+  const edgeKey = (a, b) => `${Math.min(a, b)}:${Math.max(a, b)}`;
+  for (const [sa, sb] of boundary) {
+    const firstKey = edgeKey(sa, sb);
+    if (used.has(firstKey)) continue;
+    const loopIdx = [sa];
+    let prev = sa;
+    let curr = sb;
+    used.add(firstKey);
+    let guard = 0;
+    while (guard < boundary.length * 3) {
+      guard += 1;
+      loopIdx.push(curr);
+      if (curr === sa) break;
+      const nextList = (adj.get(curr) || []).filter((n) => !used.has(edgeKey(curr, n)));
+      if (nextList.length <= 0) break;
+      let next = nextList[0];
+      if (nextList.length > 1) {
+        const alt = nextList.find((n) => n !== prev);
+        if (alt != null) next = alt;
+      }
+      used.add(edgeKey(curr, next));
+      prev = curr;
+      curr = next;
+    }
+    if (loopIdx.length >= 4 && loopIdx[0] === loopIdx[loopIdx.length - 1]) {
+      const pts = loopIdx.slice(0, -1).map((i) => points[i]).filter(Boolean);
+      if (pts.length >= 3) loops.push(pts);
+    }
+  }
+  if (loops.length <= 0) return [];
+  let best = loops[0];
+  let bestArea = Math.abs(polygonSignedArea(best));
+  for (let i = 1; i < loops.length; i += 1) {
+    const area = Math.abs(polygonSignedArea(loops[i]));
+    if (area > bestArea) {
+      best = loops[i];
+      bestArea = area;
+    }
+  }
+  return best.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }));
+}
+
 function snapContourPointsToUniformGrid(poly, minX, minY, stepX, stepY, cols, rows) {
   const src = Array.isArray(poly) ? poly : [];
   if (src.length < 3) return [];
@@ -4385,69 +6305,428 @@ function buildUniformGridFillForContour(contour, colsHint, rowsHint, includeCont
     maxX = Math.max(maxX, p.x);
     maxY = Math.max(maxY, p.y);
   }
-  const cols = math.clamp(Number(colsHint) || 24, 3, 80);
-  const rows = math.clamp(Number(rowsHint) || 24, 3, 80);
-  const stepX = (maxX - minX) / cols || 1;
-  const stepY = (maxY - minY) / rows || 1;
+  const cols = math.clamp(Number(colsHint) || 24, 3, 120);
+  const rows = math.clamp(Number(rowsHint) || 24, 3, 120);
+  const spanX = Math.max(1e-6, maxX - minX);
+  const spanY = Math.max(1e-6, maxY - minY);
+  // Triangular lattice: edge length s, row spacing h = s * sqrt(3)/2
+  const s = Math.max(1e-6, Math.max(spanX / cols, (2 * spanY) / (Math.sqrt(3) * rows)));
+  const h = s * Math.sqrt(3) * 0.5;
   const pts = [];
   const used = new Set();
-  const contourPoints = [];
-  const seed = includeContourPoints
-    ? poly.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
-    : snapContourPointsToUniformGrid(poly, minX, minY, stepX, stepY, cols, rows);
-  for (const p of seed) {
-    const px = Number(p.x) || 0;
-    const py = Number(p.y) || 0;
-    const k = makePointKey(px, py);
-    if (used.has(k)) continue;
+  const rowMin = Math.floor(minY / h) - 2;
+  const rowMax = Math.ceil(maxY / h) + 2;
+  const colMin = Math.floor(minX / s) - 3;
+  const colMax = Math.ceil(maxX / s) + 3;
+  const idxByRowCol = new Map();
+  const rowCols = new Map();
+  const putPoint = (r, c) => {
+    const x = c * s + (r & 1 ? s * 0.5 : 0);
+    const y = r * h;
+    const k = makePointKey(x, y);
+    if (used.has(k)) return null;
     used.add(k);
-    const cp = { x: px, y: py };
-    contourPoints.push(cp);
-    pts.push(cp);
-  }
-  for (let iy = 0; iy <= rows; iy += 1) {
-    for (let ix = 0; ix <= cols; ix += 1) {
-      const x = minX + ix * stepX;
-      const y = minY + iy * stepY;
+    const idx = pts.length;
+    pts.push({ x, y });
+    idxByRowCol.set(`${r}:${c}`, idx);
+    const list = rowCols.get(r);
+    if (list) list.push(c);
+    else rowCols.set(r, [c]);
+    return idx;
+  };
+  for (let r = rowMin; r <= rowMax; r += 1) {
+    const rowOffset = r & 1 ? s * 0.5 : 0;
+    for (let c = colMin; c <= colMax; c += 1) {
+      const x = c * s + rowOffset;
+      const y = r * h;
       if (!pointInPolygon2D({ x, y }, poly)) continue;
-      const k = makePointKey(x, y);
-      if (used.has(k)) continue;
-      used.add(k);
-      pts.push({ x, y });
+      putPoint(r, c);
     }
   }
-  if (pts.length < 3 || contourPoints.length < 3) return { points: [], triangles: [], contourPoints: [] };
-  const raw = delaunayTriangulate(pts);
+  if (pts.length < 3) return { points: [], triangles: [], contourPoints: [] };
   let filtered = [];
-  for (let i = 0; i + 2 < raw.length; i += 3) {
-    const a = pts[raw[i]];
-    const b = pts[raw[i + 1]];
-    const c = pts[raw[i + 2]];
-    const cen = { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 };
-    const m0 = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-    const m1 = { x: (b.x + c.x) / 2, y: (b.y + c.y) / 2 };
-    const m2 = { x: (c.x + a.x) / 2, y: (c.y + a.y) / 2 };
-    if (!pointInPolygon2D(cen, poly)) continue;
-    if (!pointInPolygon2D(m0, poly)) continue;
-    if (!pointInPolygon2D(m1, poly)) continue;
-    if (!pointInPolygon2D(m2, poly)) continue;
-    filtered.push(raw[i], raw[i + 1], raw[i + 2]);
+  const idxAt = (r, c) => idxByRowCol.get(`${r}:${c}`);
+  for (let r = rowMin; r < rowMax; r += 1) {
+    const colsA = rowCols.get(r);
+    const colsB = rowCols.get(r + 1);
+    if (!Array.isArray(colsA) || !Array.isArray(colsB)) continue;
+    const cStart = Math.min(...colsA, ...colsB) - 1;
+    const cEnd = Math.max(...colsA, ...colsB) + 1;
+    for (let c = cStart; c <= cEnd; c += 1) {
+      const a = idxAt(r, c);
+      const b = idxAt(r, c + 1);
+      const c0 = idxAt(r + 1, c);
+      const d = idxAt(r + 1, c + 1);
+      if ((r & 1) === 0) {
+        if (a != null && c0 != null && b != null) filtered.push(a, c0, b);
+        if (b != null && c0 != null && d != null) filtered.push(b, c0, d);
+      } else {
+        if (a != null && c0 != null && d != null) filtered.push(a, c0, d);
+        if (a != null && d != null && b != null) filtered.push(a, d, b);
+      }
+    }
   }
   filtered = sanitizeTriangles(pts, filtered, poly);
   if (filtered.length < 3) {
-    const fallback = [];
-    for (let i = 0; i + 2 < raw.length; i += 3) {
-      const a = pts[raw[i]];
-      const b = pts[raw[i + 1]];
-      const c = pts[raw[i + 2]];
-      if (!a || !b || !c) continue;
-      const cen = { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 };
-      if (!pointInPolygon2D(cen, poly)) continue;
-      fallback.push(raw[i], raw[i + 1], raw[i + 2]);
+    filtered = sanitizeTriangles(pts, delaunayTriangulate(pts), poly);
+  }
+  let contourPoints = includeContourPoints
+    ? poly.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
+    : extractLargestBoundaryLoopFromTriangles(pts, filtered);
+  if (!includeContourPoints && contourPoints.length < 3) {
+    // Fallback: snap source contour to nearest triangular lattice nodes.
+    const snapped = [];
+    const seen = new Set();
+    for (const p of poly) {
+      const py = Number(p.y) || 0;
+      const px = Number(p.x) || 0;
+      const r0 = Math.round(py / h);
+      let best = null;
+      let bestD2 = Infinity;
+      for (let dr = -1; dr <= 1; dr += 1) {
+        const r = r0 + dr;
+        const rowOffset = r & 1 ? s * 0.5 : 0;
+        const c = Math.round((px - rowOffset) / s);
+        for (let dc = -1; dc <= 1; dc += 1) {
+          const x = (c + dc) * s + rowOffset;
+          const y = r * h;
+          const dx = x - px;
+          const dy = y - py;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            best = { x, y };
+          }
+        }
+      }
+      if (!best) continue;
+      const k = makePointKey(best.x, best.y);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      snapped.push(best);
     }
-    filtered = sanitizeTriangles(pts, fallback, poly);
+    if (snapped.length >= 3) contourPoints = snapped;
+  }
+  if (includeContourPoints && Array.isArray(contourPoints) && contourPoints.length >= 3) {
+    // Keep final applied mesh boundary faithful to author contour:
+    // merge contour vertices into fill set, then rebuild triangles clipped by contour.
+    const merged = pts.slice();
+    const seen = new Set(merged.map((p) => makePointKey(Number(p.x) || 0, Number(p.y) || 0)));
+    for (const cp of contourPoints) {
+      const x = Number(cp && cp.x) || 0;
+      const y = Number(cp && cp.y) || 0;
+      const k = makePointKey(x, y);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      merged.push({ x, y });
+    }
+    const rebuilt = sanitizeTriangles(merged, delaunayTriangulate(merged), contourPoints);
+    if (rebuilt.length >= 3) {
+      return { points: merged, triangles: rebuilt, contourPoints };
+    }
   }
   return { points: pts, triangles: filtered, contourPoints };
+}
+
+function getSlotMeshDensityHints() {
+  return {
+    cols: math.clamp(Number(els.gridX && els.gridX.value) || 24, 2, 120),
+    rows: math.clamp(Number(els.gridY && els.gridY.value) || 24, 2, 120),
+  };
+}
+
+function getCanvasAlphaMask(canvas, alphaThreshold = 8) {
+  if (!canvas) return null;
+  const w = Math.max(1, Number(canvas.width) || 1);
+  const h = Math.max(1, Number(canvas.height) || 1);
+  const ctx = canvas.getContext("2d", { willReadFrequently: true }) || canvas.getContext("2d");
+  if (!ctx) return null;
+  let img = null;
+  try {
+    img = ctx.getImageData(0, 0, w, h);
+  } catch {
+    return null;
+  }
+  if (!img || !img.data) return null;
+  const data = img.data;
+  const mask = new Uint8Array(w * h);
+  let count = 0;
+  for (let i = 0; i < w * h; i += 1) {
+    const a = Number(data[i * 4 + 3]) || 0;
+    if (a > alphaThreshold) {
+      mask[i] = 1;
+      count += 1;
+    }
+  }
+  if (count <= 0) return null;
+  return { width: w, height: h, mask, opaqueCount: count };
+}
+
+function pickForegroundComponent(maskInfo) {
+  if (!maskInfo || !maskInfo.mask) return null;
+  const w = maskInfo.width;
+  const h = maskInfo.height;
+  const mask = maskInfo.mask;
+  const visited = new Uint8Array(mask.length);
+  const components = [];
+  const centerX = Math.floor((w - 1) * 0.5);
+  const centerY = Math.floor((h - 1) * 0.5);
+  const centerIdx = centerY * w + centerX;
+  for (let i = 0; i < mask.length; i += 1) {
+    if (!mask[i] || visited[i]) continue;
+    const stack = [i];
+    visited[i] = 1;
+    const pixels = [];
+    let area = 0;
+    let sx = 0;
+    let sy = 0;
+    let containsCenter = false;
+    while (stack.length > 0) {
+      const idx = stack.pop();
+      pixels.push(idx);
+      area += 1;
+      if (idx === centerIdx) containsCenter = true;
+      const x = idx % w;
+      const y = Math.floor(idx / w);
+      sx += x + 0.5;
+      sy += y + 0.5;
+      const up = idx - w;
+      const dn = idx + w;
+      const lf = idx - 1;
+      const rt = idx + 1;
+      if (y > 0 && mask[up] && !visited[up]) {
+        visited[up] = 1;
+        stack.push(up);
+      }
+      if (y + 1 < h && mask[dn] && !visited[dn]) {
+        visited[dn] = 1;
+        stack.push(dn);
+      }
+      if (x > 0 && mask[lf] && !visited[lf]) {
+        visited[lf] = 1;
+        stack.push(lf);
+      }
+      if (x + 1 < w && mask[rt] && !visited[rt]) {
+        visited[rt] = 1;
+        stack.push(rt);
+      }
+    }
+    if (area <= 0) continue;
+    components.push({
+      pixels,
+      area,
+      cx: sx / area,
+      cy: sy / area,
+      containsCenter,
+    });
+  }
+  if (components.length === 0) return null;
+  const centerComps = components.filter((c) => c.containsCenter);
+  if (centerComps.length > 0) {
+    centerComps.sort((a, b) => b.area - a.area);
+    return centerComps[0];
+  }
+  let best = null;
+  let bestScore = Number.POSITIVE_INFINITY;
+  const cx = (w - 1) * 0.5;
+  const cy = (h - 1) * 0.5;
+  for (const c of components) {
+    const dx = c.cx - cx;
+    const dy = c.cy - cy;
+    const dist2 = dx * dx + dy * dy;
+    const score = dist2 - c.area * 0.001;
+    if (!best || score < bestScore || (Math.abs(score - bestScore) < 1e-6 && c.area > best.area)) {
+      best = c;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+function buildMaskBoundaryLoops(mask, w, h) {
+  const edges = [];
+  const starts = new Map();
+  const addEdge = (ax, ay, bx, by) => {
+    const idx = edges.length;
+    edges.push({ ax, ay, bx, by });
+    const key = `${ax},${ay}`;
+    const list = starts.get(key);
+    if (list) list.push(idx);
+    else starts.set(key, [idx]);
+  };
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const i = y * w + x;
+      if (!mask[i]) continue;
+      if (y === 0 || !mask[i - w]) addEdge(x, y, x + 1, y);
+      if (x + 1 >= w || !mask[i + 1]) addEdge(x + 1, y, x + 1, y + 1);
+      if (y + 1 >= h || !mask[i + w]) addEdge(x + 1, y + 1, x, y + 1);
+      if (x === 0 || !mask[i - 1]) addEdge(x, y + 1, x, y);
+    }
+  }
+  if (edges.length === 0) return [];
+  const used = new Uint8Array(edges.length);
+  const loops = [];
+  for (let i = 0; i < edges.length; i += 1) {
+    if (used[i]) continue;
+    const e0 = edges[i];
+    const startX = e0.ax;
+    const startY = e0.ay;
+    const loop = [{ x: startX, y: startY }];
+    let edgeIdx = i;
+    let guard = 0;
+    while (edgeIdx >= 0 && guard < edges.length + 8) {
+      guard += 1;
+      if (used[edgeIdx]) break;
+      used[edgeIdx] = 1;
+      const e = edges[edgeIdx];
+      loop.push({ x: e.bx, y: e.by });
+      if (e.bx === startX && e.by === startY) break;
+      const key = `${e.bx},${e.by}`;
+      const nextList = starts.get(key) || [];
+      let next = -1;
+      for (const ni of nextList) {
+        if (!used[ni]) {
+          next = ni;
+          break;
+        }
+      }
+      if (next < 0) break;
+      edgeIdx = next;
+    }
+    if (
+      loop.length >= 4 &&
+      loop[0].x === loop[loop.length - 1].x &&
+      loop[0].y === loop[loop.length - 1].y
+    ) {
+      loops.push(loop);
+    }
+  }
+  return loops;
+}
+
+function simplifyClosedPolygon(points, maxPoints = 240) {
+  if (!Array.isArray(points) || points.length < 4) return [];
+  const ring = points.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }));
+  if (ring.length > 1 && ring[0].x === ring[ring.length - 1].x && ring[0].y === ring[ring.length - 1].y) {
+    ring.pop();
+  }
+  if (ring.length < 3) return [];
+  const reduced = [];
+  const n = ring.length;
+  for (let i = 0; i < n; i += 1) {
+    const prev = ring[(i - 1 + n) % n];
+    const curr = ring[i];
+    const next = ring[(i + 1) % n];
+    const v1x = curr.x - prev.x;
+    const v1y = curr.y - prev.y;
+    const v2x = next.x - curr.x;
+    const v2y = next.y - curr.y;
+    const cross = Math.abs(v1x * v2y - v1y * v2x);
+    const dot = v1x * v2x + v1y * v2y;
+    if (cross < 1e-6 && dot >= 0) continue;
+    reduced.push(curr);
+  }
+  let out = reduced.length >= 3 ? reduced : ring;
+  const maxN = math.clamp(Number(maxPoints) || 240, 24, 600);
+  if (out.length > maxN) {
+    const sampled = [];
+    const step = out.length / maxN;
+    for (let i = 0; i < maxN; i += 1) {
+      const idx = Math.floor(i * step);
+      sampled.push(out[idx]);
+    }
+    out = sampled;
+  }
+  return out;
+}
+
+function mapImagePolygonToSlotSpace(slot, points, imageW, imageH) {
+  const rect = slot && slot.rect ? slot.rect : { x: 0, y: 0, w: imageW, h: imageH };
+  const rw = Math.max(1, Number(rect.w) || imageW || 1);
+  const rh = Math.max(1, Number(rect.h) || imageH || 1);
+  const sx = rw / Math.max(1, Number(imageW) || 1);
+  const sy = rh / Math.max(1, Number(imageH) || 1);
+  const ox = Number(rect.x) || 0;
+  const oy = Number(rect.y) || 0;
+  return (Array.isArray(points) ? points : []).map((p) => ({
+    x: ox + (Number(p.x) || 0) * sx,
+    y: oy + (Number(p.y) || 0) * sy,
+  }));
+}
+
+function buildAutoForegroundContourForSlot(slot, colsHint, rowsHint) {
+  if (!slot || !slot.canvas) return null;
+  const alphaMask = getCanvasAlphaMask(slot.canvas, 8);
+  if (!alphaMask) return null;
+  const comp = pickForegroundComponent(alphaMask);
+  if (!comp || !Array.isArray(comp.pixels) || comp.pixels.length < 3) return null;
+  const selectedMask = new Uint8Array(alphaMask.mask.length);
+  for (const idx of comp.pixels) {
+    if (Number.isFinite(idx) && idx >= 0 && idx < selectedMask.length) selectedMask[idx] = 1;
+  }
+  // Slight outward dilation to avoid clipping into opaque foreground edges.
+  const safeMask = dilateBinaryMask(selectedMask, alphaMask.width, alphaMask.height, 1);
+  const loops = buildMaskBoundaryLoops(safeMask, alphaMask.width, alphaMask.height);
+  if (!Array.isArray(loops) || loops.length === 0) return null;
+  let bestLoop = loops[0];
+  let bestArea = Math.abs(polygonSignedArea(bestLoop));
+  for (let i = 1; i < loops.length; i += 1) {
+    const a = Math.abs(polygonSignedArea(loops[i]));
+    if (a > bestArea) {
+      bestArea = a;
+      bestLoop = loops[i];
+    }
+  }
+  const contourMaxPoints = math.clamp(((Number(colsHint) || 24) + (Number(rowsHint) || 24)) * 4, 24, 600);
+  const simplified = simplifyClosedPolygon(bestLoop, contourMaxPoints);
+  if (!Array.isArray(simplified) || simplified.length < 3) return null;
+  const contourPoints = mapImagePolygonToSlotSpace(slot, simplified, alphaMask.width, alphaMask.height);
+  if (contourPoints.length < 3) return null;
+  return {
+    contourPoints,
+    area: comp.area,
+  };
+}
+
+function autoBuildForegroundMeshForSlot(slot, colsHint, rowsHint) {
+  if (!slot) return { ok: false, reason: "No active slot." };
+  const auto = buildAutoForegroundContourForSlot(slot, colsHint, rowsHint);
+  if (!auto || !Array.isArray(auto.contourPoints) || auto.contourPoints.length < 3) {
+    return { ok: false, reason: "No opaque foreground region found." };
+  }
+  const c = ensureSlotContour(slot);
+  c.points = auto.contourPoints.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }));
+  syncSlotContourSourcePoints(c);
+  c.closed = true;
+  c.manualEdges = [];
+  c.triangles = [];
+  c.fillManualEdges = [];
+  c.fillPoints = [];
+  c.fillTriangles = [];
+
+  const fill = buildUniformGridFillForContour(c, colsHint, rowsHint, true);
+  c.fillPoints = Array.isArray(fill.points) ? fill.points : [];
+  c.fillManualEdges = normalizeEdgePairs(c.fillManualEdges, c.fillPoints.length);
+  c.fillTriangles = buildSafeFillTriangles(c.fillPoints, Array.isArray(fill.triangles) ? fill.triangles : [], c.points, c.fillManualEdges);
+  if (c.fillTriangles.length < 3) {
+    c.fillPoints = [];
+    c.fillManualEdges = [];
+    c.fillTriangles = [];
+    c.triangles = applyManualEdgesToTriangles(c.points, triangulatePolygon(c.points), c.manualEdges);
+  }
+  state.slotMesh.activeSet = c.fillPoints.length >= 3 ? "fill" : "contour";
+  state.slotMesh.activePoint = -1;
+  state.slotMesh.edgeSelection = [];
+  state.slotMesh.edgeSelectionSet = state.slotMesh.activeSet;
+  const triCount =
+    c.fillPoints.length >= 3 && c.fillTriangles.length >= 3 ? c.fillTriangles.length / 3 : c.triangles.length / 3;
+  return {
+    ok: true,
+    contourPoints: c.points.length,
+    fillPoints: c.fillPoints.length,
+    triangles: Math.max(0, Math.round(triCount)),
+  };
 }
 
 function reindexTrianglesAfterPointRemoved(triangles, index) {
@@ -4470,6 +6749,171 @@ function removePointAtIndex(points, index) {
   return true;
 }
 
+function getSlotMeshSetKey(setName) {
+  return setName === "fill" ? "fill" : "contour";
+}
+
+function getSlotMeshSelection(setName, maxCount = null) {
+  const key = getSlotMeshSetKey(setName);
+  const store = state.slotMesh && state.slotMesh.selectedPoints && typeof state.slotMesh.selectedPoints === "object"
+    ? state.slotMesh.selectedPoints
+    : (state.slotMesh.selectedPoints = { contour: [], fill: [] });
+  const raw = Array.isArray(store[key]) ? store[key] : [];
+  const out = [];
+  const max = Number.isFinite(maxCount) ? Number(maxCount) : null;
+  for (const v of raw) {
+    const i = Number(v);
+    if (!Number.isFinite(i) || i < 0) continue;
+    if (max != null && i >= max) continue;
+    if (!out.includes(i)) out.push(i);
+  }
+  out.sort((a, b) => a - b);
+  store[key] = out;
+  return out;
+}
+
+function setSlotMeshSelection(setName, list, maxCount = null) {
+  const key = getSlotMeshSetKey(setName);
+  const store = state.slotMesh && state.slotMesh.selectedPoints && typeof state.slotMesh.selectedPoints === "object"
+    ? state.slotMesh.selectedPoints
+    : (state.slotMesh.selectedPoints = { contour: [], fill: [] });
+  const max = Number.isFinite(maxCount) ? Number(maxCount) : null;
+  const out = [];
+  for (const raw of Array.isArray(list) ? list : []) {
+    const i = Number(raw);
+    if (!Number.isFinite(i) || i < 0) continue;
+    if (max != null && i >= max) continue;
+    if (!out.includes(i)) out.push(i);
+  }
+  out.sort((a, b) => a - b);
+  store[key] = out;
+  return out;
+}
+
+function clearSlotMeshSelection(setName = "") {
+  if (!state.slotMesh) return;
+  const store = state.slotMesh.selectedPoints && typeof state.slotMesh.selectedPoints === "object"
+    ? state.slotMesh.selectedPoints
+    : (state.slotMesh.selectedPoints = { contour: [], fill: [] });
+  if (setName === "contour" || setName === "fill") {
+    store[setName] = [];
+    return;
+  }
+  store.contour = [];
+  store.fill = [];
+}
+
+function normalizeSlotMeshToolMode(mode) {
+  return String(mode || "").toLowerCase() === "add" ? "add" : "select";
+}
+
+function cloneSlotMeshContour(contour) {
+  const src = contour && typeof contour === "object" ? contour : {};
+  return {
+    points: Array.isArray(src.points) ? src.points.map((p) => ({ x: Number(p && p.x) || 0, y: Number(p && p.y) || 0 })) : [],
+    sourcePoints: Array.isArray(src.sourcePoints)
+      ? src.sourcePoints.map((p) => ({ x: Number(p && p.x) || 0, y: Number(p && p.y) || 0 }))
+      : [],
+    authorContourPoints: Array.isArray(src.authorContourPoints)
+      ? src.authorContourPoints.map((p) => ({ x: Number(p && p.x) || 0, y: Number(p && p.y) || 0 }))
+      : [],
+    closed: !!src.closed,
+    contourEdges: Array.isArray(src.contourEdges)
+      ? src.contourEdges.filter((e) => Array.isArray(e) && e.length >= 2).map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
+      : [],
+    triangles: Array.isArray(src.triangles) ? src.triangles.map((v) => Number(v) || 0) : [],
+    fillPoints: Array.isArray(src.fillPoints) ? src.fillPoints.map((p) => ({ x: Number(p && p.x) || 0, y: Number(p && p.y) || 0 })) : [],
+    fillTriangles: Array.isArray(src.fillTriangles) ? src.fillTriangles.map((v) => Number(v) || 0) : [],
+    manualEdges: Array.isArray(src.manualEdges)
+      ? src.manualEdges.filter((e) => Array.isArray(e) && e.length >= 2).map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
+      : [],
+    fillManualEdges: Array.isArray(src.fillManualEdges)
+      ? src.fillManualEdges.filter((e) => Array.isArray(e) && e.length >= 2).map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
+      : [],
+  };
+}
+
+function refreshSlotMeshToolModeUI() {
+  if (!els.slotMeshNewBtn) return;
+  const mode = normalizeSlotMeshToolMode(state.slotMesh && state.slotMesh.toolMode);
+  const isAdd = mode === "add";
+  els.slotMeshNewBtn.textContent = isAdd ? "Tool: ADD VERTEX (V)" : "Tool: SELECT (V)";
+  els.slotMeshNewBtn.classList.add("slotmesh-tool-toggle");
+  els.slotMeshNewBtn.classList.toggle("mode-add", isAdd);
+  els.slotMeshNewBtn.classList.toggle("mode-select", !isAdd);
+  els.slotMeshNewBtn.classList.toggle("active", isAdd);
+  els.slotMeshNewBtn.title = isAdd
+    ? "Add mode: click empty area to add contour vertex."
+    : "Select mode: click/drag to select and move vertices.";
+  if (els.slotMeshToolModeHint) {
+    els.slotMeshToolModeHint.textContent = isAdd ? "Tool: Add Vertex (V)" : "Tool: Select (V)";
+  }
+}
+
+function refreshSlotMeshContourReferenceHint() {
+  if (!els.slotMeshContourRefHint) return;
+  const slot = getActiveSlot();
+  if (!slot) {
+    els.slotMeshContourRefHint.textContent = "Ref: Source contour";
+    return;
+  }
+  const contour = ensureSlotContour(slot);
+  const source = getSlotContourSourcePoints(contour);
+  els.slotMeshContourRefHint.textContent = `Ref: Source contour (${source.length})`;
+}
+
+function setSlotMeshToolMode(mode, withStatus = false) {
+  if (!state.slotMesh) return;
+  const next = normalizeSlotMeshToolMode(mode);
+  state.slotMesh.toolMode = next;
+  refreshSlotMeshToolModeUI();
+  if (withStatus) {
+    setStatus(next === "add" ? "Slot Mesh tool: Add Vertex mode." : "Slot Mesh tool: Select mode.");
+  }
+}
+
+function removeSlotMeshPointsByIndices(contour, setName, indices) {
+  if (!contour) return { removed: 0, remain: 0 };
+  const key = getSlotMeshSetKey(setName);
+  const points = key === "fill" ? contour.fillPoints : contour.points;
+  if (!Array.isArray(points) || points.length === 0) return { removed: 0, remain: 0 };
+  const toRemove = [...new Set((Array.isArray(indices) ? indices : []).map((v) => Number(v)).filter((v) => Number.isFinite(v) && v >= 0 && v < points.length))].sort((a, b) => b - a);
+  if (toRemove.length === 0) return { removed: 0, remain: points.length };
+  for (const index of toRemove) {
+    removePointAtIndex(points, index);
+    if (key === "contour") {
+      contour.triangles = [];
+      contour.fillPoints = [];
+      contour.fillTriangles = [];
+      contour.fillManualEdges = [];
+      contour.manualEdges = normalizeEdgePairs(
+        contour.manualEdges
+          .filter((e) => e[0] !== index && e[1] !== index)
+          .map((e) => [e[0] > index ? e[0] - 1 : e[0], e[1] > index ? e[1] - 1 : e[1]]),
+        contour.points.length
+      );
+      if (Array.isArray(contour.contourEdges)) {
+        const nextContourEdges = contour.contourEdges
+          .filter(e => e[0] !== index && e[1] !== index)
+          .map(e => [e[0] > index ? e[0] - 1 : e[0], e[1] > index ? e[1] - 1 : e[1]]);
+        contour.contourEdges = nextContourEdges;
+      }
+      if (contour.points.length < 3) contour.closed = false;
+      syncSlotContourSourcePoints(contour);
+    } else {
+      contour.fillTriangles = reindexTrianglesAfterPointRemoved(contour.fillTriangles, index);
+      contour.fillManualEdges = normalizeEdgePairs(
+        contour.fillManualEdges
+          .filter((e) => e[0] !== index && e[1] !== index)
+          .map((e) => [e[0] > index ? e[0] - 1 : e[0], e[1] > index ? e[1] - 1 : e[1]]),
+        contour.fillPoints.length
+      );
+      contour.fillTriangles = applyManualEdgesToTriangles(contour.fillPoints, contour.fillTriangles, contour.fillManualEdges);
+    }
+  }
+  return { removed: toRemove.length, remain: points.length };
+}
+
 function applyContourMeshToSlot(slot) {
   const m = state.mesh;
   if (!m || !slot) return false;
@@ -4478,14 +6922,31 @@ function applyContourMeshToSlot(slot) {
   const useFill = Array.isArray(contour.fillPoints) && contour.fillPoints.length >= 3;
   const pts = useFill ? contour.fillPoints : contour.points;
   const manualEdges = useFill ? contour.fillManualEdges : contour.manualEdges;
+  const clipPolygon = useFill ? getSlotContourSourcePoints(contour) : contour.points;
+  if (useFill && Array.isArray(clipPolygon) && clipPolygon.length >= 3) {
+    // Ensure applied fill mesh contains boundary vertices, so silhouette stays consistent.
+    const seen = new Set((Array.isArray(pts) ? pts : []).map((p) => makePointKey(Number(p.x) || 0, Number(p.y) || 0)));
+    for (const cp of clipPolygon) {
+      const x = Number(cp && cp.x) || 0;
+      const y = Number(cp && cp.y) || 0;
+      const k = makePointKey(x, y);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      pts.push({ x, y });
+    }
+  }
   let triangles = useFill ? contour.fillTriangles : contour.triangles;
   if (!Array.isArray(triangles) || triangles.length < 3) {
-    triangles = applyManualEdgesToTriangles(pts, triangulatePolygon(pts), manualEdges);
+    if (useFill) {
+      triangles = applyManualEdgesToTriangles(pts, triangulatePolygon(pts), manualEdges);
+    } else {
+      triangles = triangulateContourPoints(pts, contour.contourEdges, manualEdges);
+    }
     if (useFill) contour.fillTriangles = triangles;
     else contour.triangles = triangles;
   }
   triangles = applyManualEdgesToTriangles(pts, triangles, manualEdges);
-  triangles = sanitizeTriangles(pts, triangles, contour.points);
+  triangles = sanitizeTriangles(pts, triangles, clipPolygon);
   if (!Array.isArray(triangles) || triangles.length < 3) return false;
   const rect = slot.rect || { x: 0, y: 0, w: Math.max(1, state.imageWidth), h: Math.max(1, state.imageHeight) };
   const rw = Math.max(1, Number(rect.w) || 1);
@@ -4496,8 +6957,8 @@ function applyContourMeshToSlot(slot) {
     const p = pts[i];
     positions[i * 2] = Number(p.x) || 0;
     positions[i * 2 + 1] = Number(p.y) || 0;
-    uvs[i * 2] = math.clamp(((Number(p.x) || 0) - (Number(rect.x) || 0)) / rw, 0, 1);
-    uvs[i * 2 + 1] = math.clamp(((Number(p.y) || 0) - (Number(rect.y) || 0)) / rh, 0, 1);
+    uvs[i * 2] = ((Number(p.x) || 0) - (Number(rect.x) || 0)) / rw;
+    uvs[i * 2 + 1] = ((Number(p.y) || 0) - (Number(rect.y) || 0)) / rh;
   }
   const vCount = pts.length;
   slot.meshData = {
@@ -4527,7 +6988,7 @@ function resetSlotMeshToGrid(slot) {
   return true;
 }
 
-function pickSlotContourPoint(slot, mx, my, radius = 10) {
+function pickSlotContourPoint(slot, mx, my, radius = 10, poseWorld = null) {
   const contour = ensureSlotContour(slot);
   const r2 = radius * radius;
   let best = { set: "contour", index: -1 };
@@ -4539,7 +7000,7 @@ function pickSlotContourPoint(slot, mx, my, radius = 10) {
   for (const [setName, list] of sets) {
     for (let i = 0; i < list.length; i += 1) {
       const p = list[i];
-      const s = localToScreen(p.x, p.y);
+      const s = slotMeshLocalToScreen(slot, p, poseWorld);
       const dx = s.x - mx;
       const dy = s.y - my;
       const d2 = dx * dx + dy * dy;
@@ -4583,7 +7044,7 @@ function ensureSlotMeshData(slot, m) {
     } else {
       const allowed = getSlotInfluenceBones(slot, m);
       slot.influenceBones = allowed;
-      slot.meshData.weights = autoWeightForPositions(slot.meshData.positions, m.rigBones, allowed);
+      slot.meshData.weights = autoWeightForPositions(getSlotWeightedAutoWeightPositions(slot, m), m.rigBones, allowed);
       slot.weightBindMode = "auto";
       slot.weightMode = "weighted";
     }
@@ -4661,21 +7122,81 @@ function getActiveOffsets(m) {
   return getModelSlotOffsets(m, si) || m.offsets;
 }
 
+function canRenderSlotInViewport(slot) {
+  if (!slot || !isSlotEditorVisible(slot)) return false;
+  if (isSlotHiddenByBoneVisibility(slot)) return false;
+  if (slot.clipEnabled) return true;
+  return hasActiveAttachment(slot);
+}
+
+function isSlotHiddenByBoneVisibility(slot) {
+  const m = state.mesh;
+  if (!m || !slot) return false;
+  const bi = Number(slot.bone);
+  if (!Number.isFinite(bi) || bi < 0 || bi >= (Array.isArray(m.rigBones) ? m.rigBones.length : 0)) return false;
+  const rigBone = m.rigBones[bi];
+  normalizeBoneChannels(rigBone);
+  if (rigBone && rigBone.workHidden && rigBone.workHideSlots) return true;
+  if (state.boneMode === "pose") {
+    const bones = getActiveBones(m);
+    if (isBoneAnimationHidden(bones, bi)) return true;
+  }
+  return false;
+}
+
+function getRenderableSlotItems() {
+  if (state.slots.length === 0) {
+    return [];
+  }
+  const allItems = state.slots
+    .map((slot, idx) => ({ slot, idx }))
+    .filter((it) => canRenderSlotInViewport(it.slot));
+  if (state.slotViewMode !== "all") {
+    const i = Number(state.activeSlot);
+    if (!Number.isFinite(i) || i < 0) return [];
+    const active = allItems.find((it) => it.idx === i);
+    return active ? [active] : [];
+  }
+  const preferredByBone = new Map();
+  for (const it of allItems) {
+    if (it.slot && it.slot.clipEnabled) continue;
+    const bi = Number(it.slot && it.slot.bone);
+    if (!Number.isFinite(bi) || bi < 0) continue;
+    preferredByBone.set(bi, it.idx);
+  }
+  const selectedByBone = state.boneTreeSelectedSlotByBone || Object.create(null);
+  for (const boneKey of Object.keys(selectedByBone)) {
+    const bi = Number(boneKey);
+    if (!Number.isFinite(bi) || bi < 0) continue;
+    const pickedIndex = getSelectedSlotIndexForBone(bi);
+    if (pickedIndex < 0) continue;
+    const picked = state.slots[pickedIndex];
+    if (!picked || picked.clipEnabled || !canRenderSlotInViewport(picked)) continue;
+    preferredByBone.set(bi, pickedIndex);
+  }
+
+  const keep = new Set();
+  for (const it of allItems) {
+    if (it.slot && it.slot.clipEnabled) {
+      keep.add(it.idx);
+      continue;
+    }
+    const bi = Number(it.slot && it.slot.bone);
+    if (!Number.isFinite(bi) || bi < 0) {
+      keep.add(it.idx);
+      continue;
+    }
+    if (preferredByBone.get(bi) === it.idx) keep.add(it.idx);
+  }
+  return allItems.filter((it) => keep.has(it.idx));
+}
+
 function getRenderableSlots() {
   if (state.slots.length === 0) {
     if (!state.sourceCanvas) return [];
     return [{ name: "base", canvas: state.sourceCanvas, alpha: 1, visible: true }];
   }
-  const canRenderSlot = (s) => {
-    if (!s || !isSlotEditorVisible(s)) return false;
-    if (s.clipEnabled) return true;
-    return hasActiveAttachment(s);
-  };
-  if (state.slotViewMode !== "all") {
-    const s = getActiveSlot();
-    return s && canRenderSlot(s) ? [s] : [];
-  }
-  return state.slots.filter((s) => canRenderSlot(s));
+  return getRenderableSlotItems().map((it) => it.slot);
 }
 
 function ensureDefaultSlotBone() {
@@ -4738,37 +7259,40 @@ function ensureSlotsHaveBoneBinding() {
   if (state.slots.length === 0) return;
   const m = state.mesh;
   if (!m) return;
-  if (m.rigBones.length === 0) {
-    for (const s of state.slots) {
-      if (!s) continue;
-      ensureSlotClipState(s);
-      const bi = createTempBoneForSlot(s, "slot_root");
-      s.bone = bi;
-      if (getSlotWeightMode(s) === "single") {
-        setSlotSingleBoneWeight(s, m, bi);
-      } else {
-        rebuildSlotWeights(s, m);
-      }
-    }
-    return;
-  }
-  const defaultBone = ensureDefaultSlotBone();
+  const isValidBone = (bi) => Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length;
   for (const s of state.slots) {
     if (!s) continue;
     ensureSlotClipState(s);
-    const valid = Number.isFinite(s.bone) && s.bone >= 0 && s.bone < m.rigBones.length;
+    const mode = getSlotWeightMode(s);
+    if (mode === "free") {
+      s.bone = -1;
+      s.influenceBones = [];
+      rebuildSlotWeights(s, m);
+      continue;
+    }
+    const valid = isValidBone(Number(s.bone));
     if (!valid) {
-      const bi = createTempBoneForSlot(s, "slot_auto");
-      s.bone = bi;
-      if (getSlotWeightMode(s) === "single") {
-        setSlotSingleBoneWeight(s, m, bi);
+      s.bone = -1;
+      if (mode === "single") {
+        setSlotSingleBoneWeight(s, m, -1);
+        s.influenceBones = [];
       } else {
+        s.influenceBones = [];
         rebuildSlotWeights(s, m);
       }
+      continue;
     }
-  }
-  if (state.slots.length > 0 && state.slots.every((s) => !Number.isFinite(s.bone) || s.bone < 0)) {
-    state.slots[0].bone = defaultBone;
+    if (mode === "single") {
+      setSlotSingleBoneWeight(s, m, Number(s.bone));
+      continue;
+    }
+    if (!Array.isArray(s.influenceBones) || s.influenceBones.length === 0) {
+      s.influenceBones = [Number(s.bone)];
+    } else {
+      s.influenceBones = s.influenceBones.filter((v) => isValidBone(Number(v)));
+      if (s.influenceBones.length <= 0) s.influenceBones = [Number(s.bone)];
+    }
+    rebuildSlotWeights(s, m);
   }
 }
 
@@ -6160,9 +8684,8 @@ function refreshIKUI() {
         const row = document.createElement("div");
         row.className = `tree-item${state.selectedIK === i ? " selected" : ""}`;
         row.dataset.ikIndex = String(i);
-        row.textContent = `${i}: ${c.name} [${(c.bones || []).length >= 2 ? "2-bone" : "1-bone"}] ${
-          c.enabled === false ? "(off)" : ""
-        }`;
+        row.textContent = `${i}: ${c.name} [${(c.bones || []).length >= 2 ? "2-bone" : "1-bone"}] ${c.enabled === false ? "(off)" : ""
+          }`;
         els.ikList.appendChild(row);
       }
     }
@@ -6212,9 +8735,8 @@ function refreshIKUI() {
       Number.isFinite(Number(c.target)) && Number(c.target) >= 0 && Number(c.target) < m.rigBones.length
         ? m.rigBones[c.target]?.name || c.target
         : `point(${Number(c.targetX || 0).toFixed(1)}, ${Number(c.targetY || 0).toFixed(1)})`;
-    els.ikHint.textContent = `IK ${c.name}: ${bList} -> target ${tName}, mix ${Number(c.mix).toFixed(2)} (${c.enabled === false ? "off" : "on"})${
-      state.ikPickArmed ? " | target-pick: click a bone in canvas" : ""
-    }`;
+    els.ikHint.textContent = `IK ${c.name}: ${bList} -> target ${tName}, mix ${Number(c.mix).toFixed(2)} (${c.enabled === false ? "off" : "on"})${state.ikPickArmed ? " | target-pick: click a bone in canvas" : ""
+      }`;
   }
 }
 
@@ -6492,17 +9014,49 @@ function applyActiveIKFromUI() {
 function getSlotTransformMatrix(slot, poseWorld) {
   const m = state.mesh;
   if (!m || !slot) return createIdentity();
+  const baseTm = getBaseImageTransformMatrix(slot, poseWorld);
   const tx = Number(slot.tx) || 0;
   const ty = Number(slot.ty) || 0;
   const rot = Number(slot.rot) || 0;
-  if (Math.abs(tx) < 1e-6 && Math.abs(ty) < 1e-6 && Math.abs(rot) < 1e-6) return createIdentity();
+  if (Math.abs(tx) < 1e-6 && Math.abs(ty) < 1e-6 && Math.abs(rot) < 1e-6) return baseTm;
+  let slotTm = null;
   const boneIdx = Number(slot.bone);
   if (Number.isFinite(boneIdx) && boneIdx >= 0 && boneIdx < poseWorld.length) {
     const bw = poseWorld[boneIdx];
-    return mul(mul(bw, matFromTR(tx, ty, rot)), invert(bw));
+    slotTm = mul(mul(bw, matFromTR(tx, ty, rot)), invert(bw));
+  } else {
+    const pivot = matFromTR((state.imageWidth || 0) * 0.5, (state.imageHeight || 0) * 0.5, 0);
+    slotTm = mul(mul(pivot, matFromTR(tx, ty, rot)), invert(pivot));
   }
-  const pivot = matFromTR((state.imageWidth || 0) * 0.5, (state.imageHeight || 0) * 0.5, 0);
-  return mul(mul(pivot, matFromTR(tx, ty, rot)), invert(pivot));
+  return mul(baseTm, slotTm);
+}
+
+function getSlotMeshEditMatrix(slot, poseWorld = null) {
+  const m = state.mesh;
+  if (!m || !slot) return createIdentity();
+  const world = Array.isArray(poseWorld) ? poseWorld : getSolvedPoseWorld(m);
+  return getSlotTransformMatrix(slot, world);
+}
+
+function slotMeshLocalToWorld(slot, point, poseWorld = null) {
+  const tm = getSlotMeshEditMatrix(slot, poseWorld);
+  return transformPoint(tm, Number(point && point.x) || 0, Number(point && point.y) || 0);
+}
+
+function worldToSlotMeshLocal(slot, point, poseWorld = null) {
+  const tm = getSlotMeshEditMatrix(slot, poseWorld);
+  const inv = invert(tm);
+  return transformPoint(inv, Number(point && point.x) || 0, Number(point && point.y) || 0);
+}
+
+function slotMeshLocalToScreen(slot, point, poseWorld = null) {
+  const w = slotMeshLocalToWorld(slot, point, poseWorld);
+  return localToScreen(w.x, w.y);
+}
+
+function screenToSlotMeshLocal(slot, mx, my, poseWorld = null) {
+  const w = screenToLocal(mx, my);
+  return worldToSlotMeshLocal(slot, w, poseWorld);
 }
 
 function rebuildSlotTriangleIndices() {
@@ -6581,9 +9135,11 @@ function collectPsdLayerSlots(children, out, docW, docH, prefix = "") {
       out.push({
         name: fullName,
         canvas: cropped,
+        bone: -1,
         useWeights: true,
         weightBindMode: "single",
         weightMode: "single",
+        influenceBones: [],
         docWidth: docW,
         docHeight: docH,
         rect: { x: lx + b.x, y: ly + b.y, w: b.w, h: b.h },
@@ -6619,9 +9175,11 @@ async function loadFileSlots(file) {
       {
         name: file.name.replace(/\.psd$/i, ""),
         canvas: src,
+        bone: -1,
         useWeights: true,
         weightBindMode: "single",
         weightMode: "single",
+        influenceBones: [],
         docWidth: src.width,
         docHeight: src.height,
         rect: { x: 0, y: 0, w: src.width, h: src.height },
@@ -6641,8 +9199,9 @@ async function loadFileSlots(file) {
       canvas: c,
       bone: -1,
       useWeights: true,
-      weightBindMode: "auto",
-      weightMode: "weighted",
+      weightBindMode: "single",
+      weightMode: "single",
+      influenceBones: [],
       docWidth: c.width,
       docHeight: c.height,
       rect: { x: 0, y: 0, w: c.width, h: c.height },
@@ -6695,6 +9254,22 @@ function refreshViewZoomUI() {
   els.viewZoomResetBtn.textContent = `${percent}%`;
 }
 
+function refreshViewPanUI() {
+  const panMode = !!(state.view && state.view.panMode);
+  if (els.viewPanToggleBtn) {
+    els.viewPanToggleBtn.classList.toggle("active", panMode);
+    els.viewPanToggleBtn.setAttribute("aria-pressed", panMode ? "true" : "false");
+    els.viewPanToggleBtn.title = panMode ? "Pan Canvas: ON (click to return)" : "Pan Canvas";
+  }
+  if (els.stage) {
+    els.stage.classList.toggle("pan-mode", panMode);
+    if (!panMode) {
+      els.stage.classList.remove("dragging-pan");
+    }
+  }
+  refreshCanvasInteractionAffordance();
+}
+
 function clampViewScale(nextScale) {
   const fit = Math.max(1e-6, Number(state.view.fitScale) || 1);
   return math.clamp(Number(nextScale) || fit, fit * 0.1, fit * 40);
@@ -6728,6 +9303,107 @@ function resetViewToFit() {
   state.view.scale = state.view.fitScale;
   state.view.cx = w * 0.5;
   state.view.cy = h * 0.5;
+  state.view.initialized = true;
+  refreshViewZoomUI();
+}
+
+function computeSceneBoundsLocal() {
+  const add = (b, x, y) => {
+    const nx = Number(x);
+    const ny = Number(y);
+    if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
+    b.minX = Math.min(b.minX, nx);
+    b.minY = Math.min(b.minY, ny);
+    b.maxX = Math.max(b.maxX, nx);
+    b.maxY = Math.max(b.maxY, ny);
+  };
+  const b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+
+  if (state.sourceCanvas && Number(state.imageWidth) > 0 && Number(state.imageHeight) > 0) {
+    const poseWorld = state.mesh ? getSolvedPoseWorld(state.mesh) : null;
+    const activeSlot = getActiveSlot();
+    const docW = Math.max(1, Number(state.imageWidth) || Number(state.sourceCanvas.width) || 1);
+    const docH = Math.max(1, Number(state.imageHeight) || Number(state.sourceCanvas.height) || 1);
+    const baseTm = getBaseImageTransformMatrix(activeSlot, poseWorld, docW, docH);
+    const c0 = transformBaseImageLocalPoint(0, 0, baseTm);
+    const c1 = transformBaseImageLocalPoint(docW, 0, baseTm);
+    const c2 = transformBaseImageLocalPoint(docW, docH, baseTm);
+    const c3 = transformBaseImageLocalPoint(0, docH, baseTm);
+    add(b, c0.x, c0.y);
+    add(b, c1.x, c1.y);
+    add(b, c2.x, c2.y);
+    add(b, c3.x, c3.y);
+  }
+
+  const m = state.mesh;
+  if (m) {
+    const poseWorld = getSolvedPoseWorld(m);
+    const slots = getRenderableSlots();
+    for (const slot of slots) {
+      if (!slot || !slot.canvas || !hasRenderableAttachment(slot)) continue;
+      const geom = buildSlotGeometry(slot, poseWorld);
+      if (!geom || !slot.meshData || !Array.isArray(slot.meshData.indices) && !(slot.meshData.indices instanceof Uint16Array)) {
+        continue;
+      }
+      const sm = slot.meshData;
+      const local = sm.deformedLocal;
+      if (!local || local.length < 2) continue;
+      const tm = getSlotTransformMatrix(slot, poseWorld);
+      for (let i = 0; i + 1 < local.length; i += 2) {
+        const p = transformPoint(tm, local[i], local[i + 1]);
+        add(b, p.x, p.y);
+      }
+    }
+
+    const bones = getBonesForCurrentMode(m);
+    enforceConnectedHeads(bones);
+    const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : computeWorld(bones);
+    for (let i = 0; i < bones.length; i += 1) {
+      const ep = getBoneWorldEndpointsFromBones(bones, i, world);
+      if (!ep) continue;
+      add(b, ep.head.x, ep.head.y);
+      add(b, ep.tip.x, ep.tip.y);
+    }
+
+    if (isSlotMeshEditTabActive()) {
+      const slot = getActiveSlot();
+      if (slot) {
+        const contour = ensureSlotContour(slot);
+        for (const p of contour.points || []) {
+          const w = slotMeshLocalToWorld(slot, p, poseWorld);
+          add(b, w.x, w.y);
+        }
+        for (const p of contour.fillPoints || []) {
+          const w = slotMeshLocalToWorld(slot, p, poseWorld);
+          add(b, w.x, w.y);
+        }
+      }
+    }
+  }
+
+  if (!Number.isFinite(b.minX) || !Number.isFinite(b.minY) || !Number.isFinite(b.maxX) || !Number.isFinite(b.maxY)) {
+    return null;
+  }
+  return b;
+}
+
+function fitViewToAllVisible() {
+  const bounds = computeSceneBoundsLocal();
+  if (!bounds) {
+    resetViewToFit();
+    return;
+  }
+  const w = Math.max(1, Number(els.overlay.width) || 1);
+  const h = Math.max(1, Number(els.overlay.height) || 1);
+  const pad = 44;
+  const bw = Math.max(1e-3, bounds.maxX - bounds.minX);
+  const bh = Math.max(1e-3, bounds.maxY - bounds.minY);
+  const targetScale = clampViewScale(Math.min((w - pad * 2) / bw, (h - pad * 2) / bh));
+  const cxLocal = (bounds.minX + bounds.maxX) * 0.5;
+  const cyLocal = (bounds.minY + bounds.maxY) * 0.5;
+  state.view.scale = targetScale;
+  state.view.cx = w * 0.5 - (cxLocal - state.imageWidth * 0.5) * targetScale;
+  state.view.cy = h * 0.5 - (cyLocal - state.imageHeight * 0.5) * targetScale;
   state.view.initialized = true;
   refreshViewZoomUI();
 }
@@ -6798,7 +9474,7 @@ function drawBackdropGridAndRuler(ctx) {
 
   ctx.save();
   ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(125, 170, 196, 0.08)";
+  ctx.strokeStyle = "rgba(143, 163, 178, 0.18)";
   for (let x = firstMinorX; x <= x1 + 1e-6; x += minor) {
     const sx = localToScreen(x, 0).x;
     ctx.beginPath();
@@ -6814,7 +9490,8 @@ function drawBackdropGridAndRuler(ctx) {
     ctx.stroke();
   }
 
-  ctx.strokeStyle = "rgba(140, 198, 228, 0.17)";
+  ctx.strokeStyle = "rgba(186, 209, 226, 0.36)";
+  ctx.lineWidth = 1.2;
   for (let x = firstMajorX; x <= x1 + 1e-6; x += major) {
     const sx = localToScreen(x, 0).x;
     ctx.beginPath();
@@ -6832,26 +9509,27 @@ function drawBackdropGridAndRuler(ctx) {
 
   const axisX = localToScreen(0, 0).x;
   const axisY = localToScreen(0, 0).y;
-  ctx.strokeStyle = "rgba(220, 240, 255, 0.52)";
-  ctx.lineWidth = 1.8;
+  ctx.lineWidth = 2;
   if (axisX >= -2 && axisX <= w + 2) {
+    ctx.strokeStyle = "rgba(112, 214, 166, 0.92)";
     ctx.beginPath();
     ctx.moveTo(axisX, 0);
     ctx.lineTo(axisX, h);
     ctx.stroke();
   }
   if (axisY >= -2 && axisY <= h + 2) {
+    ctx.strokeStyle = "rgba(236, 124, 124, 0.92)";
     ctx.beginPath();
     ctx.moveTo(0, axisY);
     ctx.lineTo(w, axisY);
     ctx.stroke();
   }
 
-  const ruler = 18;
-  ctx.fillStyle = "rgba(10, 18, 24, 0.82)";
+  const ruler = 22;
+  ctx.fillStyle = "rgba(33, 42, 50, 0.96)";
   ctx.fillRect(0, 0, w, ruler);
   ctx.fillRect(0, 0, ruler, h);
-  ctx.strokeStyle = "rgba(160, 198, 220, 0.45)";
+  ctx.strokeStyle = "rgba(212, 224, 236, 0.72)";
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(0, ruler + 0.5);
@@ -6860,9 +9538,9 @@ function drawBackdropGridAndRuler(ctx) {
   ctx.lineTo(ruler + 0.5, h);
   ctx.stroke();
 
-  ctx.fillStyle = "rgba(194, 220, 236, 0.95)";
-  ctx.font = "10px Segoe UI, sans-serif";
-  ctx.strokeStyle = "rgba(176, 208, 228, 0.5)";
+  ctx.fillStyle = "rgba(232, 240, 248, 0.96)";
+  ctx.font = "11px Segoe UI, sans-serif";
+  ctx.strokeStyle = "rgba(196, 215, 231, 0.76)";
   ctx.lineWidth = 1;
   for (let x = firstMinorX; x <= x1 + 1e-6; x += minor) {
     const sx = localToScreen(x, 0).x;
@@ -6870,7 +9548,7 @@ function drawBackdropGridAndRuler(ctx) {
     const ratio = Math.abs((x / major) - Math.round(x / major));
     if (ratio <= 1e-4) continue;
     ctx.beginPath();
-    ctx.moveTo(sx, ruler - 3);
+    ctx.moveTo(sx, ruler - 5);
     ctx.lineTo(sx, ruler);
     ctx.stroke();
   }
@@ -6880,30 +9558,33 @@ function drawBackdropGridAndRuler(ctx) {
     const ratio = Math.abs((y / major) - Math.round(y / major));
     if (ratio <= 1e-4) continue;
     ctx.beginPath();
-    ctx.moveTo(ruler - 3, sy);
+    ctx.moveTo(ruler - 5, sy);
     ctx.lineTo(ruler, sy);
     ctx.stroke();
   }
 
-  ctx.strokeStyle = "rgba(206, 228, 242, 0.8)";
+  ctx.strokeStyle = "rgba(232, 241, 249, 0.96)";
+  ctx.lineWidth = 1.4;
   for (let x = firstMajorX; x <= x1 + 1e-6; x += major) {
     const sx = localToScreen(x, 0).x;
     if (sx < ruler + 2 || sx > w - 2) continue;
     ctx.beginPath();
-    ctx.moveTo(sx, ruler - 6);
+    ctx.moveTo(sx, ruler - 10);
     ctx.lineTo(sx, ruler);
     ctx.stroke();
-    ctx.fillText(`${Math.round(x)}`, sx + 2, 10);
+    ctx.fillText(`${Math.round(x)}`, sx + 3, 14);
   }
   for (let y = firstMajorY; y <= y1 + 1e-6; y += major) {
     const sy = localToScreen(0, y).y;
     if (sy < ruler + 2 || sy > h - 2) continue;
     ctx.beginPath();
-    ctx.moveTo(ruler - 6, sy);
+    ctx.moveTo(ruler - 10, sy);
     ctx.lineTo(ruler, sy);
     ctx.stroke();
-    ctx.fillText(`${Math.round(y)}`, 2, sy - 2);
+    ctx.fillText(`${Math.round(y)}`, 3, sy - 3);
   }
+  ctx.fillStyle = "rgba(242, 248, 253, 0.98)";
+  ctx.fillText("0", 4, 14);
   ctx.restore();
 }
 
@@ -6912,11 +9593,11 @@ function updateDeformation(offsetsOverride = null) {
   if (!m) return;
   const offsets = offsetsOverride || getActiveOffsets(m);
 
-  const poseBones = getPoseBones(m);
-  enforceConnectedHeads(poseBones);
-  const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : computeWorld(poseBones);
+  const bones = state.boneMode === "pose" ? getPoseBones(m) : getRigBones(m);
+  enforceConnectedHeads(bones);
+  const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : computeWorld(bones);
   const vCount = getVertexCount(m);
-  const boneCount = poseBones.length;
+  const boneCount = bones.length;
 
   for (let i = 0; i < vCount; i += 1) {
     const x = m.positions[i * 2];
@@ -6957,17 +9638,20 @@ function updateDeformation(offsetsOverride = null) {
 
 function getSolvedPoseWorld(m) {
   if (!m) return [];
+  if (state.boneMode !== "pose") {
+    const rig = cloneBones(getRigBones(m));
+    enforceConnectedHeads(rig);
+    return computeWorld(rig);
+  }
   const pose = cloneBones(getPoseBones(m));
   enforceConnectedHeads(pose);
-  if (state.boneMode === "pose") {
-    const plan = buildConstraintExecutionPlan(m);
-    for (const step of plan) {
-      if (!step || !step.ref) continue;
-      if (step.type === "pth") applySinglePathConstraintToBones(m, pose, step.ref);
-      else if (step.type === "tfc") applySingleTransformConstraintToBones(m, pose, step.ref);
-      else if (step.type === "ik") applySingleIKConstraintToBones(pose, step.ref);
-      enforceConnectedHeads(pose);
-    }
+  const plan = buildConstraintExecutionPlan(m);
+  for (const step of plan) {
+    if (!step || !step.ref) continue;
+    if (step.type === "pth") applySinglePathConstraintToBones(m, pose, step.ref);
+    else if (step.type === "tfc") applySingleTransformConstraintToBones(m, pose, step.ref);
+    else if (step.type === "ik") applySingleIKConstraintToBones(pose, step.ref);
+    enforceConnectedHeads(pose);
   }
   return computeWorld(pose);
 }
@@ -7004,7 +9688,7 @@ function drawOverlay() {
     meshForOverlay.rows > 0 &&
     (meshForOverlay.cols + 1) * (meshForOverlay.rows + 1) === screenForOverlay.length / 2;
 
-  if (state.editMode === "slotmesh") {
+  if (isSlotMeshEditTabActive()) {
     const slot = getActiveSlot();
     if (slot) {
       const contour = ensureSlotContour(slot);
@@ -7177,84 +9861,88 @@ function drawOverlay() {
         ctx.stroke();
       }
     }
+    if (state.boneMode === "object") {
+      drawObjectModeTargetsOverlay(ctx, m, bones, world);
+    }
     for (let i = 0; i < bones.length; i += 1) {
       const b = bones[i];
+      if (!isBoneVisibleInWorkspace(m, bones, i)) continue;
       const start = transformPoint(world[i], 0, 0);
       const end = transformPoint(world[i], b.length, 0);
       const ss = localToScreen(start.x, start.y);
       const es = localToScreen(end.x, end.y);
 
-    const isPrimarySelected = i === state.selectedBone;
-    const isMultiSelected = Array.isArray(state.selectedBonesForWeight) && state.selectedBonesForWeight.includes(i);
-    const isParentCandidate = state.parentPickArmed && state.parentHoverBone === i;
-    const isIkTargetCandidate = state.ikPickArmed && state.ikHoverBone === i;
-    const isIKBone = ikBones.has(i);
-    const isIKTarget = ikTargets.has(i);
-    const isTFCBone = tfcBones.has(i);
-    const isTFCTarget = tfcTargets.has(i);
-    const isPathBone = pathBones.has(i);
-    const isPathTarget = pathTargets.has(i);
-    if (isPrimarySelected) {
-      ctx.strokeStyle = "rgba(255, 236, 153, 0.28)";
-      ctx.lineWidth = 10;
+      const isPrimarySelected = i === state.selectedBone;
+      const isMultiSelected = Array.isArray(state.selectedBonesForWeight) && state.selectedBonesForWeight.includes(i);
+      const isParentCandidate = state.parentPickArmed && state.parentHoverBone === i;
+      const isIkTargetCandidate = state.ikPickArmed && state.ikHoverBone === i;
+      const isIKBone = ikBones.has(i);
+      const isIKTarget = ikTargets.has(i);
+      const isTFCBone = tfcBones.has(i);
+      const isTFCTarget = tfcTargets.has(i);
+      const isPathBone = pathBones.has(i);
+      const isPathTarget = pathTargets.has(i);
+      if (isPrimarySelected) {
+        ctx.strokeStyle = "rgba(255, 236, 153, 0.28)";
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.moveTo(ss.x, ss.y);
+        ctx.lineTo(es.x, es.y);
+        ctx.stroke();
+      } else if (isMultiSelected) {
+        ctx.strokeStyle = "rgba(125, 211, 252, 0.25)";
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(ss.x, ss.y);
+        ctx.lineTo(es.x, es.y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = isParentCandidate
+        ? "#ff7ad9"
+        : isPrimarySelected
+          ? "#ffe46e"
+          : isMultiSelected
+            ? "#7dd3fc"
+            : isIKBone
+              ? "#5df5ff"
+              : isIKTarget
+                ? "#6effd8"
+                : isTFCBone
+                  ? "#f8a3ff"
+                  : isTFCTarget
+                    ? "#ffcc66"
+                    : isPathBone
+                      ? "#7ea4ff"
+                      : isPathTarget
+                        ? "#9ac4ff"
+                        : state.addBoneArmed
+                          ? "rgba(246,184,76,0.55)"
+                          : b.connected
+                            ? "#f6b84c"
+                            : "#7dd3fc";
+      ctx.lineWidth = isPrimarySelected || isParentCandidate ? 4 : isMultiSelected ? 3 : 2;
       ctx.beginPath();
       ctx.moveTo(ss.x, ss.y);
       ctx.lineTo(es.x, es.y);
       ctx.stroke();
-    } else if (isMultiSelected) {
-      ctx.strokeStyle = "rgba(125, 211, 252, 0.25)";
-      ctx.lineWidth = 8;
+
+      ctx.fillStyle = isParentCandidate
+        ? "#ffd0f5"
+        : isPrimarySelected
+          ? "#fff0b8"
+          : isMultiSelected
+            ? "#d3f2ff"
+            : isIKTarget
+              ? "#b8ffea"
+              : "#ffd9a0";
       ctx.beginPath();
-      ctx.moveTo(ss.x, ss.y);
-      ctx.lineTo(es.x, es.y);
-      ctx.stroke();
-    }
+      ctx.arc(ss.x, ss.y, isPrimarySelected || isParentCandidate ? 6 : isMultiSelected ? 5.5 : 5, 0, Math.PI * 2);
+      ctx.fill();
 
-    ctx.strokeStyle = isParentCandidate
-      ? "#ff7ad9"
-      : isPrimarySelected
-        ? "#ffe46e"
-        : isMultiSelected
-          ? "#7dd3fc"
-          : isIKBone
-            ? "#5df5ff"
-          : isIKTarget
-            ? "#6effd8"
-          : isTFCBone
-            ? "#f8a3ff"
-          : isTFCTarget
-            ? "#ffcc66"
-          : isPathBone
-            ? "#7ea4ff"
-          : isPathTarget
-            ? "#9ac4ff"
-          : state.addBoneArmed
-            ? "rgba(246,184,76,0.55)"
-            : b.connected
-              ? "#f6b84c"
-              : "#7dd3fc";
-    ctx.lineWidth = isPrimarySelected || isParentCandidate ? 4 : isMultiSelected ? 3 : 2;
-    ctx.beginPath();
-    ctx.moveTo(ss.x, ss.y);
-    ctx.lineTo(es.x, es.y);
-    ctx.stroke();
-
-    ctx.fillStyle = isParentCandidate
-      ? "#ffd0f5"
-      : isPrimarySelected
-        ? "#fff0b8"
-        : isMultiSelected
-          ? "#d3f2ff"
-          : isIKTarget
-            ? "#b8ffea"
-            : "#ffd9a0";
-    ctx.beginPath();
-    ctx.arc(ss.x, ss.y, isPrimarySelected || isParentCandidate ? 6 : isMultiSelected ? 5.5 : 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(es.x, es.y, isPrimarySelected || isParentCandidate ? 8 : isMultiSelected ? 7 : 6, 0, Math.PI * 2);
-    ctx.fill();
+      ctx.beginPath();
+      ctx.arc(es.x, es.y, isPrimarySelected || isParentCandidate ? 8 : isMultiSelected ? 7 : 6, 0, Math.PI * 2);
+      ctx.fill();
 
       if (isIkTargetCandidate) {
         ctx.strokeStyle = "#6effd8";
@@ -7437,9 +10125,10 @@ function drawOverlay() {
     }
   }
 
-  if (state.editMode === "slotmesh") {
+  if (isSlotMeshEditTabActive()) {
     const slot = getActiveSlot();
     if (slot) {
+      const slotPoseWorld = getSolvedPoseWorld(m);
       const contour = ensureSlotContour(slot);
       const activeSet = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
       const triIdx =
@@ -7454,9 +10143,9 @@ function drawOverlay() {
           const b = triPts[triIdx[t + 1]];
           const c = triPts[triIdx[t + 2]];
           if (!a || !b || !c) continue;
-          const sa = localToScreen(a.x, a.y);
-          const sb = localToScreen(b.x, b.y);
-          const sc = localToScreen(c.x, c.y);
+          const sa = slotMeshLocalToScreen(slot, a, slotPoseWorld);
+          const sb = slotMeshLocalToScreen(slot, b, slotPoseWorld);
+          const sc = slotMeshLocalToScreen(slot, c, slotPoseWorld);
           ctx.beginPath();
           ctx.moveTo(sa.x, sa.y);
           ctx.lineTo(sb.x, sb.y);
@@ -7465,55 +10154,41 @@ function drawOverlay() {
           ctx.stroke();
         }
       }
-      const drawManualEdges = (points, edges, color) => {
-        if (!Array.isArray(points) || !Array.isArray(edges) || points.length === 0) return;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2.2;
-        for (const e of edges) {
-          if (!Array.isArray(e) || e.length < 2) continue;
-          const a = points[e[0]];
-          const b = points[e[1]];
-          if (!a || !b) continue;
-          const sa = localToScreen(a.x, a.y);
-          const sb = localToScreen(b.x, b.y);
+      // Manual edges are now applied directly to triangulation, no separate rendering needed
+
+      ctx.strokeStyle = contour.closed ? "#66f2cc" : "#7dd3fc";
+      ctx.lineWidth = 2;
+      if (Array.isArray(contour.contourEdges) && contour.contourEdges.length > 0) {
+        for (const edge of contour.contourEdges) {
+          const pa = contour.points[edge[0]];
+          const pb = contour.points[edge[1]];
+          if (!pa || !pb) continue;
+          const sa = slotMeshLocalToScreen(slot, pa, slotPoseWorld);
+          const sb = slotMeshLocalToScreen(slot, pb, slotPoseWorld);
           ctx.beginPath();
           ctx.moveTo(sa.x, sa.y);
           ctx.lineTo(sb.x, sb.y);
           ctx.stroke();
         }
-      };
-      drawManualEdges(contour.points, contour.manualEdges, "rgba(255, 158, 80, 0.95)");
-      drawManualEdges(contour.fillPoints, contour.fillManualEdges, "rgba(255, 120, 168, 0.95)");
-
-      ctx.strokeStyle = contour.closed ? "#66f2cc" : "#7dd3fc";
-      ctx.lineWidth = 2;
-      if (contour.points.length > 0) {
-        ctx.beginPath();
-        for (let i = 0; i < contour.points.length; i += 1) {
-          const p = contour.points[i];
-          const s = localToScreen(p.x, p.y);
-          if (i === 0) ctx.moveTo(s.x, s.y);
-          else ctx.lineTo(s.x, s.y);
-        }
-        if (contour.closed) ctx.closePath();
-        ctx.stroke();
       }
       for (let i = 0; i < contour.fillPoints.length; i += 1) {
         const p = contour.fillPoints[i];
-        const s = localToScreen(p.x, p.y);
+        const s = slotMeshLocalToScreen(slot, p, slotPoseWorld);
         const active = activeSet === "fill" && i === state.slotMesh.activePoint;
-        ctx.fillStyle = active ? "#ff8fd0" : "#88e9ff";
+        const selected = getSlotMeshSelection("fill", contour.fillPoints.length).includes(i);
+        ctx.fillStyle = active ? "#ff8fd0" : selected ? "#ffd9ec" : "#88e9ff";
         ctx.beginPath();
-        ctx.arc(s.x, s.y, active ? 5.8 : 3.2, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, active ? 5.8 : selected ? 4.4 : 3.2, 0, Math.PI * 2);
         ctx.fill();
       }
       for (let i = 0; i < contour.points.length; i += 1) {
         const p = contour.points[i];
-        const s = localToScreen(p.x, p.y);
+        const s = slotMeshLocalToScreen(slot, p, slotPoseWorld);
         const active = activeSet === "contour" && i === state.slotMesh.activePoint;
-        ctx.fillStyle = active ? "#ffe46e" : i === 0 ? "#66f2cc" : "#d3f2ff";
+        const selected = getSlotMeshSelection("contour", contour.points.length).includes(i);
+        ctx.fillStyle = active ? "#ffe46e" : selected ? "#fff0b8" : i === 0 ? "#66f2cc" : "#d3f2ff";
         ctx.beginPath();
-        ctx.arc(s.x, s.y, active ? 6 : 4.5, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, active ? 6 : selected ? 5.4 : 4.5, 0, Math.PI * 2);
         ctx.fill();
       }
       if (state.slotMesh.edgeSelectionSet && state.slotMesh.edgeSelection.length > 0) {
@@ -7521,7 +10196,7 @@ function drawOverlay() {
         for (const i of state.slotMesh.edgeSelection) {
           const p = points[i];
           if (!p) continue;
-          const s = localToScreen(p.x, p.y);
+          const s = slotMeshLocalToScreen(slot, p, slotPoseWorld);
           ctx.strokeStyle = "#ff8a55";
           ctx.lineWidth = 2.2;
           ctx.beginPath();
@@ -7530,6 +10205,21 @@ function drawOverlay() {
         }
       }
     }
+  }
+  if (state.drag && state.drag.type === "slot_mesh_marquee") {
+    const d = state.drag;
+    const x = Math.min(Number(d.startX) || 0, Number(d.curX) || 0);
+    const y = Math.min(Number(d.startY) || 0, Number(d.curY) || 0);
+    const w = Math.abs((Number(d.curX) || 0) - (Number(d.startX) || 0));
+    const h = Math.abs((Number(d.curY) || 0) - (Number(d.startY) || 0));
+    ctx.save();
+    ctx.strokeStyle = "rgba(125, 211, 252, 0.95)";
+    ctx.fillStyle = "rgba(125, 211, 252, 0.12)";
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([6, 4]);
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeRect(x, y, w, h);
+    ctx.restore();
   }
 
   if (state.drag && state.drag.type === "vertex") {
@@ -7597,6 +10287,9 @@ function drawOverlay() {
     ctx.arc(ts.x, ts.y, 6, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  const poseWorld = state.mesh ? getSolvedPoseWorld(state.mesh) : [];
+  drawCanvasTransformGizmos(ctx, poseWorld);
 }
 
 function drawMeshOnContext(ctx, drawCanvas = state.sourceCanvas, alpha = 1, tint = null, screen = null, indices = null, uvs = null, blendMode = "normal") {
@@ -7738,9 +10431,9 @@ function renderSlots2DWithClipping(ctx, slots, poseWorld, options = null) {
       const poly = getSlotClipPolygonScreen(slot, poseWorld);
       activeClip = poly.length >= 3
         ? {
-            points: poly,
-            endSlotId: slot.clipEndSlotId ? String(slot.clipEndSlotId) : null,
-          }
+          points: poly,
+          endSlotId: slot.clipEndSlotId ? String(slot.clipEndSlotId) : null,
+        }
         : null;
       continue;
     }
@@ -7849,8 +10542,9 @@ function render(ts = 0) {
   const slots = getRenderableSlots();
   const hasClipSlot = slots.some((s) => s && s.clipEnabled);
   const wantsOnion = shouldRenderOnionSkin();
+  const hasBaseReference = shouldRenderBaseImageReference() && state.slots.length === 0;
 
-  if (hasGL && !hasClipSlot) {
+  if (hasGL && !hasClipSlot && !hasBaseReference) {
     state.overlayScene.enabled = false;
     if (wantsOnion) {
       const onionCtx = ensureOverlaySceneCanvas();
@@ -7914,6 +10608,7 @@ function render(ts = 0) {
     ctx.clearRect(0, 0, els.glCanvas.width, els.glCanvas.height);
     ctx.fillStyle = "rgb(10, 15, 20)";
     ctx.fillRect(0, 0, els.glCanvas.width, els.glCanvas.height);
+    if (hasBaseReference) drawBaseImageReference2D(ctx);
     if (wantsOnion) drawOnionSkins2D(ctx, slots);
     const poseWorld = state.mesh ? getSolvedPoseWorld(state.mesh) : [];
     renderSlots2DWithClipping(ctx, slots, poseWorld);
@@ -7931,8 +10626,7 @@ function pickVertex(mx, my) {
     let best = -1;
     let bestDist2 = 11 * 11;
     let bestSlotIndex = -1;
-    const searchSlots =
-      state.slotViewMode === "all" ? state.slots.map((slot, idx) => ({ slot, idx })) : [{ slot: getActiveSlot(), idx: state.activeSlot }];
+    const searchSlots = getRenderableSlotItems();
     for (const it of searchSlots) {
       if (!it || !it.slot || !hasRenderableAttachment(it.slot)) continue;
       const slot = it.slot;
@@ -7985,6 +10679,7 @@ function pickSkeletonHandle(mx, my) {
 
   for (let i = 0; i < bones.length; i += 1) {
     const b = bones[i];
+    if (!isBoneVisibleInWorkspace(m, bones, i)) continue;
     const s = transformPoint(world[i], 0, 0);
     const t = transformPoint(world[i], b.length, 0);
     const ss = localToScreen(s.x, s.y);
@@ -8023,6 +10718,7 @@ function selectBonesByRect(x0, y0, x1, y1, append = false) {
   const world = computeWorld(bones);
   const picked = [];
   for (let i = 0; i < bones.length; i += 1) {
+    if (!isBoneVisibleInWorkspace(m, bones, i)) continue;
     const ep = getBoneWorldEndpointsFromBones(bones, i, world);
     const hs = localToScreen(ep.head.x, ep.head.y);
     const ts = localToScreen(ep.tip.x, ep.tip.y);
@@ -8098,51 +10794,191 @@ function canEditLengthInCurrentMode(bones, boneIndex) {
   return !!(b && b.poseLenEditable !== false);
 }
 
+function getRootBonePivotLocal(bones, world = null) {
+  if (!Array.isArray(bones) || bones.length === 0) return null;
+  const rootIndex = bones.findIndex((bone) => Number(bone && bone.parent) < 0);
+  if (rootIndex < 0) return null;
+  const w = Array.isArray(world) ? world : computeWorld(bones);
+  if (!Array.isArray(w) || !w[rootIndex]) return null;
+  const root = transformPoint(w[rootIndex], 0, 0);
+  return { x: root.x, y: root.y };
+}
+
+function rotatePointAroundPivot(point, pivot, delta) {
+  const px = Number(point && point.x) || 0;
+  const py = Number(point && point.y) || 0;
+  const ox = Number(pivot && pivot.x) || 0;
+  const oy = Number(pivot && pivot.y) || 0;
+  const c = Math.cos(delta);
+  const s = Math.sin(delta);
+  const dx = px - ox;
+  const dy = py - oy;
+  return {
+    x: ox + dx * c - dy * s,
+    y: oy + dx * s + dy * c,
+  };
+}
+
+function scalePointAroundPivot(point, pivot, factor) {
+  const px = Number(point && point.x) || 0;
+  const py = Number(point && point.y) || 0;
+  const ox = Number(pivot && pivot.x) || 0;
+  const oy = Number(pivot && pivot.y) || 0;
+  const s = Number.isFinite(factor) ? factor : 1;
+  return {
+    x: ox + (px - ox) * s,
+    y: oy + (py - oy) * s,
+  };
+}
+
 function rotateBoneTipToLocal(bones, boneIndex, localTarget) {
   const ik = state.mesh ? findEnabledIKForBone(state.mesh, boneIndex) : null;
   if (state.boneMode === "pose" && ik && (ik.bones || []).length === 1) {
-    return !!steerIKTargetFromBoneEdit(state.mesh, boneIndex, localTarget, "tip");
+    return { ikDriven: !!steerIKTargetFromBoneEdit(state.mesh, boneIndex, localTarget, "tip"), movedHead: false };
   }
   if (state.boneMode === "pose" && ik && (ik.bones || []).length >= 2) {
     const a = Number((ik.bones || [])[0]);
     const bEnd = Number((ik.bones || [])[1]);
     if (boneIndex === bEnd) {
       // For 2-bone IK, end-bone interaction should drive IK target, not directly rewrite child local pose.
-      return !!steerIKTargetFromBoneEdit(state.mesh, boneIndex, localTarget, "tip");
+      return { ikDriven: !!steerIKTargetFromBoneEdit(state.mesh, boneIndex, localTarget, "tip"), movedHead: false };
     }
     if (boneIndex === a && ik.endMode !== "tail") {
       // Parent tip overlaps child head; treat as end-head manipulation in head mode.
-      return !!steerIKTargetFromBoneEdit(state.mesh, bEnd, localTarget, "head");
+      return { ikDriven: !!steerIKTargetFromBoneEdit(state.mesh, bEnd, localTarget, "head"), movedHead: false };
     }
   }
   const b = bones[boneIndex];
-  if (!b) return;
+  if (!b) return { ikDriven: false, movedHead: false };
+  if (state.boneMode === "edit" || state.boneMode === "pose") {
+    const world = computeWorld(bones);
+    const ep = getBoneWorldEndpointsFromBones(bones, boneIndex, world);
+    const rootPivot = getRootBonePivotLocal(bones, world);
+    if (!rootPivot) return { ikDriven: false, movedHead: false };
+    let nextTip = ep.tip;
+    let movedHead = false;
+    const currDist = Math.hypot(ep.tip.x - rootPivot.x, ep.tip.y - rootPivot.y);
+    const targetDist = Math.hypot(localTarget.x - rootPivot.x, localTarget.y - rootPivot.y);
+    if (currDist > 1e-6 && targetDist > 1e-6) {
+      const from = Math.atan2(ep.tip.y - rootPivot.y, ep.tip.x - rootPivot.x);
+      const to = Math.atan2(localTarget.y - rootPivot.y, localTarget.x - rootPivot.x);
+      const delta = shortestAngleDelta(from, to);
+      if (Math.abs(delta) > 1e-8) {
+        const nextHead = rotatePointAroundPivot(ep.head, rootPivot, delta);
+        nextTip = rotatePointAroundPivot(ep.tip, rootPivot, delta);
+        setBoneFromWorldEndpoints(bones, boneIndex, nextHead, nextTip);
+        movedHead = Math.hypot(nextHead.x - ep.head.x, nextHead.y - ep.head.y) > 1e-6;
+      }
+    }
+    steerIKTargetFromBoneEdit(state.mesh, boneIndex, nextTip, "tip");
+    return { ikDriven: false, movedHead };
+  }
   const ep = getBoneWorldEndpointsFromBones(bones, boneIndex);
   const nextTip = canEditLengthInCurrentMode(bones, boneIndex)
     ? localTarget
     : (() => {
-        const a = angleTo(ep.head, localTarget);
-        return {
-          x: ep.head.x + Math.cos(a) * b.length,
-          y: ep.head.y + Math.sin(a) * b.length,
-        };
-      })();
+      const a = angleTo(ep.head, localTarget);
+      return {
+        x: ep.head.x + Math.cos(a) * b.length,
+        y: ep.head.y + Math.sin(a) * b.length,
+      };
+    })();
   setBoneFromWorldEndpoints(bones, boneIndex, ep.head, nextTip);
   steerIKTargetFromBoneEdit(state.mesh, boneIndex, nextTip, "tip");
-  return false;
+  return { ikDriven: false, movedHead: false };
 }
 
 function setDragTool(tool) {
   state.dragTool = tool;
+  const objectMode = state.boneMode === "object";
   const label =
     tool === "move_head"
-      ? "Tool: Move Head (G)"
+      ? objectMode
+        ? "Tool: Object Move / Scale (G/T, Shift+Drag to scale)"
+        : "Tool: Move Head (G)"
       : tool === "move_tail"
-        ? "Tool: Move Tail (T)"
+        ? objectMode
+          ? "Tool: Object Move / Scale (G/T, Shift+Drag to scale)"
+          : "Tool: Move Tail (T)"
         : tool === "rotate"
-          ? "Tool: Rotate/Length (R)"
+          ? objectMode
+            ? "Tool: Object Rotate (R)"
+            : "Tool: Rotate/Length (R)"
           : "Tool: Auto";
   setStatus(label);
+  refreshCanvasInteractionAffordance();
+}
+
+function isObjectMoveScaleTool(tool = state.dragTool) {
+  return tool === "auto" || tool === "move_head" || tool === "move_tail";
+}
+
+function refreshObjectTransformToolUI() {
+  const objectModeActive = !!(state.mesh && (state.editMode === "skeleton" || state.editMode === "object") && state.boneMode === "object");
+  const moveActive = objectModeActive && isObjectMoveScaleTool();
+  const rotateActive = objectModeActive && state.dragTool === "rotate";
+  if (els.objectTransformTools) {
+    els.objectTransformTools.classList.toggle("active", objectModeActive);
+    els.objectTransformTools.setAttribute("aria-hidden", objectModeActive ? "false" : "true");
+  }
+  if (els.objectToolMoveBtn) {
+    els.objectToolMoveBtn.classList.toggle("active", moveActive);
+    els.objectToolMoveBtn.disabled = !objectModeActive;
+    els.objectToolMoveBtn.setAttribute("aria-pressed", moveActive ? "true" : "false");
+  }
+  if (els.objectToolRotateBtn) {
+    els.objectToolRotateBtn.classList.toggle("active", rotateActive);
+    els.objectToolRotateBtn.disabled = !objectModeActive;
+    els.objectToolRotateBtn.setAttribute("aria-pressed", rotateActive ? "true" : "false");
+  }
+  if (els.objectPanelMoveBtn) {
+    els.objectPanelMoveBtn.classList.toggle("active", moveActive);
+    els.objectPanelMoveBtn.disabled = !objectModeActive;
+    els.objectPanelMoveBtn.setAttribute("aria-pressed", moveActive ? "true" : "false");
+  }
+  if (els.objectPanelRotateBtn) {
+    els.objectPanelRotateBtn.classList.toggle("active", rotateActive);
+    els.objectPanelRotateBtn.disabled = !objectModeActive;
+    els.objectPanelRotateBtn.setAttribute("aria-pressed", rotateActive ? "true" : "false");
+  }
+}
+
+function refreshCanvasInteractionAffordance() {
+  if (!els.stage) return;
+  const objectModeActive = !!(state.mesh && (state.editMode === "skeleton" || state.editMode === "object") && state.boneMode === "object");
+  const objectMoveTool = objectModeActive && isObjectMoveScaleTool();
+  const objectRotateTool = objectModeActive && state.dragTool === "rotate";
+  const objectDragging =
+    objectModeActive &&
+    !!state.drag &&
+    (state.drag.type === "bone_object_move" || state.drag.type === "bone_object_rotate" || state.drag.type === "bone_object_scale");
+  els.stage.classList.toggle("object-mode", objectModeActive);
+  els.stage.classList.toggle("object-tool-move", objectMoveTool);
+  els.stage.classList.toggle("object-tool-rotate", objectRotateTool);
+  els.stage.classList.toggle("object-dragging", objectDragging);
+  if (objectModeActive) {
+    const draggingType = String(state.drag && state.drag.type ? state.drag.type : "");
+    const toolText = objectRotateTool ? "Object Rotate" : "Object Move/Scale";
+    const keyText = objectRotateTool ? "R" : "G/T + Shift-drag scale";
+    const bones = state.mesh ? getBonesForCurrentMode(state.mesh) : [];
+    const selectedRoots = getSelectedObjectRootSet(state.mesh, bones);
+    const rootIndex = selectedRoots.size > 0 ? [...selectedRoots][0] : getBoneRootIndexFromBones(bones, state.selectedBone);
+    const rootName =
+      Number.isFinite(rootIndex) && rootIndex >= 0 && rootIndex < bones.length && bones[rootIndex] && bones[rootIndex].name
+        ? bones[rootIndex].name
+        : "";
+    const selectedText = rootName ? ` | Selected: ${rootName}` : "";
+    const draggingText =
+      draggingType === "bone_object_scale"
+        ? "Object Scale - Dragging"
+        : draggingType === "bone_object_rotate"
+          ? "Object Rotate - Dragging"
+          : `${toolText} - Dragging`;
+    els.stage.dataset.objectTool = (objectDragging ? draggingText : `${toolText} (${keyText})`) + selectedText;
+  } else {
+    delete els.stage.dataset.objectTool;
+  }
+  refreshObjectTransformToolUI();
 }
 
 function getIKEndBoneIndex(ik) {
@@ -8317,23 +11153,23 @@ function buildStateMachineBridgePayload() {
         animId: String(s.animId || ""),
         transitions: Array.isArray(s.transitions)
           ? s.transitions.map((t) => ({
-              id: String(t.id || ""),
-              toStateId: String(t.toStateId || ""),
-              duration: Number(t.duration) || 0.2,
-              auto: t.auto === true,
-              conditions: Array.isArray(t.conditions)
-                ? t.conditions.map((c) => {
-                    const p = getStateParamById(sm, c.paramId);
-                    return {
-                      id: String(c.id || ""),
-                      paramId: String(c.paramId || ""),
-                      paramName: p ? String(p.name || "") : "",
-                      op: String(c.op || "eq"),
-                      value: c.value,
-                    };
-                  })
-                : [],
-            }))
+            id: String(t.id || ""),
+            toStateId: String(t.toStateId || ""),
+            duration: Number(t.duration) || 0.2,
+            auto: t.auto === true,
+            conditions: Array.isArray(t.conditions)
+              ? t.conditions.map((c) => {
+                const p = getStateParamById(sm, c.paramId);
+                return {
+                  id: String(c.id || ""),
+                  paramId: String(c.paramId || ""),
+                  paramName: p ? String(p.name || "") : "",
+                  op: String(c.op || "eq"),
+                  value: c.value,
+                };
+              })
+              : [],
+          }))
           : [],
       })),
       parameters: params.map((p) => ({
@@ -8477,26 +11313,26 @@ function ensureStateMachine() {
       animId: s && validAnimIds.has(String(s.animId || "")) ? String(s.animId) : "",
       transitions: Array.isArray(s && s.transitions)
         ? s.transitions
-            .map((t) => ({
-              id: t && t.id ? String(t.id) : makeStateTransitionId(),
-              toStateId: t && t.toStateId ? String(t.toStateId) : "",
-              duration: Math.max(0.01, Number(t && t.duration) || 0.2),
-              auto: !!(t && t.auto),
-              conditions: Array.isArray(t && t.conditions)
-                ? t.conditions
-                    .map((c) => ({
-                      id: c && c.id ? String(c.id) : makeStateConditionId(),
-                      paramId: c && c.paramId ? String(c.paramId) : "",
-                      op:
-                        c && (c.op === "eq" || c.op === "neq" || c.op === "gt" || c.op === "gte" || c.op === "lt" || c.op === "lte")
-                          ? c.op
-                          : "eq",
-                      value: c && Object.prototype.hasOwnProperty.call(c, "value") ? c.value : 0,
-                    }))
-                    .filter((c) => validParamIds.has(c.paramId))
-                : [],
-            }))
-            .filter((t) => !!t.toStateId)
+          .map((t) => ({
+            id: t && t.id ? String(t.id) : makeStateTransitionId(),
+            toStateId: t && t.toStateId ? String(t.toStateId) : "",
+            duration: Math.max(0.01, Number(t && t.duration) || 0.2),
+            auto: !!(t && t.auto),
+            conditions: Array.isArray(t && t.conditions)
+              ? t.conditions
+                .map((c) => ({
+                  id: c && c.id ? String(c.id) : makeStateConditionId(),
+                  paramId: c && c.paramId ? String(c.paramId) : "",
+                  op:
+                    c && (c.op === "eq" || c.op === "neq" || c.op === "gt" || c.op === "gte" || c.op === "lt" || c.op === "lte")
+                      ? c.op
+                      : "eq",
+                  value: c && Object.prototype.hasOwnProperty.call(c, "value") ? c.value : 0,
+                }))
+                .filter((c) => validParamIds.has(c.paramId))
+              : [],
+          }))
+          .filter((t) => !!t.toStateId)
         : [],
     }))
     .filter((s) => !!s.id);
@@ -8944,13 +11780,13 @@ function ensureSkinSets() {
       slotPlaceholderAttachments:
         s && s.slotPlaceholderAttachments && typeof s.slotPlaceholderAttachments === "object"
           ? Object.fromEntries(
-              Object.entries(s.slotPlaceholderAttachments).map(([slotId, map]) => [
-                String(slotId),
-                map && typeof map === "object"
-                  ? Object.fromEntries(Object.entries(map).map(([ph, v]) => [String(ph), v == null ? null : String(v)]))
-                  : {},
-              ])
-            )
+            Object.entries(s.slotPlaceholderAttachments).map(([slotId, map]) => [
+              String(slotId),
+              map && typeof map === "object"
+                ? Object.fromEntries(Object.entries(map).map(([ph, v]) => [String(ph), v == null ? null : String(v)]))
+                : {},
+            ])
+          )
           : {},
       constraints: normalizeSkinConstraintMap(s && s.constraints),
     }))
@@ -9272,6 +12108,7 @@ function getTrackValueFromBones(bones, boneIndex, prop) {
   if (prop === "scaleY") return b.sy;
   if (prop === "shearX") return b.shx;
   if (prop === "shearY") return b.shy;
+  if (prop === "animHide") return !!b.animHidden;
   return 0;
 }
 
@@ -9288,6 +12125,7 @@ function setTrackValueToBones(bones, boneIndex, prop, value) {
   else if (prop === "scaleY") b.sy = Number(value) || 1;
   else if (prop === "shearX") b.shx = Number(value) || 0;
   else if (prop === "shearY") b.shy = Number(value) || 0;
+  else if (prop === "animHide") b.animHidden = value === true || Number(value) > 0;
 }
 
 function getEventDraftFromUI() {
@@ -9757,12 +12595,12 @@ function getVisibleTrackDefinitions() {
     children:
       state.slots && state.slots.length > 0
         ? state.slots.map((s, si) => ({
-            id: getVertexTrackId(si),
-            kind: "track",
-            slotIndex: si,
-            prop: "deform",
-            label: `${s && s.name ? s.name : `slot_${si}`}.Deform`,
-          }))
+          id: getVertexTrackId(si),
+          kind: "track",
+          slotIndex: si,
+          prop: "deform",
+          label: `${s && s.name ? s.name : `slot_${si}`}.Deform`,
+        }))
         : [{ id: VERTEX_TRACK_ID, kind: "track", label: "Deform" }],
   });
   out.push({
@@ -9834,6 +12672,7 @@ function getVisibleTrackDefinitions() {
         { id: getTrackId(idx, "scaleY"), kind: "track", boneIndex: idx, prop: "scaleY", label: "Scale Y" },
         { id: getTrackId(idx, "shearX"), kind: "track", boneIndex: idx, prop: "shearX", label: "Shear X" },
         { id: getTrackId(idx, "shearY"), kind: "track", boneIndex: idx, prop: "shearY", label: "Shear Y" },
+        { id: getTrackId(idx, "animHide"), kind: "track", boneIndex: idx, prop: "animHide", label: "Anim Hide" },
       ],
     });
   }
@@ -10841,6 +13680,20 @@ function renderTimelineTracks() {
     playhead.className = "timeline-playhead";
     playhead.style.left = `${(timelineXForTime(state.anim.time, 100, timelineDuration)).toFixed(4)}%`;
     lane.appendChild(playhead);
+
+    // Aggregate and render summary keys for the group
+    const childTrackIds = g.children ? g.children.map((c) => c.id) : [];
+    if (childTrackIds.length > 0) {
+      for (const t of collectUniqueKeyTimes(anim, childTrackIds)) {
+        const mk = document.createElement("div");
+        mk.className = "track-key";
+        mk.style.left = `${(timelineXForTime(t, 100, timelineDuration)).toFixed(4)}%`;
+        mk.style.opacity = "0.55";
+        mk.style.pointerEvents = "none";
+        lane.appendChild(mk);
+      }
+    }
+
     row.appendChild(label);
     row.appendChild(lane);
     root.appendChild(row);
@@ -10899,6 +13752,7 @@ function renderTimelineTracks() {
           (parsed.prop === "clip" || parsed.prop === "clipSource" || parsed.prop === "clipEnd")
         );
         const layerEnabledTrack = !!(parsed && parsed.type === "layer" && parsed.prop === "enabled");
+        const boneAnimHideTrack = !!(parsed && parsed.type === "bone" && parsed.prop === "animHide");
         const smParamBoolTrack = !!(
           parsed &&
           parsed.type === "smparam" &&
@@ -10911,6 +13765,7 @@ function renderTimelineTracks() {
         els.keyInterp.disabled =
           state.anim.selectedKey.trackId === EVENT_TRACK_ID ||
           state.anim.selectedKey.trackId === DRAWORDER_TRACK_ID ||
+          boneAnimHideTrack ||
           slotAttachmentTrack ||
           slotClipTrack ||
           layerEnabledTrack ||
@@ -10922,7 +13777,10 @@ function renderTimelineTracks() {
     }
   } else {
     els.keyInfo.value = "(none)";
-    if (els.keyInterp) els.keyInterp.disabled = false;
+    if (els.keyInterp) {
+      els.keyInterp.disabled = false;
+      els.keyInterp.value = "linear";
+    }
   }
   refreshEventKeyListUI();
   renderCurveEditor();
@@ -11090,6 +13948,7 @@ function addOrUpdateKeyframeForTrack(trackId, silent = false) {
   const forceStepped =
     trackId === EVENT_TRACK_ID ||
     trackId === DRAWORDER_TRACK_ID ||
+    (p.type === "bone" && p.prop === "animHide") ||
     (p.type === "slot" && (p.prop === "attachment" || p.prop === "clip" || p.prop === "clipSource" || p.prop === "clipEnd")) ||
     (p.type === "layer" && p.prop === "enabled") ||
     (p.type === "smparam" && (() => {
@@ -11206,6 +14065,9 @@ function collectChangedTracksAtCurrentTime() {
     }
     if (Math.abs((Number(cur.shy) || 0) - (Number(base.shy) || 0)) > eps) {
       out.push(getTrackId(i, "shearY"));
+    }
+    if (!!cur.animHidden !== !!base.animHidden) {
+      out.push(getTrackId(i, "animHide"));
     }
   }
   if (state.slots.length > 0) {
@@ -11674,6 +14536,7 @@ function sampleTrackValueAtTime(keys, parsed, t) {
   if (parsed.type === "ik" && (parsed.prop === "compress" || parsed.prop === "stretch" || parsed.prop === "uniform")) {
     return alpha < 0.5 ? k0.value : k1.value;
   }
+  if (parsed.type === "bone" && parsed.prop === "animHide") return alpha < 0.5 ? cloneTrackValue(k0.value) : cloneTrackValue(k1.value);
   if (parsed.type === "layer" && parsed.prop === "enabled") return alpha < 0.5 ? cloneTrackValue(k0.value) : cloneTrackValue(k1.value);
   if (parsed.type === "smparam") {
     const sm = ensureStateMachine();
@@ -12222,6 +15085,68 @@ if (els.boneTree) {
       }
       return;
     }
+    const workHideBtn = ev.target.closest(".tree-bone-hide-toggle[data-bone-work-hide-toggle]");
+    if (workHideBtn && state.mesh) {
+      state.treeSlotLastClickIndex = -1;
+      state.treeSlotLastClickTs = 0;
+      state.treeBoneLastClickIndex = -1;
+      state.treeBoneLastClickTs = 0;
+      const bi = Number(workHideBtn.dataset.boneWorkHideToggle);
+      const rig = state.mesh.rigBones && state.mesh.rigBones[bi];
+      if (!Number.isFinite(bi) || bi < 0 || !rig) return;
+      normalizeBoneChannels(rig);
+      const mode = !rig.workHidden ? "off" : rig.workHideSlots ? "bone_and_slots" : "bone_only";
+      if (mode === "off") {
+        rig.workHidden = true;
+        rig.workHideSlots = false;
+      } else if (mode === "bone_only") {
+        rig.workHidden = true;
+        rig.workHideSlots = true;
+      } else {
+        rig.workHidden = false;
+        rig.workHideSlots = false;
+      }
+      if (state.mesh.poseBones && state.mesh.poseBones[bi]) {
+        normalizeBoneChannels(state.mesh.poseBones[bi]);
+        state.mesh.poseBones[bi].workHidden = rig.workHidden;
+        state.mesh.poseBones[bi].workHideSlots = rig.workHideSlots;
+      }
+      refreshSlotUI();
+      renderBoneTree();
+      if (state.selectedBone === bi) updateBoneUI();
+      setStatus(
+        !rig.workHidden
+          ? `Work hide off: ${rig.name}`
+          : rig.workHideSlots
+            ? `Work hide on (bone+slots): ${rig.name}`
+            : `Work hide on (bone only): ${rig.name}`
+      );
+      return;
+    }
+    const animHideBtn = ev.target.closest(".tree-bone-anim-hide-toggle[data-bone-anim-hide-toggle]");
+    if (animHideBtn && state.mesh) {
+      state.treeSlotLastClickIndex = -1;
+      state.treeSlotLastClickTs = 0;
+      state.treeBoneLastClickIndex = -1;
+      state.treeBoneLastClickTs = 0;
+      if (state.boneMode !== "pose") {
+        setStatus("Switch to Pose mode to set animation hide key.");
+        return;
+      }
+      const bi = Number(animHideBtn.dataset.boneAnimHideToggle);
+      const bones = getPoseBones(state.mesh);
+      const b = bones && bones[bi];
+      if (!Number.isFinite(bi) || bi < 0 || !b) return;
+      normalizeBoneChannels(b);
+      b.animHidden = !b.animHidden;
+      markDirtyByBoneProp(bi, "animHide");
+      addOrUpdateKeyframeForTrack(getTrackId(bi, "animHide"), true);
+      refreshSlotUI();
+      renderBoneTree();
+      if (state.selectedBone === bi) updateBoneUI();
+      setStatus(`${b.animHidden ? "Anim hide ON" : "Anim hide OFF"} (bone+slots key): ${b.name} @ ${state.anim.time.toFixed(2)}s`);
+      return;
+    }
     const eyeBtn = ev.target.closest(".slot-eye[data-slot-eye]");
     if (eyeBtn) {
       state.treeSlotLastClickIndex = -1;
@@ -12241,25 +15166,34 @@ if (els.boneTree) {
     if (slotItem) {
       const si = Number(slotItem.dataset.slotIndex);
       if (!Number.isFinite(si) || si < 0 || si >= state.slots.length) return;
-      const now = (window.performance && typeof window.performance.now === "function" ? window.performance.now() : Date.now());
-      const isDoubleClick = state.treeSlotLastClickIndex === si && now - Number(state.treeSlotLastClickTs || 0) <= 340;
+      const slot = state.slots[si];
+      const isUnassigned = !!slot && Number(slot.bone) === -1;
+      if (isUnassigned) {
+        if (ev.ctrlKey || ev.metaKey) {
+          const current = new Set(
+            (Array.isArray(state.boneTreeSelectedUnassignedSlotIds) ? state.boneTreeSelectedUnassignedSlotIds : []).map((v) => String(v))
+          );
+          const sid = slot && slot.id != null ? String(slot.id) : "";
+          if (sid) {
+            if (current.has(sid)) current.delete(sid);
+            else current.add(sid);
+            state.boneTreeSelectedUnassignedSlotIds = [...current];
+          }
+          setActiveSlot(si);
+          renderBoneTree();
+          return;
+        }
+        setSelectedUnassignedSlotIndices([si], false);
+      } else {
+        state.boneTreeSelectedUnassignedSlotIds = [];
+      }
       state.treeSlotLastClickIndex = si;
-      state.treeSlotLastClickTs = now;
+      state.treeSlotLastClickTs = window.performance && typeof window.performance.now === "function" ? window.performance.now() : Date.now();
       state.treeBoneLastClickIndex = -1;
       state.treeBoneLastClickTs = 0;
-      if (state.activeSlot !== si) {
-        setActiveSlot(si);
-        setStatus(`Switched to slot: ${state.slots[si].name}`);
-      } else {
-        setRightPropsFocus("slot");
-      }
-      if (isDoubleClick) {
-        state.treeSlotLastClickIndex = -1;
-        state.treeSlotLastClickTs = 0;
-        state.treeBoneLastClickIndex = -1;
-        state.treeBoneLastClickTs = 0;
-        renameSlotByIndexFromTree(si);
-      }
+      const changed = state.activeSlot !== si;
+      setActiveSlot(si);
+      if (changed) setStatus(`Switched to slot: ${state.slots[si].name}`);
       return;
     }
     state.treeSlotLastClickIndex = -1;
@@ -12268,10 +15202,8 @@ if (els.boneTree) {
     if (!item || !state.mesh) return;
     const i = Number(item.dataset.boneIndex);
     if (!Number.isFinite(i)) return;
-    const now = (window.performance && typeof window.performance.now === "function" ? window.performance.now() : Date.now());
-    const isDoubleClick = state.treeBoneLastClickIndex === i && now - Number(state.treeBoneLastClickTs || 0) <= 340;
     state.treeBoneLastClickIndex = i;
-    state.treeBoneLastClickTs = now;
+    state.treeBoneLastClickTs = window.performance && typeof window.performance.now === "function" ? window.performance.now() : Date.now();
     if (ev.ctrlKey || ev.metaKey) {
       state.treeBoneLastClickIndex = -1;
       state.treeBoneLastClickTs = 0;
@@ -12289,21 +15221,35 @@ if (els.boneTree) {
     state.selectedBonesForWeight = [i];
     setRightPropsFocus("bone");
     updateBoneUI();
-    if (isDoubleClick) {
-      state.treeBoneLastClickIndex = -1;
-      state.treeBoneLastClickTs = 0;
-      startBoneTreeInlineRename("bone", i);
+  });
+
+  els.boneTree.addEventListener("dblclick", (ev) => {
+    if (ev.target.closest(".tree-rename-input")) return;
+    const slotItem = ev.target.closest(".tree-item[data-slot-index]");
+    if (slotItem) {
+      const si = Number(slotItem.dataset.slotIndex);
+      if (Number.isFinite(si) && si >= 0 && si < state.slots.length) {
+        renameSlotByIndexFromTree(si);
+      }
+      return;
     }
+    const boneItem = ev.target.closest(".tree-item[data-bone-index]");
+    if (!boneItem || !state.mesh) return;
+    const bi = Number(boneItem.dataset.boneIndex);
+    if (!Number.isFinite(bi) || bi < 0) return;
+    startBoneTreeInlineRename("bone", bi);
   });
 
   els.boneTree.addEventListener("contextmenu", (ev) => {
     ev.preventDefault();
+    state.boneTreeMenuContextKind = "";
     const slotItem = ev.target.closest(".tree-item[data-slot-index]");
     if (slotItem) {
       const si = Number(slotItem.dataset.slotIndex);
       if (Number.isFinite(si) && si >= 0 && si < state.slots.length) {
         setActiveSlot(si);
         setRightPropsFocus("slot");
+        state.boneTreeMenuContextKind = "slot";
       }
     } else {
       const boneItem = ev.target.closest(".tree-item[data-bone-index]");
@@ -12314,6 +15260,7 @@ if (els.boneTree) {
           state.selectedBonesForWeight = [bi];
           setRightPropsFocus("bone");
           updateBoneUI();
+          state.boneTreeMenuContextKind = "bone";
         }
       }
     }
@@ -12356,7 +15303,15 @@ if (els.boneTree) {
     }
     const boneItem = ev.target.closest(".tree-item[data-bone-index]");
     if (!boneItem) {
+      const staging = ev.target.closest(".tree-item[data-slot-staging-drop]");
+      if (!staging) {
+        clearBoneTreeDropIndicators();
+        return;
+      }
+      ev.preventDefault();
+      if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
       clearBoneTreeDropIndicators();
+      staging.classList.add("drop-target");
       return;
     }
     const bi = Number(boneItem.dataset.boneIndex);
@@ -12410,7 +15365,17 @@ if (els.boneTree) {
     }
 
     const boneItem = ev.target.closest(".tree-item[data-bone-index]");
-    if (!boneItem) return;
+    if (!boneItem) {
+      const staging = ev.target.closest(".tree-item[data-slot-staging-drop]");
+      if (!staging) return;
+      ev.preventDefault();
+      const ok = assignSlotToBone(si, -1);
+      if (!ok) return;
+      setActiveSlot(si);
+      pushUndoCheckpoint(true);
+      setStatus(`Slot "${state.slots[si] ? state.slots[si].name : si}" moved to staging (unassigned).`);
+      return;
+    }
     const bi = Number(boneItem.dataset.boneIndex);
     if (!Number.isFinite(bi)) return;
     ev.preventDefault();
@@ -12437,19 +15402,23 @@ if (els.boneTreeContextMenu) {
 }
 
 document.addEventListener("pointerdown", (ev) => {
-  if (!state.boneTreeMenuOpen) return;
   const target = ev.target;
   if (!(target instanceof Element)) {
-    closeBoneTreeContextMenu();
+    if (state.boneTreeMenuOpen) closeBoneTreeContextMenu();
+    closeBoneDeleteQuickMenu();
     return;
   }
-  if (target.closest("#boneTreeContextMenu")) return;
-  closeBoneTreeContextMenu();
+  if (state.boneTreeMenuOpen && !target.closest("#boneTreeContextMenu")) {
+    closeBoneTreeContextMenu();
+  }
+  if (!target.closest("#boneTreeDeleteBoneMenu") && !target.closest("#boneTreeDeleteBoneMenuBtn")) {
+    closeBoneDeleteQuickMenu();
+  }
 });
 
 window.addEventListener("blur", () => {
-  if (!state.boneTreeMenuOpen) return;
-  closeBoneTreeContextMenu();
+  if (state.boneTreeMenuOpen) closeBoneTreeContextMenu();
+  closeBoneDeleteQuickMenu();
 });
 
 if (els.fileOpenBtn) {
@@ -12472,7 +15441,7 @@ if (els.slotViewMode) {
     state.slotViewMode = els.slotViewMode.value === "all" ? "all" : "single";
     refreshSlotUI();
     renderBoneTree();
-    setStatus(state.slotViewMode === "all" ? "Slot view: all visible." : "Slot view: single slot.");
+    setStatus(state.slotViewMode === "all" ? "Slot view: all visible (one slot per bone)." : "Slot view: single slot.");
   });
 }
 
@@ -12481,6 +15450,92 @@ if (els.boneTreeOnlyActiveSlotBtn) {
     state.boneTreeOnlyActiveSlot = !state.boneTreeOnlyActiveSlot;
     renderBoneTree();
     setStatus(state.boneTreeOnlyActiveSlot ? "Bone tree: showing active slot only." : "Bone tree: showing all slots.");
+  });
+}
+if (els.boneTreeAddBoneBtn) {
+  els.boneTreeAddBoneBtn.addEventListener("click", () => {
+    if (!state.mesh || state.boneMode !== "edit") {
+      setStatus("Switch to Skeleton/Edit mode to add bone.");
+      return;
+    }
+    const idx = addBone({ parent: -1, connected: false });
+    if (!Number.isFinite(idx) || idx < 0) {
+      setStatus("Add bone failed.");
+      return;
+    }
+    setStatus(`Bone added: ${state.mesh.rigBones[idx] ? state.mesh.rigBones[idx].name : idx}`);
+  });
+}
+if (els.boneTreeDeleteBoneBtn) {
+  els.boneTreeDeleteBoneBtn.addEventListener("click", () => {
+    closeBoneDeleteQuickMenu();
+    const m = state.mesh;
+    if (!m || state.boneMode !== "edit") {
+      setStatus("Switch to Skeleton/Edit mode to delete bone.");
+      return;
+    }
+    const bi = Number(state.selectedBone);
+    const name =
+      Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
+    if (!deleteBoneWithSlotPolicy("to_staging")) {
+      setStatus("Delete bone failed. Keep at least one bone.");
+      return;
+    }
+    setStatus(`Bone deleted: ${name} (slots moved to staging).`);
+  });
+}
+if (els.boneTreeDeleteBoneMenuBtn) {
+  els.boneTreeDeleteBoneMenuBtn.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    toggleBoneDeleteQuickMenu();
+  });
+}
+if (els.boneTreeDeleteBoneToStagingBtn) {
+  els.boneTreeDeleteBoneToStagingBtn.addEventListener("click", () => {
+    closeBoneDeleteQuickMenu();
+    const m = state.mesh;
+    if (!m || state.boneMode !== "edit") {
+      setStatus("Switch to Skeleton/Edit mode to delete bone.");
+      return;
+    }
+    const bi = Number(state.selectedBone);
+    const name =
+      Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
+    if (!deleteBoneWithSlotPolicy("to_staging")) {
+      setStatus("Delete bone failed. Keep at least one bone.");
+      return;
+    }
+    setStatus(`Bone deleted: ${name} (slots moved to staging).`);
+  });
+}
+if (els.boneTreeDeleteBoneWithSlotsBtn) {
+  els.boneTreeDeleteBoneWithSlotsBtn.addEventListener("click", () => {
+    closeBoneDeleteQuickMenu();
+    const m = state.mesh;
+    if (!m || state.boneMode !== "edit") {
+      setStatus("Switch to Skeleton/Edit mode to delete bone.");
+      return;
+    }
+    const bi = Number(state.selectedBone);
+    const name =
+      Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
+    if (!deleteBoneWithSlotPolicy("delete_slots")) {
+      setStatus("Delete bone failed. Keep at least one bone.");
+      return;
+    }
+    setStatus(`Bone deleted: ${name} (bound slots deleted).`);
+  });
+}
+if (els.boneTreeBindSelectedUnassignedBtn) {
+  els.boneTreeBindSelectedUnassignedBtn.addEventListener("click", () => {
+    const count = bindSelectedUnassignedSlotsToDefaultBones();
+    if (count <= 0) {
+      setStatus("No selected staging slot to bind.");
+      return;
+    }
+    pushUndoCheckpoint(true);
+    setStatus(`Bound ${count} staging slot(s) to new default bone(s).`);
   });
 }
 
@@ -12511,6 +15566,81 @@ if (els.viewZoomResetBtn) {
     resetViewToFit();
   });
 }
+if (els.viewPanToggleBtn) {
+  els.viewPanToggleBtn.addEventListener("click", () => {
+    state.view.panMode = !state.view.panMode;
+    refreshViewPanUI();
+    setStatus(state.view.panMode ? "Pan canvas mode enabled." : "Pan canvas mode disabled.");
+  });
+}
+if (els.viewFitAllBtn) {
+  els.viewFitAllBtn.addEventListener("click", () => {
+    fitViewToAllVisible();
+    setStatus("View centered to all visible content.");
+  });
+}
+function ensureObjectModeWorkspaceFromToolClick() {
+  if (!state.mesh) return false;
+  if (state.editMode !== "skeleton" && state.editMode !== "object") {
+    setStatus("Object tools require Skeleton or Object edit mode.");
+    return false;
+  }
+  let changed = false;
+  if (state.boneMode !== "object") {
+    state.boneMode = "object";
+    if (els.boneMode) els.boneMode.value = "object";
+    changed = true;
+  }
+  if (state.uiPage !== "object") {
+    state.uiPage = "object";
+    changed = true;
+  }
+  if (changed) {
+    updateWorkspaceUI();
+    updateBoneUI();
+  }
+  return true;
+}
+
+const bindObjectToolButton = (btn, mode) => {
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    if (!ensureObjectModeWorkspaceFromToolClick()) return;
+    setDragTool(mode === "rotate" ? "rotate" : "move_head");
+  });
+};
+bindObjectToolButton(els.objectToolMoveBtn, "move");
+bindObjectToolButton(els.objectToolRotateBtn, "rotate");
+bindObjectToolButton(els.objectPanelMoveBtn, "move");
+bindObjectToolButton(els.objectPanelRotateBtn, "rotate");
+
+if (els.baseImageTx) {
+  els.baseImageTx.addEventListener("input", () => {
+    applyBaseImageTransformFromInputs();
+  });
+}
+if (els.baseImageTy) {
+  els.baseImageTy.addEventListener("input", () => {
+    applyBaseImageTransformFromInputs();
+  });
+}
+if (els.baseImageScale) {
+  els.baseImageScale.addEventListener("input", () => {
+    applyBaseImageTransformFromInputs();
+  });
+}
+if (els.baseImageRot) {
+  els.baseImageRot.addEventListener("input", () => {
+    applyBaseImageTransformFromInputs();
+  });
+}
+if (els.baseImageTransformResetBtn) {
+  els.baseImageTransformResetBtn.addEventListener("click", () => {
+    setSlotBaseImageTransform({ enabled: true, tx: 0, ty: 0, rot: 0, scale: 1 });
+    refreshBaseImageTransformUI();
+    setStatus("Base image transform reset.");
+  });
+}
 
 if (els.slotName) {
   els.slotName.addEventListener("input", () => {
@@ -12525,21 +15655,24 @@ if (els.slotName) {
 if (els.slotBone) {
   els.slotBone.addEventListener("change", () => {
     const s = getActiveSlot();
-    if (!s) return;
+    if (!s || !state.mesh) return;
     const bone = Number(els.slotBone.value);
     s.bone = Number.isFinite(bone) ? bone : -1;
-    if (!Number.isFinite(s.bone) || s.bone < 0) {
-      ensureSlotsHaveBoneBinding();
-    }
-    if (state.mesh) {
-      if (getSlotWeightMode(s) === "single") {
-        s.weightBindMode = "single";
-        s.influenceBones = Number.isFinite(s.bone) && s.bone >= 0 ? [s.bone] : [];
-      } else if (!Array.isArray(s.influenceBones) || s.influenceBones.length === 0) {
+    const mode = getSlotWeightMode(s);
+    const boneCount = Array.isArray(state.mesh.rigBones) ? state.mesh.rigBones.length : 0;
+    const isValidBone = Number.isFinite(s.bone) && s.bone >= 0 && s.bone < boneCount;
+    if (mode === "single") {
+      s.weightBindMode = "single";
+      s.influenceBones = Number.isFinite(s.bone) && s.bone >= 0 ? [s.bone] : [];
+    } else if (mode === "weighted") {
+      if (!Array.isArray(s.influenceBones) || s.influenceBones.length === 0) {
         s.influenceBones = Number.isFinite(s.bone) && s.bone >= 0 ? [s.bone] : getSlotInfluenceBones(s, state.mesh);
       }
-      rebuildSlotWeights(s, state.mesh);
+    } else {
+      s.bone = -1;
+      s.influenceBones = [];
     }
+    rebuildSlotWeights(s, state.mesh);
     refreshSlotUI();
     renderBoneTree();
   });
@@ -12670,7 +15803,10 @@ function applyActiveSlotAttachmentMetaFromUI() {
   const seqCount = Math.max(1, Math.round(Number(els.slotAttachmentSequenceCount ? els.slotAttachmentSequenceCount.value : 1) || 1));
   const seqStart = Math.max(0, Math.round(Number(els.slotAttachmentSequenceStart ? els.slotAttachmentSequenceStart.value : 0) || 0));
   const seqDigits = Math.max(1, Math.round(Number(els.slotAttachmentSequenceDigits ? els.slotAttachmentSequenceDigits.value : 2) || 2));
-  att.sequence = { enabled: seqEnabled, count: seqCount, start: seqStart, digits: seqDigits };
+  const seqSetupIndex = Math.max(0, Math.round(Number(els.slotAttachmentSequenceSetupIndex ? els.slotAttachmentSequenceSetupIndex.value : 0) || 0));
+  const seqMode = Number(els.slotAttachmentSequenceMode ? els.slotAttachmentSequenceMode.value : 0) || 0;
+  const seqPath = String(els.slotAttachmentSequencePath ? els.slotAttachmentSequencePath.value : "").trim();
+  att.sequence = { enabled: seqEnabled, count: seqCount, start: seqStart, digits: seqDigits, setupIndex: seqSetupIndex, mode: seqMode, path: seqPath };
   refreshSlotUI();
   renderBoneTree();
   return true;
@@ -12779,6 +15915,15 @@ if (els.slotAttachmentSequenceStart) {
 }
 if (els.slotAttachmentSequenceDigits) {
   els.slotAttachmentSequenceDigits.addEventListener("input", applyActiveSlotAttachmentMetaFromUI);
+}
+if (els.slotAttachmentSequenceSetupIndex) {
+  els.slotAttachmentSequenceSetupIndex.addEventListener("input", applyActiveSlotAttachmentMetaFromUI);
+}
+if (els.slotAttachmentSequenceMode) {
+  els.slotAttachmentSequenceMode.addEventListener("change", applyActiveSlotAttachmentMetaFromUI);
+}
+if (els.slotAttachmentSequencePath) {
+  els.slotAttachmentSequencePath.addEventListener("input", applyActiveSlotAttachmentMetaFromUI);
 }
 
 function cloneCanvas(src) {
@@ -13019,22 +16164,36 @@ if (els.slotDarkColor) {
 
 if (els.slotWeightMode) {
   els.slotWeightMode.addEventListener("change", () => {
+    const mode = els.slotWeightMode.value === "weighted" ? "weighted" : els.slotWeightMode.value === "free" ? "free" : "single";
+    applyActiveSlotWeightMode(mode, { focusWeighted: false });
+  });
+}
+
+if (els.slotWeightQuickWeightedBtn) {
+  els.slotWeightQuickWeightedBtn.addEventListener("click", () => {
+    applyActiveSlotWeightMode("weighted", { focusWeighted: true });
+  });
+}
+if (els.slotWeightQuickSingleBtn) {
+  els.slotWeightQuickSingleBtn.addEventListener("click", () => {
+    applyActiveSlotWeightMode("single", { focusWeighted: false });
+  });
+}
+if (els.slotWeightQuickFreeBtn) {
+  els.slotWeightQuickFreeBtn.addEventListener("click", () => {
+    applyActiveSlotWeightMode("free", { focusWeighted: false });
+  });
+}
+if (els.slotWeightQuickEditBtn) {
+  els.slotWeightQuickEditBtn.addEventListener("click", () => {
     const s = getActiveSlot();
     if (!s || !state.mesh) return;
-    const mode = els.slotWeightMode.value;
-    s.weightMode = mode === "weighted" ? "weighted" : mode === "free" ? "free" : "single";
-    if (s.weightMode === "weighted") {
-      s.useWeights = true;
-      s.weightBindMode = "auto";
-    } else if (s.weightMode === "single") {
-      s.useWeights = true;
-      s.weightBindMode = "single";
-    } else {
-      s.useWeights = false;
-      s.weightBindMode = "none";
+    if (getSlotWeightMode(s) !== "weighted") {
+      applyActiveSlotWeightMode("weighted", { focusWeighted: true });
+      return;
     }
-    rebuildSlotWeights(s, state.mesh);
-    refreshSlotUI();
+    switchToVertexWeightEditing();
+    setStatus("Weight editing mode ready.");
   });
 }
 
@@ -13094,7 +16253,7 @@ if (els.slotOrderDown) {
   });
 }
 
-  if (els.fileNewBtn) {
+if (els.fileNewBtn) {
   els.fileNewBtn.addEventListener("click", () => {
     state.sourceCanvas = null;
     state.texture = null;
@@ -13102,7 +16261,9 @@ if (els.slotOrderDown) {
     state.imageHeight = 0;
     state.slots = [];
     state.activeSlot = -1;
-    state.slotViewMode = "single";
+    state.slotViewMode = "all";
+    state.boneTreeSelectedSlotByBone = Object.create(null);
+    state.baseImageTransform = normalizeBaseImageTransform({ enabled: false, tx: 0, ty: 0, rot: 0, scale: 1 });
     state.mesh = null;
     state.selectedBone = -1;
     state.selectedBonesForWeight = [];
@@ -13247,11 +16408,11 @@ function buildProjectPayload() {
       sequence:
         a && a.sequence
           ? {
-              enabled: !!a.sequence.enabled,
-              count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
-              start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
-              digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
-            }
+            enabled: !!a.sequence.enabled,
+            count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
+            start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
+            digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
+          }
           : { enabled: false, count: 1, start: 0, digits: 2 },
     }));
     return {
@@ -13280,6 +16441,7 @@ function buildProjectPayload() {
       tx: Number.isFinite(s.tx) ? s.tx : 0,
       ty: Number.isFinite(s.ty) ? s.ty : 0,
       rot: Number.isFinite(s.rot) ? s.rot : 0,
+      baseImageTransform: normalizeBaseImageTransform(s && s.baseImageTransform),
       useWeights: s.useWeights === true,
       weightBindMode: s.weightBindMode || (s.useWeights ? "single" : "none"),
       weightMode: getSlotWeightMode(s),
@@ -13295,26 +16457,32 @@ function buildProjectPayload() {
       meshContour:
         s.meshContour && Array.isArray(s.meshContour.points)
           ? {
-              points: s.meshContour.points.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 })),
-              closed: !!s.meshContour.closed,
-              triangles: Array.isArray(s.meshContour.triangles) ? s.meshContour.triangles.map((v) => Number(v) || 0) : [],
-              fillPoints: Array.isArray(s.meshContour.fillPoints)
-                ? s.meshContour.fillPoints.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
-                : [],
-              fillTriangles: Array.isArray(s.meshContour.fillTriangles)
-                ? s.meshContour.fillTriangles.map((v) => Number(v) || 0)
-                : [],
-              manualEdges: Array.isArray(s.meshContour.manualEdges)
-                ? s.meshContour.manualEdges
-                    .filter((e) => Array.isArray(e) && e.length >= 2)
-                    .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
-                : [],
-              fillManualEdges: Array.isArray(s.meshContour.fillManualEdges)
-                ? s.meshContour.fillManualEdges
-                    .filter((e) => Array.isArray(e) && e.length >= 2)
-                    .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
-                : [],
-            }
+            points: s.meshContour.points.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 })),
+            sourcePoints: Array.isArray(s.meshContour.sourcePoints)
+              ? s.meshContour.sourcePoints.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
+              : [],
+            authorContourPoints: Array.isArray(s.meshContour.authorContourPoints)
+              ? s.meshContour.authorContourPoints.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
+              : [],
+            closed: !!s.meshContour.closed,
+            triangles: Array.isArray(s.meshContour.triangles) ? s.meshContour.triangles.map((v) => Number(v) || 0) : [],
+            fillPoints: Array.isArray(s.meshContour.fillPoints)
+              ? s.meshContour.fillPoints.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
+              : [],
+            fillTriangles: Array.isArray(s.meshContour.fillTriangles)
+              ? s.meshContour.fillTriangles.map((v) => Number(v) || 0)
+              : [],
+            manualEdges: Array.isArray(s.meshContour.manualEdges)
+              ? s.meshContour.manualEdges
+                .filter((e) => Array.isArray(e) && e.length >= 2)
+                .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
+              : [],
+            fillManualEdges: Array.isArray(s.meshContour.fillManualEdges)
+              ? s.meshContour.fillManualEdges
+                .filter((e) => Array.isArray(e) && e.length >= 2)
+                .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
+              : [],
+          }
           : null,
     };
   });
@@ -13325,6 +16493,7 @@ function buildProjectPayload() {
       spineCompat: getSpineCompatPreset(state.export && state.export.spineCompat).id,
     },
     slotMeshGridReplaceContour: !!state.slotMesh.gridReplaceContour,
+    baseImageTransform: normalizeBaseImageTransform(state.baseImageTransform),
     imageWidth: state.imageWidth,
     imageHeight: state.imageHeight,
     gridX: Number(els.gridX.value) || 24,
@@ -13333,85 +16502,85 @@ function buildProjectPayload() {
     ikConstraints:
       state.mesh && Array.isArray(state.mesh.ikConstraints)
         ? state.mesh.ikConstraints.map((c, i) => ({
-            name: c && c.name ? c.name : `ik_${i}`,
-            bones: Array.isArray(c && c.bones) ? c.bones.map((v) => Number(v) || 0) : [],
-            target: Number(c && c.target),
-            targetX: Number(c && c.targetX),
-            targetY: Number(c && c.targetY),
-            mix: math.clamp(Number(c && c.mix) || 1, 0, 1),
-            softness: Math.max(0, Number(c && c.softness) || 0),
-            bendPositive: c ? c.bendPositive !== false : true,
-            compress: !!(c && c.compress),
-            stretch: !!(c && c.stretch),
-            uniform: !!(c && c.uniform),
-            order: getConstraintOrder(c, i),
-            skinRequired: !!(c && c.skinRequired),
-            enabled: c ? c.enabled !== false : true,
-            endMode: c && c.endMode === "tail" ? "tail" : "head",
-          }))
+          name: c && c.name ? c.name : `ik_${i}`,
+          bones: Array.isArray(c && c.bones) ? c.bones.map((v) => Number(v) || 0) : [],
+          target: Number(c && c.target),
+          targetX: Number(c && c.targetX),
+          targetY: Number(c && c.targetY),
+          mix: math.clamp(Number(c && c.mix) || 1, 0, 1),
+          softness: Math.max(0, Number(c && c.softness) || 0),
+          bendPositive: c ? c.bendPositive !== false : true,
+          compress: !!(c && c.compress),
+          stretch: !!(c && c.stretch),
+          uniform: !!(c && c.uniform),
+          order: getConstraintOrder(c, i),
+          skinRequired: !!(c && c.skinRequired),
+          enabled: c ? c.enabled !== false : true,
+          endMode: c && c.endMode === "tail" ? "tail" : "head",
+        }))
         : [],
     transformConstraints:
       state.mesh && Array.isArray(state.mesh.transformConstraints)
         ? state.mesh.transformConstraints.map((c, i) => ({
-            name: c && c.name ? c.name : `transform_${i}`,
-            bones: Array.isArray(c && c.bones) ? c.bones.map((v) => Number(v) || 0) : [],
-            target: Number(c && c.target),
-            rotateMix: math.clamp(Number(c && c.rotateMix) || 0, 0, 1),
-            translateMix: math.clamp(Number(c && c.translateMix) || 0, 0, 1),
-            scaleMix: math.clamp(Number(c && c.scaleMix) || 0, 0, 1),
-            shearMix: math.clamp(Number(c && c.shearMix) || 0, 0, 1),
-            offsetX: Number(c && c.offsetX) || 0,
-            offsetY: Number(c && c.offsetY) || 0,
-            offsetRot: Number(c && c.offsetRot) || 0,
-            offsetScaleX: Number(c && c.offsetScaleX) || 0,
-            offsetScaleY: Number(c && c.offsetScaleY) || 0,
-            offsetShearY: Number(c && c.offsetShearY) || 0,
-            local: !!(c && c.local),
-            relative: !!(c && c.relative),
-            order: getConstraintOrder(c, i),
-            skinRequired: !!(c && c.skinRequired),
-            enabled: c ? c.enabled !== false : true,
-          }))
+          name: c && c.name ? c.name : `transform_${i}`,
+          bones: Array.isArray(c && c.bones) ? c.bones.map((v) => Number(v) || 0) : [],
+          target: Number(c && c.target),
+          rotateMix: math.clamp(Number(c && c.rotateMix) || 0, 0, 1),
+          translateMix: math.clamp(Number(c && c.translateMix) || 0, 0, 1),
+          scaleMix: math.clamp(Number(c && c.scaleMix) || 0, 0, 1),
+          shearMix: math.clamp(Number(c && c.shearMix) || 0, 0, 1),
+          offsetX: Number(c && c.offsetX) || 0,
+          offsetY: Number(c && c.offsetY) || 0,
+          offsetRot: Number(c && c.offsetRot) || 0,
+          offsetScaleX: Number(c && c.offsetScaleX) || 0,
+          offsetScaleY: Number(c && c.offsetScaleY) || 0,
+          offsetShearY: Number(c && c.offsetShearY) || 0,
+          local: !!(c && c.local),
+          relative: !!(c && c.relative),
+          order: getConstraintOrder(c, i),
+          skinRequired: !!(c && c.skinRequired),
+          enabled: c ? c.enabled !== false : true,
+        }))
         : [],
     pathConstraints:
       state.mesh && Array.isArray(state.mesh.pathConstraints)
         ? state.mesh.pathConstraints.map((c, i) => ({
-            name: c && c.name ? c.name : `path_${i}`,
-            bones: Array.isArray(c && c.bones) ? c.bones.map((v) => Number(v) || 0) : [],
-            target: Number(c && c.target),
-            sourceType: c && c.sourceType === "bone_chain" ? "bone_chain" : c && c.sourceType === "slot" ? "slot" : "drawn",
-            targetSlot: Number(c && c.targetSlot),
-            points: Array.isArray(c && c.points)
-              ? c.points.map((p) => ({
-                  x: Number(p && p.x) || 0,
-                  y: Number(p && p.y) || 0,
-                  hinx: Number.isFinite(Number(p && p.hinx)) ? Number(p.hinx) : Number(p && p.x) || 0,
-                  hiny: Number.isFinite(Number(p && p.hiny)) ? Number(p.hiny) : Number(p && p.y) || 0,
-                  houtx: Number.isFinite(Number(p && p.houtx)) ? Number(p.houtx) : Number(p && p.x) || 0,
-                  houty: Number.isFinite(Number(p && p.houty)) ? Number(p.houty) : Number(p && p.y) || 0,
-                  broken: !!(p && p.broken),
-                  handleMode: p && p.handleMode === "auto" ? "auto" : p && p.handleMode === "broken" ? "broken" : "aligned",
-                }))
-              : [],
-            positionMode: c && c.positionMode === "percent" ? "percent" : "fixed",
-            spacingMode:
-              c && c.spacingMode === "fixed"
-                ? "fixed"
-                : c && c.spacingMode === "percent"
-                  ? "percent"
-                  : c && c.spacingMode === "proportional"
-                    ? "proportional"
-                    : "length",
-            rotateMode: c && c.rotateMode === "chain" ? "chain" : c && c.rotateMode === "chainScale" ? "chainScale" : "tangent",
-            position: Number(c && c.position) || 0,
-            spacing: Number(c && c.spacing) || 0,
-            rotateMix: math.clamp(Number(c && c.rotateMix) || 0, 0, 1),
-            translateMix: math.clamp(Number(c && c.translateMix) || 0, 0, 1),
-            skinRequired: !!(c && c.skinRequired),
-            closed: !!(c && c.closed),
-            order: getConstraintOrder(c, i),
-            enabled: c ? c.enabled !== false : true,
-          }))
+          name: c && c.name ? c.name : `path_${i}`,
+          bones: Array.isArray(c && c.bones) ? c.bones.map((v) => Number(v) || 0) : [],
+          target: Number(c && c.target),
+          sourceType: c && c.sourceType === "bone_chain" ? "bone_chain" : c && c.sourceType === "slot" ? "slot" : "drawn",
+          targetSlot: Number(c && c.targetSlot),
+          points: Array.isArray(c && c.points)
+            ? c.points.map((p) => ({
+              x: Number(p && p.x) || 0,
+              y: Number(p && p.y) || 0,
+              hinx: Number.isFinite(Number(p && p.hinx)) ? Number(p.hinx) : Number(p && p.x) || 0,
+              hiny: Number.isFinite(Number(p && p.hiny)) ? Number(p.hiny) : Number(p && p.y) || 0,
+              houtx: Number.isFinite(Number(p && p.houtx)) ? Number(p.houtx) : Number(p && p.x) || 0,
+              houty: Number.isFinite(Number(p && p.houty)) ? Number(p.houty) : Number(p && p.y) || 0,
+              broken: !!(p && p.broken),
+              handleMode: p && p.handleMode === "auto" ? "auto" : p && p.handleMode === "broken" ? "broken" : "aligned",
+            }))
+            : [],
+          positionMode: c && c.positionMode === "percent" ? "percent" : "fixed",
+          spacingMode:
+            c && c.spacingMode === "fixed"
+              ? "fixed"
+              : c && c.spacingMode === "percent"
+                ? "percent"
+                : c && c.spacingMode === "proportional"
+                  ? "proportional"
+                  : "length",
+          rotateMode: c && c.rotateMode === "chain" ? "chain" : c && c.rotateMode === "chainScale" ? "chainScale" : "tangent",
+          position: Number(c && c.position) || 0,
+          spacing: Number(c && c.spacing) || 0,
+          rotateMix: math.clamp(Number(c && c.rotateMix) || 0, 0, 1),
+          translateMix: math.clamp(Number(c && c.translateMix) || 0, 0, 1),
+          skinRequired: !!(c && c.skinRequired),
+          closed: !!(c && c.closed),
+          order: getConstraintOrder(c, i),
+          enabled: c ? c.enabled !== false : true,
+        }))
         : [],
     animations: state.anim.animations,
     animationState: {
@@ -13451,13 +16620,13 @@ function buildProjectPayload() {
       slotPlaceholderAttachments:
         s && s.slotPlaceholderAttachments && typeof s.slotPlaceholderAttachments === "object"
           ? Object.fromEntries(
-              Object.entries(s.slotPlaceholderAttachments).map(([slotId, map]) => [
-                String(slotId),
-                map && typeof map === "object"
-                  ? Object.fromEntries(Object.entries(map).map(([ph, v]) => [String(ph), v == null ? null : String(v)]))
-                  : {},
-              ])
-            )
+            Object.entries(s.slotPlaceholderAttachments).map(([slotId, map]) => [
+              String(slotId),
+              map && typeof map === "object"
+                ? Object.fromEntries(Object.entries(map).map(([ph, v]) => [String(ph), v == null ? null : String(v)]))
+                : {},
+            ])
+          )
           : {},
     })),
     selectedSkinSet: Number(state.selectedSkinSet) || 0,
@@ -14208,11 +17377,11 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
         sequence:
           a && a.sequence
             ? {
-                enabled: !!a.sequence.enabled,
-                count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
-                start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
-                digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
-              }
+              enabled: !!a.sequence.enabled,
+              count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
+              start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
+              digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
+            }
             : { enabled: false, count: 1, start: 0, digits: 2 },
       });
       si.sourceToExport.set(srcName, expName);
@@ -14457,12 +17626,17 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
   }
   function applySequenceToAttachment(att, meta) {
     if (!att || !meta || !meta.sequence || !meta.sequence.enabled) return;
-    att.sequence = {
+    const seq = {
       count: Math.max(1, Math.round(Number(meta.sequence.count) || 1)),
       start: Math.max(0, Math.round(Number(meta.sequence.start) || 0)),
       digits: Math.max(1, Math.round(Number(meta.sequence.digits) || 2)),
-      setup: 0,
+      setup: Math.max(0, Math.round(Number(meta.sequence.setupIndex) || 0)),
     };
+    const mode = Number(meta.sequence.mode) || 0;
+    if (mode !== 0) seq.mode = mode;
+    const path = String(meta.sequence.path || "").trim();
+    if (path) att.path = path;
+    att.sequence = seq;
   }
   function buildClippingAttachmentFromSlot(slot, endSlotName, name) {
     const ptsLocal = getSlotClipPointsLocal(slot);
@@ -14780,9 +17954,9 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
           ? buildPathAttachmentFromPoints(c.points, pathAttName, !!c.closed)
           : c.sourceType === "bone_chain"
             ? buildPathAttachmentFromBoneChain(m.rigBones, targetBoneIndex, pathAttName, !!c.closed)
-          : srcSlotInfo
-            ? buildPathAttachmentFromSlotContour(srcSlotInfo.slot, pathAttName, !!c.closed)
-            : null;
+            : srcSlotInfo
+              ? buildPathAttachmentFromSlotContour(srcSlotInfo.slot, pathAttName, !!c.closed)
+              : null;
       if (!pathAtt) {
         skippedPathAttachmentForExport += 1;
         skippedPathForExport += 1;
@@ -14894,11 +18068,11 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
                 ? math.clamp(Number(k.value) || 0, 0, 1)
                 : parsed.prop === "softness"
                   ? Math.max(0, Number(k.value) || 0)
-                : parsed.prop === "bend"
-                  ? k.value === true || Number(k.value) >= 0
-                  : parsed.prop === "compress" || parsed.prop === "stretch" || parsed.prop === "uniform"
-                    ? k.value === true || Number(k.value) > 0
-                  : null,
+                  : parsed.prop === "bend"
+                    ? k.value === true || Number(k.value) >= 0
+                    : parsed.prop === "compress" || parsed.prop === "stretch" || parsed.prop === "uniform"
+                      ? k.value === true || Number(k.value) > 0
+                      : null,
             interp: k.interp === "stepped" ? "stepped" : k.interp === "bezier" ? "bezier" : "linear",
             curve: Array.isArray(k.curve) && k.curve.length >= 4 ? k.curve.slice(0, 4) : null,
           }))
@@ -15890,7 +19064,13 @@ function runDiagnostics(options = null) {
   for (let si = 0; si < slots.length; si += 1) {
     const slot = slots[si];
     if (!slot) continue;
-    if (!isBoneIndexValid(slot.bone)) {
+    const slotBone = Number(slot.bone);
+    if (slotBone === -1) {
+      push("warning", `Slot "${slot.name || si}" is currently unassigned (staging).`, {
+        kind: "slot",
+        slotIndex: si,
+      });
+    } else if (!isBoneIndexValid(slot.bone)) {
       push("error", `Slot "${slot.name || si}" is bound to an invalid bone index (${slot.bone}).`, {
         kind: "slot",
         slotIndex: si,
@@ -16025,7 +19205,6 @@ function applyDiagnosticsSafeFixes() {
   const bones = state.mesh && Array.isArray(state.mesh.rigBones) ? state.mesh.rigBones : [];
   const slots = Array.isArray(state.slots) ? state.slots : [];
   const validBone = (v) => Number.isFinite(v) && Number(v) >= 0 && Number(v) < bones.length;
-  const fallbackBone = bones.length > 0 ? 0 : -1;
   const slotIdSet = new Set(slots.map((s) => (s && s.id ? String(s.id) : "")));
 
   for (let bi = 0; bi < bones.length; bi += 1) {
@@ -16043,8 +19222,10 @@ function applyDiagnosticsSafeFixes() {
     const s = slots[si];
     if (!s) continue;
     if (!validBone(s.bone)) {
-      s.bone = fallbackBone;
-      fixed += 1;
+      if (Number(s.bone) !== -1) {
+        s.bone = -1;
+        fixed += 1;
+      }
     }
     if (s.activeAttachment != null) {
       const has = Array.isArray(s.attachments) && s.attachments.some((a) => a && a.name === s.activeAttachment);
@@ -16274,285 +19455,284 @@ if (els.fileExportSpineBtn) {
 }
 
 async function handleProjectLoadInputChange(e) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    try {
-      const data = JSON.parse(await f.text());
-      if (Number.isFinite(Number(data.gridX))) els.gridX.value = String(math.clamp(Number(data.gridX), 2, 120));
-      if (Number.isFinite(Number(data.gridY))) els.gridY.value = String(math.clamp(Number(data.gridY), 2, 120));
-      state.slotMesh.gridReplaceContour = !!(data && data.slotMeshGridReplaceContour);
-      if (els.slotMeshGridReplaceContour) els.slotMeshGridReplaceContour.checked = !!state.slotMesh.gridReplaceContour;
-      const loadedCompat = getSpineCompatPreset(
-        (data && data.export && data.export.spineCompat) || (data && data.spineCompat) || (state.export && state.export.spineCompat)
-      );
-      state.export.spineCompat = loadedCompat.id;
-      if (els.spineCompat) els.spineCompat.value = loadedCompat.id;
-      const hasEmbeddedImages = Array.isArray(data.slotImages) && data.slotImages.length > 0;
-      if (hasEmbeddedImages) {
-        const decoded = [];
-        for (const src of data.slotImages) {
-          if (typeof src !== "string" || src.length === 0) continue;
-          decoded.push(await canvasFromDataUrl(src));
-        }
-        if (decoded.length === 0) throw new Error("Project has slotImages but none could be decoded.");
-        state.mesh = null;
-        state.slots = [];
-        state.activeSlot = -1;
-        state.sourceCanvas = null;
-        state.imageWidth = Number(data.imageWidth) || decoded[0].width;
-        state.imageHeight = Number(data.imageHeight) || decoded[0].height;
-        const srcSlots = Array.isArray(data.slots) ? data.slots : [];
-        if (srcSlots.length === 0) {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (Number.isFinite(Number(data.gridX))) els.gridX.value = String(math.clamp(Number(data.gridX), 2, 120));
+    if (Number.isFinite(Number(data.gridY))) els.gridY.value = String(math.clamp(Number(data.gridY), 2, 120));
+    state.slotMesh.gridReplaceContour = !!(data && data.slotMeshGridReplaceContour);
+    if (els.slotMeshGridReplaceContour) els.slotMeshGridReplaceContour.checked = !!state.slotMesh.gridReplaceContour;
+    state.baseImageTransform = normalizeBaseImageTransform(data && data.baseImageTransform);
+    const loadedCompat = getSpineCompatPreset(
+      (data && data.export && data.export.spineCompat) || (data && data.spineCompat) || (state.export && state.export.spineCompat)
+    );
+    state.export.spineCompat = loadedCompat.id;
+    if (els.spineCompat) els.spineCompat.value = loadedCompat.id;
+    const hasEmbeddedImages = Array.isArray(data.slotImages) && data.slotImages.length > 0;
+    if (hasEmbeddedImages) {
+      const decoded = [];
+      for (const src of data.slotImages) {
+        if (typeof src !== "string" || src.length === 0) continue;
+        decoded.push(await canvasFromDataUrl(src));
+      }
+      if (decoded.length === 0) throw new Error("Project has slotImages but none could be decoded.");
+      state.mesh = null;
+      state.slots = [];
+      state.activeSlot = -1;
+      state.sourceCanvas = null;
+      state.imageWidth = Number(data.imageWidth) || decoded[0].width;
+      state.imageHeight = Number(data.imageHeight) || decoded[0].height;
+      const srcSlots = Array.isArray(data.slots) ? data.slots : [];
+      if (srcSlots.length === 0) {
+        addSlotEntry(
+          {
+            name: "base",
+            canvas: decoded[0],
+            docWidth: state.imageWidth,
+            docHeight: state.imageHeight,
+            rect: { x: 0, y: 0, w: decoded[0].width, h: decoded[0].height },
+          },
+          false
+        );
+      } else {
+        for (const src of srcSlots) {
+          const imgIdx = Number(src && src.imageIndex);
+          const c = Number.isFinite(imgIdx) && imgIdx >= 0 && imgIdx < decoded.length ? decoded[imgIdx] : decoded[0];
           addSlotEntry(
             {
-              name: "base",
-              canvas: decoded[0],
-              docWidth: state.imageWidth,
-              docHeight: state.imageHeight,
-              rect: { x: 0, y: 0, w: decoded[0].width, h: decoded[0].height },
+              name: src && src.name ? src.name : undefined,
+              id: src && src.id ? String(src.id) : undefined,
+              attachmentName: src && src.attachmentName ? String(src.attachmentName) : undefined,
+              placeholderName: src && src.placeholderName ? String(src.placeholderName) : undefined,
+              attachments:
+                src && Array.isArray(src.attachments)
+                  ? src.attachments
+                    .map((a) => {
+                      const ai = Number(a && a.imageIndex);
+                      const ac =
+                        Number.isFinite(ai) && ai >= 0 && ai < decoded.length
+                          ? decoded[ai]
+                          : c;
+                      return {
+                        name: String(a && a.name ? a.name : "").trim(),
+                        placeholder: String(a && a.placeholder ? a.placeholder : src && src.placeholderName ? src.placeholderName : src && src.attachmentName ? src.attachmentName : "main").trim(),
+                        canvas: ac,
+                        type: normalizeAttachmentType(a && a.type),
+                        linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
+                        pointX: Number(a && a.pointX) || 0,
+                        pointY: Number(a && a.pointY) || 0,
+                        pointRot: Number(a && a.pointRot) || 0,
+                        bboxSource: a && a.bboxSource === "contour" ? "contour" : "fill",
+                        sequence:
+                          a && a.sequence
+                            ? {
+                              enabled: !!a.sequence.enabled,
+                              count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
+                              start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
+                              digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
+                            }
+                            : { enabled: false, count: 1, start: 0, digits: 2 },
+                      };
+                    })
+                    .filter((a) => a.name.length > 0 && !!a.canvas)
+                  : undefined,
+              activeAttachment:
+                src && Object.prototype.hasOwnProperty.call(src, "activeAttachment")
+                  ? src.activeAttachment == null
+                    ? null
+                    : String(src.activeAttachment)
+                  : undefined,
+              editorVisible:
+                src && Object.prototype.hasOwnProperty.call(src, "editorVisible")
+                  ? src.editorVisible !== false
+                  : src
+                    ? src.visible !== false
+                    : true,
+              canvas: c,
+              bone: Number(src && src.bone),
+              visible: src ? src.visible !== false : true,
+              alpha: src ? Number(src.alpha) : 1,
+              r: src ? Number(src.r) : 1,
+              g: src ? Number(src.g) : 1,
+              b: src ? Number(src.b) : 1,
+              blend: src ? normalizeSlotBlendMode(src.blend) : "normal",
+              darkEnabled: !!(src && src.darkEnabled),
+              dr: src ? Number(src.dr) : 0,
+              dg: src ? Number(src.dg) : 0,
+              db: src ? Number(src.db) : 0,
+              tx: src ? Number(src.tx) : 0,
+              ty: src ? Number(src.ty) : 0,
+              rot: src ? Number(src.rot) : 0,
+              baseImageTransform: normalizeBaseImageTransform(src && src.baseImageTransform),
+              useWeights: !!(src && src.useWeights),
+              weightBindMode: src && src.weightBindMode ? src.weightBindMode : "none",
+              weightMode: src && src.weightMode ? src.weightMode : "free",
+              influenceBones: Array.isArray(src && src.influenceBones) ? src.influenceBones : [],
+              clipEnabled: !!(src && src.clipEnabled),
+              clipSource: src && src.clipSource === "contour" ? "contour" : "fill",
+              clipEndSlotId:
+                src && Object.prototype.hasOwnProperty.call(src, "clipEndSlotId")
+                  ? src.clipEndSlotId == null
+                    ? null
+                    : String(src.clipEndSlotId)
+                  : null,
+              rect:
+                src && src.rect && Number.isFinite(src.rect.w) && Number.isFinite(src.rect.h)
+                  ? {
+                    x: Number(src.rect.x) || 0,
+                    y: Number(src.rect.y) || 0,
+                    w: Math.max(1, Number(src.rect.w) || 1),
+                    h: Math.max(1, Number(src.rect.h) || 1),
+                  }
+                  : { x: 0, y: 0, w: c.width, h: c.height },
+              docWidth: Number(src && src.docWidth) || state.imageWidth,
+              docHeight: Number(src && src.docHeight) || state.imageHeight,
             },
             false
           );
-        } else {
-          for (const src of srcSlots) {
-            const imgIdx = Number(src && src.imageIndex);
-            const c = Number.isFinite(imgIdx) && imgIdx >= 0 && imgIdx < decoded.length ? decoded[imgIdx] : decoded[0];
-            addSlotEntry(
-              {
-                name: src && src.name ? src.name : undefined,
-                id: src && src.id ? String(src.id) : undefined,
-                attachmentName: src && src.attachmentName ? String(src.attachmentName) : undefined,
-                placeholderName: src && src.placeholderName ? String(src.placeholderName) : undefined,
-                attachments:
-                  src && Array.isArray(src.attachments)
-                    ? src.attachments
-                        .map((a) => {
-                          const ai = Number(a && a.imageIndex);
-                          const ac =
-                            Number.isFinite(ai) && ai >= 0 && ai < decoded.length
-                              ? decoded[ai]
-                              : c;
-                          return {
-                            name: String(a && a.name ? a.name : "").trim(),
-                            placeholder: String(a && a.placeholder ? a.placeholder : src && src.placeholderName ? src.placeholderName : src && src.attachmentName ? src.attachmentName : "main").trim(),
-                            canvas: ac,
-                            type: normalizeAttachmentType(a && a.type),
-                            linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
-                            pointX: Number(a && a.pointX) || 0,
-                            pointY: Number(a && a.pointY) || 0,
-                            pointRot: Number(a && a.pointRot) || 0,
-                            bboxSource: a && a.bboxSource === "contour" ? "contour" : "fill",
-                            sequence:
-                              a && a.sequence
-                                ? {
-                                    enabled: !!a.sequence.enabled,
-                                    count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
-                                    start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
-                                    digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
-                                  }
-                                : { enabled: false, count: 1, start: 0, digits: 2 },
-                          };
-                        })
-                        .filter((a) => a.name.length > 0 && !!a.canvas)
-                    : undefined,
-                activeAttachment:
-                  src && Object.prototype.hasOwnProperty.call(src, "activeAttachment")
-                    ? src.activeAttachment == null
-                      ? null
-                      : String(src.activeAttachment)
-                    : undefined,
-                editorVisible:
-                  src && Object.prototype.hasOwnProperty.call(src, "editorVisible")
-                    ? src.editorVisible !== false
-                    : src
-                      ? src.visible !== false
-                      : true,
-                canvas: c,
-                bone: Number(src && src.bone),
-                visible: src ? src.visible !== false : true,
-                alpha: src ? Number(src.alpha) : 1,
-                r: src ? Number(src.r) : 1,
-                g: src ? Number(src.g) : 1,
-                b: src ? Number(src.b) : 1,
-                blend: src ? normalizeSlotBlendMode(src.blend) : "normal",
-                darkEnabled: !!(src && src.darkEnabled),
-                dr: src ? Number(src.dr) : 0,
-                dg: src ? Number(src.dg) : 0,
-                db: src ? Number(src.db) : 0,
-                tx: src ? Number(src.tx) : 0,
-                ty: src ? Number(src.ty) : 0,
-                rot: src ? Number(src.rot) : 0,
-                useWeights: !!(src && src.useWeights),
-                weightBindMode: src && src.weightBindMode ? src.weightBindMode : "none",
-                weightMode: src && src.weightMode ? src.weightMode : "free",
-                influenceBones: Array.isArray(src && src.influenceBones) ? src.influenceBones : [],
-                clipEnabled: !!(src && src.clipEnabled),
-                clipSource: src && src.clipSource === "contour" ? "contour" : "fill",
-                clipEndSlotId:
-                  src && Object.prototype.hasOwnProperty.call(src, "clipEndSlotId")
-                    ? src.clipEndSlotId == null
-                      ? null
-                      : String(src.clipEndSlotId)
-                    : null,
-                rect:
-                  src && src.rect && Number.isFinite(src.rect.w) && Number.isFinite(src.rect.h)
-                    ? {
-                        x: Number(src.rect.x) || 0,
-                        y: Number(src.rect.y) || 0,
-                        w: Math.max(1, Number(src.rect.w) || 1),
-                        h: Math.max(1, Number(src.rect.h) || 1),
-                      }
-                    : { x: 0, y: 0, w: c.width, h: c.height },
-                docWidth: Number(src && src.docWidth) || state.imageWidth,
-                docHeight: Number(src && src.docHeight) || state.imageHeight,
-              },
-              false
-            );
+        }
+      }
+      if (srcSlots.length > 0) {
+        const hasPerSlotBaseTransform = srcSlots.some((s) => s && s.baseImageTransform && typeof s.baseImageTransform === "object");
+        if (!hasPerSlotBaseTransform && data && data.baseImageTransform && typeof data.baseImageTransform === "object") {
+          const legacyBase = normalizeBaseImageTransform(data.baseImageTransform);
+          for (const s of state.slots) {
+            if (!s) continue;
+            s.baseImageTransform = normalizeBaseImageTransform(legacyBase);
           }
         }
-        const targetSlot = Number.isFinite(Number(data.activeSlot))
-          ? math.clamp(Number(data.activeSlot), 0, Math.max(0, state.slots.length - 1))
-          : 0;
-        setActiveSlot(targetSlot);
-      } else if (!state.sourceCanvas && state.slots.length === 0) {
-        setStatus("No embedded images in file. Import image/PSD first, then load this legacy project json.");
-        return;
       }
+      const targetSlot = Number.isFinite(Number(data.activeSlot))
+        ? math.clamp(Number(data.activeSlot), 0, Math.max(0, state.slots.length - 1))
+        : 0;
+      setActiveSlot(targetSlot);
+    } else if (!state.sourceCanvas && state.slots.length === 0) {
+      setStatus("No embedded images in file. Import image/PSD first, then load this legacy project json.");
+      return;
+    }
 
-      rebuildMesh();
-      if (state.mesh && Array.isArray(data.rigBones)) {
-        state.mesh.rigBones = data.rigBones;
-        syncPoseFromRig(state.mesh);
-        syncBindPose(state.mesh);
-        refreshWeightsForBoneCount();
-      }
-      if (state.mesh && Array.isArray(data.ikConstraints)) {
-        state.mesh.ikConstraints = data.ikConstraints.map((c, i) => ({
-          name: c && c.name ? String(c.name) : `ik_${i}`,
-          bones: Array.isArray(c && c.bones) ? c.bones.map((v) => Number(v)).filter((v) => Number.isFinite(v)) : [],
-          target: Number(c && c.target),
-          targetX: Number(c && c.targetX),
-          targetY: Number(c && c.targetY),
-          mix: math.clamp(Number(c && c.mix) || 1, 0, 1),
-          softness: Math.max(0, Number(c && c.softness) || 0),
-          bendPositive: c ? c.bendPositive !== false : true,
-          compress: !!(c && c.compress),
-          stretch: !!(c && c.stretch),
-          uniform: !!(c && c.uniform),
-          order: getConstraintOrder(c, i),
-          skinRequired: !!(c && c.skinRequired),
-          enabled: c ? c.enabled !== false : true,
-          endMode: c && c.endMode === "tail" ? "tail" : "head",
-        }));
-        ensureIKConstraints(state.mesh);
-      }
-      if (state.mesh && Array.isArray(data.transformConstraints)) {
-        state.mesh.transformConstraints = data.transformConstraints.map((c, i) => ({
-          name: c && c.name ? String(c.name) : `transform_${i}`,
-          bones: Array.isArray(c && c.bones) ? c.bones.map((v) => Number(v)).filter((v) => Number.isFinite(v)) : [],
-          target: Number(c && c.target),
-          rotateMix: math.clamp(Number(c && c.rotateMix) || 0, 0, 1),
-          translateMix: math.clamp(Number(c && c.translateMix) || 0, 0, 1),
-          scaleMix: math.clamp(Number(c && c.scaleMix) || 0, 0, 1),
-          shearMix: math.clamp(Number(c && c.shearMix) || 0, 0, 1),
-          offsetX: Number(c && c.offsetX) || 0,
-          offsetY: Number(c && c.offsetY) || 0,
-          offsetRot: Number(c && c.offsetRot) || 0,
-          offsetScaleX: Number(c && c.offsetScaleX) || 0,
-          offsetScaleY: Number(c && c.offsetScaleY) || 0,
-          offsetShearY: Number(c && c.offsetShearY) || 0,
-          local: !!(c && c.local),
-          relative: !!(c && c.relative),
-          order: getConstraintOrder(c, i),
-          skinRequired: !!(c && c.skinRequired),
-          enabled: c ? c.enabled !== false : true,
-        }));
-        ensureTransformConstraints(state.mesh);
-      }
-      if (state.mesh && Array.isArray(data.pathConstraints)) {
-        state.mesh.pathConstraints = data.pathConstraints.map((c, i) => ({
-          name: c && c.name ? String(c.name) : `path_${i}`,
-          bones: Array.isArray(c && c.bones) ? c.bones.map((v) => Number(v)).filter((v) => Number.isFinite(v)) : [],
-          target: Number(c && c.target),
-          sourceType: c && c.sourceType === "bone_chain" ? "bone_chain" : c && c.sourceType === "slot" ? "slot" : "drawn",
-          targetSlot: Number(c && c.targetSlot),
-          points: Array.isArray(c && c.points)
-            ? c.points.map((p) => ({
-                x: Number(p && p.x) || 0,
-                y: Number(p && p.y) || 0,
-                hinx: Number.isFinite(Number(p && p.hinx)) ? Number(p.hinx) : Number(p && p.x) || 0,
-                hiny: Number.isFinite(Number(p && p.hiny)) ? Number(p.hiny) : Number(p && p.y) || 0,
-                houtx: Number.isFinite(Number(p && p.houtx)) ? Number(p.houtx) : Number(p && p.x) || 0,
-                houty: Number.isFinite(Number(p && p.houty)) ? Number(p.houty) : Number(p && p.y) || 0,
-                broken: !!(p && p.broken),
-                handleMode: p && p.handleMode === "auto" ? "auto" : p && p.handleMode === "broken" ? "broken" : "aligned",
-              }))
-            : [],
-          positionMode: c && c.positionMode === "percent" ? "percent" : "fixed",
-          spacingMode:
-            c && c.spacingMode === "fixed"
-              ? "fixed"
-              : c && c.spacingMode === "percent"
-                ? "percent"
-                : c && c.spacingMode === "proportional"
-                  ? "proportional"
-                  : "length",
-          rotateMode: c && c.rotateMode === "chain" ? "chain" : c && c.rotateMode === "chainScale" ? "chainScale" : "tangent",
-          position: Number(c && c.position) || 0,
-          spacing: Number(c && c.spacing) || 0,
-          rotateMix: math.clamp(Number(c && c.rotateMix) || 0, 0, 1),
-          translateMix: math.clamp(Number(c && c.translateMix) || 0, 0, 1),
-          skinRequired: !!(c && c.skinRequired),
-          closed: !!(c && c.closed),
-          order: getConstraintOrder(c, i),
-          enabled: c ? c.enabled !== false : true,
-        }));
-        ensurePathConstraints(state.mesh);
-      }
-      if (Array.isArray(data.animations) && data.animations.length > 0) {
-        state.anim.animations = data.animations;
-        state.anim.currentAnimId = data.animations[0].id;
-      }
-      if (data && data.animationState && Array.isArray(data.animationState.layerTracks)) {
-        state.anim.layerTracks = data.animationState.layerTracks.map((t, i) => ({
-          id: t && t.id ? String(t.id) : makeLayerTrackId(),
-          name: t && t.name ? String(t.name) : `Layer ${i + 1}`,
-          enabled: t ? t.enabled !== false : true,
-          animId: t && t.animId ? String(t.animId) : "",
-          loop: t ? t.loop !== false : true,
-          speed: Number.isFinite(Number(t && t.speed)) ? math.clamp(Number(t && t.speed), -10, 10) : 1,
-          offset: Number(t && t.offset) || 0,
-          alpha: math.clamp(Number(t && t.alpha) || 0, 0, 1),
-          mode: t && t.mode === "add" ? "add" : "replace",
-          maskMode: t && (t.maskMode === "include" || t.maskMode === "exclude") ? t.maskMode : "all",
-          maskBones: Array.isArray(t && t.maskBones) ? t.maskBones.map((v) => Number(v)).filter((v) => Number.isFinite(v)) : [],
-        }));
-        state.anim.selectedLayerTrackId = String(data.animationState.selectedLayerTrackId || "");
-        state.anim.batchExportOpen = !!data.animationState.batchExportOpen;
-        if (data.animationState.batchExport && typeof data.animationState.batchExport === "object") {
-          const be = data.animationState.batchExport;
-          state.anim.batchExport = {
-            format: be.format === "gif" || be.format === "pngseq" ? be.format : "webm",
-            fps: Math.max(1, Math.min(60, Math.round(Number(be.fps) || 15))),
-            prefix: String(be.prefix || "batch"),
-            retries: Math.max(0, Math.min(5, Math.round(Number(be.retries) || 1))),
-            delayMs: Math.max(0, Math.min(5000, Math.round(Number(be.delayMs) || 120))),
-            zipPng: be.zipPng !== false,
-          };
-        } else {
-          state.anim.batchExport = {
-            format: "webm",
-            fps: 15,
-            prefix: "batch",
-            retries: 1,
-            delayMs: 120,
-            zipPng: true,
-          };
-        }
+    rebuildMesh();
+    if (state.mesh && Array.isArray(data.rigBones)) {
+      state.mesh.rigBones = data.rigBones;
+      syncPoseFromRig(state.mesh);
+      syncBindPose(state.mesh);
+      refreshWeightsForBoneCount();
+    }
+    if (state.mesh && Array.isArray(data.ikConstraints)) {
+      state.mesh.ikConstraints = data.ikConstraints.map((c, i) => ({
+        name: c && c.name ? String(c.name) : `ik_${i}`,
+        bones: Array.isArray(c && c.bones) ? c.bones.map((v) => Number(v)).filter((v) => Number.isFinite(v)) : [],
+        target: Number(c && c.target),
+        targetX: Number(c && c.targetX),
+        targetY: Number(c && c.targetY),
+        mix: math.clamp(Number(c && c.mix) || 1, 0, 1),
+        softness: Math.max(0, Number(c && c.softness) || 0),
+        bendPositive: c ? c.bendPositive !== false : true,
+        compress: !!(c && c.compress),
+        stretch: !!(c && c.stretch),
+        uniform: !!(c && c.uniform),
+        order: getConstraintOrder(c, i),
+        skinRequired: !!(c && c.skinRequired),
+        enabled: c ? c.enabled !== false : true,
+        endMode: c && c.endMode === "tail" ? "tail" : "head",
+      }));
+      ensureIKConstraints(state.mesh);
+    }
+    if (state.mesh && Array.isArray(data.transformConstraints)) {
+      state.mesh.transformConstraints = data.transformConstraints.map((c, i) => ({
+        name: c && c.name ? String(c.name) : `transform_${i}`,
+        bones: Array.isArray(c && c.bones) ? c.bones.map((v) => Number(v)).filter((v) => Number.isFinite(v)) : [],
+        target: Number(c && c.target),
+        rotateMix: math.clamp(Number(c && c.rotateMix) || 0, 0, 1),
+        translateMix: math.clamp(Number(c && c.translateMix) || 0, 0, 1),
+        scaleMix: math.clamp(Number(c && c.scaleMix) || 0, 0, 1),
+        shearMix: math.clamp(Number(c && c.shearMix) || 0, 0, 1),
+        offsetX: Number(c && c.offsetX) || 0,
+        offsetY: Number(c && c.offsetY) || 0,
+        offsetRot: Number(c && c.offsetRot) || 0,
+        offsetScaleX: Number(c && c.offsetScaleX) || 0,
+        offsetScaleY: Number(c && c.offsetScaleY) || 0,
+        offsetShearY: Number(c && c.offsetShearY) || 0,
+        local: !!(c && c.local),
+        relative: !!(c && c.relative),
+        order: getConstraintOrder(c, i),
+        skinRequired: !!(c && c.skinRequired),
+        enabled: c ? c.enabled !== false : true,
+      }));
+      ensureTransformConstraints(state.mesh);
+    }
+    if (state.mesh && Array.isArray(data.pathConstraints)) {
+      state.mesh.pathConstraints = data.pathConstraints.map((c, i) => ({
+        name: c && c.name ? String(c.name) : `path_${i}`,
+        bones: Array.isArray(c && c.bones) ? c.bones.map((v) => Number(v)).filter((v) => Number.isFinite(v)) : [],
+        target: Number(c && c.target),
+        sourceType: c && c.sourceType === "bone_chain" ? "bone_chain" : c && c.sourceType === "slot" ? "slot" : "drawn",
+        targetSlot: Number(c && c.targetSlot),
+        points: Array.isArray(c && c.points)
+          ? c.points.map((p) => ({
+            x: Number(p && p.x) || 0,
+            y: Number(p && p.y) || 0,
+            hinx: Number.isFinite(Number(p && p.hinx)) ? Number(p.hinx) : Number(p && p.x) || 0,
+            hiny: Number.isFinite(Number(p && p.hiny)) ? Number(p.hiny) : Number(p && p.y) || 0,
+            houtx: Number.isFinite(Number(p && p.houtx)) ? Number(p.houtx) : Number(p && p.x) || 0,
+            houty: Number.isFinite(Number(p && p.houty)) ? Number(p.houty) : Number(p && p.y) || 0,
+            broken: !!(p && p.broken),
+            handleMode: p && p.handleMode === "auto" ? "auto" : p && p.handleMode === "broken" ? "broken" : "aligned",
+          }))
+          : [],
+        positionMode: c && c.positionMode === "percent" ? "percent" : "fixed",
+        spacingMode:
+          c && c.spacingMode === "fixed"
+            ? "fixed"
+            : c && c.spacingMode === "percent"
+              ? "percent"
+              : c && c.spacingMode === "proportional"
+                ? "proportional"
+                : "length",
+        rotateMode: c && c.rotateMode === "chain" ? "chain" : c && c.rotateMode === "chainScale" ? "chainScale" : "tangent",
+        position: Number(c && c.position) || 0,
+        spacing: Number(c && c.spacing) || 0,
+        rotateMix: math.clamp(Number(c && c.rotateMix) || 0, 0, 1),
+        translateMix: math.clamp(Number(c && c.translateMix) || 0, 0, 1),
+        skinRequired: !!(c && c.skinRequired),
+        closed: !!(c && c.closed),
+        order: getConstraintOrder(c, i),
+        enabled: c ? c.enabled !== false : true,
+      }));
+      ensurePathConstraints(state.mesh);
+    }
+    if (Array.isArray(data.animations) && data.animations.length > 0) {
+      state.anim.animations = data.animations;
+      state.anim.currentAnimId = data.animations[0].id;
+    }
+    if (data && data.animationState && Array.isArray(data.animationState.layerTracks)) {
+      state.anim.layerTracks = data.animationState.layerTracks.map((t, i) => ({
+        id: t && t.id ? String(t.id) : makeLayerTrackId(),
+        name: t && t.name ? String(t.name) : `Layer ${i + 1}`,
+        enabled: t ? t.enabled !== false : true,
+        animId: t && t.animId ? String(t.animId) : "",
+        loop: t ? t.loop !== false : true,
+        speed: Number.isFinite(Number(t && t.speed)) ? math.clamp(Number(t && t.speed), -10, 10) : 1,
+        offset: Number(t && t.offset) || 0,
+        alpha: math.clamp(Number(t && t.alpha) || 0, 0, 1),
+        mode: t && t.mode === "add" ? "add" : "replace",
+        maskMode: t && (t.maskMode === "include" || t.maskMode === "exclude") ? t.maskMode : "all",
+        maskBones: Array.isArray(t && t.maskBones) ? t.maskBones.map((v) => Number(v)).filter((v) => Number.isFinite(v)) : [],
+      }));
+      state.anim.selectedLayerTrackId = String(data.animationState.selectedLayerTrackId || "");
+      state.anim.batchExportOpen = !!data.animationState.batchExportOpen;
+      if (data.animationState.batchExport && typeof data.animationState.batchExport === "object") {
+        const be = data.animationState.batchExport;
+        state.anim.batchExport = {
+          format: be.format === "gif" || be.format === "pngseq" ? be.format : "webm",
+          fps: Math.max(1, Math.min(60, Math.round(Number(be.fps) || 15))),
+          prefix: String(be.prefix || "batch"),
+          retries: Math.max(0, Math.min(5, Math.round(Number(be.retries) || 1))),
+          delayMs: Math.max(0, Math.min(5000, Math.round(Number(be.delayMs) || 120))),
+          zipPng: be.zipPng !== false,
+        };
       } else {
-        state.anim.layerTracks = [];
-        state.anim.selectedLayerTrackId = "";
-        state.anim.batchExportOpen = false;
         state.anim.batchExport = {
           format: "webm",
           fps: 15,
@@ -16562,212 +19742,235 @@ async function handleProjectLoadInputChange(e) {
           zipPng: true,
         };
       }
-      if (data && data.animationState && data.animationState.stateMachine && typeof data.animationState.stateMachine === "object") {
-        state.anim.stateMachine = data.animationState.stateMachine;
-      } else {
-        state.anim.stateMachine = {
-          enabled: true,
-          states: [],
-          parameters: [],
-          currentStateId: "",
-          selectedParamId: "",
-          selectedTransitionId: "",
-          selectedConditionId: "",
-          pendingStateId: "",
-          pendingDuration: 0.2,
-        };
-      }
-      if (data && data.animationState && data.animationState.onionSkin && typeof data.animationState.onionSkin === "object") {
-        state.anim.onionSkin = data.animationState.onionSkin;
-      } else {
-        state.anim.onionSkin = {
-          enabled: false,
-          prevFrames: 2,
-          nextFrames: 2,
-          alpha: 0.22,
-        };
-      }
-      ensureOnionSkinSettings();
-      state.anim.groupMute = {};
-      state.anim.groupSolo = {};
-      state.anim.filterText = "";
-      state.anim.onlyKeyed = false;
-      if (Array.isArray(data.slots) && state.slots.length > 0) {
-        for (let i = 0; i < state.slots.length && i < data.slots.length; i += 1) {
-          const src = data.slots[i] || {};
-          const dst = state.slots[i];
-          dst.name = src.name || dst.name;
-          dst.id = src.id ? String(src.id) : dst.id || makeSlotId();
-          dst.attachmentName = src.attachmentName ? String(src.attachmentName) : dst.attachmentName || "main";
-          dst.placeholderName = src.placeholderName ? String(src.placeholderName) : dst.placeholderName || dst.attachmentName || "main";
-          dst.activeAttachment =
-            Object.prototype.hasOwnProperty.call(src, "activeAttachment")
-              ? src.activeAttachment == null
-                ? null
-                : String(src.activeAttachment)
-              : String(dst.attachmentName || "main");
-          if (Array.isArray(src.attachments) && Array.isArray(dst.attachments)) {
-            const srcByName = new Map(
-              src.attachments
-                .filter((a) => a && a.name)
-                .map((a) => [
-                  String(a.name),
-                  {
-                    placeholder: String(a.placeholder || dst.placeholderName || dst.attachmentName || "main"),
-                    type: normalizeAttachmentType(a.type),
-                    linkedParent: a.linkedParent != null ? String(a.linkedParent) : "",
-                    pointX: Number(a.pointX) || 0,
-                    pointY: Number(a.pointY) || 0,
-                    pointRot: Number(a.pointRot) || 0,
-                    bboxSource: a && a.bboxSource === "contour" ? "contour" : "fill",
-                    sequence:
-                      a && a.sequence
-                        ? {
-                            enabled: !!a.sequence.enabled,
-                            count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
-                            start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
-                            digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
-                          }
-                        : { enabled: false, count: 1, start: 0, digits: 2 },
-                  },
-                ])
-            );
-            for (const a of dst.attachments) {
-              if (!a || !a.name) continue;
-              const meta = srcByName.get(String(a.name));
-              a.placeholder = meta ? meta.placeholder : String(a.placeholder || dst.placeholderName || dst.attachmentName || "main");
-              if (meta) {
-                a.type = meta.type;
-                a.linkedParent = meta.linkedParent;
-                a.pointX = meta.pointX;
-                a.pointY = meta.pointY;
-                a.pointRot = meta.pointRot;
-                a.bboxSource = meta.bboxSource;
-                a.sequence = meta.sequence;
-              }
+    } else {
+      state.anim.layerTracks = [];
+      state.anim.selectedLayerTrackId = "";
+      state.anim.batchExportOpen = false;
+      state.anim.batchExport = {
+        format: "webm",
+        fps: 15,
+        prefix: "batch",
+        retries: 1,
+        delayMs: 120,
+        zipPng: true,
+      };
+    }
+    if (data && data.animationState && data.animationState.stateMachine && typeof data.animationState.stateMachine === "object") {
+      state.anim.stateMachine = data.animationState.stateMachine;
+    } else {
+      state.anim.stateMachine = {
+        enabled: true,
+        states: [],
+        parameters: [],
+        currentStateId: "",
+        selectedParamId: "",
+        selectedTransitionId: "",
+        selectedConditionId: "",
+        pendingStateId: "",
+        pendingDuration: 0.2,
+      };
+    }
+    if (data && data.animationState && data.animationState.onionSkin && typeof data.animationState.onionSkin === "object") {
+      state.anim.onionSkin = data.animationState.onionSkin;
+    } else {
+      state.anim.onionSkin = {
+        enabled: false,
+        prevFrames: 2,
+        nextFrames: 2,
+        alpha: 0.22,
+      };
+    }
+    ensureOnionSkinSettings();
+    state.anim.groupMute = {};
+    state.anim.groupSolo = {};
+    state.anim.filterText = "";
+    state.anim.onlyKeyed = false;
+    if (Array.isArray(data.slots) && state.slots.length > 0) {
+      for (let i = 0; i < state.slots.length && i < data.slots.length; i += 1) {
+        const src = data.slots[i] || {};
+        const dst = state.slots[i];
+        dst.name = src.name || dst.name;
+        dst.id = src.id ? String(src.id) : dst.id || makeSlotId();
+        dst.attachmentName = src.attachmentName ? String(src.attachmentName) : dst.attachmentName || "main";
+        dst.placeholderName = src.placeholderName ? String(src.placeholderName) : dst.placeholderName || dst.attachmentName || "main";
+        dst.activeAttachment =
+          Object.prototype.hasOwnProperty.call(src, "activeAttachment")
+            ? src.activeAttachment == null
+              ? null
+              : String(src.activeAttachment)
+            : String(dst.attachmentName || "main");
+        if (Array.isArray(src.attachments) && Array.isArray(dst.attachments)) {
+          const srcByName = new Map(
+            src.attachments
+              .filter((a) => a && a.name)
+              .map((a) => [
+                String(a.name),
+                {
+                  placeholder: String(a.placeholder || dst.placeholderName || dst.attachmentName || "main"),
+                  type: normalizeAttachmentType(a.type),
+                  linkedParent: a.linkedParent != null ? String(a.linkedParent) : "",
+                  pointX: Number(a.pointX) || 0,
+                  pointY: Number(a.pointY) || 0,
+                  pointRot: Number(a.pointRot) || 0,
+                  bboxSource: a && a.bboxSource === "contour" ? "contour" : "fill",
+                  sequence:
+                    a && a.sequence
+                      ? {
+                        enabled: !!a.sequence.enabled,
+                        count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
+                        start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
+                        digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
+                        setupIndex: Math.max(0, Math.round(Number(a.sequence.setupIndex) || 0)),
+                        mode: Number(a.sequence.mode) || 0,
+                        path: String(a.sequence.path || ""),
+                      }
+                      : { enabled: false, count: 1, start: 0, digits: 2, setupIndex: 0, mode: 0, path: "" },
+                },
+              ])
+          );
+          for (const a of dst.attachments) {
+            if (!a || !a.name) continue;
+            const meta = srcByName.get(String(a.name));
+            a.placeholder = meta ? meta.placeholder : String(a.placeholder || dst.placeholderName || dst.attachmentName || "main");
+            if (meta) {
+              a.type = meta.type;
+              a.linkedParent = meta.linkedParent;
+              a.pointX = meta.pointX;
+              a.pointY = meta.pointY;
+              a.pointRot = meta.pointRot;
+              a.bboxSource = meta.bboxSource;
+              a.sequence = meta.sequence;
             }
           }
-          dst.editorVisible = Object.prototype.hasOwnProperty.call(src, "editorVisible")
-            ? src.editorVisible !== false
-            : src.visible !== false;
-          dst.bone = Number.isFinite(src.bone) ? src.bone : dst.bone;
-          dst.visible = dst.editorVisible;
-          dst.alpha = Number.isFinite(src.alpha) ? math.clamp(src.alpha, 0, 1) : 1;
-          dst.r = Number.isFinite(src.r) ? math.clamp(src.r, 0, 1) : 1;
-          dst.g = Number.isFinite(src.g) ? math.clamp(src.g, 0, 1) : 1;
-          dst.b = Number.isFinite(src.b) ? math.clamp(src.b, 0, 1) : 1;
-          dst.blend = normalizeSlotBlendMode(src && src.blend);
-          dst.darkEnabled = !!(src && src.darkEnabled);
-          dst.dr = Number.isFinite(src && src.dr) ? math.clamp(src.dr, 0, 1) : 0;
-          dst.dg = Number.isFinite(src && src.dg) ? math.clamp(src.dg, 0, 1) : 0;
-          dst.db = Number.isFinite(src && src.db) ? math.clamp(src.db, 0, 1) : 0;
-          dst.tx = Number.isFinite(src.tx) ? src.tx : 0;
-          dst.ty = Number.isFinite(src.ty) ? src.ty : 0;
-          dst.rot = Number.isFinite(src.rot) ? src.rot : 0;
-          dst.useWeights = src.useWeights === true;
-          dst.weightBindMode = src.weightBindMode || (dst.useWeights ? "single" : "none");
-          dst.weightMode =
-            src.weightMode ||
-            (dst.weightBindMode === "auto" ? "weighted" : dst.useWeights ? "single" : "free");
-          dst.influenceBones = Array.isArray(src.influenceBones)
-            ? src.influenceBones.filter((v) => Number.isFinite(v))
-            : [];
-          dst.clipEnabled = !!src.clipEnabled;
-          dst.clipSource = src && src.clipSource === "contour" ? "contour" : "fill";
-          dst.clipEndSlotId =
-            Object.prototype.hasOwnProperty.call(src, "clipEndSlotId")
-              ? src.clipEndSlotId == null
-                ? null
-                : String(src.clipEndSlotId)
-              : null;
-          if (src.rect && Number.isFinite(src.rect.w) && Number.isFinite(src.rect.h)) {
-            dst.rect = {
-              x: Number(src.rect.x) || 0,
-              y: Number(src.rect.y) || 0,
-              w: Math.max(1, Number(src.rect.w) || 1),
-              h: Math.max(1, Number(src.rect.h) || 1),
-            };
-          }
-          if (src.meshContour && Array.isArray(src.meshContour.points)) {
-            dst.meshContour = {
-              points: src.meshContour.points.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 })),
-              closed: !!src.meshContour.closed,
-              triangles: Array.isArray(src.meshContour.triangles)
-                ? src.meshContour.triangles.map((v) => Number(v) || 0)
-                : [],
-              fillPoints: Array.isArray(src.meshContour.fillPoints)
-                ? src.meshContour.fillPoints.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
-                : [],
-              fillTriangles: Array.isArray(src.meshContour.fillTriangles)
-                ? src.meshContour.fillTriangles.map((v) => Number(v) || 0)
-                : [],
-              manualEdges: Array.isArray(src.meshContour.manualEdges)
-                ? src.meshContour.manualEdges
-                    .filter((e) => Array.isArray(e) && e.length >= 2)
-                    .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
-                : [],
-              fillManualEdges: Array.isArray(src.meshContour.fillManualEdges)
-                ? src.meshContour.fillManualEdges
-                    .filter((e) => Array.isArray(e) && e.length >= 2)
-                    .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
-                : [],
-            };
-          } else {
-            ensureSlotContour(dst);
-          }
-          dst.docWidth = Number.isFinite(src.docWidth) ? src.docWidth : state.imageWidth;
-          dst.docHeight = Number.isFinite(src.docHeight) ? src.docHeight : state.imageHeight;
-          ensureSlotVisualState(dst);
         }
-        if (Number.isFinite(data.activeSlot)) {
-          state.activeSlot = math.clamp(Number(data.activeSlot), 0, state.slots.length - 1);
+        dst.editorVisible = Object.prototype.hasOwnProperty.call(src, "editorVisible")
+          ? src.editorVisible !== false
+          : src.visible !== false;
+        dst.bone = Number.isFinite(src.bone) ? src.bone : dst.bone;
+        dst.visible = dst.editorVisible;
+        dst.alpha = Number.isFinite(src.alpha) ? math.clamp(src.alpha, 0, 1) : 1;
+        dst.r = Number.isFinite(src.r) ? math.clamp(src.r, 0, 1) : 1;
+        dst.g = Number.isFinite(src.g) ? math.clamp(src.g, 0, 1) : 1;
+        dst.b = Number.isFinite(src.b) ? math.clamp(src.b, 0, 1) : 1;
+        dst.blend = normalizeSlotBlendMode(src && src.blend);
+        dst.darkEnabled = !!(src && src.darkEnabled);
+        dst.dr = Number.isFinite(src && src.dr) ? math.clamp(src.dr, 0, 1) : 0;
+        dst.dg = Number.isFinite(src && src.dg) ? math.clamp(src.dg, 0, 1) : 0;
+        dst.db = Number.isFinite(src && src.db) ? math.clamp(src.db, 0, 1) : 0;
+        dst.tx = Number.isFinite(src.tx) ? src.tx : 0;
+        dst.ty = Number.isFinite(src.ty) ? src.ty : 0;
+        dst.rot = Number.isFinite(src.rot) ? src.rot : 0;
+        dst.useWeights = src.useWeights === true;
+        dst.weightBindMode = src.weightBindMode || (dst.useWeights ? "single" : "none");
+        dst.weightMode =
+          src.weightMode ||
+          (dst.weightBindMode === "auto" ? "weighted" : dst.useWeights ? "single" : "free");
+        dst.influenceBones = Array.isArray(src.influenceBones)
+          ? src.influenceBones.filter((v) => Number.isFinite(v))
+          : [];
+        dst.clipEnabled = !!src.clipEnabled;
+        dst.clipSource = src && src.clipSource === "contour" ? "contour" : "fill";
+        dst.clipEndSlotId =
+          Object.prototype.hasOwnProperty.call(src, "clipEndSlotId")
+            ? src.clipEndSlotId == null
+              ? null
+              : String(src.clipEndSlotId)
+            : null;
+        if (src.rect && Number.isFinite(src.rect.w) && Number.isFinite(src.rect.h)) {
+          dst.rect = {
+            x: Number(src.rect.x) || 0,
+            y: Number(src.rect.y) || 0,
+            w: Math.max(1, Number(src.rect.w) || 1),
+            h: Math.max(1, Number(src.rect.h) || 1),
+          };
         }
+        if (src.meshContour && Array.isArray(src.meshContour.points)) {
+          dst.meshContour = {
+            points: src.meshContour.points.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 })),
+            sourcePoints: Array.isArray(src.meshContour.sourcePoints)
+              ? src.meshContour.sourcePoints.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
+              : [],
+            authorContourPoints: Array.isArray(src.meshContour.authorContourPoints)
+              ? src.meshContour.authorContourPoints.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
+              : [],
+            closed: !!src.meshContour.closed,
+            triangles: Array.isArray(src.meshContour.triangles)
+              ? src.meshContour.triangles.map((v) => Number(v) || 0)
+              : [],
+            fillPoints: Array.isArray(src.meshContour.fillPoints)
+              ? src.meshContour.fillPoints.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
+              : [],
+            fillTriangles: Array.isArray(src.meshContour.fillTriangles)
+              ? src.meshContour.fillTriangles.map((v) => Number(v) || 0)
+              : [],
+            manualEdges: Array.isArray(src.meshContour.manualEdges)
+              ? src.meshContour.manualEdges
+                .filter((e) => Array.isArray(e) && e.length >= 2)
+                .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
+              : [],
+            fillManualEdges: Array.isArray(src.meshContour.fillManualEdges)
+              ? src.meshContour.fillManualEdges
+                .filter((e) => Array.isArray(e) && e.length >= 2)
+                .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
+              : [],
+          };
+        } else {
+          ensureSlotContour(dst);
+        }
+        dst.docWidth = Number.isFinite(src.docWidth) ? src.docWidth : state.imageWidth;
+        dst.docHeight = Number.isFinite(src.docHeight) ? src.docHeight : state.imageHeight;
+        ensureSlotVisualState(dst);
       }
-      state.slotViewMode = data.slotViewMode === "all" ? "all" : "single";
-      state.skinSets = Array.isArray(data.skinSets)
-        ? data.skinSets.map((s, i) => ({
-            id: s && s.id ? String(s.id) : makeSkinSetId(),
-            name: s && s.name ? String(s.name) : `skin_${i}`,
-            slotAttachments:
-              s && s.slotAttachments && typeof s.slotAttachments === "object"
-                ? Object.fromEntries(
-                    Object.entries(s.slotAttachments).map(([k, v]) => [String(k), v == null ? null : String(v)])
-                  )
-                : {},
-            slotPlaceholderAttachments:
-              s && s.slotPlaceholderAttachments && typeof s.slotPlaceholderAttachments === "object"
-                ? Object.fromEntries(
-                    Object.entries(s.slotPlaceholderAttachments).map(([slotId, map]) => [
-                      String(slotId),
-                      map && typeof map === "object"
-                        ? Object.fromEntries(Object.entries(map).map(([ph, v]) => [String(ph), v == null ? null : String(v)]))
-                        : {},
-                    ])
-                  )
-                : {},
-          }))
-        : [];
-      state.selectedSkinSet = Number.isFinite(Number(data.selectedSkinSet)) ? Number(data.selectedSkinSet) : 0;
-      ensureSkinSets();
-      ensureSlotsHaveBoneBinding();
-      rebuildSlotTriangleIndices();
-      state.selectedBone = state.mesh && state.mesh.rigBones.length > 0 ? 0 : -1;
-      refreshAnimationUI();
-      refreshSlotUI();
-      updateBoneUI();
-      setStatus(`Project loaded${hasEmbeddedImages ? " (with embedded images)" : ""}.`);
-      if (!state.history.suspend) {
-        state.history.undo = [];
-        state.history.redo = [];
-        state.history.lastSig = "";
-        pushUndoCheckpoint(true);
+      if (Number.isFinite(data.activeSlot)) {
+        state.activeSlot = math.clamp(Number(data.activeSlot), 0, state.slots.length - 1);
       }
-      saveAutosaveSnapshot("project_load", true);
-    } catch (err) {
-      setStatus(`Project load failed: ${err.message}`);
-    } finally {
-      e.target.value = "";
     }
+    state.slotViewMode = "all";
+    state.boneTreeSelectedSlotByBone = Object.create(null);
+    state.skinSets = Array.isArray(data.skinSets)
+      ? data.skinSets.map((s, i) => ({
+        id: s && s.id ? String(s.id) : makeSkinSetId(),
+        name: s && s.name ? String(s.name) : `skin_${i}`,
+        slotAttachments:
+          s && s.slotAttachments && typeof s.slotAttachments === "object"
+            ? Object.fromEntries(
+              Object.entries(s.slotAttachments).map(([k, v]) => [String(k), v == null ? null : String(v)])
+            )
+            : {},
+        slotPlaceholderAttachments:
+          s && s.slotPlaceholderAttachments && typeof s.slotPlaceholderAttachments === "object"
+            ? Object.fromEntries(
+              Object.entries(s.slotPlaceholderAttachments).map(([slotId, map]) => [
+                String(slotId),
+                map && typeof map === "object"
+                  ? Object.fromEntries(Object.entries(map).map(([ph, v]) => [String(ph), v == null ? null : String(v)]))
+                  : {},
+              ])
+            )
+            : {},
+      }))
+      : [];
+    state.selectedSkinSet = Number.isFinite(Number(data.selectedSkinSet)) ? Number(data.selectedSkinSet) : 0;
+    ensureSkinSets();
+    ensureSlotsHaveBoneBinding();
+    rebuildSlotTriangleIndices();
+    state.selectedBone = state.mesh && state.mesh.rigBones.length > 0 ? 0 : -1;
+    refreshAnimationUI();
+    refreshSlotUI();
+    updateBoneUI();
+    setStatus(`Project loaded${hasEmbeddedImages ? " (with embedded images)" : ""}.`);
+    if (!state.history.suspend) {
+      state.history.undo = [];
+      state.history.redo = [];
+      state.history.lastSig = "";
+      pushUndoCheckpoint(true);
+    }
+    saveAutosaveSnapshot("project_load", true);
+  } catch (err) {
+    setStatus(`Project load failed: ${err.message}`);
+  } finally {
+    e.target.value = "";
+  }
 }
 
 if (els.projectLoadInput) {
@@ -16811,29 +20014,41 @@ if (els.diagnosticsList) {
 els.remeshBtn.addEventListener("click", rebuildMesh);
 els.editMode.addEventListener("change", () => {
   const v = els.editMode.value;
-  state.editMode = v === "vertex" ? "vertex" : v === "slotmesh" ? "slotmesh" : "skeleton";
-  if (state.editMode === "slotmesh") {
+  state.editMode = v === "vertex" ? "vertex" : v === "slotmesh" ? "slotmesh" : v === "object" ? "object" : "skeleton";
+  if (state.editMode === "object") {
+    state.boneMode = "object";
+    state.uiPage = "object";
+    state.leftToolTab = "object";
+  } else if (state.editMode === "slotmesh") {
     state.uiPage = "slot";
-    state.leftToolTab = "slotmesh";
-  } else if (state.uiPage === "slot") {
+    if (state.leftToolTab !== "slotmesh" && state.leftToolTab !== "canvas") state.leftToolTab = "slotmesh";
+  } else if (state.uiPage === "slot" || state.uiPage === "object") {
     state.uiPage = "rig";
-    if (state.leftToolTab === "slotmesh") state.leftToolTab = "setup";
+    if (state.editMode === "skeleton") {
+      const sysMode = els.systemMode ? els.systemMode.value : "setup";
+      state.boneMode = sysMode === "animate" ? "pose" : "edit";
+    }
+    if (state.leftToolTab === "slotmesh" || state.leftToolTab === "canvas" || state.leftToolTab === "object") state.leftToolTab = "setup";
   }
-  if (state.editMode !== "skeleton") state.pathEdit.drawArmed = false;
+  if (state.editMode !== "skeleton" && state.editMode !== "object") state.pathEdit.drawArmed = false;
   state.workspaceMode = state.editMode === "slotmesh" ? "slotmesh" : "rig";
   updateWorkspaceUI();
 });
-els.boneMode.addEventListener("change", () => {
-  if (!state.mesh) return;
-  state.boneMode = els.boneMode.value;
-  if (state.boneMode !== "edit") {
+if (els.systemMode) els.systemMode.addEventListener("change", () => {
+  const sysMode = els.systemMode.value;
+  if (state.editMode === "object") {
+    state.boneMode = "object";
+  } else if (sysMode === "animate") {
+    state.boneMode = "pose";
+    if (state.mesh) {
+      syncPoseFromRig(state.mesh);
+      samplePoseAtTime(state.mesh, state.anim.time);
+    }
+  } else {
+    state.boneMode = "edit";
     state.addBoneArmed = false;
     state.addBoneDraft = null;
     els.addBoneBtn.textContent = "Add Bone";
-  }
-  if (state.boneMode === "pose") {
-    syncPoseFromRig(state.mesh);
-    samplePoseAtTime(state.mesh, state.anim.time);
   }
   updateWorkspaceUI();
   updateBoneUI();
@@ -16862,8 +20077,7 @@ els.autoWeightBtn.addEventListener("click", () => {
   if (autoWeightActiveSlot()) {
     const picked = getSelectedBonesForWeight(state.mesh);
     setStatus(
-      `Auto weights updated (${state.weightMode}) on ${state.slots.length > 0 ? "active slot" : "mesh"}; bones: ${
-        picked.length > 0 ? picked.join(", ") : "(slot default)"
+      `Auto weights updated (${state.weightMode}) on ${state.slots.length > 0 ? "active slot" : "mesh"}; bones: ${picked.length > 0 ? picked.join(", ") : "(slot default)"
       }.`
     );
   }
@@ -17023,6 +20237,46 @@ if (els.treeCtxSlotDeleteBtn) {
     }
     pushUndoCheckpoint(true);
     setStatus(`Slot deleted: ${removed.name || "slot"}`);
+    closeBoneTreeContextMenu();
+  });
+}
+if (els.treeCtxBoneDeleteBtn) {
+  els.treeCtxBoneDeleteBtn.addEventListener("click", () => {
+    const m = state.mesh;
+    if (!m || state.boneTreeMenuContextKind !== "bone") {
+      setStatus("Right-click a bone row first.");
+      closeBoneTreeContextMenu();
+      return;
+    }
+    const bi = Number(state.selectedBone);
+    const name =
+      Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
+    if (!deleteBoneWithSlotPolicy("to_staging")) {
+      setStatus("Delete bone failed. Keep at least one bone, and only in Edit mode.");
+      closeBoneTreeContextMenu();
+      return;
+    }
+    setStatus(`Bone deleted: ${name} (slots moved to staging).`);
+    closeBoneTreeContextMenu();
+  });
+}
+if (els.treeCtxBoneDeleteWithSlotsBtn) {
+  els.treeCtxBoneDeleteWithSlotsBtn.addEventListener("click", () => {
+    const m = state.mesh;
+    if (!m || state.boneTreeMenuContextKind !== "bone") {
+      setStatus("Right-click a bone row first.");
+      closeBoneTreeContextMenu();
+      return;
+    }
+    const bi = Number(state.selectedBone);
+    const name =
+      Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
+    if (!deleteBoneWithSlotPolicy("delete_slots")) {
+      setStatus("Delete bone failed. Keep at least one bone, and only in Edit mode.");
+      closeBoneTreeContextMenu();
+      return;
+    }
+    setStatus(`Bone deleted: ${name} (bound slots deleted).`);
     closeBoneTreeContextMenu();
   });
 }
@@ -17471,34 +20725,8 @@ if (els.pathApplyHandleModeBtn) {
 }
 if (els.slotMeshNewBtn) {
   els.slotMeshNewBtn.addEventListener("click", () => {
-    const source = getActiveSlot();
-    if (!source) return;
-    const mode = state.slotMesh.newContourMode === "reset_current" ? "reset_current" : "new_slot";
-    if (mode === "reset_current") {
-      source.meshContour = {
-        points: [],
-        closed: false,
-        triangles: [],
-        fillPoints: [],
-        fillTriangles: [],
-        manualEdges: [],
-        fillManualEdges: [],
-      };
-      state.slotMesh.activePoint = -1;
-      state.slotMesh.activeSet = "contour";
-      state.slotMesh.edgeSelection = [];
-      state.slotMesh.edgeSelectionSet = "contour";
-      setStatus("Current slot contour reset. Click canvas to add contour points.");
-      return;
-    }
-    const created = addContourSlotFromActiveSlot(source);
-    if (!created) return;
-    setStatus(`Created contour slot "${created.name}" from shared base texture.`);
-  });
-}
-if (els.slotMeshNewMode) {
-  els.slotMeshNewMode.addEventListener("change", () => {
-    state.slotMesh.newContourMode = els.slotMeshNewMode.value === "reset_current" ? "reset_current" : "new_slot";
+    const next = normalizeSlotMeshToolMode(state.slotMesh.toolMode) === "add" ? "select" : "add";
+    setSlotMeshToolMode(next, true);
   });
 }
 if (els.slotMeshGridReplaceContour) {
@@ -17520,6 +20748,7 @@ if (els.slotMeshCloseBtn) {
     c.fillPoints = [];
     c.fillTriangles = [];
     c.fillManualEdges = [];
+    clearSlotMeshSelection();
     setStatus("Contour closed.");
   });
 }
@@ -17532,7 +20761,8 @@ if (els.slotMeshTriangulateBtn) {
       setStatus("Close contour first, then triangulate.");
       return;
     }
-    c.triangles = applyManualEdgesToTriangles(c.points, triangulatePolygon(c.points), c.manualEdges);
+    // Filter triangles outside the contour (using the reusable helper)
+    c.triangles = triangulateContourPoints(c.points, c.contourEdges, c.manualEdges);
     c.fillPoints = [];
     c.fillTriangles = [];
     c.fillManualEdges = [];
@@ -17540,7 +20770,8 @@ if (els.slotMeshTriangulateBtn) {
       setStatus("Triangulation failed. Adjust contour (avoid self-intersection).");
       return;
     }
-    setStatus(`Triangulated: ${c.triangles.length / 3} triangles.`);
+    clearSlotMeshSelection();
+    setStatus(`Triangulated preview: ${c.triangles.length / 3} triangles. Use Apply Mesh to commit.`);
   });
 }
 if (els.slotMeshGridFillBtn) {
@@ -17553,29 +20784,38 @@ if (els.slotMeshGridFillBtn) {
       return;
     }
     const replaceContour = !!state.slotMesh.gridReplaceContour;
+    const sourceContourPoints = getSlotContourSourcePoints(c);
+    if (sourceContourPoints.length < 3) {
+      setStatus("Grid fill source contour is invalid. Re-draw contour points first.");
+      return;
+    }
     const fill = buildUniformGridFillForContour(
-      c,
+      { closed: true, points: sourceContourPoints },
       Number(els.gridX.value) || 24,
       Number(els.gridY.value) || 24,
       !replaceContour
     );
     c.fillPoints = fill.points;
     c.fillManualEdges = normalizeEdgePairs(c.fillManualEdges, c.fillPoints.length);
-    c.fillTriangles = applyManualEdgesToTriangles(c.fillPoints, fill.triangles, c.fillManualEdges);
-    c.fillTriangles = sanitizeTriangles(c.fillPoints, c.fillTriangles, c.points);
+    c.fillTriangles = buildSafeFillTriangles(c.fillPoints, fill.triangles, sourceContourPoints, c.fillManualEdges);
     if (c.fillTriangles.length < 3) {
       setStatus("Grid fill failed. Increase Grid X/Y or adjust contour.");
       return;
     }
     if (replaceContour) {
       const nextContour = Array.isArray(fill.contourPoints) ? fill.contourPoints : [];
+      let replaced = false;
       if (nextContour.length >= 3) {
         c.points = nextContour.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }));
         c.manualEdges = [];
+        c.contourEdges = [];
+        for (let i = 0; i < c.points.length; i++) {
+          c.contourEdges.push([i, (i + 1) % c.points.length]);
+        }
         c.triangles = [];
         c.closed = true;
-        // Re-validate fill triangles against the replaced contour polygon.
-        c.fillTriangles = sanitizeTriangles(c.fillPoints, c.fillTriangles, c.points);
+        // Keep fill anchored to author contour to avoid cumulative shrink.
+        c.fillTriangles = buildSafeFillTriangles(c.fillPoints, c.fillTriangles, sourceContourPoints, c.fillManualEdges);
         if (c.fillTriangles.length < 3) {
           c.fillPoints = [];
           c.fillManualEdges = [];
@@ -17586,13 +20826,32 @@ if (els.slotMeshGridFillBtn) {
         state.slotMesh.edgeSelectionSet = "fill";
         state.slotMesh.activeSet = "fill";
         state.slotMesh.activePoint = Math.max(0, Math.min(state.slotMesh.activePoint, c.fillPoints.length - 1));
+        replaced = true;
       }
+      clearSlotMeshSelection();
       setStatus(
-        `Grid fill generated: ${c.fillPoints.length} points, ${c.fillTriangles.length / 3} triangles. Contour replaced: ${c.points.length} points.`
+        `Grid fill generated: ${c.fillPoints.length} points, ${c.fillTriangles.length / 3} triangles. ${replaced ? `Contour replaced: ${c.points.length} points.` : "Contour replacement skipped."
+        } Preview updated. Use Apply Mesh to commit.`
       );
       return;
     }
-    setStatus(`Grid fill generated: ${c.fillPoints.length} points, ${c.fillTriangles.length / 3} triangles.`);
+    clearSlotMeshSelection();
+    setStatus(
+      `Grid fill generated: ${c.fillPoints.length} points, ${c.fillTriangles.length / 3} triangles. Preview updated; use Apply Mesh to commit.`
+    );
+  });
+}
+if (els.slotMeshAutoForegroundBtn) {
+  els.slotMeshAutoForegroundBtn.addEventListener("click", () => {
+    const slot = getActiveSlot();
+    if (!slot) return;
+    const result = autoBuildForegroundMeshForSlot(slot, Number(els.gridX.value) || 24, Number(els.gridY.value) || 24);
+    if (!result || !result.ok) {
+      setStatus(`Auto Foreground failed: ${(result && result.reason) || "unknown error"}`);
+      return;
+    }
+    clearSlotMeshSelection();
+    setStatus(`Auto Foreground preview: contour ${result.contourPoints}, fill ${result.fillPoints}, triangles ${result.triangles}.`);
   });
 }
 if (els.slotMeshApplyBtn) {
@@ -17604,7 +20863,28 @@ if (els.slotMeshApplyBtn) {
       setStatus("Apply failed. Need a closed contour with valid triangulation.");
       return;
     }
+    clearSlotMeshSelection();
     setStatus("Slot mesh applied from contour.");
+  });
+}
+if (els.slotMeshCreateApplyBtn) {
+  els.slotMeshCreateApplyBtn.addEventListener("click", () => {
+    const source = getActiveSlot();
+    if (!source) return;
+    const created = addContourSlotFromActiveSlot(source);
+    if (!created) {
+      setStatus("Create slot failed.");
+      return;
+    }
+    created.meshContour = cloneSlotMeshContour(source.meshContour);
+    const ok = applyContourMeshToSlot(created);
+    if (!ok) {
+      deleteActiveSlotQuick();
+      setStatus("Create slot + apply failed. Need a closed contour with valid triangulation.");
+      return;
+    }
+    clearSlotMeshSelection();
+    setStatus(`Created slot "${created.name}" and applied contour mesh.`);
   });
 }
 if (els.slotMeshLinkEdgeBtn) {
@@ -17614,13 +20894,11 @@ if (els.slotMeshLinkEdgeBtn) {
     const ok = linkSelectedSlotMeshEdge(true);
     const activeSet = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
     if (!ok) {
-      setStatus("Select 2 vertices (Shift+Click) in the same set, then Link Edge.");
+      setStatus("Select exactly 2 vertices, then Link Edge.");
       return;
     }
-    const [a0, b0] = state.slotMesh.edgeSelection;
-    const a = Math.min(a0, b0);
-    const b = Math.max(a0, b0);
-    setStatus(`Edge linked (${activeSet}: ${a}-${b}).`);
+    setStatus(`Edge linked (${activeSet}).`);
+    renderAll();
   });
 }
 if (els.slotMeshUnlinkEdgeBtn) {
@@ -17630,13 +20908,11 @@ if (els.slotMeshUnlinkEdgeBtn) {
     const ok = linkSelectedSlotMeshEdge(false);
     const activeSet = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
     if (!ok) {
-      setStatus("Select 2 linked vertices (Shift+Click) in the same set, then Unlink Edge.");
+      setStatus("Select exactly 2 vertices, then Unlink Edge.");
       return;
     }
-    const [a0, b0] = state.slotMesh.edgeSelection;
-    const a = Math.min(a0, b0);
-    const b = Math.max(a0, b0);
-    setStatus(`Edge unlinked (${activeSet}: ${a}-${b}).`);
+    setStatus(`Edge unlinked (${activeSet}).`);
+    renderAll();
   });
 }
 if (els.slotBindBoneBtn) {
@@ -17667,7 +20943,22 @@ if (els.slotMeshResetBtn) {
   els.slotMeshResetBtn.addEventListener("click", () => {
     const slot = getActiveSlot();
     if (!slot) return;
+    const c = ensureSlotContour(slot);
+    const source = getSlotContourSourcePoints(c);
+    if (Array.isArray(source) && source.length >= 3) {
+      c.points = source.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }));
+      c.closed = true;
+      c.manualEdges = [];
+      c.triangles = applyManualEdgesToTriangles(c.points, triangulatePolygon(c.points), c.manualEdges);
+      c.fillPoints = [];
+      c.fillTriangles = [];
+      c.fillManualEdges = [];
+      clearSlotMeshSelection();
+      setStatus("Slot mesh preview reset to source contour.");
+      return;
+    }
     if (resetSlotMeshToGrid(slot)) {
+      clearSlotMeshSelection();
       setStatus("Slot mesh reset to grid.");
     }
   });
@@ -17860,6 +21151,62 @@ els.bonePoseLen.addEventListener("change", () => {
   if (m.poseBones[i]) m.poseBones[i].poseLenEditable = editable;
   updateBoneUI();
 });
+
+if (els.boneWorkHidden) {
+  els.boneWorkHidden.addEventListener("change", () => {
+    const m = state.mesh;
+    if (!m) return;
+    const i = state.selectedBone;
+    if (!Number.isFinite(i) || i < 0 || i >= m.rigBones.length) return;
+    const hidden = !!els.boneWorkHidden.checked;
+    normalizeBoneChannels(m.rigBones[i]);
+    m.rigBones[i].workHidden = hidden;
+    if (m.poseBones[i]) {
+      normalizeBoneChannels(m.poseBones[i]);
+      m.poseBones[i].workHidden = hidden;
+    }
+    renderBoneTree();
+    updateBoneUI();
+    setStatus(hidden ? `Work hide on: ${m.rigBones[i].name}` : `Work hide off: ${m.rigBones[i].name}`);
+  });
+}
+
+if (els.boneAnimHidden) {
+  els.boneAnimHidden.addEventListener("change", () => {
+    const m = state.mesh;
+    if (!m || state.boneMode !== "pose") return;
+    const i = state.selectedBone;
+    const bones = getBonesForCurrentMode(m);
+    if (!Number.isFinite(i) || i < 0 || i >= bones.length) return;
+    const hidden = !!els.boneAnimHidden.checked;
+    normalizeBoneChannels(bones[i]);
+    bones[i].animHidden = hidden;
+    markDirtyByBoneProp(i, "animHide");
+    renderBoneTree();
+    updateBoneUI();
+    setStatus(hidden ? `Anim hide on: ${bones[i].name}` : `Anim hide off: ${bones[i].name}`);
+  });
+}
+
+if (els.boneAnimHideSetKeyBtn) {
+  els.boneAnimHideSetKeyBtn.addEventListener("click", () => {
+    if (!state.mesh || state.selectedBone < 0 || state.boneMode !== "pose") return;
+    const trackId = getTrackId(state.selectedBone, "animHide");
+    addOrUpdateKeyframeForTrack(trackId);
+  });
+}
+
+if (els.boneAnimHideDelKeyBtn) {
+  els.boneAnimHideDelKeyBtn.addEventListener("click", () => {
+    if (!state.mesh || state.selectedBone < 0 || state.boneMode !== "pose") return;
+    const trackId = getTrackId(state.selectedBone, "animHide");
+    if (deleteKeyframeAtCurrentTimeForTrack(trackId)) {
+      setStatus(`Hide key deleted: ${trackId} @ ${state.anim.time.toFixed(2)}s`);
+    } else {
+      setStatus(`No hide key at current time on ${trackId}.`);
+    }
+  });
+}
 
 function applyHeadTipFromInputs() {
   const m = state.mesh;
@@ -18394,53 +21741,31 @@ els.addKeyBtn.addEventListener("click", () => {
   if (!state.mesh) return;
   addAutoKeyframeFromDirty();
 });
-if (els.addAttachmentKeyBtn) {
-  els.addAttachmentKeyBtn.addEventListener("click", () => {
-    if (!state.mesh || state.activeSlot < 0) return;
-    const trackId = getSlotTrackId(state.activeSlot, "attachment");
-    state.anim.selectedTrack = trackId;
-    if (els.trackSelect) els.trackSelect.value = trackId;
-    addOrUpdateKeyframeForTrack(trackId);
-  });
-}
-if (els.addClipKeyBtn) {
-  els.addClipKeyBtn.addEventListener("click", () => {
-    if (!state.mesh || state.activeSlot < 0) return;
-    const trackId = getSlotTrackId(state.activeSlot, "clip");
-    state.anim.selectedTrack = trackId;
-    if (els.trackSelect) els.trackSelect.value = trackId;
-    addOrUpdateKeyframeForTrack(trackId);
-  });
-}
-if (els.addClipSourceKeyBtn) {
-  els.addClipSourceKeyBtn.addEventListener("click", () => {
-    if (!state.mesh || state.activeSlot < 0) return;
-    const trackId = getSlotTrackId(state.activeSlot, "clipSource");
-    state.anim.selectedTrack = trackId;
-    if (els.trackSelect) els.trackSelect.value = trackId;
-    addOrUpdateKeyframeForTrack(trackId);
-  });
-}
-if (els.addClipComboKeyBtn) {
-  els.addClipComboKeyBtn.addEventListener("click", () => {
-    addOrUpdateClipBundleKeyForActiveSlot();
-  });
-}
-if (els.addClipEndKeyBtn) {
-  els.addClipEndKeyBtn.addEventListener("click", () => {
-    if (!state.mesh || state.activeSlot < 0) return;
-    const trackId = getSlotTrackId(state.activeSlot, "clipEnd");
-    state.anim.selectedTrack = trackId;
-    if (els.trackSelect) els.trackSelect.value = trackId;
-    addOrUpdateKeyframeForTrack(trackId);
-  });
-}
-if (els.addDrawOrderKeyBtn) {
-  els.addDrawOrderKeyBtn.addEventListener("click", () => {
+if (els.addSpecialKeyBtn) {
+  els.addSpecialKeyBtn.addEventListener("click", () => {
     if (!state.mesh) return;
-    state.anim.selectedTrack = DRAWORDER_TRACK_ID;
-    if (els.trackSelect) els.trackSelect.value = DRAWORDER_TRACK_ID;
-    addOrUpdateKeyframeForTrack(DRAWORDER_TRACK_ID);
+    const sel = els.addSpecialKeySelect.value;
+
+    if (sel === "drawOrder") {
+      state.anim.selectedTrack = DRAWORDER_TRACK_ID;
+      if (els.trackSelect) els.trackSelect.value = DRAWORDER_TRACK_ID;
+      addOrUpdateKeyframeForTrack(DRAWORDER_TRACK_ID);
+      return;
+    }
+
+    if (sel === "clipCombo") {
+      if (typeof addOrUpdateClipBundleKeyForActiveSlot === "function") {
+        addOrUpdateClipBundleKeyForActiveSlot();
+      }
+      return;
+    }
+
+    if (state.activeSlot < 0) return;
+    // Map the dropdown values to the track types if necessary (the values match exactly)
+    const trackId = getSlotTrackId(state.activeSlot, sel);
+    state.anim.selectedTrack = trackId;
+    if (els.trackSelect) els.trackSelect.value = trackId;
+    addOrUpdateKeyframeForTrack(trackId);
   });
 }
 if (els.loopMakeSeamBtn) {
@@ -19831,8 +23156,9 @@ window.addEventListener("keydown", async (ev) => {
   if (ev.isComposing) return;
   if (isEditableHotkeyTarget(ev.target)) return;
   const keyLower = String(ev.key || "").toLowerCase();
-  if (keyLower === "escape" && state.boneTreeMenuOpen) {
-    closeBoneTreeContextMenu();
+  if (keyLower === "escape" && (state.boneTreeMenuOpen || (els.boneTreeDeleteBoneMenu && !els.boneTreeDeleteBoneMenu.classList.contains("collapsed")))) {
+    if (state.boneTreeMenuOpen) closeBoneTreeContextMenu();
+    closeBoneDeleteQuickMenu();
     ev.preventDefault();
     return;
   }
@@ -19973,54 +23299,46 @@ window.addEventListener("keydown", async (ev) => {
       }
     }
   }
-  if (state.editMode === "slotmesh") {
+  if (isSlotMeshEditTabActive()) {
     const slot = getActiveSlot();
     if (!slot) return;
     const contour = ensureSlotContour(slot);
     const activeSet = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
     const activePoints = activeSet === "fill" ? contour.fillPoints : contour.points;
+    if (hotkey === "v" && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      const next = normalizeSlotMeshToolMode(state.slotMesh.toolMode) === "add" ? "select" : "add";
+      setSlotMeshToolMode(next, true);
+      ev.preventDefault();
+      return;
+    }
     if (ev.key === "Enter") {
       if (!contour.closed && contour.points.length >= 3) contour.closed = true;
-      contour.triangles = applyManualEdgesToTriangles(contour.points, triangulatePolygon(contour.points), contour.manualEdges);
+      contour.triangles = triangulateContourPoints(contour.points, contour.contourEdges, contour.manualEdges);
       contour.fillPoints = [];
       contour.fillTriangles = [];
       contour.fillManualEdges = [];
       state.slotMesh.activeSet = "contour";
-      setStatus(contour.triangles.length >= 3 ? `Triangulated: ${contour.triangles.length / 3} triangles.` : "Triangulation failed.");
+      clearSlotMeshSelection();
+      setStatus(
+        contour.triangles.length >= 3
+          ? `Triangulated preview: ${contour.triangles.length / 3} triangles. Use Apply Mesh to commit.`
+          : "Triangulation failed."
+      );
       ev.preventDefault();
       return;
     }
     if ((ev.key === "Backspace" || ev.key === "Delete" || ev.key.toLowerCase() === "x") && activePoints.length > 0) {
-      const index = state.slotMesh.activePoint >= 0 ? state.slotMesh.activePoint : activePoints.length - 1;
-      if (removePointAtIndex(activePoints, index)) {
-        if (activeSet === "contour") {
-          contour.triangles = [];
-          contour.fillPoints = [];
-          contour.fillTriangles = [];
-          contour.fillManualEdges = [];
-          contour.manualEdges = normalizeEdgePairs(
-            contour.manualEdges
-              .filter((e) => e[0] !== index && e[1] !== index)
-              .map((e) => [e[0] > index ? e[0] - 1 : e[0], e[1] > index ? e[1] - 1 : e[1]]),
-            contour.points.length
-          );
-          if (contour.points.length < 3) contour.closed = false;
-        } else {
-          contour.fillTriangles = reindexTrianglesAfterPointRemoved(contour.fillTriangles, index);
-          contour.fillManualEdges = normalizeEdgePairs(
-            contour.fillManualEdges
-              .filter((e) => e[0] !== index && e[1] !== index)
-              .map((e) => [e[0] > index ? e[0] - 1 : e[0], e[1] > index ? e[1] - 1 : e[1]]),
-            contour.fillPoints.length
-          );
-          contour.fillTriangles = applyManualEdgesToTriangles(contour.fillPoints, contour.fillTriangles, contour.fillManualEdges);
-        }
-      }
+      const selected = getSlotMeshSelection(activeSet, activePoints.length);
+      const indices = selected.length > 0 ? selected : [state.slotMesh.activePoint >= 0 ? state.slotMesh.activePoint : activePoints.length - 1];
+      const removed = removeSlotMeshPointsByIndices(contour, activeSet, indices);
+      const maxCount = activeSet === "fill" ? contour.fillPoints.length : contour.points.length;
+      setSlotMeshSelection(activeSet, [], maxCount);
+      const removedSorted = [...indices].sort((a, b) => a - b);
       state.slotMesh.edgeSelection = state.slotMesh.edgeSelection
-        .filter((v) => v !== index)
-        .map((v) => (v > index ? v - 1 : v));
-      state.slotMesh.activePoint = Math.min(state.slotMesh.activePoint, activePoints.length - 1);
-      setStatus(`${activeSet === "fill" ? "Fill" : "Contour"} vertex removed (${activePoints.length}).`);
+        .filter((v) => !removedSorted.includes(v))
+        .map((v) => v - removedSorted.filter((x) => x < v).length);
+      state.slotMesh.activePoint = maxCount > 0 ? Math.min(state.slotMesh.activePoint, maxCount - 1) : -1;
+      setStatus(`${activeSet === "fill" ? "Fill" : "Contour"} vertex removed (${removed.remain}).`);
       ev.preventDefault();
       return;
     }
@@ -20076,6 +23394,8 @@ window.addEventListener("keydown", async (ev) => {
       state.drag = null;
       state.slotMesh.activePoint = -1;
       state.slotMesh.edgeSelection = [];
+      clearSlotMeshSelection();
+      setSlotMeshToolMode("select", false);
       state.ikPickArmed = false;
       state.ikHoverBone = -1;
       refreshIKUI();
@@ -20179,8 +23499,7 @@ window.addEventListener("keydown", async (ev) => {
     if (autoWeightActiveSlot()) {
       const picked = getSelectedBonesForWeight(state.mesh);
       setStatus(
-        `Auto weights updated (${state.weightMode}) on ${state.slots.length > 0 ? "active slot" : "mesh"}; bones: ${
-          picked.length > 0 ? picked.join(", ") : "(slot default)"
+        `Auto weights updated (${state.weightMode}) on ${state.slots.length > 0 ? "active slot" : "mesh"}; bones: ${picked.length > 0 ? picked.join(", ") : "(slot default)"
         }.`
       );
     }
@@ -20254,28 +23573,108 @@ window.addEventListener("keydown", async (ev) => {
   }
   if (key === "1") {
     state.boneMode = "edit";
-    els.boneMode.value = "edit";
+    if (els.systemMode) els.systemMode.value = "setup";
+    if (state.editMode === "object") { state.editMode = "skeleton"; if (els.editMode) els.editMode.value = "skeleton"; }
+    updateWorkspaceUI();
     updateBoneUI();
     ev.preventDefault();
     return;
   }
   if (key === "2") {
     state.boneMode = "pose";
-    els.boneMode.value = "pose";
+    if (els.systemMode) els.systemMode.value = "animate";
+    if (state.editMode === "object") { state.editMode = "skeleton"; if (els.editMode) els.editMode.value = "skeleton"; }
     syncPoseFromRig(state.mesh);
+    updateWorkspaceUI();
+    updateBoneUI();
+    ev.preventDefault();
+    return;
+  }
+  if (key === "3") {
+    state.boneMode = "object";
+    state.editMode = "object";
+    if (els.editMode) els.editMode.value = "object";
+    updateWorkspaceUI();
     updateBoneUI();
     ev.preventDefault();
   }
 });
 
 els.overlay.addEventListener("pointerdown", (ev) => {
-  if (!state.mesh) return;
+  const panMode = !!(state.view && state.view.panMode);
+  if (!state.mesh && !isBaseImageEditTabActive() && !panMode) return;
 
   const rect = els.overlay.getBoundingClientRect();
   const dpr = els.overlay.width / rect.width;
   const mx = (ev.clientX - rect.left) * dpr;
   const my = (ev.clientY - rect.top) * dpr;
   const local = screenToLocal(mx, my);
+
+  if (panMode) {
+    if (ev.button !== 0) return;
+    state.drag = {
+      type: "view_pan",
+      pointerId: ev.pointerId,
+      prevX: mx,
+      prevY: my,
+    };
+    if (els.stage) els.stage.classList.add("dragging-pan");
+    els.overlay.setPointerCapture(ev.pointerId);
+    return;
+  }
+
+  const poseWorldForGizmo = getSolvedPoseWorld(state.mesh);
+  let gizmoHit = pickCanvasTransformHandle(mx, my, poseWorldForGizmo);
+  if (gizmoHit) {
+    const activeSlot = getActiveSlot();
+    const slotIndex = Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1;
+    if (gizmoHit.key === "base_move") {
+      const tr = getSlotBaseImageTransform(activeSlot);
+      const spaceWorld =
+        gizmoHit.meta && Array.isArray(gizmoHit.meta.spaceWorld) ? gizmoHit.meta.spaceWorld.slice(0, 6) : null;
+      state.drag = {
+        type: "base_transform_move",
+        pointerId: ev.pointerId,
+        slotIndex,
+        startLocal: { x: local.x, y: local.y },
+        startTx: Number(tr.tx) || 0,
+        startTy: Number(tr.ty) || 0,
+        spaceWorld,
+      };
+      els.overlay.setPointerCapture(ev.pointerId);
+      return;
+    }
+    if (gizmoHit.key === "base_rotate") {
+      const tr = getSlotBaseImageTransform(activeSlot);
+      const pivot = gizmoHit.meta && gizmoHit.meta.pivotLocal ? gizmoHit.meta.pivotLocal : { x: local.x, y: local.y };
+      state.drag = {
+        type: "base_transform_rotate",
+        pointerId: ev.pointerId,
+        slotIndex,
+        pivotLocal: { x: Number(pivot.x) || 0, y: Number(pivot.y) || 0 },
+        startRot: Number(tr.rot) || 0,
+        startAngle: Math.atan2(local.y - (Number(pivot.y) || 0), local.x - (Number(pivot.x) || 0)),
+      };
+      els.overlay.setPointerCapture(ev.pointerId);
+      return;
+    }
+    if (gizmoHit.key === "base_scale") {
+      const tr = getSlotBaseImageTransform(activeSlot);
+      const pivot = gizmoHit.meta && gizmoHit.meta.pivotLocal ? gizmoHit.meta.pivotLocal : { x: local.x, y: local.y };
+      state.drag = {
+        type: "base_transform_scale",
+        pointerId: ev.pointerId,
+        slotIndex,
+        pivotLocal: { x: Number(pivot.x) || 0, y: Number(pivot.y) || 0 },
+        startScale: Number(tr.scale) || 1,
+        startDist: Math.max(1e-6, Math.hypot(local.x - (Number(pivot.x) || 0), local.y - (Number(pivot.y) || 0))),
+      };
+      els.overlay.setPointerCapture(ev.pointerId);
+      return;
+    }
+  }
+
+  if (isBaseImageEditTabActive()) return;
 
   if (state.editMode === "skeleton" && state.leftToolTab === "path") {
     const picked = pickActivePathDrawControl(mx, my);
@@ -20309,18 +23708,22 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     }
   }
 
-  if (state.editMode === "slotmesh") {
+  if (isSlotMeshEditTabActive()) {
     const slot = getActiveSlot();
     if (!slot) return;
     const contour = ensureSlotContour(slot);
-    const hit = pickSlotContourPoint(slot, mx, my, 10);
+    const toolMode = normalizeSlotMeshToolMode(state.slotMesh.toolMode);
+    const slotLocal = screenToSlotMeshLocal(slot, mx, my, poseWorldForGizmo);
+    const hit = pickSlotContourPoint(slot, mx, my, 10, poseWorldForGizmo);
     if (hit && hit.index >= 0) {
-      state.slotMesh.activeSet = hit.set;
+      const hitSet = hit.set === "fill" ? "fill" : "contour";
+      const hitPoints = hitSet === "fill" ? contour.fillPoints : contour.points;
+      state.slotMesh.activeSet = hitSet;
       state.slotMesh.activePoint = hit.index;
       if (ev.shiftKey) {
-        if (state.slotMesh.edgeSelectionSet !== hit.set) {
+        if (state.slotMesh.edgeSelectionSet !== hitSet) {
           state.slotMesh.edgeSelection = [];
-          state.slotMesh.edgeSelectionSet = hit.set;
+          state.slotMesh.edgeSelectionSet = hitSet;
         }
         if (state.slotMesh.edgeSelection.includes(hit.index)) {
           state.slotMesh.edgeSelection = state.slotMesh.edgeSelection.filter((v) => v !== hit.index);
@@ -20330,23 +23733,67 @@ els.overlay.addEventListener("pointerdown", (ev) => {
           state.slotMesh.edgeSelection.push(hit.index);
         }
         setStatus(
-          `Selected ${state.slotMesh.edgeSelection.length}/2 vertex for edge link (${hit.set}). Use L to link, U to unlink.`
+          `Selected ${state.slotMesh.edgeSelection.length}/2 vertex for edge link (${hitSet}). Use L to link, U to unlink.`
         );
         return;
       }
+      if (ev.altKey) {
+        const toggled = getSlotMeshSelection(hitSet, hitPoints.length);
+        const next = toggled.includes(hit.index) ? toggled.filter((v) => v !== hit.index) : [...toggled, hit.index];
+        setSlotMeshSelection(hitSet, next, hitPoints.length);
+        state.slotMesh.edgeSelection = [hit.index];
+        state.slotMesh.edgeSelectionSet = hitSet;
+        setStatus(`Selected ${getSlotMeshSelection(hitSet, hitPoints.length).length} ${hitSet} vertices.`);
+        return;
+      }
+      const selected = getSlotMeshSelection(hitSet, hitPoints.length);
+      const shouldDragMulti = selected.length > 1 && selected.includes(hit.index);
+      if (!shouldDragMulti) {
+        setSlotMeshSelection(hitSet, [hit.index], hitPoints.length);
+      }
       state.slotMesh.edgeSelection = [hit.index];
-      state.slotMesh.edgeSelectionSet = hit.set;
-      state.drag = { type: "slot_mesh_point", pointerId: ev.pointerId, pointIndex: hit.index, pointSet: hit.set };
+      state.slotMesh.edgeSelectionSet = hitSet;
+      if (shouldDragMulti) {
+        state.drag = {
+          type: "slot_mesh_multi_move",
+          pointerId: ev.pointerId,
+          pointSet: hitSet,
+          pointIndices: [...selected],
+          prevSlotLocal: { x: slotLocal.x, y: slotLocal.y },
+        };
+      } else {
+        state.drag = { type: "slot_mesh_point", pointerId: ev.pointerId, pointIndex: hit.index, pointSet: hitSet };
+      }
+      els.overlay.setPointerCapture(ev.pointerId);
+      return;
+    }
+    if (toolMode !== "add") {
+      state.drag = {
+        type: "slot_mesh_marquee",
+        pointerId: ev.pointerId,
+        startX: mx,
+        startY: my,
+        curX: mx,
+        curY: my,
+        append: !!(ev.altKey || ev.shiftKey || ev.ctrlKey || ev.metaKey),
+      };
       els.overlay.setPointerCapture(ev.pointerId);
       return;
     }
     if (!contour.closed && contour.points.length >= 3) {
       const first = contour.points[0];
-      const fs = localToScreen(first.x, first.y);
+      const fs = slotMeshLocalToScreen(slot, first, poseWorldForGizmo);
       const dx = fs.x - mx;
       const dy = fs.y - my;
       if (dx * dx + dy * dy <= 11 * 11) {
         contour.closed = true;
+        // If they close by shift-clicking the first point, add exactly one connecting edge
+        if (ev.shiftKey) {
+          if (!Array.isArray(contour.contourEdges)) contour.contourEdges = [];
+          const lastIdx = contour.points.length - 1;
+          const hasClosing = contour.contourEdges.some(e => (Math.min(e[0], e[1]) === 0 && Math.max(e[0], e[1]) === lastIdx));
+          if (!hasClosing) contour.contourEdges.push([lastIdx, 0]);
+        }
         contour.triangles = [];
         contour.fillPoints = [];
         contour.fillTriangles = [];
@@ -20364,13 +23811,25 @@ els.overlay.addEventListener("pointerdown", (ev) => {
       contour.fillTriangles = [];
       contour.fillManualEdges = [];
     }
-    contour.points.push({ x: local.x, y: local.y });
+    const prevActive = state.slotMesh.activePoint;
+    contour.points.push({ x: slotLocal.x, y: slotLocal.y });
+    const newIdx = contour.points.length - 1;
+    if (!Array.isArray(contour.contourEdges)) contour.contourEdges = [];
+    // Shift held: auto-connect from previous active point to new point
+    if (ev.shiftKey && prevActive >= 0 && prevActive !== newIdx && prevActive < contour.points.length) {
+      const lo = Math.min(prevActive, newIdx);
+      const hi = Math.max(prevActive, newIdx);
+      const exists = contour.contourEdges.some(e => Math.min(e[0], e[1]) === lo && Math.max(e[0], e[1]) === hi);
+      if (!exists) contour.contourEdges.push([prevActive, newIdx]);
+    }
     contour.manualEdges = normalizeEdgePairs(contour.manualEdges, contour.points.length);
+    syncSlotContourSourcePoints(contour);
     state.slotMesh.activeSet = "contour";
-    state.slotMesh.activePoint = contour.points.length - 1;
+    state.slotMesh.activePoint = newIdx;
+    setSlotMeshSelection("contour", [state.slotMesh.activePoint], contour.points.length);
     state.slotMesh.edgeSelection = [state.slotMesh.activePoint];
     state.slotMesh.edgeSelectionSet = "contour";
-    setStatus(`Contour point added (${contour.points.length}).`);
+    setStatus(ev.shiftKey ? `Contour point added & linked (${contour.points.length}).` : `Contour point added (${contour.points.length}). Hold Shift to auto-link.`);
     return;
   }
 
@@ -20433,7 +23892,18 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     return;
   }
 
-  const hit = pickSkeletonHandle(mx, my);
+  let hit = pickSkeletonHandle(mx, my);
+  if ((state.editMode === "skeleton" || state.editMode === "object") && state.boneMode === "object") {
+    const objectScaleRoot = pickObjectModeScaleHandleAtCanvas(mx, my);
+    if (objectScaleRoot >= 0) {
+      hit = { type: "object_scale_handle", boneIndex: objectScaleRoot };
+    } else {
+      const objectRoot = pickObjectModeRootAtCanvas(mx, my);
+      if (objectRoot >= 0) {
+        hit = { type: "bone_joint", boneIndex: objectRoot };
+      }
+    }
+  }
   if (state.ikPickArmed && hit) {
     const c = getActiveIKConstraint();
     if (!c) {
@@ -20472,7 +23942,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     return;
   }
 
-  if (state.dragTool !== "auto") {
+  if (state.dragTool !== "auto" && state.boneMode !== "object") {
     const targetBone = hit ? hit.boneIndex : state.selectedBone;
     if (targetBone >= 0) {
       state.selectedBone = targetBone;
@@ -20486,6 +23956,103 @@ els.overlay.addEventListener("pointerdown", (ev) => {
   }
 
   if (hit) {
+    if (state.boneMode === "object") {
+      state.selectedBone = hit.boneIndex;
+      const forceScale = hit.type === "object_scale_handle";
+      const bones = getBonesForCurrentMode(state.mesh);
+      if (!forceScale && (ev.ctrlKey || ev.metaKey)) {
+        const picked = new Set(getSelectedBonesForWeight(state.mesh));
+        if (picked.has(hit.boneIndex)) picked.delete(hit.boneIndex);
+        else picked.add(hit.boneIndex);
+        state.selectedBonesForWeight = [...picked];
+        updateBoneUI();
+        return;
+      }
+      let roots = [hit.boneIndex];
+      if (!forceScale && ev.altKey) {
+        const selectedRoots = getSelectedBonesForWeight(state.mesh).filter((bi) => Number.isFinite(bi) && bi >= 0 && bi < bones.length);
+        if (selectedRoots.length > 0 && selectedRoots.includes(hit.boneIndex)) {
+          roots = [...new Set(selectedRoots)];
+        }
+      }
+      const objectItems = [];
+      const selectedUnion = [];
+      const world = computeWorld(bones);
+      for (const rootIndex of roots) {
+        const rootEp = getBoneWorldEndpointsFromBones(bones, rootIndex, world);
+        if (!rootEp) continue;
+        const subtree = getBoneSubtreeIndices(bones, rootIndex);
+        for (const bi of subtree) {
+          if (!selectedUnion.includes(bi)) selectedUnion.push(bi);
+          const ep = getBoneWorldEndpointsFromBones(bones, bi, world);
+          if (!ep) continue;
+          objectItems.push({
+            boneIndex: bi,
+            rootIndex,
+            rootPivot: { x: rootEp.head.x, y: rootEp.head.y },
+            head: ep.head,
+            tip: ep.tip,
+          });
+        }
+      }
+      state.selectedBonesForWeight = selectedUnion.length > 0 ? selectedUnion : [hit.boneIndex];
+      let dragType = state.dragTool === "rotate" ? "bone_object_rotate" : "bone_object_move";
+      if (forceScale) dragType = "bone_object_scale";
+      else if (dragType === "bone_object_move" && ev.shiftKey) dragType = "bone_object_scale";
+      state.drag = {
+        type: dragType,
+        pointerId: ev.pointerId,
+        startLocal: local,
+        needsReweight: false,
+        items: objectItems,
+      };
+      if (dragType === "bone_object_rotate") {
+        const angleByRoot = Object.create(null);
+        for (const it of objectItems) {
+          const rk = String(it.rootIndex);
+          if (angleByRoot[rk] != null) continue;
+          const pivot = it.rootPivot || { x: local.x, y: local.y };
+          angleByRoot[rk] = Math.atan2(local.y - (Number(pivot.y) || 0), local.x - (Number(pivot.x) || 0));
+        }
+        state.drag.startAngleByRoot = angleByRoot;
+      } else if (dragType === "bone_object_scale") {
+        const distByRoot = Object.create(null);
+        const startSxByRoot = Object.create(null);
+        const startSyByRoot = Object.create(null);
+        for (const it of objectItems) {
+          const rk = String(it.rootIndex);
+          if (distByRoot[rk] != null) continue;
+          const pivot = it.rootPivot || { x: local.x, y: local.y };
+          let startDist = Math.hypot(local.x - (Number(pivot.x) || 0), local.y - (Number(pivot.y) || 0));
+          if (startDist < 1e-6) {
+            let fallback = 0;
+            for (const pt of objectItems) {
+              if (String(pt.rootIndex) !== rk) continue;
+              fallback = Math.max(
+                fallback,
+                Math.hypot((Number(pt.head && pt.head.x) || 0) - (Number(pivot.x) || 0), (Number(pt.head && pt.head.y) || 0) - (Number(pivot.y) || 0)),
+                Math.hypot((Number(pt.tip && pt.tip.x) || 0) - (Number(pivot.x) || 0), (Number(pt.tip && pt.tip.y) || 0) - (Number(pivot.y) || 0))
+              );
+            }
+            startDist = Math.max(12, fallback);
+          }
+          distByRoot[rk] = startDist;
+          const rootBone = bones[it.rootIndex];
+          if (rootBone) {
+            normalizeBoneChannels(rootBone);
+            startSxByRoot[rk] = Number(rootBone.sx) || 1;
+            startSyByRoot[rk] = Number(rootBone.sy) || 1;
+          }
+        }
+        state.drag.startDistByRoot = distByRoot;
+        state.drag.startSxByRoot = startSxByRoot;
+        state.drag.startSyByRoot = startSyByRoot;
+      }
+      els.overlay.setPointerCapture(ev.pointerId);
+      refreshCanvasInteractionAffordance();
+      updateBoneUI();
+      return;
+    }
     if (ev.ctrlKey || ev.metaKey) {
       const set = new Set(getSelectedBonesForWeight(state.mesh));
       if (set.has(hit.boneIndex)) set.delete(hit.boneIndex);
@@ -20539,7 +24106,11 @@ els.overlay.addEventListener("pointerdown", (ev) => {
 });
 
 els.overlay.addEventListener("pointermove", (ev) => {
-  if (!state.mesh) return;
+  const allowNoMesh =
+    isBaseImageEditTabActive() ||
+    (state.drag &&
+      (String(state.drag.type || "").startsWith("base_transform_") || state.drag.type === "view_pan"));
+  if (!state.mesh && !allowNoMesh) return;
 
   const rect = els.overlay.getBoundingClientRect();
   const dpr = els.overlay.width / rect.width;
@@ -20552,11 +24123,11 @@ els.overlay.addEventListener("pointermove", (ev) => {
     state.vertexDeform.cursorY = my;
     state.vertexDeform.hasCursor = true;
   }
-  if (!state.ikPickArmed && state.ikHoverBone !== -1) {
+  if (m && !state.ikPickArmed && state.ikHoverBone !== -1) {
     state.ikHoverBone = -1;
     renderBoneTree();
   }
-  if (state.ikPickArmed && !state.drag) {
+  if (m && state.ikPickArmed && !state.drag) {
     const h = pickSkeletonHandle(mx, my);
     const next = h ? h.boneIndex : -1;
     if (next !== state.ikHoverBone) {
@@ -20564,11 +24135,11 @@ els.overlay.addEventListener("pointermove", (ev) => {
       renderBoneTree();
     }
   }
-  if (!state.parentPickArmed && state.parentHoverBone !== -1) {
+  if (m && !state.parentPickArmed && state.parentHoverBone !== -1) {
     state.parentHoverBone = -1;
     renderBoneTree();
   }
-  if (state.parentPickArmed && !state.drag) {
+  if (m && state.parentPickArmed && !state.drag) {
     const h = pickSkeletonHandle(mx, my);
     const next = h ? h.boneIndex : -1;
     if (next !== state.parentHoverBone) {
@@ -20576,7 +24147,106 @@ els.overlay.addEventListener("pointermove", (ev) => {
       renderBoneTree();
     }
   }
+  if (m && (state.editMode === "skeleton" || state.editMode === "object") && state.boneMode === "object" && !state.drag) {
+    const scaleRoot = pickObjectModeScaleHandleAtCanvas(mx, my);
+    if (scaleRoot !== state.objectScaleHoverRoot) state.objectScaleHoverRoot = scaleRoot;
+    if (scaleRoot >= 0) {
+      if (scaleRoot !== state.objectHoverRoot) state.objectHoverRoot = scaleRoot;
+      if (els.overlay) els.overlay.style.cursor = "nwse-resize";
+    } else {
+      const next = pickObjectModeRootAtCanvas(mx, my);
+      if (next !== state.objectHoverRoot) state.objectHoverRoot = next;
+      if (els.overlay) els.overlay.style.cursor = "";
+    }
+  } else if (!state.drag && (state.objectHoverRoot !== -1 || state.objectScaleHoverRoot !== -1 || (els.overlay && els.overlay.style.cursor))) {
+    state.objectHoverRoot = -1;
+    state.objectScaleHoverRoot = -1;
+    if (els.overlay) els.overlay.style.cursor = "";
+  }
   if (!state.drag) return;
+
+  if (state.drag.type === "view_pan") {
+    const dx = mx - (Number(state.drag.prevX) || mx);
+    const dy = my - (Number(state.drag.prevY) || my);
+    state.view.cx += dx;
+    state.view.cy += dy;
+    state.drag.prevX = mx;
+    state.drag.prevY = my;
+    return;
+  }
+
+  if (state.drag.type === "base_transform_move") {
+    const si = Number(state.drag.slotIndex);
+    const slot =
+      Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : getActiveSlot();
+    const tr = getSlotBaseImageTransform(slot);
+    const dx = local.x - (Number(state.drag.startLocal && state.drag.startLocal.x) || local.x);
+    const dy = local.y - (Number(state.drag.startLocal && state.drag.startLocal.y) || local.y);
+    const localDelta = worldDeltaToBaseLocal({ x: dx, y: dy }, state.drag.spaceWorld);
+    tr.tx = (Number(state.drag.startTx) || 0) + (Number(localDelta.x) || 0);
+    tr.ty = (Number(state.drag.startTy) || 0) + (Number(localDelta.y) || 0);
+    setSlotBaseImageTransform(tr, slot);
+    if (!Number.isFinite(si) || si === state.activeSlot) syncBaseImageTransformInputs();
+    return;
+  }
+
+  if (state.drag.type === "base_transform_rotate") {
+    const si = Number(state.drag.slotIndex);
+    const slot =
+      Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : getActiveSlot();
+    const tr = getSlotBaseImageTransform(slot);
+    const pivot = state.drag.pivotLocal || { x: local.x, y: local.y };
+    const angle = Math.atan2(local.y - (Number(pivot.y) || 0), local.x - (Number(pivot.x) || 0));
+    tr.rot = (Number(state.drag.startRot) || 0) + shortestAngleDelta(Number(state.drag.startAngle) || 0, angle);
+    setSlotBaseImageTransform(tr, slot);
+    if (!Number.isFinite(si) || si === state.activeSlot) syncBaseImageTransformInputs();
+    return;
+  }
+
+  if (state.drag.type === "base_transform_scale") {
+    const si = Number(state.drag.slotIndex);
+    const slot =
+      Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : getActiveSlot();
+    const tr = getSlotBaseImageTransform(slot);
+    const pivot = state.drag.pivotLocal || { x: local.x, y: local.y };
+    const dist = Math.max(1e-6, Math.hypot(local.x - (Number(pivot.x) || 0), local.y - (Number(pivot.y) || 0)));
+    const ratio = dist / Math.max(1e-6, Number(state.drag.startDist) || 1);
+    tr.scale = math.clamp((Number(state.drag.startScale) || 1) * ratio, 0.01, 100);
+    setSlotBaseImageTransform(tr, slot);
+    if (!Number.isFinite(si) || si === state.activeSlot) syncBaseImageTransformInputs();
+    return;
+  }
+
+  if (state.drag.type === "slot_transform_move") {
+    const si = Number(state.drag.slotIndex);
+    const slot = Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : null;
+    if (!slot) return;
+    const dx = local.x - (Number(state.drag.startLocal && state.drag.startLocal.x) || local.x);
+    const dy = local.y - (Number(state.drag.startLocal && state.drag.startLocal.y) || local.y);
+    if (state.drag.boneWorld) {
+      const inv = invert(state.drag.boneWorld);
+      const lx = inv[0] * dx + inv[1] * dy;
+      const ly = inv[2] * dx + inv[3] * dy;
+      slot.tx = (Number(state.drag.startTx) || 0) + lx;
+      slot.ty = (Number(state.drag.startTy) || 0) + ly;
+    } else {
+      slot.tx = (Number(state.drag.startTx) || 0) + dx;
+      slot.ty = (Number(state.drag.startTy) || 0) + dy;
+    }
+    if (si === state.activeSlot) syncActiveSlotTransformInputs();
+    return;
+  }
+
+  if (state.drag.type === "slot_transform_rotate") {
+    const si = Number(state.drag.slotIndex);
+    const slot = Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : null;
+    if (!slot) return;
+    const pivot = state.drag.pivotLocal || { x: local.x, y: local.y };
+    const angle = Math.atan2(local.y - (Number(pivot.y) || 0), local.x - (Number(pivot.x) || 0));
+    slot.rot = (Number(state.drag.startRot) || 0) + shortestAngleDelta(Number(state.drag.startAngle) || 0, angle);
+    if (si === state.activeSlot) syncActiveSlotTransformInputs();
+    return;
+  }
 
   if (state.drag.type === "path_point") {
     const c = getActivePathConstraint();
@@ -20648,20 +24318,62 @@ els.overlay.addEventListener("pointermove", (ev) => {
     const slot = getActiveSlot();
     if (!slot) return;
     const contour = ensureSlotContour(slot);
+    const poseWorld = getSolvedPoseWorld(state.mesh);
+    const slotLocal = worldToSlotMeshLocal(slot, local, poseWorld);
     const setName = state.drag.pointSet === "fill" ? "fill" : "contour";
     const points = setName === "fill" ? contour.fillPoints : contour.points;
     const i = state.drag.pointIndex;
     if (i >= 0 && i < points.length) {
-      points[i] = { x: local.x, y: local.y };
+      points[i] = { x: slotLocal.x, y: slotLocal.y };
       if (setName === "contour") {
         contour.triangles = [];
         contour.fillPoints = [];
         contour.fillTriangles = [];
         contour.fillManualEdges = [];
+        syncSlotContourSourcePoints(contour);
       }
       state.slotMesh.activeSet = setName;
       state.slotMesh.activePoint = i;
     }
+    return;
+  }
+
+  if (state.drag.type === "slot_mesh_multi_move") {
+    const slot = getActiveSlot();
+    if (!slot) return;
+    const contour = ensureSlotContour(slot);
+    const poseWorld = getSolvedPoseWorld(state.mesh);
+    const slotLocal = worldToSlotMeshLocal(slot, local, poseWorld);
+    const prev = state.drag.prevSlotLocal || slotLocal;
+    const dx = (Number(slotLocal.x) || 0) - (Number(prev.x) || 0);
+    const dy = (Number(slotLocal.y) || 0) - (Number(prev.y) || 0);
+    if (Math.abs(dx) > 1e-8 || Math.abs(dy) > 1e-8) {
+      const setName = state.drag.pointSet === "fill" ? "fill" : "contour";
+      const points = setName === "fill" ? contour.fillPoints : contour.points;
+      const list = setSlotMeshSelection(setName, state.drag.pointIndices, points.length);
+      for (const i of list) {
+        const p = points[i];
+        if (!p) continue;
+        p.x = (Number(p.x) || 0) + dx;
+        p.y = (Number(p.y) || 0) + dy;
+      }
+      if (setName === "contour") {
+        contour.triangles = [];
+        contour.fillPoints = [];
+        contour.fillTriangles = [];
+        contour.fillManualEdges = [];
+        syncSlotContourSourcePoints(contour);
+      }
+      state.slotMesh.activeSet = setName;
+      if (list.length > 0) state.slotMesh.activePoint = list[list.length - 1];
+    }
+    state.drag.prevSlotLocal = { x: slotLocal.x, y: slotLocal.y };
+    return;
+  }
+
+  if (state.drag.type === "slot_mesh_marquee") {
+    state.drag.curX = mx;
+    state.drag.curY = my;
     return;
   }
 
@@ -20742,8 +24454,15 @@ els.overlay.addEventListener("pointermove", (ev) => {
   }
 
   if (state.drag.type === "bone_tip") {
-    const ikDriven = rotateBoneTipToLocal(bones, state.drag.boneIndex, local);
+    const rotateResult = rotateBoneTipToLocal(bones, state.drag.boneIndex, local) || {
+      ikDriven: false,
+      movedHead: false,
+    };
+    const ikDriven = !!rotateResult.ikDriven;
     if (!ikDriven) {
+      if (rotateResult.movedHead) {
+        markDirtyByBoneProp(state.drag.boneIndex, "translate");
+      }
       markDirtyByBoneProp(state.drag.boneIndex, "rotate");
       markDirtyByBoneProp(state.drag.boneIndex, "scale");
     }
@@ -20768,6 +24487,84 @@ els.overlay.addEventListener("pointermove", (ev) => {
       commitRigEdit(m, false);
     }
     updateBoneUI();
+    return;
+  }
+
+  if (state.drag.type === "bone_object_move") {
+    const d = state.drag;
+    const dx = local.x - d.startLocal.x;
+    const dy = local.y - d.startLocal.y;
+    for (const it of d.items) {
+      const nh = { x: it.head.x + dx, y: it.head.y + dy };
+      const nt = { x: it.tip.x + dx, y: it.tip.y + dy };
+      setBoneFromWorldEndpoints(bones, it.boneIndex, nh, nt);
+      markDirtyByBoneProp(it.boneIndex, "translate");
+    }
+    if (state.boneMode === "edit") commitRigEdit(m, false);
+    else if (state.boneMode === "object") syncPoseFromRig(m);
+    updateBoneUI();
+    return;
+  }
+
+  if (state.drag.type === "bone_object_scale") {
+    const d = state.drag;
+    const startDistByRoot =
+      d.startDistByRoot && typeof d.startDistByRoot === "object" ? d.startDistByRoot : Object.create(null);
+    const startSxByRoot =
+      d.startSxByRoot && typeof d.startSxByRoot === "object" ? d.startSxByRoot : Object.create(null);
+    const startSyByRoot =
+      d.startSyByRoot && typeof d.startSyByRoot === "object" ? d.startSyByRoot : Object.create(null);
+    const processedRoots = new Set();
+    for (const it of d.items) {
+      const rk = String(it.rootIndex);
+      if (processedRoots.has(rk)) continue;
+      processedRoots.add(rk);
+      const pivot = it.rootPivot || { x: local.x, y: local.y };
+      const startDist = Math.max(1e-6, Number(startDistByRoot[rk]) || 1);
+      const currDist = Math.max(1e-6, Math.hypot(local.x - (Number(pivot.x) || 0), local.y - (Number(pivot.y) || 0)));
+      const scaleRatio = math.clamp(currDist / startDist, 0.05, 40);
+      const rootBone = bones[it.rootIndex];
+      if (rootBone) {
+        normalizeBoneChannels(rootBone);
+        const origSx = Number(startSxByRoot[rk]) || 1;
+        const origSy = Number(startSyByRoot[rk]) || 1;
+        rootBone.sx = origSx * scaleRatio;
+        rootBone.sy = origSy * scaleRatio;
+        markDirtyByBoneProp(it.rootIndex, "scale");
+      }
+    }
+    enforceConnectedHeads(bones);
+    if (state.boneMode === "edit") commitRigEdit(m, false);
+    else if (state.boneMode === "object") syncPoseFromRig(m);
+    updateBoneUI();
+    return;
+  }
+
+  if (state.drag.type === "bone_object_rotate") {
+    const d = state.drag;
+    const startMap = d.startAngleByRoot && typeof d.startAngleByRoot === "object" ? d.startAngleByRoot : Object.create(null);
+    const deltaByRoot = Object.create(null);
+    for (const it of d.items) {
+      const rk = String(it.rootIndex);
+      if (deltaByRoot[rk] != null) continue;
+      const pivot = it.rootPivot || { x: local.x, y: local.y };
+      const startA = Number(startMap[rk]);
+      const currA = Math.atan2(local.y - (Number(pivot.y) || 0), local.x - (Number(pivot.x) || 0));
+      deltaByRoot[rk] = Number.isFinite(startA) ? shortestAngleDelta(startA, currA) : 0;
+    }
+    for (const it of d.items) {
+      const rk = String(it.rootIndex);
+      const delta = Number(deltaByRoot[rk]) || 0;
+      const pivot = it.rootPivot || { x: 0, y: 0 };
+      const nh = rotatePointAroundPivot(it.head, pivot, delta);
+      const nt = rotatePointAroundPivot(it.tip, pivot, delta);
+      setBoneFromWorldEndpoints(bones, it.boneIndex, nh, nt);
+      markDirtyByBoneProp(it.boneIndex, "translate");
+      markDirtyByBoneProp(it.boneIndex, "rotate");
+    }
+    if (state.boneMode === "edit") commitRigEdit(m, false);
+    else if (state.boneMode === "object") syncPoseFromRig(m);
+    updateBoneUI();
   }
 });
 
@@ -20783,6 +24580,25 @@ function clearDrag(ev) {
     }
   }
   state.drag = null;
+  refreshCanvasInteractionAffordance();
+  if (drag.type === "bone_object_scale") {
+    state.objectScaleHoverRoot = -1;
+    if (els.overlay) els.overlay.style.cursor = "";
+  }
+  if (drag.type === "view_pan") {
+    if (els.stage) els.stage.classList.remove("dragging-pan");
+    return;
+  }
+  if (drag.type === "base_transform_move" || drag.type === "base_transform_rotate" || drag.type === "base_transform_scale") {
+    refreshBaseImageTransformUI();
+    pushUndoCheckpoint(true);
+    return;
+  }
+  if (drag.type === "slot_transform_move" || drag.type === "slot_transform_rotate") {
+    syncActiveSlotTransformInputs();
+    pushUndoCheckpoint(true);
+    return;
+  }
   if (drag.type === "path_point" || drag.type === "path_handle") {
     pushUndoCheckpoint(true);
     return;
@@ -20794,6 +24610,37 @@ function clearDrag(ev) {
       if (drag.pointSet === "contour") contour.triangles = [];
     }
     pushUndoCheckpoint(true);
+    return;
+  }
+  if (drag.type === "slot_mesh_multi_move") {
+    const slot = getActiveSlot();
+    if (slot && drag.pointSet === "contour") {
+      const contour = ensureSlotContour(slot);
+      contour.triangles = [];
+    }
+    pushUndoCheckpoint(true);
+    return;
+  }
+  if (drag.type === "slot_mesh_marquee") {
+    const slot = getActiveSlot();
+    if (!slot) return;
+    const contour = ensureSlotContour(slot);
+    const setName = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
+    const points = setName === "fill" ? contour.fillPoints : contour.points;
+    const x0 = Math.min(Number(drag.startX) || 0, Number(drag.curX) || 0);
+    const y0 = Math.min(Number(drag.startY) || 0, Number(drag.curY) || 0);
+    const x1 = Math.max(Number(drag.startX) || 0, Number(drag.curX) || 0);
+    const y1 = Math.max(Number(drag.startY) || 0, Number(drag.curY) || 0);
+    const picked = [];
+    const poseWorld = getSolvedPoseWorld(state.mesh);
+    for (let i = 0; i < points.length; i += 1) {
+      const s = slotMeshLocalToScreen(slot, points[i], poseWorld);
+      if (s.x >= x0 && s.x <= x1 && s.y >= y0 && s.y <= y1) picked.push(i);
+    }
+    const base = drag.append ? getSlotMeshSelection(setName, points.length) : [];
+    setSlotMeshSelection(setName, [...base, ...picked], points.length);
+    state.slotMesh.activePoint = picked.length > 0 ? picked[picked.length - 1] : state.slotMesh.activePoint;
+    setStatus(`${setName === "fill" ? "Fill" : "Contour"} selected: ${getSlotMeshSelection(setName, points.length).length}`);
     return;
   }
   if (drag.type === "bone_marquee") {
@@ -20853,6 +24700,9 @@ function clearDrag(ev) {
     drag.type === "bone_head" ||
     drag.type === "bone_tip" ||
     drag.type === "bone_multi_move" ||
+    drag.type === "bone_object_move" ||
+    drag.type === "bone_object_scale" ||
+    drag.type === "bone_object_rotate" ||
     drag.type === "vertex"
   ) {
     pushUndoCheckpoint(true);
@@ -20863,6 +24713,9 @@ els.overlay.addEventListener("pointerup", clearDrag);
 els.overlay.addEventListener("pointercancel", clearDrag);
 els.overlay.addEventListener("pointerleave", () => {
   state.vertexDeform.hasCursor = false;
+  state.objectHoverRoot = -1;
+  state.objectScaleHoverRoot = -1;
+  if (els.overlay) els.overlay.style.cursor = "";
 });
 els.overlay.addEventListener("contextmenu", (ev) => {
   ev.preventDefault();
@@ -20900,25 +24753,31 @@ els.overlay.addEventListener(
 );
 window.addEventListener("resize", resize);
 window.addEventListener("resize", () => {
-  if (!state.boneTreeMenuOpen) return;
-  closeBoneTreeContextMenu();
+  if (state.boneTreeMenuOpen) closeBoneTreeContextMenu();
+  closeBoneDeleteQuickMenu();
 });
 
 setupLeftToolTabs();
 setupWorkspaceTabs();
 setupAnimateSubTabs();
 mountAnimateAuxPanelsInLeftTools();
+setupApplicationMenuBar();
 render();
-state.editMode = els.editMode ? els.editMode.value || "skeleton" : "skeleton";
+state.editMode =
+  els.editMode && (els.editMode.value === "skeleton" || els.editMode.value === "vertex" || els.editMode.value === "slotmesh")
+    ? els.editMode.value
+    : "skeleton";
 state.workspaceMode = state.editMode === "slotmesh" ? "slotmesh" : "rig";
 state.uiPage = state.editMode === "slotmesh" ? "slot" : "rig";
-state.boneMode = els.boneMode.value || "edit";
+state.boneMode = (els.boneMode && els.boneMode.value) || "edit";
 state.weightMode = els.weightMode.value || "hard";
 state.anim.loop = !!els.animLoop.checked;
 state.anim.snap = !!els.animSnap.checked;
 state.anim.fps = Math.max(1, Number(els.animFps.value) || 30);
 state.anim.timeStep = Math.max(0.001, Number(els.animTimeStep && els.animTimeStep.value) || 0.01);
-state.slotViewMode = els.slotViewMode ? els.slotViewMode.value || "single" : "single";
+state.slotViewMode = els.slotViewMode ? els.slotViewMode.value || "all" : "all";
+state.slotMesh.toolMode = normalizeSlotMeshToolMode(state.slotMesh.toolMode);
+state.view.panMode = !!state.view.panMode;
 state.vertexDeform.proportional = els.vertexProportionalToggle ? !!els.vertexProportionalToggle.checked : true;
 state.vertexDeform.mirror = els.vertexMirrorToggle ? !!els.vertexMirrorToggle.checked : false;
 state.vertexDeform.heatmap = els.vertexHeatmapToggle ? !!els.vertexHeatmapToggle.checked : false;
@@ -20933,6 +24792,7 @@ setAnimTime(Number(els.animTime.value) || 0);
 refreshAnimationUI();
 refreshSlotUI();
 updateWorkspaceUI();
+refreshViewPanUI();
 refreshVertexDeformUI();
 updatePlaybackButtons();
 renderDiagnosticsUI();
