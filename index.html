@@ -84,8 +84,7 @@
             <select id="editMode">
               <option value="object">Object</option>
               <option value="skeleton" selected>Skeleton</option>
-              <option value="slotmesh">Slot Mesh</option>
-              <option value="vertex">Vertex</option>
+              <option value="mesh">Mesh</option>
             </select>
           </label>
         </div>
@@ -162,7 +161,7 @@
         <button id="leftTabRig" class="left-tab-btn" data-left-tab="rig" type="button">Rig</button>
         <button id="leftTabObject" class="left-tab-btn" data-left-tab="object" type="button">Object</button>
         <button id="leftTabTools" class="left-tab-btn" data-left-tab="tools" type="button">Tools</button>
-        <button id="leftTabSlotMesh" class="left-tab-btn" data-left-tab="slotmesh" type="button">Slot Mesh</button>
+        <button id="leftTabSlotMesh" class="left-tab-btn" data-left-tab="slotmesh" type="button">Mesh</button>
       </div>
       <section id="leftCanvasTools" class="group left-tab-panel" data-left-panel="canvas">
         <h3>Base Transform</h3>
@@ -195,6 +194,53 @@
       <section id="leftMeshSetup" class="group left-tab-panel" data-left-panel="setup">
         <h3>Mesh Setup</h3>
         <button id="remeshBtn">Rebuild Mesh</button>
+        <div class="field two-col">
+          <button id="setupAddBoneBtn" type="button">Add Bone</button>
+          <button id="setupDeleteBoneBtn" type="button">Delete Bone</button>
+        </div>
+        <div class="field two-col">
+          <button id="setupAutoWeightSingleBtn" type="button">Auto Weight (Single Bone)</button>
+          <button id="setupAutoWeightMultiBtn" type="button">Auto Weight (Multi Bone)</button>
+        </div>
+        <div class="field">
+          <button id="setupEditWeightsBtn" type="button">Edit Weights (Vertex)</button>
+        </div>
+        <p id="setupAutoWeightSelectionSummary" class="muted"></p>
+        <section id="setupHumanoidRigSection" class="setup-subsection">
+          <h4>Humanoid Auto Rig / Bind</h4>
+          <div class="field">
+            <button id="setupHumanoidBoneBtn" type="button" title="Auto-generate humanoid parent-child rig">humanoid bone</button>
+          </div>
+          <div id="setupHumanoidOptions" class="field">
+            <div class="field two-col">
+              <label>
+                <span>Pose Source</span>
+                <select id="setupHumanoidSourceMode">
+                  <option value="auto" selected>Auto</option>
+                  <option value="project">Project Image</option>
+                  <option value="active_slot">Active Slot</option>
+                </select>
+              </label>
+              <label>
+                <span>Min Score</span>
+                <input id="setupHumanoidMinScore" type="number" min="0.05" max="0.95" step="0.05" value="0.20" />
+              </label>
+            </div>
+            <label class="slot-inline-check">
+              <input id="setupHumanoidSmoothing" type="checkbox" checked />
+              <span>Detector Smoothing</span>
+            </label>
+            <label class="slot-inline-check">
+              <input id="setupHumanoidFallback" type="checkbox" checked />
+              <span>Allow Missing-Point Fallback</span>
+            </label>
+          </div>
+          <div class="field two-col">
+            <button id="setupBindBoneBtn" type="button">Bind Slot -> Selected Bone</button>
+            <button id="setupBindWeightedBtn" type="button">Bind Slot -> Selected Bones</button>
+          </div>
+        </section>
+        <p class="muted">Setup quick actions: add/edit bones and apply auto weight.</p>
       </section>
 
       <section id="leftRigBuild" class="group left-tab-panel" data-left-panel="rig">
@@ -237,7 +283,14 @@
           <button id="resetPoseBtn">Reset Pose</button>
           <button id="resetVertexBtn">Reset Vertex</button>
         </div>
-        <section id="vertexDeformTools" class="vertex-deform-tools">
+        <p class="muted">Available general tools and resets.</p>
+      </section>
+
+      <section id="slotMeshTools" class="group left-tab-panel" data-left-panel="slotmesh">
+        <h3>Mesh Tools</h3>
+
+        <section id="vertexDeformTools" class="vertex-deform-tools"
+          style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #333;">
           <h4>Vertex Deform (FFD)</h4>
           <label class="slot-inline-check">
             <input id="vertexProportionalToggle" type="checkbox" checked />
@@ -251,6 +304,23 @@
             <input id="vertexHeatmapToggle" type="checkbox" />
             <span>Heatmap Preview (J)</span>
           </label>
+          <label class="slot-inline-check">
+            <input id="vertexWeightVizToggle" type="checkbox" />
+            <span>Weight Overlay</span>
+          </label>
+          <div class="field two-col">
+            <label>
+              <span>Weight View</span>
+              <select id="vertexWeightVizMode">
+                <option value="selected" selected>Selected Bone</option>
+                <option value="dominant">Dominant Bone</option>
+              </select>
+            </label>
+            <label>
+              <span>Overlay Opacity</span>
+              <input id="vertexWeightVizOpacity" type="number" min="0.05" max="1" step="0.05" value="0.75" />
+            </label>
+          </div>
           <div class="field two-col">
             <label>
               <span>Radius</span>
@@ -265,13 +335,11 @@
               </select>
             </label>
           </div>
-          <p class="muted">Drag vertex in Vertex mode to move nearby vertices smoothly. Hotkeys: O, H, J, [, ], Shift+[
+          <p class="muted">Drag vertex to move nearby vertices smoothly. Hotkeys: O, H, J, [, ], Shift+[
             / ], Alt+Wheel radius, Shift/Ctrl+Click multi-select, box select drag, P pin, U unpin, M relax</p>
         </section>
-      </section>
 
-      <section id="slotMeshTools" class="group left-tab-panel" data-left-panel="slotmesh">
-        <h3>Slot Mesh Edit</h3>
+        <h4>Contour Generation</h4>
         <div class="field two-col">
           <label>
             <span>Mesh Density X</span>
@@ -356,6 +424,8 @@
           </div>
           <button id="boneTreeOnlyActiveSlotBtn" type="button" title="Show only current active slot in tree">Only Active
             Slot</button>
+          <button id="boneTreeHideScopeBtn" type="button" title="Global hide scope for all bone hide toggles">Hide Scope:
+            Bone</button>
           <button id="boneTreeBindSelectedUnassignedBtn" type="button"
             title="Create default bone(s) for selected unassigned slots">Bind Selected Staging</button>
         </div>
@@ -363,8 +433,8 @@
         <p class="muted">Spine-style hierarchy: bone -> slot. Use + Bone to create default bones without slots. Slot
           label A = current active slot, B = this bone's selected slot. Drag slot row to reorder/assign bone, or drop to
           Unassigned/Staging area to keep it unbound. Right-click bone: delete bone and move slots to staging, or delete
-          bone with its slots. Click S/B to fold, H cycles Work Hide (off -> bone -> bone+slots), A sets Anim Hide key
-          (bone+slots) in Pose mode.</p>
+          bone with its slots. Click S/B to fold, H toggles Work Hide on/off per bone, and use Hide Scope button to
+          switch global scope (bone only / bone+slots). A sets Anim Hide key (bone+slots) in Pose mode.</p>
         <div id="boneTreeContextMenu" class="context-menu collapsed" role="menu" aria-label="Bone tree actions">
           <button id="treeCtxSlotAddBtn" type="button" role="menuitem">+ Slot</button>
           <button id="treeCtxSlotDupBtn" type="button" role="menuitem">Duplicate Slot</button>

@@ -1254,6 +1254,15 @@ button:hover {
   border: 1px solid rgba(93, 227, 173, 0.58);
 }
 
+.bone-tree .tree-slot.auto-weight-target {
+  box-shadow: inset 0 0 0 1px rgba(255, 158, 94, 0.78);
+  background-image: linear-gradient(90deg, rgba(255, 158, 94, 0.1), rgba(255, 205, 135, 0.04));
+}
+
+.bone-tree .tree-slot.auto-weight-target.active-slot {
+  box-shadow: inset 0 0 0 1px rgba(255, 206, 109, 0.9);
+}
+
 .bone-tree .tree-slot.slot-hidden-by-bone {
   opacity: 0.5;
 }
@@ -1316,6 +1325,11 @@ button:hover {
   border-color: rgba(244, 139, 139, 0.85);
   color: #ffd6d6;
   background: rgba(122, 46, 46, 0.45);
+}
+
+.bone-tree .tree-item[data-root-bone="0"] .tree-bone-hide-toggle,
+.bone-tree .tree-item[data-root-bone="0"] .tree-bone-anim-hide-toggle {
+  display: none;
 }
 
 .bone-tree .tree-bone-name {
@@ -2374,4 +2388,26 @@ button:hover {
   .anim-toolbar #animName {
     width: 120px;
   }
+}
+
+#setupAutoWeightSelectionSummary {
+  margin: 6px 0 2px;
+  padding: 6px 8px;
+  border: 1px dashed rgba(255, 173, 105, 0.44);
+  border-radius: 6px;
+  background: rgba(43, 30, 18, 0.32);
+  color: #ffd7b0;
+}
+
+.setup-subsection {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(120, 158, 181, 0.35);
+}
+
+.setup-subsection>h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: #9fd3ff;
 }

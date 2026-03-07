@@ -73,12 +73,14 @@
   rightProps: document.getElementById("rightProps"),
   boneTreeOnlyActiveSlotBtn: document.getElementById("boneTreeOnlyActiveSlotBtn"),
   boneTreeAddBoneBtn: document.getElementById("boneTreeAddBoneBtn"),
+  boneTreeHumanoidBoneBtn: document.getElementById("boneTreeHumanoidBoneBtn"),
   boneTreeDeleteBoneBtn: document.getElementById("boneTreeDeleteBoneBtn"),
   boneTreeDeleteBoneMenuBtn: document.getElementById("boneTreeDeleteBoneMenuBtn"),
   boneTreeDeleteBoneMenu: document.getElementById("boneTreeDeleteBoneMenu"),
   boneTreeDeleteBoneToStagingBtn: document.getElementById("boneTreeDeleteBoneToStagingBtn"),
   boneTreeDeleteBoneWithSlotsBtn: document.getElementById("boneTreeDeleteBoneWithSlotsBtn"),
   boneTreeBindSelectedUnassignedBtn: document.getElementById("boneTreeBindSelectedUnassignedBtn"),
+  boneTreeHideScopeBtn: document.getElementById("boneTreeHideScopeBtn"),
   slotPropsGroup: document.getElementById("slotPropsGroup"),
   bonePropsGroup: document.getElementById("bonePropsGroup"),
   slotSelect: document.getElementById("slotSelect"),
@@ -86,6 +88,19 @@
   gridX: document.getElementById("gridX"),
   gridY: document.getElementById("gridY"),
   remeshBtn: document.getElementById("remeshBtn"),
+  setupAddBoneBtn: document.getElementById("setupAddBoneBtn"),
+  setupDeleteBoneBtn: document.getElementById("setupDeleteBoneBtn"),
+  setupHumanoidBoneBtn: document.getElementById("setupHumanoidBoneBtn"),
+  setupHumanoidSourceMode: document.getElementById("setupHumanoidSourceMode"),
+  setupHumanoidMinScore: document.getElementById("setupHumanoidMinScore"),
+  setupHumanoidSmoothing: document.getElementById("setupHumanoidSmoothing"),
+  setupHumanoidFallback: document.getElementById("setupHumanoidFallback"),
+  setupBindBoneBtn: document.getElementById("setupBindBoneBtn"),
+  setupBindWeightedBtn: document.getElementById("setupBindWeightedBtn"),
+  setupAutoWeightSingleBtn: document.getElementById("setupAutoWeightSingleBtn"),
+  setupAutoWeightMultiBtn: document.getElementById("setupAutoWeightMultiBtn"),
+  setupEditWeightsBtn: document.getElementById("setupEditWeightsBtn"),
+  setupAutoWeightSelectionSummary: document.getElementById("setupAutoWeightSelectionSummary"),
   baseImageTransformEnabled: document.getElementById("baseImageTransformEnabled"),
   baseImageTx: document.getElementById("baseImageTx"),
   baseImageTy: document.getElementById("baseImageTy"),
@@ -215,6 +230,9 @@
   vertexProportionalToggle: document.getElementById("vertexProportionalToggle"),
   vertexMirrorToggle: document.getElementById("vertexMirrorToggle"),
   vertexHeatmapToggle: document.getElementById("vertexHeatmapToggle"),
+  vertexWeightVizToggle: document.getElementById("vertexWeightVizToggle"),
+  vertexWeightVizMode: document.getElementById("vertexWeightVizMode"),
+  vertexWeightVizOpacity: document.getElementById("vertexWeightVizOpacity"),
   vertexProportionalRadius: document.getElementById("vertexProportionalRadius"),
   vertexProportionalFalloff: document.getElementById("vertexProportionalFalloff"),
   animTime: document.getElementById("animTime"),
@@ -478,6 +496,7 @@ const state = {
   editMode: "skeleton",
   selectedBone: 0,
   selectedBonesForWeight: [],
+  selectedBoneParts: [],
   selectedIK: -1,
   selectedTransform: -1,
   selectedPath: -1,
@@ -500,6 +519,7 @@ const state = {
   treeBoneLastClickIndex: -1,
   treeBoneLastClickTs: 0,
   boneTreeOnlyActiveSlot: false,
+  boneTreeWorkHideMode: "bone_only",
   boneTreeSelectedUnassignedSlotIds: [],
   boneTreeSelectedSlotByBone: Object.create(null),
   boneTreeSlotCollapse: Object.create(null),
@@ -508,6 +528,10 @@ const state = {
   boneTreeMenuOpen: false,
   boneTreeMenuContextKind: "",
   rightPropsFocus: "slot",
+  rigEditPreviewWorld: null,
+  rigEditPreviewInvBind: null,
+  rigEditNeedsRuntimeNormalize: false,
+  rigCoordinateSpace: "runtime",
   anim: {
     duration: 5,
     time: 0,
@@ -521,6 +545,7 @@ const state = {
     keyClipboard: null,
     timelineDrag: null,
     timelineMarqueeEl: null,
+    timelineScaleHeld: false,
     drawOrderEditorOpen: false,
     dirtyTracks: [],
     trackExpanded: {},
@@ -627,6 +652,9 @@ const state = {
     proportional: true,
     mirror: false,
     heatmap: false,
+    weightViz: false,
+    weightVizMode: "selected",
+    weightVizOpacity: 0.75,
     radius: 80,
     falloff: "smooth",
     cursorX: 0,
@@ -642,6 +670,12 @@ const state = {
   },
   export: {
     spineCompat: "4.2",
+  },
+  poseAutoRig: {
+    sourceMode: "auto",
+    minScore: 0.2,
+    smoothing: true,
+    allowFallback: true,
   },
 };
 
@@ -687,15 +721,15 @@ function setSlotBaseImageTransform(next, slot = null) {
 }
 
 function isSlotMeshModeActive() {
-  return state.editMode === "slotmesh";
+  return state.editMode === "mesh";
 }
 
 function isSlotMeshEditTabActive() {
-  return state.editMode === "slotmesh" && state.leftToolTab === "slotmesh";
+  return state.editMode === "mesh" && state.leftToolTab === "slotmesh";
 }
 
 function isBaseImageEditTabActive() {
-  return state.editMode === "slotmesh" && state.leftToolTab === "canvas";
+  return state.editMode === "mesh" && state.leftToolTab === "canvas";
 }
 
 function isBaseImageTransformEditable() {
@@ -772,8 +806,9 @@ function drawBaseImageReference2D(ctx) {
   let drawTm = getBaseImageTransformMatrix(activeSlot, poseWorld, docW, docH);
   if (state.mesh && activeSlot) {
     const bi = getSlotBaseSpaceBoneIndex(activeSlot, state.mesh);
-    if (Number.isFinite(bi) && bi >= 0 && Array.isArray(poseWorld) && poseWorld[bi] && state.mesh.invBind && state.mesh.invBind[bi]) {
-      const delta = mul(poseWorld[bi], state.mesh.invBind[bi]);
+    const invBind = getDisplayInvBind(state.mesh);
+    if (Number.isFinite(bi) && bi >= 0 && Array.isArray(poseWorld) && poseWorld[bi] && invBind && invBind[bi]) {
+      const delta = mul(poseWorld[bi], invBind[bi]);
       drawTm = mul(drawTm, delta);
     }
   }
@@ -855,9 +890,15 @@ function syncActiveSlotTransformInputs() {
   if (els.slotRot) els.slotRot.value = String(Math.round(math.radToDeg(Number(s.rot) || 0)));
 }
 
+function isVertexWeightVizActive() {
+  if (state.editMode !== "mesh") return false;
+  if (state.leftToolTab !== "slotmesh") return false;
+  return !!state.vertexDeform.weightViz;
+}
+
 function isCanvasTransformGizmoAllowed() {
   if (state.uiPage === "anim") return false;
-  if (state.editMode === "vertex") return false;
+  if (state.editMode === "mesh" && isVertexWeightVizActive()) return false; // Added condition
   if (state.editMode === "skeleton" && state.leftToolTab === "path") return false;
   const baseTab = isBaseImageEditTabActive();
   if (!baseTab && !state.mesh) return false;
@@ -945,8 +986,9 @@ function getCanvasTransformGizmos(poseWorld = null) {
     let drawTm = getBaseImageTransformMatrix(activeSlot, poseWorld, docW, docH);
     if (state.mesh && activeSlot) {
       const bi = getSlotBaseSpaceBoneIndex(activeSlot, state.mesh);
-      if (Number.isFinite(bi) && bi >= 0 && Array.isArray(poseWorld) && poseWorld[bi] && state.mesh.invBind && state.mesh.invBind[bi]) {
-        const delta = mul(poseWorld[bi], state.mesh.invBind[bi]);
+      const invBind = getDisplayInvBind(state.mesh);
+      if (Number.isFinite(bi) && bi >= 0 && Array.isArray(poseWorld) && poseWorld[bi] && invBind && invBind[bi]) {
+        const delta = mul(poseWorld[bi], invBind[bi]);
         drawTm = mul(drawTm, delta);
       }
     }
@@ -1105,21 +1147,20 @@ function buildCommandPaletteItems() {
     { id: "edit.redo", label: "Edit: Redo", group: "Edit", hotkey: "Ctrl/Cmd+Y", action: async () => redoAction() },
     { id: "mode.skeleton", label: "Mode: Skeleton", group: "Mode", hotkey: "", action: () => setSelectValueAndTrigger(els.editMode, "skeleton") },
     {
-      id: "mode.slotmesh.canvas",
-      label: "Mode: Slot Mesh (Base Transform)",
+      id: "mode.mesh.canvas",
+      label: "Mode: Mesh (Base Transform)",
       group: "Mode",
       hotkey: "",
       action: () => {
-        setSelectValueAndTrigger(els.editMode, "slotmesh");
+        setSelectValueAndTrigger(els.editMode, "mesh");
         state.leftToolTab = "canvas";
         updateWorkspaceUI();
       },
     },
-    { id: "mode.vertex", label: "Mode: Vertex", group: "Mode", hotkey: "", action: () => setSelectValueAndTrigger(els.editMode, "vertex") },
-    { id: "mode.slotmesh", label: "Mode: Slot Mesh", group: "Mode", hotkey: "", action: () => setSelectValueAndTrigger(els.editMode, "slotmesh") },
-    { id: "mode.rig", label: "Bone Mode: Edit Rig", group: "Mode", hotkey: "", action: () => { state.boneMode = "edit"; if (els.systemMode) els.systemMode.value = "setup"; updateWorkspaceUI(); updateBoneUI(); } },
-    { id: "mode.object", label: "Bone Mode: Object", group: "Mode", hotkey: "", action: () => { if (els.editMode) setSelectValueAndTrigger(els.editMode, "object"); else { state.editMode = "object"; state.boneMode = "object"; updateWorkspaceUI(); updateBoneUI(); } } },
-    { id: "mode.pose", label: "Bone Mode: Pose Animate", group: "Mode", hotkey: "", action: () => { state.boneMode = "pose"; if (els.systemMode) els.systemMode.value = "animate"; if (state.mesh) { syncPoseFromRig(state.mesh); samplePoseAtTime(state.mesh, state.anim.time); } updateWorkspaceUI(); updateBoneUI(); } },
+    { id: "mode.mesh", label: "Mode: Mesh", group: "Mode", hotkey: "", action: () => setSelectValueAndTrigger(els.editMode, "mesh") },
+    { id: "mode.rig", label: "Bone Mode: Edit Rig", group: "Mode", hotkey: "", action: () => { const prevMode = state.boneMode; state.boneMode = "edit"; applyBoneModeTransition(prevMode, state.boneMode); if (els.systemMode) els.systemMode.value = "setup"; updateWorkspaceUI(); updateBoneUI(); } },
+    { id: "mode.object", label: "Bone Mode: Object", group: "Mode", hotkey: "", action: () => { if (els.editMode) setSelectValueAndTrigger(els.editMode, "object"); else { const prevMode = state.boneMode; state.editMode = "object"; state.boneMode = "object"; applyBoneModeTransition(prevMode, state.boneMode); updateWorkspaceUI(); updateBoneUI(); } } },
+    { id: "mode.pose", label: "Bone Mode: Pose Animate", group: "Mode", hotkey: "", action: () => { const prevMode = state.boneMode; state.boneMode = "pose"; applyBoneModeTransition(prevMode, state.boneMode); if (els.systemMode) els.systemMode.value = "animate"; if (state.mesh) { syncPoseFromRig(state.mesh); samplePoseAtTime(state.mesh, state.anim.time); } updateWorkspaceUI(); updateBoneUI(); } },
     { id: "view.fit", label: "View: Fit (100%)", group: "View", hotkey: "0", action: () => resetViewToFit() },
     {
       id: "view.zoom.in",
@@ -1304,6 +1345,82 @@ function sanitizeVertexFalloff(v) {
   return s === "linear" || s === "sharp" ? s : "smooth";
 }
 
+function sanitizeWeightVizMode(v) {
+  const s = String(v || "").toLowerCase();
+  return s === "dominant" ? "dominant" : "selected";
+}
+
+function sanitizePoseAutoRigSourceMode(v) {
+  const s = String(v || "").toLowerCase();
+  if (s === "project") return "project";
+  if (s === "active_slot") return "active_slot";
+  return "auto";
+}
+
+function sanitizePoseAutoRigMinScore(v) {
+  const n = Number(v);
+  return math.clamp(Number.isFinite(n) ? n : 0.2, 0.05, 0.95);
+}
+
+function syncPoseAutoRigOptionsToUI() {
+  if (els.setupHumanoidSourceMode) {
+    els.setupHumanoidSourceMode.value = sanitizePoseAutoRigSourceMode(state.poseAutoRig && state.poseAutoRig.sourceMode);
+  }
+  if (els.setupHumanoidMinScore) {
+    const ms = sanitizePoseAutoRigMinScore(state.poseAutoRig && state.poseAutoRig.minScore);
+    els.setupHumanoidMinScore.value = ms.toFixed(2);
+  }
+  if (els.setupHumanoidSmoothing) {
+    els.setupHumanoidSmoothing.checked = state.poseAutoRig ? state.poseAutoRig.smoothing !== false : true;
+  }
+  if (els.setupHumanoidFallback) {
+    els.setupHumanoidFallback.checked = state.poseAutoRig ? state.poseAutoRig.allowFallback !== false : true;
+  }
+}
+
+function readPoseAutoRigOptionsFromUI() {
+  const curr = state.poseAutoRig && typeof state.poseAutoRig === "object" ? state.poseAutoRig : {};
+  const next = {
+    sourceMode: sanitizePoseAutoRigSourceMode(els.setupHumanoidSourceMode ? els.setupHumanoidSourceMode.value : curr.sourceMode),
+    minScore: sanitizePoseAutoRigMinScore(els.setupHumanoidMinScore ? els.setupHumanoidMinScore.value : curr.minScore),
+    smoothing: els.setupHumanoidSmoothing ? !!els.setupHumanoidSmoothing.checked : curr.smoothing !== false,
+    allowFallback: els.setupHumanoidFallback ? !!els.setupHumanoidFallback.checked : curr.allowFallback !== false,
+  };
+  state.poseAutoRig = next;
+  syncPoseAutoRigOptionsToUI();
+  return { ...next };
+}
+
+function bindPoseAutoRigOptionListeners() {
+  if (els.setupHumanoidSourceMode && els.setupHumanoidSourceMode.dataset.poseAutoRigBound !== "1") {
+    els.setupHumanoidSourceMode.dataset.poseAutoRigBound = "1";
+    els.setupHumanoidSourceMode.addEventListener("change", () => {
+      readPoseAutoRigOptionsFromUI();
+    });
+  }
+  if (els.setupHumanoidMinScore && els.setupHumanoidMinScore.dataset.poseAutoRigBound !== "1") {
+    els.setupHumanoidMinScore.dataset.poseAutoRigBound = "1";
+    els.setupHumanoidMinScore.addEventListener("input", () => {
+      readPoseAutoRigOptionsFromUI();
+    });
+    els.setupHumanoidMinScore.addEventListener("change", () => {
+      readPoseAutoRigOptionsFromUI();
+    });
+  }
+  if (els.setupHumanoidSmoothing && els.setupHumanoidSmoothing.dataset.poseAutoRigBound !== "1") {
+    els.setupHumanoidSmoothing.dataset.poseAutoRigBound = "1";
+    els.setupHumanoidSmoothing.addEventListener("change", () => {
+      readPoseAutoRigOptionsFromUI();
+    });
+  }
+  if (els.setupHumanoidFallback && els.setupHumanoidFallback.dataset.poseAutoRigBound !== "1") {
+    els.setupHumanoidFallback.dataset.poseAutoRigBound = "1";
+    els.setupHumanoidFallback.addEventListener("change", () => {
+      readPoseAutoRigOptionsFromUI();
+    });
+  }
+}
+
 function setupApplicationMenuBar() {
   const bar = document.getElementById("appMenuBar");
   if (!bar) return;
@@ -1426,10 +1543,15 @@ function refreshVertexDeformUI() {
   if (els.vertexProportionalToggle) els.vertexProportionalToggle.checked = !!state.vertexDeform.proportional;
   if (els.vertexMirrorToggle) els.vertexMirrorToggle.checked = !!state.vertexDeform.mirror;
   if (els.vertexHeatmapToggle) els.vertexHeatmapToggle.checked = !!state.vertexDeform.heatmap;
+  if (els.vertexWeightVizToggle) els.vertexWeightVizToggle.checked = !!state.vertexDeform.weightViz;
+  if (els.vertexWeightVizMode) els.vertexWeightVizMode.value = sanitizeWeightVizMode(state.vertexDeform.weightVizMode);
+  if (els.vertexWeightVizOpacity) els.vertexWeightVizOpacity.value = String((Number(state.vertexDeform.weightVizOpacity) || 0.75).toFixed(2));
   if (els.vertexProportionalRadius) els.vertexProportionalRadius.value = String(Math.round(state.vertexDeform.radius));
   if (els.vertexProportionalFalloff) els.vertexProportionalFalloff.value = sanitizeVertexFalloff(state.vertexDeform.falloff);
+  if (els.vertexWeightVizMode) els.vertexWeightVizMode.disabled = !state.vertexDeform.weightViz;
+  if (els.vertexWeightVizOpacity) els.vertexWeightVizOpacity.disabled = !state.vertexDeform.weightViz;
   if (els.vertexDeformTools) {
-    const show = state.editMode === "vertex" && (state.uiPage === "rig" || state.uiPage === "anim");
+    const show = state.editMode === "mesh" && (state.uiPage === "rig" || state.uiPage === "anim");
     els.vertexDeformTools.style.display = show ? "" : "none";
   }
 }
@@ -1542,6 +1664,78 @@ function getHeatmapColor(t) {
   const g = Math.round(190 - 150 * u);
   const b = Math.round(255 - 235 * u);
   return `rgba(${r}, ${g}, ${b}, ${0.2 + 0.65 * u})`;
+}
+
+function getHeatmapColorWithAlpha(t, alphaScale = 1) {
+  const u = math.clamp(Number(t) || 0, 0, 1);
+  const r = Math.round(40 + 215 * u);
+  const g = Math.round(190 - 150 * u);
+  const b = Math.round(255 - 235 * u);
+  const a = math.clamp((0.2 + 0.65 * u) * (Number(alphaScale) || 1), 0.05, 1);
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+function getBoneVizColor(index, alpha = 0.72, strength = 1) {
+  const i = Number(index);
+  const h = ((Number.isFinite(i) ? i : 0) * 57) % 360;
+  const s = Math.round(62 + 30 * math.clamp(Number(strength) || 0, 0, 1));
+  const l = Math.round(42 + 16 * math.clamp(Number(strength) || 0, 0, 1));
+  const a = math.clamp(Number(alpha) || 0.72, 0, 1);
+  return `hsla(${h}, ${s}%, ${l}%, ${a})`;
+}
+
+function drawWeightOverlayForMesh(ctx, m, meshData, screenPoints) {
+  if (!ctx || !m || !meshData || !screenPoints) return;
+  const weights = meshData.weights;
+  const boneCount = Array.isArray(m.rigBones) ? m.rigBones.length : 0;
+  const vCount = Math.floor((Number(screenPoints.length) || 0) / 2);
+  if (!weights || boneCount <= 0 || vCount <= 0 || weights.length !== vCount * boneCount) return;
+  const mode = sanitizeWeightVizMode(state.vertexDeform.weightVizMode);
+  const alphaBase = math.clamp(Number(state.vertexDeform.weightVizOpacity) || 0.75, 0.05, 1);
+  const selectedBone = getPrimarySelectedBoneIndex();
+  const selectedValid = Number.isFinite(selectedBone) && selectedBone >= 0 && selectedBone < boneCount;
+  for (let i = 0; i < vCount; i += 1) {
+    let domBone = 0;
+    let domW = -1;
+    let selectedW = 0;
+    for (let b = 0; b < boneCount; b += 1) {
+      const w = Number(weights[i * boneCount + b]) || 0;
+      if (w > domW) {
+        domW = w;
+        domBone = b;
+      }
+      if (b === selectedBone) selectedW = w;
+    }
+    const sx = Number(screenPoints[i * 2]) || 0;
+    const sy = Number(screenPoints[i * 2 + 1]) || 0;
+    if (mode === "dominant" || !selectedValid) {
+      const a = alphaBase * (0.25 + 0.75 * math.clamp(domW, 0, 1));
+      ctx.fillStyle = getBoneVizColor(domBone, a, domW);
+    } else {
+      const sW = math.clamp(selectedW, 0, 1);
+      ctx.fillStyle = getHeatmapColorWithAlpha(sW, alphaBase);
+    }
+    ctx.beginPath();
+    ctx.arc(sx, sy, 4.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.save();
+  ctx.font = "12px Segoe UI, sans-serif";
+  ctx.fillStyle = "rgba(235,245,255,0.96)";
+  if (mode === "dominant" || !selectedValid) {
+    ctx.fillText("Weight Overlay: Dominant Bone", 14, 48);
+  } else {
+    const name =
+      Number.isFinite(selectedBone) &&
+        selectedBone >= 0 &&
+        selectedBone < m.rigBones.length &&
+        m.rigBones[selectedBone]
+        ? String(m.rigBones[selectedBone].name || `bone_${selectedBone}`)
+        : "None";
+    ctx.fillText(`Weight Overlay: Selected Bone (${name})`, 14, 48);
+  }
+  ctx.restore();
 }
 
 function sanitizeVertexIndexArray(list, vCount) {
@@ -1724,6 +1918,7 @@ function createProgram(vsSrc, fsSrc) {
 let program = null;
 
 function refreshContextUI() {
+  const prevMode = state.boneMode;
   const isSetup = els.systemMode && els.systemMode.value === "setup";
   const isAnim = !isSetup;
 
@@ -1754,6 +1949,7 @@ function refreshContextUI() {
       state.boneMode = "edit";
     }
   }
+  applyBoneModeTransition(prevMode, state.boneMode);
 }
 let loc = null;
 let vbo = null;
@@ -1944,6 +2140,574 @@ function createDefaultBones(w, h) {
   ];
 }
 
+const POSE_AUTO_RIG_SCRIPT_URLS = [
+  "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core",
+  "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter",
+  "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl",
+  "https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection",
+];
+
+const BLAZEPOSE_KP = Object.freeze({
+  nose: 0,
+  left_ear: 7,
+  right_ear: 8,
+  mouth_left: 9,
+  mouth_right: 10,
+  left_shoulder: 11,
+  right_shoulder: 12,
+  left_elbow: 13,
+  right_elbow: 14,
+  left_wrist: 15,
+  right_wrist: 16,
+  left_pinky: 17,
+  right_pinky: 18,
+  left_index: 19,
+  right_index: 20,
+  left_thumb: 21,
+  right_thumb: 22,
+  left_hip: 23,
+  right_hip: 24,
+  left_knee: 25,
+  right_knee: 26,
+  left_ankle: 27,
+  right_ankle: 28,
+  left_heel: 29,
+  right_heel: 30,
+  left_foot_index: 31,
+  right_foot_index: 32,
+});
+
+let poseAutoRigDepsPromise = null;
+let poseAutoRigDetectorPromise = null;
+let poseAutoRigDetector = null;
+let poseAutoRigDetectorConfigKey = "";
+let poseAutoRigBusy = false;
+
+function loadExternalScriptOnce(url) {
+  return new Promise((resolve, reject) => {
+    if (!url) {
+      reject(new Error("Invalid script url."));
+      return;
+    }
+    const existing = [...document.querySelectorAll("script[src]")].find((s) => String(s.src || "") === url || String(s.getAttribute("src") || "") === url);
+    if (existing) {
+      if (existing.dataset.loaded === "1") {
+        resolve();
+        return;
+      }
+      const looksReady =
+        (url.includes("pose-detection") && !!window.poseDetection) ||
+        (url.includes("tfjs") && !!window.tf);
+      if (looksReady) {
+        existing.dataset.loaded = "1";
+        resolve();
+        return;
+      }
+      existing.addEventListener("load", () => {
+        existing.dataset.loaded = "1";
+        resolve();
+      }, { once: true });
+      existing.addEventListener("error", () => reject(new Error(`Failed to load script: ${url}`)), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = url;
+    script.async = false;
+    script.defer = false;
+    script.dataset.poseAutoRig = "1";
+    script.addEventListener("load", () => {
+      script.dataset.loaded = "1";
+      resolve();
+    }, { once: true });
+    script.addEventListener("error", () => reject(new Error(`Failed to load script: ${url}`)), { once: true });
+    document.head.appendChild(script);
+  });
+}
+
+async function ensurePoseAutoRigRuntime() {
+  if (window.poseDetection && window.tf) return true;
+  if (!poseAutoRigDepsPromise) {
+    poseAutoRigDepsPromise = (async () => {
+      for (const url of POSE_AUTO_RIG_SCRIPT_URLS) {
+        await loadExternalScriptOnce(url);
+      }
+      if (!window.poseDetection || !window.tf) {
+        throw new Error("Pose runtime is unavailable.");
+      }
+      if (typeof window.tf.ready === "function") {
+        try {
+          if (typeof window.tf.setBackend === "function") {
+            try {
+              await window.tf.setBackend("webgl");
+            } catch {
+              // Keep default backend.
+            }
+          }
+          await window.tf.ready();
+        } catch {
+          // Continue; detector init will report final failure if runtime is still invalid.
+        }
+      }
+      return true;
+    })().catch((err) => {
+      poseAutoRigDepsPromise = null;
+      throw err;
+    });
+  }
+  await poseAutoRigDepsPromise;
+  return true;
+}
+
+async function ensurePoseAutoRigDetector(options = null) {
+  const opts = options && typeof options === "object" ? options : {};
+  const smoothing = opts.smoothing !== false;
+  const detectorKey = `smooth:${smoothing ? 1 : 0}`;
+  if (poseAutoRigDetector && poseAutoRigDetectorConfigKey === detectorKey) return poseAutoRigDetector;
+  if (poseAutoRigDetector && poseAutoRigDetectorConfigKey !== detectorKey) {
+    try {
+      if (typeof poseAutoRigDetector.dispose === "function") poseAutoRigDetector.dispose();
+    } catch {
+      // ignore dispose errors
+    }
+    poseAutoRigDetector = null;
+    poseAutoRigDetectorPromise = null;
+    poseAutoRigDetectorConfigKey = "";
+  }
+  await ensurePoseAutoRigRuntime();
+  if (!poseAutoRigDetectorPromise) {
+    poseAutoRigDetectorPromise = (async () => {
+      const pd = window.poseDetection;
+      if (!pd || !pd.SupportedModels || !pd.SupportedModels.BlazePose) {
+        throw new Error("BlazePose runtime not found.");
+      }
+      const detector = await pd.createDetector(pd.SupportedModels.BlazePose, {
+        runtime: "tfjs",
+        enableSmoothing: smoothing,
+        modelType: "heavy",
+      });
+      poseAutoRigDetector = detector;
+      poseAutoRigDetectorConfigKey = detectorKey;
+      return detector;
+    })().catch((err) => {
+      poseAutoRigDetectorPromise = null;
+      throw err;
+    });
+  }
+  return poseAutoRigDetectorPromise;
+}
+
+function getPoseAutoRigInputSource(sourceModeRaw = null) {
+  const sourceMode = sanitizePoseAutoRigSourceMode(
+    sourceModeRaw == null ? (state.poseAutoRig && state.poseAutoRig.sourceMode) : sourceModeRaw
+  );
+  const allowProject = sourceMode === "auto" || sourceMode === "project";
+  const allowSlot = sourceMode === "auto" || sourceMode === "active_slot";
+  if (allowProject && state.sourceCanvas && state.imageWidth > 0 && state.imageHeight > 0) {
+    return {
+      source: state.sourceCanvas,
+      mapPoint: (p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }),
+      docW: state.imageWidth,
+      docH: state.imageHeight,
+    };
+  }
+  if (!allowSlot) return null;
+  const slot = getActiveSlot() || state.slots.find((s) => s && s.canvas);
+  if (!slot || !slot.canvas) return null;
+  const rect = slot.rect || { x: 0, y: 0, w: slot.canvas.width, h: slot.canvas.height };
+  const rw = Math.max(1, Number(rect.w) || slot.canvas.width || 1);
+  const rh = Math.max(1, Number(rect.h) || slot.canvas.height || 1);
+  const sx = rw / Math.max(1, Number(slot.canvas.width) || 1);
+  const sy = rh / Math.max(1, Number(slot.canvas.height) || 1);
+  return {
+    source: slot.canvas,
+    mapPoint: (p) => ({
+      x: (Number(rect.x) || 0) + (Number(p.x) || 0) * sx,
+      y: (Number(rect.y) || 0) + (Number(p.y) || 0) * sy,
+    }),
+    docW: Math.max(1, Number(state.imageWidth) || rw),
+    docH: Math.max(1, Number(state.imageHeight) || rh),
+  };
+}
+
+function pointLerp(a, b, t) {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+function pointMid(a, b) {
+  return { x: (a.x + b.x) * 0.5, y: (a.y + b.y) * 0.5 };
+}
+
+function pointAdd(a, vx, vy, scale = 1) {
+  return { x: a.x + vx * scale, y: a.y + vy * scale };
+}
+
+function pointDist(a, b) {
+  return Math.hypot((b.x || 0) - (a.x || 0), (b.y || 0) - (a.y || 0));
+}
+
+function normalizeVec(dx, dy, fallbackX = 1, fallbackY = 0) {
+  const len = Math.hypot(dx, dy);
+  if (len <= 1e-6) {
+    const fLen = Math.hypot(fallbackX, fallbackY) || 1;
+    return { x: fallbackX / fLen, y: fallbackY / fLen };
+  }
+  return { x: dx / len, y: dy / len };
+}
+
+function averagePoints(points) {
+  let sx = 0;
+  let sy = 0;
+  let count = 0;
+  for (const p of Array.isArray(points) ? points : []) {
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+    sx += p.x;
+    sy += p.y;
+    count += 1;
+  }
+  if (count <= 0) return null;
+  return { x: sx / count, y: sy / count };
+}
+
+function getPosePointByIndex(pose, idx, mapPoint, minScore = 0.2) {
+  const list = Array.isArray(pose && pose.keypoints) ? pose.keypoints : [];
+  const kp = list[idx];
+  if (!kp) return null;
+  const score = Number(kp.score);
+  if (Number.isFinite(score) && score < minScore) return null;
+  const x = Number(kp.x);
+  const y = Number(kp.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  const mapped = typeof mapPoint === "function" ? mapPoint({ x, y }) : { x, y };
+  if (!mapped || !Number.isFinite(mapped.x) || !Number.isFinite(mapped.y)) return null;
+  return { x: mapped.x, y: mapped.y };
+}
+
+function buildHumanoidTemplateFromPose(pose, mapPoint, docW, docH, options = null) {
+  const opts = options && typeof options === "object" ? options : {};
+  const minScore = sanitizePoseAutoRigMinScore(opts.minScore);
+  const allowFallback = opts.allowFallback !== false;
+  const p = (idx) => getPosePointByIndex(pose, idx, mapPoint, minScore);
+  const pick = (primary, fallback) => (primary ? primary : allowFallback ? fallback : null);
+  const lShoulder = p(BLAZEPOSE_KP.left_shoulder);
+  const rShoulder = p(BLAZEPOSE_KP.right_shoulder);
+  const lHip = p(BLAZEPOSE_KP.left_hip);
+  const rHip = p(BLAZEPOSE_KP.right_hip);
+  if (!lShoulder || !rShoulder || !lHip || !rHip) return null;
+
+  const shoulderMid = pointMid(lShoulder, rShoulder);
+  const hipMid = pointMid(lHip, rHip);
+  const torsoVec = normalizeVec(shoulderMid.x - hipMid.x, shoulderMid.y - hipMid.y, 0, -1);
+  const down = { x: -torsoVec.x, y: -torsoVec.y };
+  const sideRight = { x: -torsoVec.y, y: torsoVec.x };
+  const sideLeft = { x: -sideRight.x, y: -sideRight.y };
+  const shoulderWidth = Math.max(8, pointDist(lShoulder, rShoulder));
+  const torsoLen = Math.max(16, pointDist(hipMid, shoulderMid));
+
+  const spine0Tip = pointLerp(hipMid, shoulderMid, 1 / 3);
+  const spine1Tip = pointLerp(hipMid, shoulderMid, 2 / 3);
+  const spine2Tip = { x: shoulderMid.x, y: shoulderMid.y };
+
+  const headRef =
+    p(BLAZEPOSE_KP.nose) ||
+    averagePoints([p(BLAZEPOSE_KP.left_ear), p(BLAZEPOSE_KP.right_ear)]) ||
+    averagePoints([p(BLAZEPOSE_KP.mouth_left), p(BLAZEPOSE_KP.mouth_right)]) ||
+    (allowFallback ? pointAdd(spine2Tip, torsoVec.x, torsoVec.y, torsoLen * 0.35) : null);
+  if (!headRef) return null;
+  const neckTip = pointLerp(spine2Tip, headRef, 0.38);
+  const headDir = normalizeVec(headRef.x - neckTip.x, headRef.y - neckTip.y, torsoVec.x, torsoVec.y);
+  const headLen = Math.max(18, shoulderWidth * 0.42, torsoLen * 0.24);
+  const headTip = pointAdd(neckTip, headDir.x, headDir.y, headLen);
+
+  const lElbow = pick(p(BLAZEPOSE_KP.left_elbow), pointAdd(lShoulder, sideLeft.x + down.x * 0.4, sideLeft.y + down.y * 0.4, shoulderWidth * 0.5));
+  const lWrist = lElbow ? pick(p(BLAZEPOSE_KP.left_wrist), pointAdd(lElbow, sideLeft.x + down.x * 0.25, sideLeft.y + down.y * 0.25, shoulderWidth * 0.55)) : null;
+  if (!lElbow || !lWrist) return null;
+  const lHandRef = averagePoints([p(BLAZEPOSE_KP.left_pinky), p(BLAZEPOSE_KP.left_index), p(BLAZEPOSE_KP.left_thumb)]);
+  const lForeDir = normalizeVec(lWrist.x - lElbow.x, lWrist.y - lElbow.y, sideLeft.x, sideLeft.y);
+  const lHand = lHandRef || (allowFallback ? pointAdd(lWrist, lForeDir.x, lForeDir.y, Math.max(12, shoulderWidth * 0.22)) : null);
+  if (!lHand) return null;
+
+  const rElbow = pick(p(BLAZEPOSE_KP.right_elbow), pointAdd(rShoulder, sideRight.x + down.x * 0.4, sideRight.y + down.y * 0.4, shoulderWidth * 0.5));
+  const rWrist = rElbow ? pick(p(BLAZEPOSE_KP.right_wrist), pointAdd(rElbow, sideRight.x + down.x * 0.25, sideRight.y + down.y * 0.25, shoulderWidth * 0.55)) : null;
+  if (!rElbow || !rWrist) return null;
+  const rHandRef = averagePoints([p(BLAZEPOSE_KP.right_pinky), p(BLAZEPOSE_KP.right_index), p(BLAZEPOSE_KP.right_thumb)]);
+  const rForeDir = normalizeVec(rWrist.x - rElbow.x, rWrist.y - rElbow.y, sideRight.x, sideRight.y);
+  const rHand = rHandRef || (allowFallback ? pointAdd(rWrist, rForeDir.x, rForeDir.y, Math.max(12, shoulderWidth * 0.22)) : null);
+  if (!rHand) return null;
+
+  const lKnee = pick(p(BLAZEPOSE_KP.left_knee), pointAdd(lHip, down.x, down.y, torsoLen * 0.58));
+  const lAnkle = lKnee ? pick(p(BLAZEPOSE_KP.left_ankle), pointAdd(lKnee, down.x, down.y, torsoLen * 0.55)) : null;
+  if (!lKnee || !lAnkle) return null;
+  const lToe = p(BLAZEPOSE_KP.left_foot_index);
+  const lHeel = p(BLAZEPOSE_KP.left_heel);
+  const lFoot =
+    lToe ||
+    (lHeel
+      ? pointAdd(lHeel, sideLeft.x, sideLeft.y, Math.max(12, shoulderWidth * 0.2))
+      : allowFallback
+        ? pointAdd(lAnkle, sideLeft.x + down.x * 0.08, sideLeft.y + down.y * 0.08, Math.max(12, shoulderWidth * 0.2))
+        : null);
+  if (!lFoot) return null;
+
+  const rKnee = pick(p(BLAZEPOSE_KP.right_knee), pointAdd(rHip, down.x, down.y, torsoLen * 0.58));
+  const rAnkle = rKnee ? pick(p(BLAZEPOSE_KP.right_ankle), pointAdd(rKnee, down.x, down.y, torsoLen * 0.55)) : null;
+  if (!rKnee || !rAnkle) return null;
+  const rToe = p(BLAZEPOSE_KP.right_foot_index);
+  const rHeel = p(BLAZEPOSE_KP.right_heel);
+  const rFoot =
+    rToe ||
+    (rHeel
+      ? pointAdd(rHeel, sideRight.x, sideRight.y, Math.max(12, shoulderWidth * 0.2))
+      : allowFallback
+        ? pointAdd(rAnkle, sideRight.x + down.x * 0.08, sideRight.y + down.y * 0.08, Math.max(12, shoulderWidth * 0.2))
+        : null);
+  if (!rFoot) return null;
+
+  const cx = Math.max(1, Number(docW) || 1) * 0.5;
+  const cy = Math.max(1, Number(docH) || 1) * 0.5;
+  const safe = (pt, fallback = { x: cx, y: cy }) => ({
+    x: Number.isFinite(pt && pt.x) ? pt.x : fallback.x,
+    y: Number.isFinite(pt && pt.y) ? pt.y : fallback.y,
+  });
+
+  const rootHead = safe(hipMid);
+  const rootTip = pointAdd(rootHead, down.x, down.y, Math.max(10, torsoLen * 0.08));
+
+  return [
+    { name: "root", parent: -1, connected: false, head: rootHead, tip: rootTip },
+    { name: "hips", parent: 0, connected: false, head: safe(hipMid), tip: safe(spine0Tip) },
+    { name: "spine_1", parent: 1, connected: true, head: safe(spine0Tip), tip: safe(spine1Tip) },
+    { name: "spine_2", parent: 2, connected: true, head: safe(spine1Tip), tip: safe(spine2Tip) },
+    { name: "neck", parent: 3, connected: true, head: safe(spine2Tip), tip: safe(neckTip) },
+    { name: "head", parent: 4, connected: true, head: safe(neckTip), tip: safe(headTip) },
+    { name: "shoulder_l", parent: 3, connected: true, head: safe(spine2Tip), tip: safe(lShoulder) },
+    { name: "upper_arm_l", parent: 6, connected: true, head: safe(lShoulder), tip: safe(lElbow) },
+    { name: "lower_arm_l", parent: 7, connected: true, head: safe(lElbow), tip: safe(lWrist) },
+    { name: "hand_l", parent: 8, connected: true, head: safe(lWrist), tip: safe(lHand) },
+    { name: "shoulder_r", parent: 3, connected: true, head: safe(spine2Tip), tip: safe(rShoulder) },
+    { name: "upper_arm_r", parent: 10, connected: true, head: safe(rShoulder), tip: safe(rElbow) },
+    { name: "lower_arm_r", parent: 11, connected: true, head: safe(rElbow), tip: safe(rWrist) },
+    { name: "hand_r", parent: 12, connected: true, head: safe(rWrist), tip: safe(rHand) },
+    { name: "upper_leg_l", parent: 1, connected: false, head: safe(lHip), tip: safe(lKnee) },
+    { name: "lower_leg_l", parent: 14, connected: true, head: safe(lKnee), tip: safe(lAnkle) },
+    { name: "foot_l", parent: 15, connected: true, head: safe(lAnkle), tip: safe(lFoot) },
+    { name: "upper_leg_r", parent: 1, connected: false, head: safe(rHip), tip: safe(rKnee) },
+    { name: "lower_leg_r", parent: 17, connected: true, head: safe(rKnee), tip: safe(rAnkle) },
+    { name: "foot_r", parent: 18, connected: true, head: safe(rAnkle), tip: safe(rFoot) },
+  ];
+}
+
+function getSlotDocumentCenter(slot) {
+  if (!slot) return null;
+  if (slot.rect) {
+    const x = Number(slot.rect.x);
+    const y = Number(slot.rect.y);
+    const w = Number(slot.rect.w);
+    const h = Number(slot.rect.h);
+    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(w) && Number.isFinite(h)) {
+      return { x: x + w * 0.5, y: y + h * 0.5 };
+    }
+  }
+  const canvas = slot.canvas;
+  const w = canvas ? Number(canvas.width) || 0 : 0;
+  const h = canvas ? Number(canvas.height) || 0 : 0;
+  return {
+    x: (Number(slot.tx) || 0) + w * 0.5,
+    y: (Number(slot.ty) || 0) + h * 0.5,
+  };
+}
+
+function findBestHumanoidBoneForSlot(slot, bones) {
+  if (!slot || !Array.isArray(bones) || bones.length === 0) return -1;
+  const center = getSlotDocumentCenter(slot);
+  if (!center) return -1;
+  let bestIndex = -1;
+  let bestDist = Infinity;
+  for (let i = 0; i < bones.length; i += 1) {
+    const ep = getBoneWorldEndpointsFromBones(bones, i);
+    if (!ep || !ep.head || !ep.tip) continue;
+    const dist = pointToSegmentDistanceSquared(
+      Number(center.x) || 0,
+      Number(center.y) || 0,
+      Number(ep.head.x) || 0,
+      Number(ep.head.y) || 0,
+      Number(ep.tip.x) || 0,
+      Number(ep.tip.y) || 0
+    );
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+
+function findHumanoidAutoBindRootBoneIndex(bones) {
+  if (!Array.isArray(bones) || bones.length === 0) return -1;
+  const namedRoot = bones.findIndex((b) => {
+    if (!b) return false;
+    const name = String(b.name || "").trim().toLowerCase();
+    return name === "root" && Number(b.parent) < 0;
+  });
+  if (namedRoot >= 0) return namedRoot;
+  const firstRoot = bones.findIndex((b) => Number(b && b.parent) < 0);
+  if (firstRoot >= 0) return firstRoot;
+  return 0;
+}
+
+function autoBindUnassignedSlotsToHumanoidBones(m) {
+  if (!m || !Array.isArray(m.rigBones) || m.rigBones.length === 0) return 0;
+  const rootBone = findHumanoidAutoBindRootBoneIndex(m.rigBones);
+  let bound = 0;
+  for (const slot of state.slots) {
+    if (!slot || Number(slot.bone) !== -1) continue;
+    const targetBone =
+      Number.isFinite(rootBone) && rootBone >= 0
+        ? rootBone
+        : findBestHumanoidBoneForSlot(slot, m.rigBones);
+    if (!Number.isFinite(targetBone) || targetBone < 0) continue;
+    if (!applySlotBoneAssignment(slot, targetBone, m)) continue;
+    bound += 1;
+  }
+  return bound;
+}
+
+function applyHumanoidTemplateToRig(m, template, width, height) {
+  if (!m || !Array.isArray(template) || template.length <= 0) return { ok: false, reason: "template" };
+  const replaced = Array.isArray(m.rigBones) ? m.rigBones.length : 0;
+  m.rigBones = [];
+  state.boneTreeSelectedSlotByBone = Object.create(null);
+  state.boneTreeSelectedUnassignedSlotIds = [];
+  state.selectedBone = -1;
+  state.selectedBonesForWeight = [];
+
+  for (let i = 0; i < template.length; i += 1) {
+    const spec = template[i] || {};
+    const safeParent = Number.isFinite(spec.parent) && spec.parent >= 0 && spec.parent < m.rigBones.length ? spec.parent : -1;
+    const connected = !!spec.connected && safeParent >= 0;
+    m.rigBones.push({
+      name: String(spec.name || `bone_${i}`),
+      parent: safeParent,
+      inherit: "normal",
+      tx: 0,
+      ty: 0,
+      rot: 0,
+      length: 32,
+      sx: 1,
+      sy: 1,
+      shx: 0,
+      shy: 0,
+      connected,
+      poseLenEditable: false,
+    });
+    const parentTip =
+      safeParent >= 0 ? getBoneWorldEndpointsFromBones(m.rigBones, safeParent).tip : { x: width * 0.5, y: height * 0.5 };
+    const head =
+      connected
+        ? parentTip
+        : {
+          x: Number(spec.head && spec.head.x),
+          y: Number(spec.head && spec.head.y),
+        };
+    if (!Number.isFinite(head.x) || !Number.isFinite(head.y)) {
+      head.x = parentTip.x;
+      head.y = parentTip.y;
+    }
+    const tip = {
+      x: Number(spec.tip && spec.tip.x),
+      y: Number(spec.tip && spec.tip.y),
+    };
+    if (!Number.isFinite(tip.x) || !Number.isFinite(tip.y)) {
+      tip.x = head.x + Math.max(1, Number(m.rigBones[i].length) || 1);
+      tip.y = head.y;
+    }
+    setBoneFromWorldEndpoints(m.rigBones, i, head, tip);
+  }
+
+  enforceConnectedHeads(m.rigBones);
+  ensureSlotsHaveBoneBinding();
+  const autoBoundSlots = autoBindUnassignedSlotsToHumanoidBones(m);
+  syncPoseFromRig(m);
+  syncBindPose(m);
+  refreshWeightsForBoneCount();
+  state.selectedBone = m.rigBones.length > 0 ? 0 : -1;
+  state.selectedBonesForWeight = state.selectedBone >= 0 ? [state.selectedBone] : [];
+  updateBoneUI();
+  pushUndoCheckpoint(true);
+  return { ok: true, count: m.rigBones.length, replaced, autoBoundSlots };
+}
+
+async function rebuildHumanoidRig(options = null) {
+  const opts = options && typeof options === "object" ? options : readPoseAutoRigOptionsFromUI();
+  const m = state.mesh;
+  if (!m || state.boneMode !== "edit") return { ok: false, reason: "mode" };
+  const source = getPoseAutoRigInputSource(opts.sourceMode);
+  if (!source || !source.source) return { ok: false, reason: "source" };
+  const detector = await ensurePoseAutoRigDetector(opts);
+  const poses = await detector.estimatePoses(source.source, { maxPoses: 1, flipHorizontal: false });
+  if (!Array.isArray(poses) || poses.length <= 0) return { ok: false, reason: "no_pose" };
+  const best = poses[0];
+  const docW = Math.max(1, Number(source.docW) || Number(state.imageWidth) || 256);
+  const docH = Math.max(1, Number(source.docH) || Number(state.imageHeight) || 256);
+  const template = buildHumanoidTemplateFromPose(best, source.mapPoint, docW, docH, opts);
+  if (!template || template.length <= 0) {
+    return { ok: false, reason: opts.allowFallback === false ? "pose_incomplete_no_fallback" : "pose_incomplete" };
+  }
+  return applyHumanoidTemplateToRig(m, template, docW, docH);
+}
+
+async function handleSetupHumanoidBoneBuild() {
+  if (poseAutoRigBusy) {
+    setStatus("Humanoid bone: pose detection is already running...");
+    return;
+  }
+  if (!state.mesh || state.boneMode !== "edit") {
+    setStatus("Switch to Skeleton/Edit mode to build humanoid bones.");
+    return;
+  }
+  const existing = Array.isArray(state.mesh.rigBones) ? state.mesh.rigBones.length : 0;
+  if (existing > 0 && !window.confirm(`Replace current rig bones (${existing}) with detected humanoid bones?`)) {
+    setStatus("Humanoid bone generation canceled.");
+    return;
+  }
+  const opts = readPoseAutoRigOptionsFromUI();
+  poseAutoRigBusy = true;
+  setStatus("Humanoid bone: running BlazePose Heavy detection...");
+  try {
+    const result = await rebuildHumanoidRig(opts);
+    if (!result.ok) {
+      if (result.reason === "source") {
+        if (opts.sourceMode === "project") setStatus("Humanoid bone failed: project image source unavailable. Switch source to Auto or Active Slot.");
+        else if (opts.sourceMode === "active_slot") setStatus("Humanoid bone failed: active slot source unavailable.");
+        else setStatus("Humanoid bone failed: no source image to detect. Import image first.");
+      }
+      else if (result.reason === "no_pose") setStatus("Humanoid bone failed: no clear human pose detected in image.");
+      else if (result.reason === "pose_incomplete_no_fallback") setStatus("Humanoid bone failed: missing required keypoints (fallback disabled).");
+      else if (result.reason === "pose_incomplete") setStatus("Humanoid bone failed: pose keypoints are incomplete.");
+      else setStatus("Humanoid bone generation failed.");
+      return;
+    }
+    const replacedText = result.replaced > 0 ? `, replaced ${result.replaced}` : "";
+    const autoBindText = result.autoBoundSlots > 0 ? `, auto-bound ${result.autoBoundSlots} staging slot(s)` : "";
+    setStatus(`Humanoid bone generated from pose: ${result.count} bones${replacedText}${autoBindText}.`);
+  } catch (err) {
+    setStatus(`Humanoid bone failed: ${(err && err.message) || "unknown error"}`);
+  } finally {
+    poseAutoRigBusy = false;
+  }
+}
+
+function bindSetupHumanoidBoneButton() {
+  const btn = document.getElementById("setupHumanoidBoneBtn");
+  if (!btn) return;
+  els.setupHumanoidBoneBtn = btn;
+}
+
+function bindBoneTreeHumanoidBoneButton() {
+  const btn = document.getElementById("boneTreeHumanoidBoneBtn");
+  if (!btn) return;
+  els.boneTreeHumanoidBoneBtn = btn;
+}
+
 function computeWorld(bones) {
   const world = bones.map(() => createIdentity());
   for (let i = 0; i < bones.length; i += 1) {
@@ -1958,6 +2722,177 @@ function computeWorld(bones) {
     }
   }
   return world;
+}
+
+function computeWorldEditNoInheritRotation(bones) {
+  const world = bones.map(() => createIdentity());
+  for (let i = 0; i < bones.length; i += 1) {
+    const b = normalizeBoneChannels(bones[i]);
+    if (b.parent >= 0 && b.parent < bones.length) {
+      const parentWorld = world[b.parent];
+      let head;
+      if (b.connected) {
+        const parent = bones[b.parent];
+        const parentLen = Number(parent && parent.length) || 0;
+        head = transformPoint(parentWorld, parentLen, 0);
+      } else {
+        head = {
+          x: Number(b.tx) || 0,
+          y: Number(b.ty) || 0,
+        };
+      }
+      const localNoTrans = matFromBone({ ...b, tx: 0, ty: 0 });
+      world[i] = [localNoTrans[0], localNoTrans[1], localNoTrans[2], localNoTrans[3], head.x, head.y];
+    } else {
+      world[i] = matFromBone(b);
+    }
+  }
+  return world;
+}
+
+function computeRigWorldForCurrentSpace(bones) {
+  if (!Array.isArray(bones)) return [];
+  return state.rigCoordinateSpace === "edit" ? computeWorldEditNoInheritRotation(bones) : computeWorld(bones);
+}
+
+function getEditAwareWorld(bones) {
+  if (!Array.isArray(bones)) return [];
+  if (state.boneMode === "edit") return computeWorldEditNoInheritRotation(bones);
+  return computeWorld(bones);
+}
+
+function clearRigEditPreviewCache() {
+  state.rigEditPreviewWorld = null;
+  state.rigEditPreviewInvBind = null;
+}
+
+function markRigEditDirty() {
+  if (state.boneMode === "edit") {
+    state.rigEditNeedsRuntimeNormalize = true;
+    state.rigCoordinateSpace = "edit";
+  }
+}
+
+function ensureRigEditPreviewCache(force = false) {
+  if (!state.mesh || state.boneMode !== "edit") return;
+  const rig = getRigBones(state.mesh);
+  if (!Array.isArray(rig)) return;
+  const needRebuild =
+    force ||
+    !Array.isArray(state.rigEditPreviewWorld) ||
+    !Array.isArray(state.rigEditPreviewInvBind) ||
+    state.rigEditPreviewWorld.length !== rig.length ||
+    state.rigEditPreviewInvBind.length !== rig.length;
+  if (!needRebuild) return;
+  const clone = cloneBones(rig);
+  enforceConnectedHeads(clone);
+  const world = computeWorldEditNoInheritRotation(clone);
+  state.rigEditPreviewWorld = world;
+  state.rigEditPreviewInvBind = world.map(invert);
+}
+
+function getDisplayInvBind(m) {
+  if (!m) return [];
+  if (
+    state.boneMode === "edit" &&
+    Array.isArray(state.rigEditPreviewInvBind) &&
+    state.rigEditPreviewInvBind.length === (Array.isArray(m.rigBones) ? m.rigBones.length : 0)
+  ) {
+    return state.rigEditPreviewInvBind;
+  }
+  return m.invBind;
+}
+
+function normalizeRigEditForRuntime(m) {
+  if (!m) return false;
+  const bones = getRigBones(m);
+  if (!Array.isArray(bones) || bones.length <= 0) return false;
+  enforceConnectedHeads(bones);
+  const editWorld = computeWorldEditNoInheritRotation(bones);
+  for (let i = 0; i < bones.length; i += 1) {
+    const b = bones[i];
+    if (!b) continue;
+    normalizeBoneChannels(b);
+    const worldAngle = matrixAngle(editWorld[i]);
+    if (b.parent >= 0 && b.parent < bones.length) {
+      const parentAngle = matrixAngle(editWorld[b.parent]);
+      b.rot = shortestAngleDelta(parentAngle, worldAngle);
+      if (b.connected) {
+        const parent = bones[b.parent];
+        b.tx = Number(parent && parent.length) || 0;
+        b.ty = 0;
+      } else {
+        const parentWorld = editWorld[b.parent];
+        const parentForInherit = getParentMatrixForInherit(parentWorld, b.inherit);
+        const inv = invert(parentForInherit);
+        const localHead = transformPoint(inv, b.tx, b.ty);
+        b.tx = localHead.x;
+        b.ty = localHead.y;
+      }
+    } else {
+      b.rot = worldAngle;
+    }
+  }
+  clearRigEditPreviewCache();
+  state.rigEditNeedsRuntimeNormalize = false;
+  state.rigCoordinateSpace = "runtime";
+  syncPoseFromRig(m);
+  syncBindPose(m);
+  return true;
+}
+
+function normalizeRigRuntimeForEdit(m) {
+  if (!m) return false;
+  const bones = getRigBones(m);
+  if (!Array.isArray(bones) || bones.length <= 0) return false;
+  enforceConnectedHeads(bones);
+  const runtimeWorld = computeWorld(bones);
+  for (let i = 0; i < bones.length; i += 1) {
+    const b = bones[i];
+    if (!b) continue;
+    normalizeBoneChannels(b);
+    const ep = getBoneWorldEndpointsFromBones(bones, i, runtimeWorld);
+    const worldAngle = Math.atan2(ep.tip.y - ep.head.y, ep.tip.x - ep.head.x);
+    b.rot = worldAngle;
+    if (b.parent >= 0 && b.connected) {
+      const parent = bones[b.parent];
+      b.tx = Number(parent && parent.length) || 0;
+      b.ty = 0;
+    } else {
+      b.tx = Number(ep.head.x) || 0;
+      b.ty = Number(ep.head.y) || 0;
+    }
+  }
+  clearRigEditPreviewCache();
+  state.rigEditNeedsRuntimeNormalize = false;
+  state.rigCoordinateSpace = "edit";
+  syncPoseFromRig(m);
+  syncBindPose(m);
+  return true;
+}
+
+function applyBoneModeTransition(prevMode, nextMode) {
+  if (prevMode === nextMode) return;
+  if (!state.mesh) {
+    state.rigCoordinateSpace = nextMode === "edit" ? "edit" : "runtime";
+    if (nextMode === "edit") state.rigEditNeedsRuntimeNormalize = false;
+    return;
+  }
+
+  if (nextMode === "edit") {
+    if (state.rigCoordinateSpace !== "edit") {
+      normalizeRigRuntimeForEdit(state.mesh);
+    } else {
+      state.rigEditNeedsRuntimeNormalize = false;
+    }
+    return;
+  }
+
+  if (state.rigCoordinateSpace !== "runtime") {
+    normalizeRigEditForRuntime(state.mesh);
+  } else if (prevMode === "edit") {
+    state.rigEditNeedsRuntimeNormalize = false;
+  }
 }
 
 function getParentMatrixForInherit(parentWorld, inheritMode) {
@@ -2029,18 +2964,53 @@ function getActiveBones(m) {
   return state.boneMode === "pose" ? getPoseBones(m) : getRigBones(m);
 }
 
-function isBoneWorkspaceHidden(m, boneIndex) {
+function isRootBoneIndex(bones, boneIndex) {
+  if (!Array.isArray(bones) || !Number.isFinite(boneIndex) || boneIndex < 0 || boneIndex >= bones.length) return false;
+  const bone = bones[boneIndex];
+  const parent = bone ? Number(bone.parent) : NaN;
+  return !!bone && (!Number.isFinite(parent) || parent < 0);
+}
+
+function isBoneWorkspaceHiddenDirect(m, boneIndex) {
   if (!m || !Number.isFinite(boneIndex) || boneIndex < 0) return false;
-  const rig = m.rigBones && m.rigBones[boneIndex];
+  const bones = Array.isArray(m.rigBones) ? m.rigBones : [];
+  if (!isRootBoneIndex(bones, boneIndex)) return false;
+  const rig = bones[boneIndex];
   normalizeBoneChannels(rig);
   return !!(rig && rig.workHidden);
 }
 
-function isBoneAnimationHidden(bones, boneIndex) {
+function isBoneWorkspaceHidden(m, boneIndex) {
+  if (!m || !Number.isFinite(boneIndex) || boneIndex < 0) return false;
+  const bones = Array.isArray(m.rigBones) ? m.rigBones : [];
+  let index = Number(boneIndex);
+  while (index >= 0 && index < bones.length) {
+    if (isBoneWorkspaceHiddenDirect(m, index)) return true;
+    const bone = bones[index];
+    const parent = bone ? Number(bone.parent) : NaN;
+    index = Number.isFinite(parent) ? parent : -1;
+  }
+  return false;
+}
+
+function isBoneAnimationHiddenDirect(bones, boneIndex) {
   if (!Array.isArray(bones) || !Number.isFinite(boneIndex) || boneIndex < 0 || boneIndex >= bones.length) return false;
+  if (!isRootBoneIndex(bones, boneIndex)) return false;
   const b = bones[boneIndex];
   normalizeBoneChannels(b);
   return !!(b && b.animHidden);
+}
+
+function isBoneAnimationHidden(bones, boneIndex) {
+  if (!Array.isArray(bones) || !Number.isFinite(boneIndex) || boneIndex < 0 || boneIndex >= bones.length) return false;
+  let index = Number(boneIndex);
+  while (index >= 0 && index < bones.length) {
+    if (isBoneAnimationHiddenDirect(bones, index)) return true;
+    const bone = bones[index];
+    const parent = bone ? Number(bone.parent) : NaN;
+    index = Number.isFinite(parent) ? parent : -1;
+  }
+  return false;
 }
 
 function isBoneVisibleInWorkspace(m, bones, boneIndex) {
@@ -2077,27 +3047,75 @@ function pointToSegmentDistanceSquared(px, py, ax, ay, bx, by) {
 }
 
 function getBoneWorldEndpointsFromBones(bones, i, world = null) {
-  const w = world || computeWorld(bones);
+  const w = world || getEditAwareWorld(bones);
   const b = bones[i];
   const head = transformPoint(w[i], 0, 0);
   const tip = transformPoint(w[i], b.length, 0);
   return { head, tip };
 }
 
+function captureEditBoneSnapshot(bones) {
+  if (!Array.isArray(bones) || bones.length <= 0) return null;
+  const world = getEditAwareWorld(bones);
+  if (!Array.isArray(world) || world.length !== bones.length) return null;
+  return {
+    world,
+    lengths: bones.map((b) => Math.max(1, Number(b && b.length) || 1)),
+  };
+}
+
+function preserveConnectedChildTipsAfterEdit(bones, snapshot, excludeIndices = null) {
+  if (state.boneMode !== "edit") return;
+  if (!Array.isArray(bones) || bones.length <= 0) return;
+  if (!snapshot || !Array.isArray(snapshot.world) || !Array.isArray(snapshot.lengths)) return;
+  if (snapshot.world.length !== bones.length || snapshot.lengths.length !== bones.length) return;
+  const exclude = new Set(
+    (Array.isArray(excludeIndices) ? excludeIndices : [excludeIndices])
+      .map((v) => Number(v))
+      .filter((v) => Number.isFinite(v) && v >= 0 && v < bones.length)
+  );
+  const oldTips = snapshot.world.map((w, i) => transformPoint(w, Number(snapshot.lengths[i]) || 1, 0));
+  for (let pass = 0; pass < bones.length; pass += 1) {
+    for (let i = 0; i < bones.length; i += 1) {
+      if (exclude.has(i)) continue;
+      const b = bones[i];
+      if (!b || !(b.parent >= 0 && b.connected)) continue;
+      const parentIndex = Number(b.parent);
+      if (!Number.isFinite(parentIndex) || parentIndex < 0 || parentIndex >= bones.length) continue;
+      const parentEp = getBoneWorldEndpointsFromBones(bones, parentIndex);
+      const oldTip = oldTips[i];
+      if (!oldTip || !Number.isFinite(oldTip.x) || !Number.isFinite(oldTip.y)) continue;
+      setBoneFromWorldEndpoints(bones, i, parentEp.tip, oldTip);
+    }
+  }
+}
+
 function setBoneFromWorldEndpoints(bones, boneIndex, head, tip) {
   const b = bones[boneIndex];
-  const world = computeWorld(bones);
-  const parentWorld = b.parent >= 0 ? world[b.parent] : createIdentity();
-  const invParent = invert(parentWorld);
-
-  const localHead = transformPoint(invParent, head.x, head.y);
-  b.tx = localHead.x;
-  b.ty = localHead.y;
-
   const dx = tip.x - head.x;
   const dy = tip.y - head.y;
   b.length = Math.max(1, Math.hypot(dx, dy));
   const worldAngle = Math.atan2(dy, dx);
+  if (state.boneMode === "edit") {
+    if (b.parent >= 0 && b.connected) {
+      const parent = bones[b.parent];
+      b.tx = Number(parent && parent.length) || 0;
+      b.ty = 0;
+    } else {
+      b.tx = Number(head && head.x) || 0;
+      b.ty = Number(head && head.y) || 0;
+    }
+    b.rot = worldAngle;
+    markRigEditDirty();
+    return;
+  }
+
+  const world = computeRigWorldForCurrentSpace(bones);
+  const parentWorld = b.parent >= 0 ? world[b.parent] : createIdentity();
+  const invParent = invert(parentWorld);
+  const localHead = transformPoint(invParent, head.x, head.y);
+  b.tx = localHead.x;
+  b.ty = localHead.y;
   b.rot = worldAngle - matrixAngle(parentWorld);
 }
 
@@ -2110,60 +3128,136 @@ function autoWeightMesh(m) {
     m.weights = new Float32Array(0);
     return;
   }
-  const world = computeWorld(bones);
-  const segments = bones.map((b, i) => {
-    const a = transformPoint(world[i], 0, 0);
-    const e = transformPoint(world[i], b.length, 0);
-    return { ax: a.x, ay: a.y, bx: e.x, by: e.y, len: Math.max(10, b.length) };
+  m.weights = autoWeightForPositions(m.positions, bones, null, {
+    indices: m.indices,
+    maxInfluences: 4,
+    nearestBoost: 7,
+    sharpenPower: 2.4,
+    distanceRatioCutoff: 5,
+    smoothIters: 3,
+    smoothLambda: 0.45,
+    crossBranchPenalty: 0.2,
   });
-
-  m.weights = allocWeights(vCount, boneCount);
-
-  const hardMode = state.weightMode === "hard";
-  for (let i = 0; i < vCount; i += 1) {
-    const px = m.positions[i * 2];
-    const py = m.positions[i * 2 + 1];
-
-    let bestBone = 0;
-    let bestD2 = Number.POSITIVE_INFINITY;
-    let sum = 0;
-    for (let b = 0; b < boneCount; b += 1) {
-      const s = segments[b];
-      const d2 = pointToSegmentDistanceSquared(px, py, s.ax, s.ay, s.bx, s.by);
-      if (d2 < bestD2) {
-        bestD2 = d2;
-        bestBone = b;
-      }
-      if (hardMode) continue;
-      const falloff = 0.35 * s.len;
-      const w = 1 / (1 + d2 / (falloff * falloff));
-      m.weights[i * boneCount + b] = w;
-      sum += w;
-    }
-
-    if (hardMode) {
-      m.weights[i * boneCount + bestBone] = 1;
-      continue;
-    }
-
-    if (sum < 1e-8) {
-      m.weights[i * boneCount] = 1;
-      continue;
-    }
-
-    for (let b = 0; b < boneCount; b += 1) {
-      m.weights[i * boneCount + b] /= sum;
-    }
-  }
 }
 
-function autoWeightForPositions(positions, bones, allowedBones = null) {
+function buildVertexComponents(vCount, indices) {
+  if (!Number.isFinite(vCount) || vCount <= 0) return null;
+  if (!indices || indices.length < 3) return null;
+  const parent = new Int32Array(vCount);
+  const rank = new Int8Array(vCount);
+  for (let i = 0; i < vCount; i += 1) parent[i] = i;
+  const find = (x) => {
+    let r = x;
+    while (parent[r] !== r) r = parent[r];
+    while (parent[x] !== x) {
+      const p = parent[x];
+      parent[x] = r;
+      x = p;
+    }
+    return r;
+  };
+  const unite = (a, b) => {
+    if (a < 0 || b < 0 || a >= vCount || b >= vCount) return;
+    let ra = find(a);
+    let rb = find(b);
+    if (ra === rb) return;
+    if (rank[ra] < rank[rb]) {
+      const t = ra;
+      ra = rb;
+      rb = t;
+    }
+    parent[rb] = ra;
+    if (rank[ra] === rank[rb]) rank[ra] += 1;
+  };
+  for (let i = 0; i + 2 < indices.length; i += 3) {
+    const i0 = Number(indices[i]);
+    const i1 = Number(indices[i + 1]);
+    const i2 = Number(indices[i + 2]);
+    if (!Number.isFinite(i0) || !Number.isFinite(i1) || !Number.isFinite(i2)) continue;
+    unite(i0, i1);
+    unite(i1, i2);
+    unite(i2, i0);
+  }
+  const map = new Map();
+  const compIds = new Int32Array(vCount);
+  let compCount = 0;
+  for (let i = 0; i < vCount; i += 1) {
+    const root = find(i);
+    let id = map.get(root);
+    if (!Number.isFinite(id)) {
+      id = compCount;
+      compCount += 1;
+      map.set(root, id);
+    }
+    compIds[i] = id;
+  }
+  return { compIds, compCount };
+}
+
+function buildVertexAdjacency(vCount, indices) {
+  if (!Number.isFinite(vCount) || vCount <= 0) return null;
+  if (!indices || indices.length < 3) return null;
+  const sets = Array.from({ length: vCount }, () => new Set());
+  const connect = (a, b) => {
+    if (a < 0 || b < 0 || a >= vCount || b >= vCount || a === b) return;
+    sets[a].add(b);
+    sets[b].add(a);
+  };
+  for (let i = 0; i + 2 < indices.length; i += 3) {
+    const i0 = Number(indices[i]);
+    const i1 = Number(indices[i + 1]);
+    const i2 = Number(indices[i + 2]);
+    if (!Number.isFinite(i0) || !Number.isFinite(i1) || !Number.isFinite(i2)) continue;
+    connect(i0, i1);
+    connect(i1, i2);
+    connect(i2, i0);
+  }
+  return sets.map((s) => [...s]);
+}
+
+function buildBoneChildrenMap(bones) {
+  const count = Array.isArray(bones) ? bones.length : 0;
+  const map = Array.from({ length: count }, () => []);
+  for (let i = 0; i < count; i += 1) {
+    const p = Number(bones[i] && bones[i].parent);
+    if (Number.isFinite(p) && p >= 0 && p < count) map[p].push(i);
+  }
+  return map;
+}
+
+function collectHierarchyInfluenceSet(bones, childrenMap, startBone, upDepth = 2, downDepth = 1) {
+  const count = Array.isArray(bones) ? bones.length : 0;
+  const root = Number(startBone);
+  if (!Number.isFinite(root) || root < 0 || root >= count) return new Set();
+  const set = new Set([root]);
+  let p = Number(bones[root] && bones[root].parent);
+  let steps = 0;
+  while (Number.isFinite(p) && p >= 0 && p < count && steps < upDepth) {
+    set.add(p);
+    p = Number(bones[p] && bones[p].parent);
+    steps += 1;
+  }
+  const q = [{ i: root, d: 0 }];
+  while (q.length > 0) {
+    const cur = q.shift();
+    if (!cur || cur.d >= downDepth) continue;
+    const kids = Array.isArray(childrenMap && childrenMap[cur.i]) ? childrenMap[cur.i] : [];
+    for (const k of kids) {
+      if (set.has(k)) continue;
+      set.add(k);
+      q.push({ i: k, d: cur.d + 1 });
+    }
+  }
+  return set;
+}
+
+function autoWeightForPositions(positions, bones, allowedBones = null, options = null) {
   const vCount = positions.length / 2;
   enforceConnectedHeads(bones);
   const boneCount = bones.length;
   if (boneCount === 0) return new Float32Array(0);
   const allowSet = allowedBones && allowedBones.length > 0 ? new Set(allowedBones) : null;
-  const world = computeWorld(bones);
+  const world = computeRigWorldForCurrentSpace(bones);
   const segments = bones.map((b, i) => {
     const a = transformPoint(world[i], 0, 0);
     const e = transformPoint(world[i], b.length, 0);
@@ -2171,14 +3265,74 @@ function autoWeightForPositions(positions, bones, allowedBones = null) {
   });
   const weights = allocWeights(vCount, boneCount);
   const hardMode = state.weightMode === "hard";
+  const maxInfluences =
+    hardMode
+      ? 1
+      : math.clamp(Math.round(Number(options && options.maxInfluences)), 1, 8) || 3;
+  const nearestBoost = hardMode ? 1 : Math.max(1, Number(options && options.nearestBoost) || 6);
+  const sharpenPower = hardMode ? 1 : Math.max(1, Number(options && options.sharpenPower) || 2.2);
+  const distanceRatioCutoff = hardMode ? 1 : Math.max(1.2, Number(options && options.distanceRatioCutoff) || 4.5);
+  const crossBranchPenalty = hardMode ? 1 : math.clamp(Number(options && options.crossBranchPenalty) || 0.28, 0.05, 1);
+  const globalSmooth = !hardMode && (options && Object.prototype.hasOwnProperty.call(options, "globalSmooth") ? options.globalSmooth !== false : true);
+  const smoothIters = globalSmooth ? math.clamp(Math.round(Number(options && options.smoothIters)) || 3, 1, 8) : 0;
+  const smoothLambda = globalSmooth ? math.clamp(Number(options && options.smoothLambda) || 0.42, 0, 5) : 0;
+  const influenceUpDepth = hardMode ? 0 : math.clamp(Math.round(Number(options && options.influenceUpDepth)) || 2, 0, 5);
+  const influenceDownDepth = hardMode ? 0 : math.clamp(Math.round(Number(options && options.influenceDownDepth)) || 1, 0, 5);
+  const indices = options && options.indices;
+  const components = buildVertexComponents(vCount, indices);
+  const adjacency = buildVertexAdjacency(vCount, indices);
+  const componentAllowed =
+    components && allowSet && allowSet.size > 1
+      ? (() => {
+        const allowedList = [...allowSet].filter((b) => Number.isFinite(b) && b >= 0 && b < boneCount);
+        if (allowedList.length <= 1) return null;
+        const compBest = Array.from({ length: components.compCount }, () => {
+          const best = new Map();
+          for (const bi of allowedList) best.set(bi, Number.POSITIVE_INFINITY);
+          return best;
+        });
+        for (let vi = 0; vi < vCount; vi += 1) {
+          const compId = components.compIds[vi];
+          const px = positions[vi * 2];
+          const py = positions[vi * 2 + 1];
+          const best = compBest[compId];
+          for (const bi of allowedList) {
+            const s = segments[bi];
+            const d2 = pointToSegmentDistanceSquared(px, py, s.ax, s.ay, s.bx, s.by);
+            if (d2 < (best.get(bi) || Number.POSITIVE_INFINITY)) best.set(bi, d2);
+          }
+        }
+        const perComp = Array.from({ length: components.compCount }, () => null);
+        for (let ci = 0; ci < components.compCount; ci += 1) {
+          const ranked = [...compBest[ci].entries()].sort((a, b) => a[1] - b[1]);
+          const keepCount = hardMode ? 1 : Math.min(ranked.length, Math.max(maxInfluences * 6, 16));
+          const keep = ranked
+            .slice(0, keepCount)
+            .map((it) => Number(it[0]))
+            .filter((v) => Number.isFinite(v));
+          perComp[ci] = keep.length > 0 ? new Set(keep) : null;
+        }
+        return perComp;
+      })()
+      : null;
+
+  const bestBoneByVertex = new Int32Array(vCount);
+  const bestD2ByVertex = new Float64Array(vCount);
+  const candidatesByVertex = Array.from({ length: vCount }, () => []);
+
   for (let i = 0; i < vCount; i += 1) {
     const px = positions[i * 2];
     const py = positions[i * 2 + 1];
+    const compAllow =
+      componentAllowed && components && Number.isFinite(components.compIds[i])
+        ? componentAllowed[components.compIds[i]]
+        : null;
     let bestBone = 0;
     let bestD2 = Number.POSITIVE_INFINITY;
-    let sum = 0;
+    const pairs = [];
     for (let b = 0; b < boneCount; b += 1) {
       if (allowSet && !allowSet.has(b)) continue;
+      if (compAllow && !compAllow.has(b)) continue;
       const s = segments[b];
       const d2 = pointToSegmentDistanceSquared(px, py, s.ax, s.ay, s.bx, s.by);
       if (d2 < bestD2) {
@@ -2188,16 +3342,110 @@ function autoWeightForPositions(positions, bones, allowedBones = null) {
       if (hardMode) continue;
       const falloff = 0.35 * s.len;
       const w = 1 / (1 + d2 / (falloff * falloff));
-      weights[i * boneCount + b] = w;
-      sum += w;
+      pairs.push({ b, w, d2 });
     }
+    bestBoneByVertex[i] = bestBone;
+    bestD2ByVertex[i] = bestD2;
     if (hardMode) {
       const hb = allowSet && !allowSet.has(bestBone) ? [...allowSet][0] : bestBone;
       if (hb != null) weights[i * boneCount + hb] = 1;
       continue;
     }
+    pairs.sort((a, b) => a.d2 - b.d2);
+    candidatesByVertex[i] = pairs;
+  }
+  if (hardMode) return weights;
+
+  let labels = new Int32Array(bestBoneByVertex);
+  if (globalSmooth && adjacency) {
+    const candLimit = Math.max(maxInfluences * 4, 10);
+    for (let iter = 0; iter < smoothIters; iter += 1) {
+      const next = new Int32Array(labels);
+      for (let i = 0; i < vCount; i += 1) {
+        const nbs = adjacency[i];
+        if (!Array.isArray(nbs) || nbs.length === 0) continue;
+        const candsRaw = candidatesByVertex[i];
+        if (!Array.isArray(candsRaw) || candsRaw.length === 0) continue;
+        const cands = candsRaw.slice(0, candLimit);
+        let bestLabel = labels[i];
+        let bestScore = Number.POSITIVE_INFINITY;
+        const denomD2 = Math.max(1e-8, bestD2ByVertex[i]);
+        for (const c of cands) {
+          const b = Number(c && c.b);
+          if (!Number.isFinite(b) || b < 0 || b >= boneCount) continue;
+          const data = (Number(c.d2) || 0) / denomD2;
+          let mismatch = 0;
+          for (const ni of nbs) {
+            if (labels[ni] !== b) mismatch += 1;
+          }
+          const smooth = mismatch / Math.max(1, nbs.length);
+          const score = data + smoothLambda * smooth;
+          if (score < bestScore) {
+            bestScore = score;
+            bestLabel = b;
+          }
+        }
+        next[i] = bestLabel;
+      }
+      labels = next;
+    }
+  }
+
+  const childrenMap = buildBoneChildrenMap(bones);
+  for (let i = 0; i < vCount; i += 1) {
+    const dominantRaw = Number(labels[i]);
+    const dominant =
+      Number.isFinite(dominantRaw) && dominantRaw >= 0 && dominantRaw < boneCount
+        ? dominantRaw
+        : Number(bestBoneByVertex[i]);
+    const bestD2 = Math.max(1e-8, Number(bestD2ByVertex[i]) || 1e-8);
+    const d2Gate = bestD2 * distanceRatioCutoff;
+    const family = collectHierarchyInfluenceSet(bones, childrenMap, dominant, influenceUpDepth, influenceDownDepth);
+    const cands = candidatesByVertex[i];
+    const selected = [];
+
+    for (const c of cands) {
+      if (selected.length >= maxInfluences) break;
+      const b = Number(c && c.b);
+      const d2 = Number(c && c.d2);
+      if (!Number.isFinite(b) || b < 0 || b >= boneCount) continue;
+      if (b !== dominant) {
+        if (d2 > d2Gate) continue;
+        if (!family.has(b)) continue;
+      }
+      if (!selected.some((it) => Number(it && it.b) === b)) selected.push(c);
+    }
+    for (const c of cands) {
+      if (selected.length >= maxInfluences) break;
+      const b = Number(c && c.b);
+      const d2 = Number(c && c.d2);
+      if (!Number.isFinite(b) || b < 0 || b >= boneCount) continue;
+      if (d2 > d2Gate) continue;
+      if (selected.some((it) => Number(it && it.b) === b)) continue;
+      selected.push(c);
+    }
+    if (!selected.some((it) => Number(it && it.b) === dominant)) {
+      const dom = cands.find((it) => Number(it && it.b) === dominant);
+      if (dom) {
+        if (selected.length >= maxInfluences) selected[selected.length - 1] = dom;
+        else selected.push(dom);
+      }
+    }
+
+    let sum = 0;
+    for (const c of selected) {
+      const b = Number(c && c.b);
+      const baseW = Number(c && c.w) || 0;
+      if (!Number.isFinite(b) || b < 0 || b >= boneCount || baseW <= 0) continue;
+      let w = Math.pow(baseW, sharpenPower);
+      if (b === dominant) w *= nearestBoost;
+      else if (!family.has(b)) w *= crossBranchPenalty;
+      if (w <= 0) continue;
+      weights[i * boneCount + b] = w;
+      sum += w;
+    }
     if (sum < 1e-8) {
-      const fb = allowSet ? [...allowSet][0] : 0;
+      const fb = Number.isFinite(dominant) ? dominant : allowSet ? [...allowSet][0] : 0;
       if (fb != null) weights[i * boneCount + fb] = 1;
       continue;
     }
@@ -2262,7 +3510,7 @@ function refreshSlotWeightQuickUI(slot = null) {
   setBtnState(els.slotWeightQuickFreeBtn, mode === "free");
   if (els.slotWeightQuickEditBtn) {
     els.slotWeightQuickEditBtn.disabled = !hasSlot;
-    els.slotWeightQuickEditBtn.classList.toggle("active", state.editMode === "vertex");
+    els.slotWeightQuickEditBtn.classList.toggle("active", state.editMode === "mesh");
   }
   if (els.slotWeightQuickBar) {
     els.slotWeightQuickBar.classList.toggle("disabled", !hasSlot);
@@ -2271,8 +3519,8 @@ function refreshSlotWeightQuickUI(slot = null) {
 
 function switchToVertexWeightEditing() {
   if (!els.editMode) return;
-  if (els.editMode.value !== "vertex") {
-    els.editMode.value = "vertex";
+  if (els.editMode.value !== "mesh") {
+    els.editMode.value = "mesh";
     els.editMode.dispatchEvent(new Event("change", { bubbles: true }));
   }
   state.leftToolTab = "skin";
@@ -2374,7 +3622,19 @@ function rebuildSlotWeights(slot, m) {
   slot.useWeights = true;
   const allowed = getSlotInfluenceBones(slot, m);
   slot.influenceBones = allowed;
-  slot.meshData.weights = autoWeightForPositions(getSlotWeightedAutoWeightPositions(slot, m), m.rigBones, allowed);
+  slot.meshData.weights = autoWeightForPositions(
+    getSlotWeightedAutoWeightPositions(slot, m),
+    m.rigBones,
+    allowed,
+    {
+      indices: slot.meshData.indices,
+      maxInfluences: 3,
+      distanceRatioCutoff: 3.8,
+      smoothIters: 3,
+      smoothLambda: 0.5,
+      crossBranchPenalty: 0.16,
+    }
+  );
   slot.weightBindMode = "auto";
   slot.weightMode = "weighted";
 }
@@ -2382,7 +3642,7 @@ function rebuildSlotWeights(slot, m) {
 function getSlotWeightedAutoWeightPositions(slot, m) {
   if (!slot || !m || !slot.meshData || !slot.meshData.positions) return new Float32Array(0);
   const src = slot.meshData.positions;
-  const poseWorld = computeWorld(getRigBones(m));
+  const poseWorld = computeRigWorldForCurrentSpace(getRigBones(m));
   const tm = getSlotTransformMatrix(slot, poseWorld);
   const isIdentity =
     Math.abs((tm[0] || 1) - 1) < 1e-6 &&
@@ -2506,7 +3766,7 @@ function createMesh(cols, rows, w, h) {
 
 function syncBindPose(m) {
   enforceConnectedHeads(m.rigBones);
-  const world = computeWorld(m.rigBones);
+  const world = computeRigWorldForCurrentSpace(m.rigBones);
   m.bindWorld = world;
   m.invBind = world.map(invert);
 }
@@ -2522,6 +3782,8 @@ function rebuildMesh() {
   state.selectedTransform = -1;
   state.selectedPath = -1;
   state.boneMode = (els.boneMode && els.boneMode.value) || "edit";
+  state.rigCoordinateSpace = state.boneMode === "edit" ? "edit" : "runtime";
+  state.rigEditNeedsRuntimeNormalize = false;
   state.weightMode = els.weightMode.value || "hard";
   state.anim.animations = [createAnimation("Anim 1")];
   state.anim.currentAnimId = state.anim.animations[0].id;
@@ -2535,6 +3797,7 @@ function rebuildMesh() {
   state.addBoneArmed = false;
   state.addBoneDraft = null;
   els.addBoneBtn.textContent = "Add Bone";
+  refreshSetupQuickActions();
   setAnimTime(0);
   refreshAnimationUI();
   updatePlaybackButtons();
@@ -2564,30 +3827,72 @@ function refreshWeightsForBoneCount() {
   }
 }
 
-function autoWeightActiveSlot() {
+function autoWeightActiveSlot(slotBindingMode = "weighted") {
   const m = state.mesh;
-  if (!m) return false;
+  if (!m) return 0;
   if (state.slots.length === 0) {
     autoWeightMesh(m);
-    return true;
+    return 1;
   }
-  const slot = getActiveSlot();
-  if (!slot) return false;
-  ensureSlotMeshData(slot, m);
+  const bindMode = slotBindingMode === "single" ? "single" : "weighted";
+  const targetSlotIndices = getSelectedSlotIndicesForAutoWeight();
+  if (targetSlotIndices.length <= 0) return 0;
   const picked = getSelectedBonesForWeight(m);
-  // Auto-bind should follow current multi-selection explicitly.
-  // If no multi-selection exists, fallback to slot's current influence set.
-  slot.influenceBones = picked.length > 0 ? [...new Set(picked)] : getSlotInfluenceBones(slot, m);
-  slot.useWeights = true;
-  slot.weightBindMode = "auto";
-  slot.weightMode = "weighted";
-  slot.meshData.weights = autoWeightForPositions(
-    getSlotWeightedAutoWeightPositions(slot, m),
-    m.rigBones,
-    getSlotInfluenceBones(slot, m)
-  );
-  refreshSlotUI();
-  return true;
+  const expandedPicked = expandSelectedBonesToSubtrees(m, picked);
+  let updated = 0;
+  for (const si of targetSlotIndices) {
+    const slot = state.slots[si];
+    if (!slot) continue;
+    ensureSlotMeshData(slot, m);
+    const currentBone = Number(slot.bone);
+    const slotHadNoBone = !Number.isFinite(currentBone) || currentBone < 0 || currentBone >= m.rigBones.length;
+    if (bindMode === "weighted" && slotHadNoBone) {
+      const anchorBone = createTempBoneForSlot(slot, "slot_auto");
+      if (Number.isFinite(anchorBone) && anchorBone >= 0 && anchorBone < m.rigBones.length) {
+        slot.bone = anchorBone;
+      }
+    }
+    // Auto-bind should follow current multi-selection explicitly.
+    // If no multi-selection exists, fallback to slot's current influence set.
+    const allowedBones = expandedPicked.length > 0 ? [...new Set(expandedPicked)] : getSlotInfluenceBones(slot, m);
+    if (bindMode === "weighted" && allowedBones.length <= 0) {
+      const b = Number(slot.bone);
+      if (Number.isFinite(b) && b >= 0 && b < m.rigBones.length) allowedBones.push(b);
+    }
+    slot.influenceBones = allowedBones;
+    slot.useWeights = true;
+    slot.weightBindMode = "auto";
+    slot.weightMode = "weighted";
+    slot.meshData.weights = autoWeightForPositions(
+      getSlotWeightedAutoWeightPositions(slot, m),
+      m.rigBones,
+      getSlotInfluenceBones(slot, m),
+      {
+        indices: slot.meshData.indices,
+        maxInfluences: 3,
+        distanceRatioCutoff: 3.8,
+        smoothIters: 3,
+        smoothLambda: 0.5,
+        crossBranchPenalty: 0.16,
+      }
+    );
+    if (bindMode === "single") {
+      const dominant = getSlotBaseSpaceBoneIndex(slot, m);
+      const fallbackBone = Number.isFinite(slot.bone) && slot.bone >= 0 && slot.bone < m.rigBones.length
+        ? Number(slot.bone)
+        : Number.isFinite(state.selectedBone) && state.selectedBone >= 0 && state.selectedBone < m.rigBones.length
+          ? Number(state.selectedBone)
+          : allowedBones.length > 0
+            ? Number(allowedBones[0])
+            : -1;
+      const targetBone = Number.isFinite(dominant) && dominant >= 0 ? dominant : fallbackBone;
+      slot.bone = Number.isFinite(targetBone) && targetBone >= 0 ? targetBone : -1;
+      setSlotSingleBoneWeight(slot, m, slot.bone);
+    }
+    updated += 1;
+  }
+  if (updated > 0) refreshSlotUI();
+  return updated;
 }
 
 function isValidParent(bones, index, parent) {
@@ -2662,23 +3967,30 @@ function updateBoneSelectors() {
 }
 
 function refreshBoneTreeFilterUI() {
-  const canDeleteBone =
-    !!state.mesh &&
-    state.boneMode === "edit" &&
-    Number.isFinite(state.selectedBone) &&
-    state.selectedBone >= 0 &&
-    state.selectedBone < state.mesh.rigBones.length &&
-    state.mesh.rigBones.length > 1;
+  bindBoneTreeHumanoidBoneButton();
+  const deleteInfo = getSelectedBoneDeleteInfo();
+  const canDeleteBone = deleteInfo.canDelete;
   if (els.boneTreeAddBoneBtn) {
     els.boneTreeAddBoneBtn.disabled = !state.mesh || state.boneMode !== "edit";
   }
+  if (els.boneTreeHumanoidBoneBtn) {
+    const ready = !!state.mesh && state.boneMode === "edit";
+    els.boneTreeHumanoidBoneBtn.disabled = false;
+    els.boneTreeHumanoidBoneBtn.title = ready
+      ? "Auto-generate humanoid parent-child rig"
+      : "Need mesh + Skeleton/Edit mode";
+  }
   if (els.boneTreeDeleteBoneBtn) {
     els.boneTreeDeleteBoneBtn.disabled = !canDeleteBone;
-    const boundCount = getSlotIndicesBoundToBone(Number(state.selectedBone)).length;
+    const boundCount = deleteInfo.slotIndices.length;
     els.boneTreeDeleteBoneBtn.title =
-      boundCount > 0
-        ? `Delete selected bone and move ${boundCount} bound slot(s) to staging.`
-        : "Delete selected bone (slots -> staging).";
+      deleteInfo.mode === "subtree"
+        ? boundCount > 0
+          ? `Delete selected root bone tree and move ${boundCount} bound slot(s) to staging.`
+          : "Delete selected root bone tree (slots -> staging)."
+        : boundCount > 0
+          ? `Delete selected bone and move ${boundCount} bound slot(s) to staging.`
+          : "Delete selected bone (slots -> staging).";
   }
   if (els.boneTreeDeleteBoneMenuBtn) {
     els.boneTreeDeleteBoneMenuBtn.disabled = !canDeleteBone;
@@ -2689,6 +4001,16 @@ function refreshBoneTreeFilterUI() {
     els.boneTreeOnlyActiveSlotBtn.textContent = on ? "Show All Slots" : "Only Active Slot";
     els.boneTreeOnlyActiveSlotBtn.title = on ? "Currently showing only active slot in tree." : "Show only current active slot in tree.";
     els.boneTreeOnlyActiveSlotBtn.disabled = state.slots.length <= 1;
+  }
+  if (els.boneTreeHideScopeBtn) {
+    const mode = getGlobalBoneWorkHideMode();
+    const slotMode = mode === "bone_and_slots";
+    els.boneTreeHideScopeBtn.classList.toggle("active", slotMode);
+    els.boneTreeHideScopeBtn.textContent = slotMode ? "Hide Scope: Bone+Slot" : "Hide Scope: Bone";
+    els.boneTreeHideScopeBtn.title = slotMode
+      ? "Global hide scope: hidden bones also hide their slots."
+      : "Global hide scope: hidden bones do not hide slots.";
+    els.boneTreeHideScopeBtn.disabled = !state.mesh;
   }
   if (els.boneTreeBindSelectedUnassignedBtn) {
     const selected = getSelectedUnassignedSlotIndices();
@@ -2718,23 +4040,22 @@ function toggleBoneDeleteQuickMenu() {
 }
 
 function refreshBoneDeleteQuickMenuUI() {
-  const canDeleteBone =
-    !!state.mesh &&
-    state.boneMode === "edit" &&
-    Number.isFinite(state.selectedBone) &&
-    state.selectedBone >= 0 &&
-    state.selectedBone < state.mesh.rigBones.length &&
-    state.mesh.rigBones.length > 1;
-  const boundCount = getSlotIndicesBoundToBone(Number(state.selectedBone)).length;
+  const deleteInfo = getSelectedBoneDeleteInfo();
+  const canDeleteBone = deleteInfo.canDelete;
+  const boundCount = deleteInfo.slotIndices.length;
   if (els.boneTreeDeleteBoneToStagingBtn) {
     els.boneTreeDeleteBoneToStagingBtn.disabled = !canDeleteBone;
     els.boneTreeDeleteBoneToStagingBtn.textContent =
-      boundCount > 0 ? `Delete Bone (Slots -> Staging, ${boundCount})` : "Delete Bone (Slots -> Staging)";
+      deleteInfo.mode === "subtree"
+        ? boundCount > 0 ? `Delete Bone Tree (Slots -> Staging, ${boundCount})` : "Delete Bone Tree (Slots -> Staging)"
+        : boundCount > 0 ? `Delete Bone (Slots -> Staging, ${boundCount})` : "Delete Bone (Slots -> Staging)";
   }
   if (els.boneTreeDeleteBoneWithSlotsBtn) {
     els.boneTreeDeleteBoneWithSlotsBtn.disabled = !canDeleteBone;
     els.boneTreeDeleteBoneWithSlotsBtn.textContent =
-      boundCount > 0 ? `Delete Bone + Delete Slots (${boundCount})` : "Delete Bone + Delete Slots";
+      deleteInfo.mode === "subtree"
+        ? boundCount > 0 ? `Delete Bone Tree + Delete Slots (${boundCount})` : "Delete Bone Tree + Delete Slots"
+        : boundCount > 0 ? `Delete Bone + Delete Slots (${boundCount})` : "Delete Bone + Delete Slots";
   }
 }
 
@@ -2858,6 +4179,7 @@ function renderBoneTree() {
   const selectedUnassignedIds = new Set(
     (Array.isArray(state.boneTreeSelectedUnassignedSlotIds) ? state.boneTreeSelectedUnassignedSlotIds : []).map((v) => String(v))
   );
+  const autoWeightTargetSlots = new Set(getSelectedSlotIndicesForAutoWeight());
   for (let i = 0; i < state.slots.length; i += 1) {
     const s = state.slots[i];
     const b = Number.isFinite(s.bone) && s.bone >= 0 && s.bone < bones.length ? s.bone : -1;
@@ -2916,16 +4238,18 @@ function renderBoneTree() {
       const isActiveSlot = state.activeSlot === si;
       const selectedForBone = getSelectedSlotIndexForBone(parentBone) === si;
       const stagedSelected = parentBone < 0 && s && s.id != null && selectedUnassignedIds.has(String(s.id));
+      const autoWeightTargeted = autoWeightTargetSlots.has(si);
       const hiddenByBone = isSlotHiddenByBoneVisibility(s);
       const row = document.createElement("div");
       row.className = `tree-item tree-slot${isActiveSlot ? " active-slot" : ""}${selectedForBone ? " bone-slot-picked" : ""}${stagedSelected ? " staging-slot-picked" : ""
+        }${autoWeightTargeted ? " auto-weight-target" : ""
         }${hiddenByBone ? " slot-hidden-by-bone" : ""
         }`;
       row.style.marginLeft = `${depth * 14 + 16}px`;
       row.dataset.slotIndex = String(si);
       row.dataset.slotDraggable = "1";
       row.draggable = true;
-      row.title = "A = active slot, B = selected slot for this bone. Drag to reorder/reassign, double-click to rename.";
+      row.title = "A = active slot, B = selected slot for this bone, orange highlight = Auto Weight target. Drag to reorder/reassign, double-click to rename.";
       const eye = document.createElement("button");
       eye.type = "button";
       eye.className = "slot-eye";
@@ -2985,7 +4309,7 @@ function renderBoneTree() {
       const isPath = pathBones.has(i);
       const isPathTarget = pathTargets.has(i);
       const hiddenWork = isBoneWorkspaceHidden(m, i);
-      const hiddenWorkSlots = hiddenWork && !!b.workHideSlots;
+      const hiddenWorkSlots = hiddenWork && getGlobalBoneWorkHideMode() === "bone_and_slots";
       const hiddenAnim = state.boneMode === "pose" && isBoneAnimationHidden(activeBones, i);
       row.className = `tree-item${state.selectedBone === i ? " selected" : ""}${picked ? " weight-picked" : ""}${parentCandidate ? " parent-candidate" : ""
         }${ikTargetCandidate ? " ik-target-candidate" : ""}${isIK ? " ik-bone" : ""}${isIKTarget ? " ik-target-bone" : ""}${isTFC ? " ik-bone" : ""
@@ -2993,8 +4317,10 @@ function renderBoneTree() {
         }`;
       row.style.marginLeft = `${depth * 14}px`;
       row.dataset.boneIndex = String(i);
+      row.dataset.rootBone = isRootBoneIndex(bones, i) ? "1" : "0";
       const slotCount = (slotsByBone.get(i) || []).length;
       const childCount = (byParent.get(i) || []).length;
+      const isRootBone = isRootBoneIndex(bones, i);
       const slotCollapsed = !!state.boneTreeSlotCollapse[i];
       const childCollapsed = !!state.boneTreeChildCollapse[i];
       const childBtn = document.createElement("button");
@@ -3012,18 +4338,16 @@ function renderBoneTree() {
       row.appendChild(childBtn);
 
       normalizeBoneChannels(b);
-      const workHideMode = b.workHidden ? (b.workHideSlots ? "bone_and_slots" : "bone_only") : "off";
       const workBtn = document.createElement("button");
       workBtn.type = "button";
-      workBtn.className = `tree-bone-hide-toggle ${workHideMode === "off" ? "" : "active"}`.trim();
+      workBtn.className = `tree-bone-hide-toggle ${b.workHidden ? "active" : ""}`.trim();
       workBtn.dataset.boneWorkHideToggle = String(i);
-      workBtn.textContent = workHideMode === "bone_and_slots" ? "👁̶+" : workHideMode === "bone_only" ? "👁̶" : "👁";
+      workBtn.textContent = b.workHidden ? "👁̶" : "👁";
+      const hideScopeLabel = getGlobalBoneWorkHideMode() === "bone_and_slots" ? "bone+slots" : "bone only";
       workBtn.title =
-        workHideMode === "off"
-          ? "Work eye: visible (click to hide bone only)"
-          : workHideMode === "bone_only"
-            ? "Work eye: bone hidden (click to hide bone+slots)"
-            : "Work eye: bone+slots hidden (click to show)";
+        b.workHidden
+          ? `Work eye: hidden (${hideScopeLabel}, subtree, click to show)`
+          : `Work eye: visible (click to hide subtree, scope=${hideScopeLabel})`;
 
       const animHiddenNow = state.boneMode === "pose" && isBoneAnimationHidden(activeBones, i);
       const animBtn = document.createElement("button");
@@ -3033,7 +4357,7 @@ function renderBoneTree() {
       animBtn.textContent = animHiddenNow ? "👁̶ᵃ" : "👁ᵃ";
       animBtn.title =
         state.boneMode === "pose"
-          ? "Anim eye key at current time (bone + slots)"
+          ? "Anim eye key at current time (bone + child bones + slots)"
           : "Switch to Pose mode to set anim eye key";
       animBtn.disabled = state.boneMode !== "pose";
 
@@ -3071,8 +4395,10 @@ function renderBoneTree() {
       const post = document.createElement("span");
       post.className = "tree-bone-post-controls";
       post.appendChild(slotBtn);
-      post.appendChild(workBtn);
-      post.appendChild(animBtn);
+      if (isRootBone) {
+        post.appendChild(workBtn);
+        post.appendChild(animBtn);
+      }
       row.appendChild(post);
 
       els.boneTree.appendChild(row);
@@ -3137,6 +4463,7 @@ function updateBoneUI() {
   }
   normalizeBoneChannels(b);
   state.anim.trackExpanded[i] = true;
+  const isRootBone = isRootBoneIndex(bones, i);
 
   els.boneSelect.value = String(i);
   els.boneName.value = b.name;
@@ -3148,13 +4475,13 @@ function updateBoneUI() {
   if (els.boneWorkHidden) {
     const rigBone = m.rigBones[i];
     normalizeBoneChannels(rigBone);
-    els.boneWorkHidden.checked = !!(rigBone && rigBone.workHidden);
-    els.boneWorkHidden.disabled = false;
+    els.boneWorkHidden.checked = !!(rigBone && rigBone.workHidden && isRootBone);
+    els.boneWorkHidden.disabled = !isRootBone;
   }
   if (els.boneAnimHidden) {
     normalizeBoneChannels(b);
-    els.boneAnimHidden.checked = !!b.animHidden;
-    els.boneAnimHidden.disabled = state.boneMode !== "pose";
+    els.boneAnimHidden.checked = !!(b.animHidden && isRootBone);
+    els.boneAnimHidden.disabled = state.boneMode !== "pose" || !isRootBone;
   }
   els.boneConnect.value = b.connected ? "true" : "false";
   els.bonePoseLen.value = b.poseLenEditable === false ? "false" : "true";
@@ -3173,6 +4500,7 @@ function updateBoneUI() {
   els.boneTipY.value = String(Math.round(ep.tip.y));
 
   const poseMode = state.boneMode === "pose";
+  const deleteInfo = getSelectedBoneDeleteInfo();
   const connectedToParent = b.parent >= 0 && b.connected;
   const poseLenLocked = poseMode && b.poseLenEditable === false;
   els.boneConnect.disabled = b.parent < 0;
@@ -3181,13 +4509,13 @@ function updateBoneUI() {
   els.addBoneBtn.disabled = poseMode;
   els.addBoneParent.disabled = poseMode;
   els.addBoneConnect.disabled = poseMode;
-  els.deleteBoneBtn.disabled = poseMode;
+  els.deleteBoneBtn.disabled = poseMode || !deleteInfo.canDelete;
   els.weightMode.disabled = poseMode;
   els.autoWeightBtn.disabled = poseMode;
   els.boneTx.disabled = connectedToParent;
   els.boneTy.disabled = connectedToParent;
-  els.boneHeadX.disabled = connectedToParent;
-  els.boneHeadY.disabled = connectedToParent;
+  els.boneHeadX.disabled = poseMode && connectedToParent;
+  els.boneHeadY.disabled = poseMode && connectedToParent;
   els.boneLen.disabled = poseLenLocked;
   if (els.boneScaleX) els.boneScaleX.disabled = false;
   if (els.boneScaleY) els.boneScaleY.disabled = false;
@@ -3207,6 +4535,9 @@ function resetPose() {
   if (!state.mesh) return;
   if (state.boneMode === "edit") {
     state.mesh.rigBones = [];
+    state.rigCoordinateSpace = "edit";
+    state.rigEditNeedsRuntimeNormalize = false;
+    clearRigEditPreviewCache();
     syncPoseFromRig(state.mesh);
     syncBindPose(state.mesh);
     refreshWeightsForBoneCount();
@@ -3265,12 +4596,13 @@ function addBone(opts = null) {
 
   const idx = bones.length - 1;
   if (opts && opts.head && opts.tail) {
-    const world = computeWorld(bones);
+    const world = state.boneMode === "edit" ? getEditAwareWorld(bones) : computeWorld(bones);
     const head = safeParent >= 0 && connected ? transformPoint(world[safeParent], bones[safeParent].length, 0) : opts.head;
     setBoneFromWorldEndpoints(bones, idx, head, opts.tail);
   }
 
   state.selectedBone = idx;
+  markRigEditDirty();
   syncPoseFromRig(m);
   syncBindPose(m);
   refreshWeightsForBoneCount();
@@ -3332,11 +4664,92 @@ function deleteSlotsByIndices(indices) {
   return { removed: list.length, names };
 }
 
+function remapBoneTreeSelectionAfterBoneRemoval(indexMap) {
+  const selectedByBone = state.boneTreeSelectedSlotByBone || Object.create(null);
+  const remappedSelectedByBone = Object.create(null);
+  for (const [k, v] of Object.entries(selectedByBone)) {
+    const oldIndex = Number(k);
+    if (!Number.isFinite(oldIndex) || oldIndex < 0 || !indexMap.has(oldIndex)) continue;
+    remappedSelectedByBone[indexMap.get(oldIndex)] = v;
+  }
+  state.boneTreeSelectedSlotByBone = remappedSelectedByBone;
+}
+
+function remapConstraintsAfterBoneRemovalMap(m, indexMap) {
+  if (!m) return;
+  if (Array.isArray(m.ikConstraints)) {
+    m.ikConstraints = m.ikConstraints.map((c) => ({
+      ...c,
+      bones: Array.isArray(c && c.bones) ? c.bones.map((bi) => indexMap.get(Number(bi))).filter((bi) => Number.isFinite(bi)) : [],
+      target: indexMap.has(Number(c && c.target)) ? indexMap.get(Number(c.target)) : -1,
+    }));
+    ensureIKConstraints(m);
+  }
+  if (Array.isArray(m.transformConstraints)) {
+    m.transformConstraints = m.transformConstraints.map((c) => ({
+      ...c,
+      bones: Array.isArray(c && c.bones) ? c.bones.map((bi) => indexMap.get(Number(bi))).filter((bi) => Number.isFinite(bi)) : [],
+      target: indexMap.has(Number(c && c.target)) ? indexMap.get(Number(c.target)) : -1,
+    }));
+    ensureTransformConstraints(m);
+  }
+  if (Array.isArray(m.pathConstraints)) {
+    m.pathConstraints = m.pathConstraints.map((c) => ({
+      ...c,
+      bones: Array.isArray(c && c.bones) ? c.bones.map((bi) => indexMap.get(Number(bi))).filter((bi) => Number.isFinite(bi)) : [],
+      target: indexMap.has(Number(c && c.target)) ? indexMap.get(Number(c.target)) : -1,
+    }));
+    ensurePathConstraints(m);
+  }
+}
+
+function getSelectedBoneDeleteInfo() {
+  const m = state.mesh;
+  if (!m || !Array.isArray(m.rigBones)) return { canDelete: false, boneIndex: -1, subtree: [], slotIndices: [], mode: "" };
+  const objectDeleteMode = state.editMode === "object" || state.boneMode === "object";
+  let selectedIndex = Number(state.selectedBone);
+  if (!Number.isFinite(selectedIndex) || selectedIndex < 0 || selectedIndex >= m.rigBones.length) {
+    if (objectDeleteMode && m.rigBones.length > 0) selectedIndex = 0;
+    else return { canDelete: false, boneIndex: -1, subtree: [], slotIndices: [], mode: "" };
+  }
+  if (objectDeleteMode) {
+    const rootIndex = getBoneRootIndexFromBones(m.rigBones, selectedIndex);
+    if (!Number.isFinite(rootIndex) || rootIndex < 0 || rootIndex >= m.rigBones.length) {
+      return { canDelete: false, boneIndex: selectedIndex, subtree: [], slotIndices: [], mode: "" };
+    }
+    const subtree = getBoneSubtreeIndices(m.rigBones, rootIndex);
+    const subtreeSet = new Set(subtree);
+    const slotIndices = [];
+    for (let i = 0; i < state.slots.length; i += 1) {
+      const slot = state.slots[i];
+      if (!slot) continue;
+      if (subtreeSet.has(Number(slot.bone))) slotIndices.push(i);
+    }
+    return {
+      canDelete: subtree.length > 0,
+      boneIndex: rootIndex,
+      subtree,
+      slotIndices,
+      mode: "subtree",
+    };
+  }
+  if (state.boneMode === "edit") {
+    return {
+      canDelete: m.rigBones.length > 0,
+      boneIndex: selectedIndex,
+      subtree: [selectedIndex],
+      slotIndices: getSlotIndicesBoundToBone(selectedIndex),
+      mode: "single",
+    };
+  }
+  return { canDelete: false, boneIndex: selectedIndex, subtree: [], slotIndices: [], mode: "" };
+}
+
 function deleteBoneWithSlotPolicy(slotPolicy = "to_staging") {
   const m = state.mesh;
   if (!m || state.boneMode !== "edit") return false;
   const bones = getRigBones(m);
-  if (bones.length <= 1) return false;
+  if (bones.length <= 0) return false;
 
   const removed = state.selectedBone;
   if (!Number.isFinite(removed) || removed < 0 || removed >= bones.length) return false;
@@ -3369,8 +4782,67 @@ function deleteBoneWithSlotPolicy(slotPolicy = "to_staging") {
   remapIKAfterBoneRemoved(m, removed);
   ensureSlotsHaveBoneBinding();
 
-  state.selectedBone = Math.max(0, removed - 1);
-  state.selectedBonesForWeight = [state.selectedBone];
+  if (bones.length > 0) {
+    state.selectedBone = Math.min(Math.max(0, removed - 1), bones.length - 1);
+    state.selectedBonesForWeight = [state.selectedBone];
+  } else {
+    state.selectedBone = -1;
+    state.selectedBonesForWeight = [];
+  }
+  markRigEditDirty();
+  syncPoseFromRig(m);
+  syncBindPose(m);
+  refreshWeightsForBoneCount();
+  updateBoneUI();
+  pushUndoCheckpoint(true);
+  return true;
+}
+
+function deleteSelectedBoneTreeWithSlotPolicy(slotPolicy = "to_staging") {
+  const m = state.mesh;
+  if (!m || !Array.isArray(m.rigBones)) return false;
+  const info = getSelectedBoneDeleteInfo();
+  if (!info.canDelete) return false;
+  if (info.mode === "single") return deleteBoneWithSlotPolicy(slotPolicy);
+  if (info.mode !== "subtree") return false;
+
+  const removeSet = new Set(info.subtree);
+  if (slotPolicy === "delete_slots" && info.slotIndices.length > 0) {
+    deleteSlotsByIndices(info.slotIndices);
+  }
+
+  for (const slot of state.slots) {
+    if (!slot) continue;
+    if (removeSet.has(Number(slot.bone))) slot.bone = -1;
+  }
+
+  const oldBones = m.rigBones.slice();
+  const keptBones = [];
+  const indexMap = new Map();
+  for (let oldIndex = 0; oldIndex < oldBones.length; oldIndex += 1) {
+    if (removeSet.has(oldIndex)) continue;
+    indexMap.set(oldIndex, keptBones.length);
+    keptBones.push(oldBones[oldIndex]);
+  }
+  for (const bone of keptBones) {
+    const parent = Number(bone && bone.parent);
+    bone.parent = indexMap.has(parent) ? indexMap.get(parent) : -1;
+  }
+  for (const slot of state.slots) {
+    if (!slot) continue;
+    const oldBone = Number(slot.bone);
+    slot.bone = indexMap.has(oldBone) ? indexMap.get(oldBone) : -1;
+  }
+
+  m.rigBones = keptBones;
+  remapBoneTreeSelectionAfterBoneRemoval(indexMap);
+  remapConstraintsAfterBoneRemovalMap(m, indexMap);
+  ensureSlotsHaveBoneBinding();
+
+  state.selectedBone = m.rigBones.length > 0 ? 0 : -1;
+  state.selectedBonesForWeight = state.selectedBone >= 0 ? [state.selectedBone] : [];
+  state.selectedBoneParts = [];
+  markRigEditDirty();
   syncPoseFromRig(m);
   syncBindPose(m);
   refreshWeightsForBoneCount();
@@ -3380,10 +4852,11 @@ function deleteBoneWithSlotPolicy(slotPolicy = "to_staging") {
 }
 
 function deleteBone() {
-  return deleteBoneWithSlotPolicy("to_staging");
+  return deleteSelectedBoneTreeWithSlotPolicy("to_staging");
 }
 
 function commitRigEdit(m, reweight = false) {
+  markRigEditDirty();
   syncPoseFromRig(m);
   syncBindPose(m);
   if (reweight) {
@@ -3392,6 +4865,19 @@ function commitRigEdit(m, reweight = false) {
       if (!s) continue;
       rebuildSlotWeights(s, m);
     }
+  }
+}
+
+function commitRigEditPreserveCurrentLook(m) {
+  if (!m) return;
+  markRigEditDirty();
+  // Keep current slot appearance stable while editing rig by rebaking slot-local weights,
+  // without running global auto-weight redistribution.
+  syncPoseFromRig(m);
+  syncBindPose(m);
+  for (const s of state.slots) {
+    if (!s) continue;
+    rebuildSlotWeights(s, m);
   }
 }
 
@@ -4096,6 +5582,7 @@ function refreshSlotUI() {
   refreshDrawOrderUI();
   refreshRightPropsPanelVisibility();
   refreshBoneTreeFilterUI();
+  refreshSetupQuickActions();
 }
 
 function getRightPropsFocus() {
@@ -4121,16 +5608,237 @@ function setRightPropsFocus(mode) {
   refreshRightPropsPanelVisibility();
 }
 
+function ensureSetupQuickUIElements() {
+  if (!els.leftMeshSetup) return;
+  const hasAll =
+    !!els.setupAddBoneBtn &&
+    !!els.setupDeleteBoneBtn &&
+    !!els.setupHumanoidBoneBtn &&
+    !!els.setupHumanoidSourceMode &&
+    !!els.setupHumanoidMinScore &&
+    !!els.setupHumanoidSmoothing &&
+    !!els.setupHumanoidFallback &&
+    !!els.setupBindBoneBtn &&
+    !!els.setupBindWeightedBtn &&
+    !!els.setupAutoWeightSingleBtn &&
+    !!els.setupAutoWeightMultiBtn &&
+    !!els.setupEditWeightsBtn &&
+    !!els.setupAutoWeightSelectionSummary;
+  if (hasAll) {
+    bindSetupHumanoidBoneButton();
+    bindPoseAutoRigOptionListeners();
+    syncPoseAutoRigOptionsToUI();
+    return;
+  }
+  const existing = els.leftMeshSetup.querySelector(".setup-quick-wrap");
+  if (existing && !existing.querySelector("#setupHumanoidBoneBtn")) {
+    const humanoidSection = existing.querySelector("#setupHumanoidRigSection");
+    const field = document.createElement("div");
+    field.className = "field";
+    field.innerHTML = `<button id="setupHumanoidBoneBtn" type="button" title="Auto-generate humanoid parent-child rig">humanoid bone</button>`;
+    if (humanoidSection) humanoidSection.appendChild(field);
+    else existing.appendChild(field);
+  }
+  if (existing && !existing.querySelector("#setupHumanoidOptions")) {
+    const humanoidSection = existing.querySelector("#setupHumanoidRigSection");
+    const optsField = document.createElement("div");
+    optsField.id = "setupHumanoidOptions";
+    optsField.className = "field";
+    optsField.innerHTML = `
+      <div class="field two-col">
+        <label>
+          <span>Pose Source</span>
+          <select id="setupHumanoidSourceMode">
+            <option value="auto" selected>Auto</option>
+            <option value="project">Project Image</option>
+            <option value="active_slot">Active Slot</option>
+          </select>
+        </label>
+        <label>
+          <span>Min Score</span>
+          <input id="setupHumanoidMinScore" type="number" min="0.05" max="0.95" step="0.05" value="0.20" />
+        </label>
+      </div>
+      <label class="slot-inline-check">
+        <input id="setupHumanoidSmoothing" type="checkbox" checked />
+        <span>Detector Smoothing</span>
+      </label>
+      <label class="slot-inline-check">
+        <input id="setupHumanoidFallback" type="checkbox" checked />
+        <span>Allow Missing-Point Fallback</span>
+      </label>
+    `;
+    const humanoidBtn = existing.querySelector("#setupHumanoidBoneBtn");
+    const humanoidField = humanoidBtn ? humanoidBtn.closest(".field") : null;
+    if (humanoidSection) {
+      if (humanoidField && humanoidField.parentElement === humanoidSection && humanoidField.nextSibling) {
+        humanoidSection.insertBefore(optsField, humanoidField.nextSibling);
+      } else {
+        humanoidSection.appendChild(optsField);
+      }
+    } else if (humanoidField && humanoidField.nextSibling) {
+      existing.insertBefore(optsField, humanoidField.nextSibling);
+    } else {
+      existing.appendChild(optsField);
+    }
+  }
+  if (existing && !existing.querySelector("#setupAutoWeightSelectionSummary")) {
+    const summary = document.createElement("p");
+    summary.id = "setupAutoWeightSelectionSummary";
+    summary.className = "muted";
+    const hint = existing.querySelector("p.muted:last-of-type");
+    if (hint && hint.parentElement === existing) existing.insertBefore(summary, hint);
+    else existing.appendChild(summary);
+  }
+  if (!existing) {
+    const wrap = document.createElement("div");
+    wrap.className = "setup-quick-wrap";
+    wrap.innerHTML = `
+      <div class="field two-col">
+        <button id="setupAddBoneBtn" type="button">Add Bone</button>
+        <button id="setupDeleteBoneBtn" type="button">Delete Bone</button>
+      </div>
+      <div class="field two-col">
+        <button id="setupAutoWeightSingleBtn" type="button">Auto Weight (Single Bone)</button>
+        <button id="setupAutoWeightMultiBtn" type="button">Auto Weight (Multi Bone)</button>
+      </div>
+      <div class="field">
+        <button id="setupEditWeightsBtn" type="button">Edit Weights (Vertex)</button>
+      </div>
+      <p id="setupAutoWeightSelectionSummary" class="muted"></p>
+      <section id="setupHumanoidRigSection" class="setup-subsection">
+        <h4>Humanoid Auto Rig / Bind</h4>
+        <div class="field">
+          <button id="setupHumanoidBoneBtn" type="button" title="Auto-generate humanoid parent-child rig">humanoid bone</button>
+        </div>
+        <div id="setupHumanoidOptions" class="field">
+          <div class="field two-col">
+            <label>
+              <span>Pose Source</span>
+              <select id="setupHumanoidSourceMode">
+                <option value="auto" selected>Auto</option>
+                <option value="project">Project Image</option>
+                <option value="active_slot">Active Slot</option>
+              </select>
+            </label>
+            <label>
+              <span>Min Score</span>
+              <input id="setupHumanoidMinScore" type="number" min="0.05" max="0.95" step="0.05" value="0.20" />
+            </label>
+          </div>
+          <label class="slot-inline-check">
+            <input id="setupHumanoidSmoothing" type="checkbox" checked />
+            <span>Detector Smoothing</span>
+          </label>
+          <label class="slot-inline-check">
+            <input id="setupHumanoidFallback" type="checkbox" checked />
+            <span>Allow Missing-Point Fallback</span>
+          </label>
+        </div>
+        <div class="field two-col">
+          <button id="setupBindBoneBtn" type="button">Bind Slot -> Selected Bone</button>
+          <button id="setupBindWeightedBtn" type="button">Bind Slot -> Selected Bones</button>
+        </div>
+      </section>
+      <p class="muted">Setup quick actions: add/edit bones and apply auto weight.</p>
+    `;
+    const remesh = els.remeshBtn && els.remeshBtn.parentElement === els.leftMeshSetup ? els.remeshBtn : null;
+    if (remesh && remesh.nextSibling) els.leftMeshSetup.insertBefore(wrap, remesh.nextSibling);
+    else els.leftMeshSetup.appendChild(wrap);
+  }
+  els.setupAddBoneBtn = document.getElementById("setupAddBoneBtn");
+  els.setupDeleteBoneBtn = document.getElementById("setupDeleteBoneBtn");
+  els.setupHumanoidBoneBtn = document.getElementById("setupHumanoidBoneBtn");
+  els.setupHumanoidSourceMode = document.getElementById("setupHumanoidSourceMode");
+  els.setupHumanoidMinScore = document.getElementById("setupHumanoidMinScore");
+  els.setupHumanoidSmoothing = document.getElementById("setupHumanoidSmoothing");
+  els.setupHumanoidFallback = document.getElementById("setupHumanoidFallback");
+  els.setupBindBoneBtn = document.getElementById("setupBindBoneBtn");
+  els.setupBindWeightedBtn = document.getElementById("setupBindWeightedBtn");
+  els.setupAutoWeightSingleBtn = document.getElementById("setupAutoWeightSingleBtn");
+  els.setupAutoWeightMultiBtn = document.getElementById("setupAutoWeightMultiBtn");
+  els.setupEditWeightsBtn = document.getElementById("setupEditWeightsBtn");
+  els.setupAutoWeightSelectionSummary = document.getElementById("setupAutoWeightSelectionSummary");
+  bindSetupHumanoidBoneButton();
+  bindPoseAutoRigOptionListeners();
+  syncPoseAutoRigOptionsToUI();
+}
+
+function refreshSetupQuickActions() {
+  ensureSetupQuickUIElements();
+  const hasMesh = !!state.mesh;
+  const editMode = state.boneMode === "edit";
+  const hasSlot = !!getActiveSlot();
+  const hasSelectedBone = hasMesh && Number.isFinite(state.selectedBone) && state.selectedBone >= 0;
+  const canBindSingle = hasMesh && editMode && hasSlot && hasSelectedBone;
+  const selectedBones = hasMesh ? getSelectedBonesForWeight(state.mesh) : [];
+  const selectedSlots = hasMesh && state.slots.length > 0 ? getSelectedSlotIndicesForAutoWeight() : [];
+  const canBindWeighted = hasMesh && editMode && hasSlot && selectedBones.length > 0;
+  if (els.setupAddBoneBtn) {
+    els.setupAddBoneBtn.disabled = !hasMesh || !editMode;
+    els.setupAddBoneBtn.textContent = state.addBoneArmed ? "Cancel Add" : "Add Bone";
+  }
+  if (els.setupDeleteBoneBtn) els.setupDeleteBoneBtn.disabled = !hasMesh || !editMode;
+  if (els.setupHumanoidBoneBtn) {
+    const ready = hasMesh && editMode;
+    els.setupHumanoidBoneBtn.disabled = false;
+    els.setupHumanoidBoneBtn.title = ready
+      ? "Auto-generate humanoid parent-child rig"
+      : "Need mesh + Skeleton/Edit mode";
+  }
+  if (els.setupHumanoidSourceMode) els.setupHumanoidSourceMode.disabled = false;
+  if (els.setupHumanoidMinScore) els.setupHumanoidMinScore.disabled = false;
+  if (els.setupHumanoidSmoothing) els.setupHumanoidSmoothing.disabled = false;
+  if (els.setupHumanoidFallback) els.setupHumanoidFallback.disabled = false;
+  if (els.setupBindBoneBtn) els.setupBindBoneBtn.disabled = !canBindSingle;
+  if (els.setupBindWeightedBtn) els.setupBindWeightedBtn.disabled = !canBindWeighted;
+  if (els.setupAutoWeightSingleBtn) {
+    const singleOn = (state.weightMode || "hard") === "hard";
+    els.setupAutoWeightSingleBtn.disabled = !hasMesh || !editMode;
+    els.setupAutoWeightSingleBtn.classList.toggle("active", singleOn);
+  }
+  if (els.setupAutoWeightMultiBtn) {
+    const multiOn = (state.weightMode || "hard") === "soft";
+    els.setupAutoWeightMultiBtn.disabled = !hasMesh || !editMode;
+    els.setupAutoWeightMultiBtn.classList.toggle("active", multiOn);
+  }
+  if (els.setupEditWeightsBtn) els.setupEditWeightsBtn.disabled = !hasMesh || !hasSlot;
+  if (els.setupAutoWeightSelectionSummary) {
+    if (!hasMesh) {
+      els.setupAutoWeightSelectionSummary.textContent = "Auto Weight selection: no mesh.";
+    } else {
+      const slotPreview = selectedSlots
+        .slice(0, 3)
+        .map((si) => (state.slots[si] && state.slots[si].name ? state.slots[si].name : `slot_${si}`))
+        .join(", ");
+      const bonePreview = selectedBones
+        .slice(0, 3)
+        .map((bi) => (state.mesh && state.mesh.rigBones && state.mesh.rigBones[bi] && state.mesh.rigBones[bi].name ? state.mesh.rigBones[bi].name : `bone_${bi}`))
+        .join(", ");
+      const slotTail = selectedSlots.length > 3 ? "..." : "";
+      const boneTail = selectedBones.length > 3 ? "..." : "";
+      els.setupAutoWeightSelectionSummary.textContent =
+        `Batch Auto Weight: ${selectedSlots.length} slot(s) x ${selectedBones.length} bone(s) | ` +
+        `Slots: ${slotPreview || "(none)"}${slotTail} | Bones: ${bonePreview || "(slot default)"}${boneTail}`;
+    }
+  }
+}
+
 function updateWorkspaceUI() {
   const canBuildPages = state.boneMode === "edit";
+  const isSysAnimate = !!(els.systemMode && els.systemMode.value === "animate");
   const canObjectPage = state.boneMode === "object" && (state.editMode === "skeleton" || state.editMode === "object");
   let page = state.uiPage === "slot" || state.uiPage === "anim" || state.uiPage === "object" ? state.uiPage : "rig";
-  if (!canBuildPages && (page === "slot" || page === "rig")) {
-    page = canObjectPage ? "object" : "anim";
+  if (page === "anim" && !isSysAnimate) {
+    page = "rig";
+    state.uiPage = page;
+  }
+  if (page === "slot" && !canBuildPages) {
+    page = "rig";
     state.uiPage = page;
   }
   if (page === "object" && !canObjectPage) {
-    page = canBuildPages ? "rig" : "anim";
+    page = "rig";
     state.uiPage = page;
   }
   const sub = state.animSubPanel === "layers" || state.animSubPanel === "state" ? state.animSubPanel : "timeline";
@@ -4149,7 +5857,9 @@ function updateWorkspaceUI() {
   if (els.workspaceTabSlot) setVisible(els.workspaceTabSlot, canBuildPages);
   if (els.workspaceTabRig) setVisible(els.workspaceTabRig, canBuildPages);
   if (els.workspaceTabObject) setVisible(els.workspaceTabObject, canObjectPage);
-  if (els.workspaceTabAnimate) setVisible(els.workspaceTabAnimate, true);
+  if (els.workspaceTabAnimate) {
+    setVisible(els.workspaceTabAnimate, isSysAnimate);
+  }
   if (els.workspaceTabSlot) els.workspaceTabSlot.classList.toggle("active", page === "slot");
   if (els.workspaceTabRig) els.workspaceTabRig.classList.toggle("active", page === "rig");
   if (els.workspaceTabObject) els.workspaceTabObject.classList.toggle("active", page === "object");
@@ -4163,13 +5873,12 @@ function updateWorkspaceUI() {
   if (els.slotViewWrap) setVisible(els.slotViewWrap, true);
   if (els.editMode) els.editMode.value = state.editMode;
   const isSkeleton = state.editMode === "skeleton";
-  const isVertex = state.editMode === "vertex";
-  const isRigEdit = !isSlotMesh && isSkeleton && state.boneMode === "edit";
-  const isRigObject = !isSlotMesh && (isSkeleton || state.editMode === "object") && state.boneMode === "object";
-  const isRigPose = !isSlotMesh && isSkeleton && state.boneMode === "pose";
-  const isRigVertex = !isSlotMesh && isVertex;
+  const isMeshEdit = state.editMode === "mesh";
+  const isRigEdit = !isMeshEdit && isSkeleton && state.boneMode === "edit";
+  const isRigObject = !isMeshEdit && (isSkeleton || state.editMode === "object") && state.boneMode === "object";
+  const isRigPose = !isMeshEdit && isSkeleton && state.boneMode === "pose";
 
-  const tabVisible = isSlotMesh
+  const tabVisible = isMeshEdit
     ? {
       canvas: !animAuxMode,
       setup: false,
@@ -4183,15 +5892,15 @@ function updateWorkspaceUI() {
     }
     : {
       canvas: !animAuxMode,
-      setup: page === "rig" && !isSlotMesh && !animAuxMode,
+      setup: page === "rig" && !isMeshEdit && !animAuxMode,
       rig: page === "rig" && isRigEdit && !animAuxMode,
       object: page === "object" && isRigObject && !animAuxMode,
-      ik: (page === "rig" || page === "object") && !isSlotMesh && isSkeleton && !animAuxMode,
-      constraint: (page === "rig" || page === "object") && !isSlotMesh && isSkeleton && !animAuxMode,
-      path: (page === "rig" || page === "object") && !isSlotMesh && isSkeleton && !animAuxMode,
-      skin: (page === "rig" || page === "object") && (isRigEdit || isRigObject || isRigVertex) && !animAuxMode,
-      tools: (page === "rig" || page === "object") && !isSlotMesh && !animAuxMode,
-      slotmesh: page === "slot" || isSlotMesh,
+      ik: (page === "rig" || page === "object") && !isMeshEdit && isSkeleton && !animAuxMode,
+      constraint: (page === "rig" || page === "object") && !isMeshEdit && isSkeleton && !animAuxMode,
+      path: (page === "rig" || page === "object") && !isMeshEdit && isSkeleton && !animAuxMode,
+      skin: (page === "rig" || page === "object") && (isRigEdit || isRigObject) && !animAuxMode,
+      tools: (page === "rig" || page === "object") && !isMeshEdit && !animAuxMode,
+      slotmesh: page === "slot" || isMeshEdit,
     };
   const visibleTabs = Object.keys(tabVisible).filter((k) => tabVisible[k]);
   if (!animAuxMode && !visibleTabs.includes(state.leftToolTab)) state.leftToolTab = visibleTabs[0] || "setup";
@@ -4227,7 +5936,11 @@ function updateWorkspaceUI() {
     if (btn) btn.classList.toggle("active", show && tab === state.leftToolTab);
   }
   for (const [tab, panel] of Object.entries(tabPanelById)) {
-    setVisible(panel, !animAuxMode && !!tabVisible[tab] && tab === state.leftToolTab);
+    const show = !animAuxMode && !!tabVisible[tab] && tab === state.leftToolTab;
+    if (panel) {
+      panel.classList.toggle("active", show);
+      panel.style.display = show ? "flex" : "none";
+    }
   }
   if (els.timelineDock) setVisible(els.timelineDock, page === "anim" && sub === "timeline");
   if (els.layerDock) els.layerDock.style.display = page === "anim" && sub === "layers" ? "flex" : "none";
@@ -4247,48 +5960,55 @@ function updateWorkspaceUI() {
       els.leftToolModeHint.textContent = "Animate > Animation Layers: tools are shown below in Canvas Tools.";
     } else if (page === "anim" && sub === "state") {
       els.leftToolModeHint.textContent = "Animate > State Machine: tools are shown below in Canvas Tools.";
-    } else if (isSlotMesh) {
-      els.leftToolModeHint.textContent = "Slot Mesh mode: use Base Transform tab for base image transform, Slot Mesh tab for mesh edit.";
+    } else if (isMeshEdit) {
+      els.leftToolModeHint.textContent = "Mesh mode: use Base Transform tab for base image transform, Mesh tab for mesh edit and deformation weights.";
     } else if (isRigEdit) {
       els.leftToolModeHint.textContent = "Edit mode: rig, IK, constraint, path, skin, and tools tabs are shown.";
     } else if (isRigObject) {
       els.leftToolModeHint.textContent = "Object page: whole-object transform tools without entering Animate.";
     } else if (isRigPose) {
       els.leftToolModeHint.textContent = "Pose mode: IK, constraint, path, setup, and tools tabs are shown.";
-    } else if (isRigVertex) {
-      els.leftToolModeHint.textContent = "Vertex mode: skin/tools tabs are shown.";
     } else {
-      els.leftToolModeHint.textContent = "Mode-aware tabs";
+      els.leftToolModeHint.textContent = "Mode-aware tools";
     }
   }
   refreshBaseImageTransformUI();
   refreshVertexDeformUI();
   refreshSlotMeshToolModeUI();
   refreshCanvasInteractionAffordance();
+  refreshSetupQuickActions();
+  if (isSlotMeshEditTabActive()) {
+    const slot = getActiveSlot();
+    if (slot) syncSlotContourFromMeshData(slot, false);
+  }
+  if (state.boneMode === "edit") ensureRigEditPreviewCache(false);
+  else clearRigEditPreviewCache();
 }
 
 function setWorkspacePage(page) {
+  const prevMode = state.boneMode;
   const next = page === "slot" || page === "anim" || page === "object" ? page : "rig";
   state.uiPage = next;
   if (next === "slot") {
-    state.editMode = "slotmesh";
+    state.editMode = "mesh";
     if (state.leftToolTab !== "slotmesh" && state.leftToolTab !== "canvas") state.leftToolTab = "slotmesh";
   } else if (next === "object") {
     state.editMode = "skeleton";
     state.boneMode = "object";
     if (els.boneMode) els.boneMode.value = "object";
     if (state.leftToolTab === "slotmesh") state.leftToolTab = "object";
-  } else if (state.editMode === "slotmesh") {
+  } else if (state.editMode === "mesh") {
     state.editMode = "skeleton";
     if (state.leftToolTab === "slotmesh" || state.leftToolTab === "canvas") state.leftToolTab = "setup";
   }
   if (els.editMode) els.editMode.value = state.editMode;
-  state.workspaceMode = state.editMode === "slotmesh" ? "slotmesh" : "rig";
+  state.workspaceMode = state.editMode === "mesh" ? "slotmesh" : "rig";
   if (state.editMode !== "skeleton") state.pathEdit.drawArmed = false;
   if (next !== "anim") {
     state.animSubPanel = "timeline";
     state.exportPanelOpen = false;
   }
+  applyBoneModeTransition(prevMode, state.boneMode);
   updateWorkspaceUI();
   renderTimelineTracks();
 }
@@ -4323,7 +6043,9 @@ function setupWorkspaceTabs() {
       }
       if (page === "object" && !(state.boneMode === "object" && (state.editMode === "skeleton" || state.editMode === "object"))) {
         if (state.mesh && (state.editMode === "skeleton" || state.editMode === "object")) {
+          const prevMode = state.boneMode;
           state.boneMode = "object";
+          applyBoneModeTransition(prevMode, state.boneMode);
           if (els.boneMode) els.boneMode.value = "object";
         } else {
           setStatus("Switch to Skeleton/Object mode to enter Object page.");
@@ -4505,6 +6227,19 @@ function addSlotEntry(entry, activate = true) {
           ? null
           : String(entry.clipEndSlotId)
         : null,
+    meshContour: entry.meshContour
+      ? JSON.parse(JSON.stringify(entry.meshContour))
+      : {
+        points: [],
+        sourcePoints: [],
+        authorContourPoints: [],
+        closed: false,
+        triangles: [],
+        fillPoints: [],
+        fillTriangles: [],
+        manualEdges: [],
+        fillManualEdges: [],
+      },
   };
   if (state.mesh) {
     slot.meshData = createSlotMeshData(rect, targetW, targetH, state.mesh.cols, state.mesh.rows);
@@ -4778,7 +6513,7 @@ function remapTrackIdAfterSlotRemoved(trackId, removedSlotIndex) {
     if (si === removedSlotIndex) return null;
     return getSlotTrackId(si > removedSlotIndex ? si - 1 : si, parsed.prop);
   }
-  if (parsed.type === "vertex" && Number.isFinite(parsed.slotIndex)) {
+  if (parsed.type === "mesh" && Number.isFinite(parsed.slotIndex)) {
     const si = Number(parsed.slotIndex);
     if (si === removedSlotIndex) return null;
     return getVertexTrackId(si > removedSlotIndex ? si - 1 : si);
@@ -4800,7 +6535,7 @@ function remapAnimationTracksForRemovedSlot(removedSlotIndex, removedSlotId) {
       for (const src of keys) {
         if (!src || typeof src !== "object") continue;
         const row = { ...src };
-        if (trackId === VERTEX_TRACK_ID || (parsed && parsed.type === "vertex" && !Number.isFinite(parsed.slotIndex))) {
+        if (trackId === VERTEX_TRACK_ID || (parsed && parsed.type === "mesh" && !Number.isFinite(parsed.slotIndex))) {
           const ksi = Number(row.slotIndex);
           if (Number.isFinite(ksi)) {
             if (ksi === removedSlotIndex) continue;
@@ -5017,17 +6752,9 @@ function refreshBoneTreeContextMenuUI() {
   const active = getActiveSlot();
   const isBoneCtx = state.boneTreeMenuContextKind === "bone";
   const isSlotCtx = state.boneTreeMenuContextKind === "slot";
-  const boneIndex = Number(state.selectedBone);
-  const boundSlots = getSlotIndicesBoundToBone(boneIndex);
-  const boundCount = boundSlots.length;
-  const canDeleteBone =
-    isBoneCtx &&
-    !!state.mesh &&
-    state.boneMode === "edit" &&
-    Number.isFinite(state.selectedBone) &&
-    state.selectedBone >= 0 &&
-    state.selectedBone < state.mesh.rigBones.length &&
-    state.mesh.rigBones.length > 1;
+  const deleteInfo = getSelectedBoneDeleteInfo();
+  const boundCount = deleteInfo.slotIndices.length;
+  const canDeleteBone = isBoneCtx && deleteInfo.canDelete;
   if (els.treeCtxSlotAddBtn) {
     els.treeCtxSlotAddBtn.disabled = !state.mesh && state.slots.length === 0 && !state.sourceCanvas;
     els.treeCtxSlotAddBtn.hidden = false;
@@ -5052,13 +6779,17 @@ function refreshBoneTreeContextMenuUI() {
     els.treeCtxBoneDeleteBtn.disabled = !canDeleteBone;
     els.treeCtxBoneDeleteBtn.hidden = !isBoneCtx;
     els.treeCtxBoneDeleteBtn.textContent =
-      boundCount > 0 ? `Delete Bone (Slots -> Staging, ${boundCount})` : "Delete Bone (Slots -> Staging)";
+      deleteInfo.mode === "subtree"
+        ? boundCount > 0 ? `Delete Bone Tree (Slots -> Staging, ${boundCount})` : "Delete Bone Tree (Slots -> Staging)"
+        : boundCount > 0 ? `Delete Bone (Slots -> Staging, ${boundCount})` : "Delete Bone (Slots -> Staging)";
   }
   if (els.treeCtxBoneDeleteWithSlotsBtn) {
     els.treeCtxBoneDeleteWithSlotsBtn.disabled = !canDeleteBone;
     els.treeCtxBoneDeleteWithSlotsBtn.hidden = !isBoneCtx;
     els.treeCtxBoneDeleteWithSlotsBtn.textContent =
-      boundCount > 0 ? `Delete Bone + Delete Slots (${boundCount})` : "Delete Bone + Delete Slots";
+      deleteInfo.mode === "subtree"
+        ? boundCount > 0 ? `Delete Bone Tree + Delete Slots (${boundCount})` : "Delete Bone Tree + Delete Slots"
+        : boundCount > 0 ? `Delete Bone + Delete Slots (${boundCount})` : "Delete Bone + Delete Slots";
   }
 }
 
@@ -5172,6 +6903,17 @@ function getSelectedUnassignedSlotIndices() {
   return out;
 }
 
+function getExplicitSelectedUnassignedSlotIndices() {
+  const selectedIds = Array.isArray(state.boneTreeSelectedUnassignedSlotIds) ? state.boneTreeSelectedUnassignedSlotIds : [];
+  const out = [];
+  for (const id of selectedIds) {
+    const idx = state.slots.findIndex((s) => s && s.id != null && String(s.id) === String(id) && Number(s.bone) === -1);
+    if (idx >= 0 && !out.includes(idx)) out.push(idx);
+  }
+  state.boneTreeSelectedUnassignedSlotIds = out.map((i) => String(state.slots[i] && state.slots[i].id != null ? state.slots[i].id : ""));
+  return out;
+}
+
 function setSelectedUnassignedSlotIndices(indices, append = false) {
   const next = [];
   const base = append ? getSelectedUnassignedSlotIndices() : [];
@@ -5190,6 +6932,32 @@ function setSelectedUnassignedSlotIndices(indices, append = false) {
     if (!next.includes(sid)) next.push(sid);
   }
   state.boneTreeSelectedUnassignedSlotIds = next;
+}
+
+function getSelectedSlotIndicesForAutoWeight() {
+  const out = [];
+  const pushIndex = (idx) => {
+    const i = Number(idx);
+    if (!Number.isFinite(i) || i < 0 || i >= state.slots.length) return;
+    if (!out.includes(i)) out.push(i);
+  };
+
+  const selectedByBone = state.boneTreeSelectedSlotByBone || Object.create(null);
+  for (const boneKey of Object.keys(selectedByBone)) {
+    const bi = Number(boneKey);
+    if (!Number.isFinite(bi) || bi < 0) continue;
+    pushIndex(getSelectedSlotIndexForBone(bi));
+  }
+
+  for (const si of getExplicitSelectedUnassignedSlotIndices()) {
+    pushIndex(si);
+  }
+
+  if (out.length === 0) {
+    const ai = Number(state.activeSlot);
+    if (Number.isFinite(ai) && ai >= 0 && ai < state.slots.length) pushIndex(ai);
+  }
+  return out;
 }
 
 function bindSelectedUnassignedSlotsToDefaultBones() {
@@ -5569,12 +7337,13 @@ function bindActiveSlotWeightedToSelectedBones() {
   const slot = getActiveSlot();
   if (!m || !slot) return false;
   const picked = getSelectedBonesForWeight(m);
-  if (!Array.isArray(picked) || picked.length === 0) return false;
-  slot.bone = picked[0];
+  const expandedPicked = expandSelectedBonesToSubtrees(m, picked);
+  if (!Array.isArray(expandedPicked) || expandedPicked.length === 0) return false;
+  slot.bone = expandedPicked[0];
   slot.weightMode = "weighted";
   slot.weightBindMode = "auto";
   slot.useWeights = true;
-  slot.influenceBones = [...new Set(picked)];
+  slot.influenceBones = [...new Set(expandedPicked)];
   ensureSlotsHaveBoneBinding();
   rebuildSlotWeights(slot, m);
   refreshSlotUI();
@@ -5743,6 +7512,8 @@ function ensureSlotContour(slot) {
       fillTriangles: [],
       manualEdges: [],
       fillManualEdges: [],
+      dirty: false,
+      fillFromMeshData: false,
     };
   }
   if (!Array.isArray(slot.meshContour.sourcePoints)) slot.meshContour.sourcePoints = [];
@@ -5761,6 +7532,8 @@ function ensureSlotContour(slot) {
   if (!Array.isArray(slot.meshContour.fillTriangles)) slot.meshContour.fillTriangles = [];
   if (!Array.isArray(slot.meshContour.manualEdges)) slot.meshContour.manualEdges = [];
   if (!Array.isArray(slot.meshContour.fillManualEdges)) slot.meshContour.fillManualEdges = [];
+  if (typeof slot.meshContour.dirty !== "boolean") slot.meshContour.dirty = false;
+  if (typeof slot.meshContour.fillFromMeshData !== "boolean") slot.meshContour.fillFromMeshData = false;
   slot.meshContour.manualEdges = normalizeEdgePairs(slot.meshContour.manualEdges, slot.meshContour.points.length);
   slot.meshContour.fillManualEdges = normalizeEdgePairs(slot.meshContour.fillManualEdges, slot.meshContour.fillPoints.length);
   slot.meshContour.closed = !!slot.meshContour.closed;
@@ -5777,6 +7550,64 @@ function ensureSlotContour(slot) {
   return slot.meshContour;
 }
 
+function markSlotContourDirty(slot, dirty = true) {
+  if (!slot) return;
+  const contour = ensureSlotContour(slot);
+  contour.dirty = !!dirty;
+  if (dirty) contour.fillFromMeshData = false;
+}
+
+function syncSlotContourFromMeshData(slot, force = false) {
+  const m = state.mesh;
+  if (!m || !slot) return false;
+  ensureSlotMeshData(slot, m);
+  const sm = slot.meshData;
+  if (!sm || !sm.positions || !sm.indices) return false;
+  const contour = ensureSlotContour(slot);
+  if (!force && contour.dirty) return false;
+  const vCount = Math.floor((Number(sm.positions.length) || 0) / 2);
+  if (vCount <= 0) return false;
+  if (
+    !force &&
+    contour.fillFromMeshData &&
+    !contour.dirty &&
+    Array.isArray(contour.fillPoints) &&
+    contour.fillPoints.length === vCount &&
+    Array.isArray(contour.fillTriangles) &&
+    contour.fillTriangles.length === sm.indices.length
+  ) {
+    return false;
+  }
+  contour.fillPoints = [];
+  for (let i = 0; i < vCount; i += 1) {
+    contour.fillPoints.push({
+      x: Number(sm.positions[i * 2]) || 0,
+      y: Number(sm.positions[i * 2 + 1]) || 0,
+    });
+  }
+  contour.fillTriangles = Array.from(sm.indices || []);
+  contour.fillManualEdges = [];
+  contour.triangles = [];
+  contour.fillFromMeshData = true;
+  contour.dirty = false;
+  if (!Array.isArray(contour.points) || contour.points.length < 3) {
+    contour.points = cloneSlotMeshPoints(contour.fillPoints);
+    contour.closed = contour.points.length >= 3;
+    syncSlotContourSourcePoints(contour);
+  }
+  if (isSlotMeshEditTabActive()) {
+    state.slotMesh.activeSet = "fill";
+    state.slotMesh.activePoint = contour.fillPoints.length > 0 ? math.clamp(Number(state.slotMesh.activePoint) || 0, 0, contour.fillPoints.length - 1) : -1;
+    state.slotMesh.edgeSelectionSet = "fill";
+    const sel = getSlotMeshSelection("fill", contour.fillPoints.length);
+    if (sel.length <= 0 && contour.fillPoints.length > 0) {
+      state.slotMesh.edgeSelection = [0];
+      setSlotMeshSelection("fill", [0], contour.fillPoints.length);
+    }
+  }
+  return true;
+}
+
 function cloneSlotMeshPoints(points) {
   if (!Array.isArray(points)) return [];
   return points.map((p) => ({ x: Number(p && p.x) || 0, y: Number(p && p.y) || 0 }));
@@ -5784,6 +7615,7 @@ function cloneSlotMeshPoints(points) {
 
 function syncSlotContourSourcePoints(contour) {
   if (!contour) return [];
+  contour.fillFromMeshData = false;
   contour.authorContourPoints = cloneSlotMeshPoints(contour.points);
   contour.sourcePoints = cloneSlotMeshPoints(contour.authorContourPoints);
   refreshSlotMeshContourReferenceHint();
@@ -6830,6 +8662,8 @@ function cloneSlotMeshContour(contour) {
     fillManualEdges: Array.isArray(src.fillManualEdges)
       ? src.fillManualEdges.filter((e) => Array.isArray(e) && e.length >= 2).map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
       : [],
+    dirty: !!src.dirty,
+    fillFromMeshData: !!src.fillFromMeshData,
   };
 }
 
@@ -6976,6 +8810,9 @@ function applyContourMeshToSlot(slot) {
   };
   rebuildSlotWeights(slot, m);
   rebuildSlotTriangleIndices();
+  const contourAfter = ensureSlotContour(slot);
+  contourAfter.dirty = false;
+  contourAfter.fillFromMeshData = false;
   return true;
 }
 
@@ -6985,6 +8822,7 @@ function resetSlotMeshToGrid(slot) {
   const r = slot.rect || { x: 0, y: 0, w: state.imageWidth || 64, h: state.imageHeight || 64 };
   slot.meshData = createSlotMeshData(r, state.imageWidth || r.w, state.imageHeight || r.h, m.cols, m.rows);
   rebuildSlotWeights(slot, m);
+  syncSlotContourFromMeshData(slot, true);
   return true;
 }
 
@@ -7044,7 +8882,19 @@ function ensureSlotMeshData(slot, m) {
     } else {
       const allowed = getSlotInfluenceBones(slot, m);
       slot.influenceBones = allowed;
-      slot.meshData.weights = autoWeightForPositions(getSlotWeightedAutoWeightPositions(slot, m), m.rigBones, allowed);
+      slot.meshData.weights = autoWeightForPositions(
+        getSlotWeightedAutoWeightPositions(slot, m),
+        m.rigBones,
+        allowed,
+        {
+          indices: slot.meshData.indices,
+          maxInfluences: 3,
+          distanceRatioCutoff: 3.8,
+          smoothIters: 3,
+          smoothLambda: 0.5,
+          crossBranchPenalty: 0.16,
+        }
+      );
       slot.weightBindMode = "auto";
       slot.weightMode = "weighted";
     }
@@ -7129,14 +8979,16 @@ function canRenderSlotInViewport(slot) {
   return hasActiveAttachment(slot);
 }
 
+function getGlobalBoneWorkHideMode() {
+  return state.boneTreeWorkHideMode === "bone_and_slots" ? "bone_and_slots" : "bone_only";
+}
+
 function isSlotHiddenByBoneVisibility(slot) {
   const m = state.mesh;
   if (!m || !slot) return false;
   const bi = Number(slot.bone);
   if (!Number.isFinite(bi) || bi < 0 || bi >= (Array.isArray(m.rigBones) ? m.rigBones.length : 0)) return false;
-  const rigBone = m.rigBones[bi];
-  normalizeBoneChannels(rigBone);
-  if (rigBone && rigBone.workHidden && rigBone.workHideSlots) return true;
+  if (getGlobalBoneWorkHideMode() === "bone_and_slots" && isBoneWorkspaceHidden(m, bi)) return true;
   if (state.boneMode === "pose") {
     const bones = getActiveBones(m);
     if (isBoneAnimationHidden(bones, bi)) return true;
@@ -9080,6 +10932,7 @@ function buildSlotGeometry(slot, poseWorld) {
   const vCount = sm.positions.length / 2;
   const mode = getSlotWeightMode(slot);
   const boneCount = mode === "free" ? 0 : m.rigBones.length;
+  const invBind = getDisplayInvBind(m);
   if (!sm.interleaved || sm.interleaved.length !== vCount * 4) sm.interleaved = new Float32Array(vCount * 4);
   if (!sm.deformedScreen || sm.deformedScreen.length !== vCount * 2) sm.deformedScreen = new Float32Array(vCount * 2);
   if (!sm.deformedLocal || sm.deformedLocal.length !== vCount * 2) sm.deformedLocal = new Float32Array(vCount * 2);
@@ -9094,7 +10947,7 @@ function buildSlotGeometry(slot, poseWorld) {
       for (let b = 0; b < boneCount; b += 1) {
         const w = sm.weights[i * boneCount + b];
         if (w <= 0) continue;
-        const skinned = transformPoint(mul(poseWorld[b], m.invBind[b]), x, y);
+        const skinned = transformPoint(mul(poseWorld[b], invBind[b]), x, y);
         sx += skinned.x * w;
         sy += skinned.y * w;
       }
@@ -9357,7 +11210,7 @@ function computeSceneBoundsLocal() {
 
     const bones = getBonesForCurrentMode(m);
     enforceConnectedHeads(bones);
-    const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : computeWorld(bones);
+    const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : getEditAwareWorld(bones);
     for (let i = 0; i < bones.length; i += 1) {
       const ep = getBoneWorldEndpointsFromBones(bones, i, world);
       if (!ep) continue;
@@ -9595,7 +11448,8 @@ function updateDeformation(offsetsOverride = null) {
 
   const bones = state.boneMode === "pose" ? getPoseBones(m) : getRigBones(m);
   enforceConnectedHeads(bones);
-  const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : computeWorld(bones);
+  const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : getEditAwareWorld(bones);
+  const invBind = getDisplayInvBind(m);
   const vCount = getVertexCount(m);
   const boneCount = bones.length;
 
@@ -9610,7 +11464,7 @@ function updateDeformation(offsetsOverride = null) {
       for (let b = 0; b < boneCount; b += 1) {
         const w = m.weights[i * boneCount + b];
         if (w <= 0) continue;
-        const skinned = transformPoint(mul(world[b], m.invBind[b]), x, y);
+        const skinned = transformPoint(mul(world[b], invBind[b]), x, y);
         sx += skinned.x * w;
         sy += skinned.y * w;
       }
@@ -9639,9 +11493,15 @@ function updateDeformation(offsetsOverride = null) {
 function getSolvedPoseWorld(m) {
   if (!m) return [];
   if (state.boneMode !== "pose") {
+    if (state.boneMode === "edit") {
+      ensureRigEditPreviewCache(false);
+      if (Array.isArray(state.rigEditPreviewWorld) && state.rigEditPreviewWorld.length === getRigBones(m).length) {
+        return state.rigEditPreviewWorld;
+      }
+    }
     const rig = cloneBones(getRigBones(m));
     enforceConnectedHeads(rig);
-    return computeWorld(rig);
+    return getEditAwareWorld(rig);
   }
   const pose = cloneBones(getPoseBones(m));
   enforceConnectedHeads(pose);
@@ -9777,9 +11637,9 @@ function drawOverlay() {
     }
   }
 
-  if (state.editMode !== "slotmesh") {
+  if (state.editMode !== "mesh") {
     const bones = getActiveBones(m);
-    const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : (enforceConnectedHeads(bones), computeWorld(bones));
+    const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : (enforceConnectedHeads(bones), getEditAwareWorld(bones));
     const ikBones = getIkConstrainedBoneSet(m);
     const ikTargets = getIkTargetBoneSet(m);
     const tfcBones = getTransformConstrainedBoneSet(m);
@@ -9927,9 +11787,12 @@ function drawOverlay() {
       ctx.lineTo(es.x, es.y);
       ctx.stroke();
 
+      const isHeadSelected = state.selectedBoneParts && state.selectedBoneParts.some(p => p.index === i && p.type === "head");
+      const isTailSelected = state.selectedBoneParts && state.selectedBoneParts.some(p => p.index === i && p.type === "tail");
+
       ctx.fillStyle = isParentCandidate
         ? "#ffd0f5"
-        : isPrimarySelected
+        : isHeadSelected || isPrimarySelected
           ? "#fff0b8"
           : isMultiSelected
             ? "#d3f2ff"
@@ -9937,11 +11800,20 @@ function drawOverlay() {
               ? "#b8ffea"
               : "#ffd9a0";
       ctx.beginPath();
-      ctx.arc(ss.x, ss.y, isPrimarySelected || isParentCandidate ? 6 : isMultiSelected ? 5.5 : 5, 0, Math.PI * 2);
+      ctx.arc(ss.x, ss.y, isHeadSelected || isPrimarySelected || isParentCandidate ? 6 : isMultiSelected ? 5.5 : 5, 0, Math.PI * 2);
       ctx.fill();
 
+      ctx.fillStyle = isParentCandidate
+        ? "#ffd0f5"
+        : isTailSelected || isPrimarySelected
+          ? "#fff0b8"
+          : isMultiSelected
+            ? "#d3f2ff"
+            : isIKTarget
+              ? "#b8ffea"
+              : "#ffd9a0";
       ctx.beginPath();
-      ctx.arc(es.x, es.y, isPrimarySelected || isParentCandidate ? 8 : isMultiSelected ? 7 : 6, 0, Math.PI * 2);
+      ctx.arc(es.x, es.y, isTailSelected || isPrimarySelected || isParentCandidate ? 8 : isMultiSelected ? 7 : 6, 0, Math.PI * 2);
       ctx.fill();
 
       if (isIkTargetCandidate) {
@@ -10073,8 +11945,12 @@ function drawOverlay() {
     }
   }
 
-  if (state.editMode === "vertex") {
+  if (state.editMode === "mesh") {
     const vCount = Math.floor((screenForOverlay && screenForOverlay.length ? screenForOverlay.length : 0) / 2);
+    if (state.vertexDeform.weightViz && vCount > 0) {
+      const weightMesh = state.slots.length > 0 ? (getActiveSlot() ? getActiveSlot().meshData : null) : m;
+      drawWeightOverlayForMesh(ctx, m, weightMesh, screenForOverlay);
+    }
     const selectedVerts = getActiveVertexSelection(vCount);
     const selectedSet = new Set(selectedVerts);
     const pinnedSet = getActivePinnedVertexSet(vCount);
@@ -10128,8 +12004,10 @@ function drawOverlay() {
   if (isSlotMeshEditTabActive()) {
     const slot = getActiveSlot();
     if (slot) {
+      syncSlotContourFromMeshData(slot, false);
       const slotPoseWorld = getSolvedPoseWorld(m);
       const contour = ensureSlotContour(slot);
+      const showContourLayer = !(contour.fillFromMeshData && !contour.dirty);
       const activeSet = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
       const triIdx =
         Array.isArray(contour.fillTriangles) && contour.fillTriangles.length >= 3 ? contour.fillTriangles : contour.triangles;
@@ -10156,19 +12034,21 @@ function drawOverlay() {
       }
       // Manual edges are now applied directly to triangulation, no separate rendering needed
 
-      ctx.strokeStyle = contour.closed ? "#66f2cc" : "#7dd3fc";
-      ctx.lineWidth = 2;
-      if (Array.isArray(contour.contourEdges) && contour.contourEdges.length > 0) {
-        for (const edge of contour.contourEdges) {
-          const pa = contour.points[edge[0]];
-          const pb = contour.points[edge[1]];
-          if (!pa || !pb) continue;
-          const sa = slotMeshLocalToScreen(slot, pa, slotPoseWorld);
-          const sb = slotMeshLocalToScreen(slot, pb, slotPoseWorld);
-          ctx.beginPath();
-          ctx.moveTo(sa.x, sa.y);
-          ctx.lineTo(sb.x, sb.y);
-          ctx.stroke();
+      if (showContourLayer) {
+        ctx.strokeStyle = contour.closed ? "#66f2cc" : "#7dd3fc";
+        ctx.lineWidth = 2;
+        if (Array.isArray(contour.contourEdges) && contour.contourEdges.length > 0) {
+          for (const edge of contour.contourEdges) {
+            const pa = contour.points[edge[0]];
+            const pb = contour.points[edge[1]];
+            if (!pa || !pb) continue;
+            const sa = slotMeshLocalToScreen(slot, pa, slotPoseWorld);
+            const sb = slotMeshLocalToScreen(slot, pb, slotPoseWorld);
+            ctx.beginPath();
+            ctx.moveTo(sa.x, sa.y);
+            ctx.lineTo(sb.x, sb.y);
+            ctx.stroke();
+          }
         }
       }
       for (let i = 0; i < contour.fillPoints.length; i += 1) {
@@ -10181,15 +12061,17 @@ function drawOverlay() {
         ctx.arc(s.x, s.y, active ? 5.8 : selected ? 4.4 : 3.2, 0, Math.PI * 2);
         ctx.fill();
       }
-      for (let i = 0; i < contour.points.length; i += 1) {
-        const p = contour.points[i];
-        const s = slotMeshLocalToScreen(slot, p, slotPoseWorld);
-        const active = activeSet === "contour" && i === state.slotMesh.activePoint;
-        const selected = getSlotMeshSelection("contour", contour.points.length).includes(i);
-        ctx.fillStyle = active ? "#ffe46e" : selected ? "#fff0b8" : i === 0 ? "#66f2cc" : "#d3f2ff";
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, active ? 6 : selected ? 5.4 : 4.5, 0, Math.PI * 2);
-        ctx.fill();
+      if (showContourLayer) {
+        for (let i = 0; i < contour.points.length; i += 1) {
+          const p = contour.points[i];
+          const s = slotMeshLocalToScreen(slot, p, slotPoseWorld);
+          const active = activeSet === "contour" && i === state.slotMesh.activePoint;
+          const selected = getSlotMeshSelection("contour", contour.points.length).includes(i);
+          ctx.fillStyle = active ? "#ffe46e" : selected ? "#fff0b8" : i === 0 ? "#66f2cc" : "#d3f2ff";
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, active ? 6 : selected ? 5.4 : 4.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
       if (state.slotMesh.edgeSelectionSet && state.slotMesh.edgeSelection.length > 0) {
         const points = state.slotMesh.edgeSelectionSet === "fill" ? contour.fillPoints : contour.points;
@@ -10222,7 +12104,7 @@ function drawOverlay() {
     ctx.restore();
   }
 
-  if (state.drag && state.drag.type === "vertex") {
+  if (state.drag && state.drag.type === "mesh") {
     const i = state.drag.index;
     const influences = Array.isArray(state.drag.influences) ? state.drag.influences : [];
     if (influences.length > 1) {
@@ -10667,14 +12549,16 @@ function angleTo(a, b) {
   return Math.atan2(b.y - a.y, b.x - a.x);
 }
 
-function pickSkeletonHandle(mx, my) {
+function pickSkeletonHandle(mx, my, pickRadiusPx = 11) {
   const m = state.mesh;
   if (!m) return null;
+  const radius = Number(pickRadiusPx);
+  if (!Number.isFinite(radius) || radius <= 0) return null;
   const bones = getActiveBones(m);
   enforceConnectedHeads(bones);
 
-  const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : computeWorld(bones);
-  let best = 11 * 11;
+  const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : getEditAwareWorld(bones);
+  let best = radius * radius;
   let hit = null;
 
   for (let i = 0; i < bones.length; i += 1) {
@@ -10715,35 +12599,44 @@ function selectBonesByRect(x0, y0, x1, y1, append = false) {
   const right = Math.max(x0, x1);
   const top = Math.min(y0, y1);
   const bottom = Math.max(y0, y1);
-  const world = computeWorld(bones);
-  const picked = [];
+  const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : getEditAwareWorld(bones);
+  const pickedBones = [];
+  const pickedParts = [];
   for (let i = 0; i < bones.length; i += 1) {
     if (!isBoneVisibleInWorkspace(m, bones, i)) continue;
     const ep = getBoneWorldEndpointsFromBones(bones, i, world);
     const hs = localToScreen(ep.head.x, ep.head.y);
     const ts = localToScreen(ep.tip.x, ep.tip.y);
-    const cx = (hs.x + ts.x) * 0.5;
-    const cy = (hs.y + ts.y) * 0.5;
-    const inside =
-      (hs.x >= left && hs.x <= right && hs.y >= top && hs.y <= bottom) ||
-      (ts.x >= left && ts.x <= right && ts.y >= top && ts.y <= bottom) ||
-      (cx >= left && cx <= right && cy >= top && cy <= bottom);
-    if (inside) picked.push(i);
+    const headInside = hs.x >= left && hs.x <= right && hs.y >= top && hs.y <= bottom;
+    const tailInside = ts.x >= left && ts.x <= right && ts.y >= top && ts.y <= bottom;
+
+    if (headInside) pickedParts.push({ index: i, type: "head" });
+    if (tailInside) pickedParts.push({ index: i, type: "tail" });
+    if (headInside || tailInside) pickedBones.push(i);
   }
-  if (picked.length === 0) {
+  if (pickedBones.length === 0) {
     if (!append) {
       state.selectedBonesForWeight = [];
+      state.selectedBoneParts = [];
       state.selectedBone = -1;
       updateBoneUI();
     }
     return 0;
   }
   if (append) {
-    state.selectedBonesForWeight = [...new Set([...getSelectedBonesForWeight(m), ...picked])];
+    state.selectedBonesForWeight = [...new Set([...getSelectedBonesForWeight(m), ...pickedBones])];
+    const existing = state.selectedBoneParts || [];
+    for (const p of pickedParts) {
+      if (!existing.some(e => e.index === p.index && e.type === p.type)) {
+        existing.push(p);
+      }
+    }
+    state.selectedBoneParts = existing;
   } else {
-    state.selectedBonesForWeight = picked;
+    state.selectedBonesForWeight = pickedBones;
+    state.selectedBoneParts = pickedParts;
   }
-  state.selectedBone = picked[picked.length - 1];
+  state.selectedBone = pickedBones[pickedBones.length - 1];
   updateBoneUI();
   return picked.length;
 }
@@ -10768,15 +12661,39 @@ function toggleSelectAllBones() {
 function moveBoneJointToLocal(bones, boneIndex, localTarget) {
   const b = bones[boneIndex];
   if (!b) return false;
+  const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
   if (b.parent >= 0 && b.connected) {
     if (state.boneMode === "pose" && state.mesh) {
       return !!steerIKTargetFromBoneEdit(state.mesh, boneIndex, localTarget, "head");
+    }
+    if (state.boneMode === "edit") {
+      const parentIndex = Number(b.parent);
+      if (Number.isFinite(parentIndex) && parentIndex >= 0 && parentIndex < bones.length) {
+        const parentEp = getBoneWorldEndpointsFromBones(bones, parentIndex);
+        const nextTip = {
+          x: Number.isFinite(Number(localTarget && localTarget.x)) ? Number(localTarget.x) : parentEp.tip.x,
+          y: Number.isFinite(Number(localTarget && localTarget.y)) ? Number(localTarget.y) : parentEp.tip.y,
+        };
+        setBoneFromWorldEndpoints(bones, parentIndex, parentEp.head, nextTip);
+        preserveConnectedChildTipsAfterEdit(bones, snapshot, [parentIndex]);
+        markRigEditDirty();
+      }
+      return false;
     }
     return false;
   }
   if (b.parent < 0) {
     b.tx = localTarget.x;
     b.ty = localTarget.y;
+    preserveConnectedChildTipsAfterEdit(bones, snapshot, [boneIndex]);
+    markRigEditDirty();
+    return false;
+  }
+  if (state.boneMode === "edit") {
+    b.tx = localTarget.x;
+    b.ty = localTarget.y;
+    preserveConnectedChildTipsAfterEdit(bones, snapshot, [boneIndex]);
+    markRigEditDirty();
     return false;
   }
 
@@ -10798,7 +12715,7 @@ function getRootBonePivotLocal(bones, world = null) {
   if (!Array.isArray(bones) || bones.length === 0) return null;
   const rootIndex = bones.findIndex((bone) => Number(bone && bone.parent) < 0);
   if (rootIndex < 0) return null;
-  const w = Array.isArray(world) ? world : computeWorld(bones);
+  const w = Array.isArray(world) ? world : getEditAwareWorld(bones);
   if (!Array.isArray(w) || !w[rootIndex]) return null;
   const root = transformPoint(w[rootIndex], 0, 0);
   return { x: root.x, y: root.y };
@@ -10832,6 +12749,7 @@ function scalePointAroundPivot(point, pivot, factor) {
 }
 
 function rotateBoneTipToLocal(bones, boneIndex, localTarget) {
+  const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
   const ik = state.mesh ? findEnabledIKForBone(state.mesh, boneIndex) : null;
   if (state.boneMode === "pose" && ik && (ik.bones || []).length === 1) {
     return { ikDriven: !!steerIKTargetFromBoneEdit(state.mesh, boneIndex, localTarget, "tip"), movedHead: false };
@@ -10850,28 +12768,27 @@ function rotateBoneTipToLocal(bones, boneIndex, localTarget) {
   }
   const b = bones[boneIndex];
   if (!b) return { ikDriven: false, movedHead: false };
-  if (state.boneMode === "edit" || state.boneMode === "pose") {
-    const world = computeWorld(bones);
-    const ep = getBoneWorldEndpointsFromBones(bones, boneIndex, world);
-    const rootPivot = getRootBonePivotLocal(bones, world);
-    if (!rootPivot) return { ikDriven: false, movedHead: false };
-    let nextTip = ep.tip;
-    let movedHead = false;
-    const currDist = Math.hypot(ep.tip.x - rootPivot.x, ep.tip.y - rootPivot.y);
-    const targetDist = Math.hypot(localTarget.x - rootPivot.x, localTarget.y - rootPivot.y);
-    if (currDist > 1e-6 && targetDist > 1e-6) {
-      const from = Math.atan2(ep.tip.y - rootPivot.y, ep.tip.x - rootPivot.x);
-      const to = Math.atan2(localTarget.y - rootPivot.y, localTarget.x - rootPivot.x);
-      const delta = shortestAngleDelta(from, to);
-      if (Math.abs(delta) > 1e-8) {
-        const nextHead = rotatePointAroundPivot(ep.head, rootPivot, delta);
-        nextTip = rotatePointAroundPivot(ep.tip, rootPivot, delta);
-        setBoneFromWorldEndpoints(bones, boneIndex, nextHead, nextTip);
-        movedHead = Math.hypot(nextHead.x - ep.head.x, nextHead.y - ep.head.y) > 1e-6;
-      }
-    }
+  if (state.boneMode === "edit") {
+    const ep = getBoneWorldEndpointsFromBones(bones, boneIndex);
+    setBoneFromWorldEndpoints(bones, boneIndex, ep.head, localTarget);
+    preserveConnectedChildTipsAfterEdit(bones, snapshot, [boneIndex]);
+    steerIKTargetFromBoneEdit(state.mesh, boneIndex, localTarget, "tip");
+    return { ikDriven: false, movedHead: false };
+  }
+  if (state.boneMode === "pose") {
+    const ep = getBoneWorldEndpointsFromBones(bones, boneIndex);
+    const nextTip = canEditLengthInCurrentMode(bones, boneIndex)
+      ? localTarget
+      : (() => {
+        const a = angleTo(ep.head, localTarget);
+        return {
+          x: ep.head.x + Math.cos(a) * b.length,
+          y: ep.head.y + Math.sin(a) * b.length,
+        };
+      })();
+    setBoneFromWorldEndpoints(bones, boneIndex, ep.head, nextTip);
     steerIKTargetFromBoneEdit(state.mesh, boneIndex, nextTip, "tip");
-    return { ikDriven: false, movedHead };
+    return { ikDriven: false, movedHead: false };
   }
   const ep = getBoneWorldEndpointsFromBones(bones, boneIndex);
   const nextTip = canEditLengthInCurrentMode(bones, boneIndex)
@@ -11040,6 +12957,24 @@ function getSelectedBonesForWeight(m) {
   for (const i of raw) {
     if (Number.isFinite(i) && i >= 0 && i < count && !out.includes(i)) {
       out.push(i);
+    }
+  }
+  return out;
+}
+
+function expandSelectedBonesToSubtrees(m, picked) {
+  if (!m || !Array.isArray(m.rigBones)) return [];
+  const bones = m.rigBones;
+  const out = [];
+  const seen = new Set();
+  for (const raw of Array.isArray(picked) ? picked : []) {
+    const bi = Number(raw);
+    if (!Number.isFinite(bi) || bi < 0 || bi >= bones.length) continue;
+    const subtree = getBoneSubtreeIndices(bones, bi);
+    for (const si of subtree) {
+      if (seen.has(si)) continue;
+      seen.add(si);
+      out.push(si);
     }
   }
   return out;
@@ -12041,11 +13976,11 @@ function parseTrackId(trackId) {
   const p = String(trackId || "").split(":");
   if (p.length === 2 && p[0] === "deform") {
     const slotIndex = Number(p[1]);
-    if (Number.isFinite(slotIndex)) return { type: "vertex", prop: "deform", slotIndex };
+    if (Number.isFinite(slotIndex)) return { type: "mesh", prop: "deform", slotIndex };
     return null;
   }
-  if (p.length === 2 && (p[0] === "vertex" || p[0] === "ffd") && p[1] === "deform") {
-    return { type: "vertex", prop: "deform" };
+  if (p.length === 2 && (p[0] === "mesh" || p[0] === "vertex" || p[0] === "ffd") && p[1] === "deform") {
+    return { type: "mesh", prop: "deform" };
   }
   if (p.length === 2 && p[0] === "event" && p[1] === "timeline") {
     return { type: "event", prop: "timeline" };
@@ -12225,7 +14160,7 @@ function getTrackValue(m, parsed) {
     if (parsed.prop === "offset") return math.clamp(Number(layer.offset) || 0, -9999, 9999);
     return null;
   }
-  if (parsed.type === "vertex") {
+  if (parsed.type === "mesh") {
     const si = Number.isFinite(parsed.slotIndex) ? Number(parsed.slotIndex) : state.activeSlot;
     if (state.slots.length > 0 && Number.isFinite(si) && si >= 0 && si < state.slots.length) {
       const offsets = getModelSlotOffsets(m, si);
@@ -12340,7 +14275,7 @@ function setTrackValue(m, parsed, value) {
     }
     return;
   }
-  if (parsed.type === "vertex" && Array.isArray(value)) {
+  if (parsed.type === "mesh" && Array.isArray(value)) {
     const si = Number.isFinite(parsed.slotIndex) ? Number(parsed.slotIndex) : state.activeSlot;
     let offsets = null;
     if (state.slots.length > 0 && Number.isFinite(si) && si >= 0 && si < state.slots.length) {
@@ -12467,7 +14402,7 @@ function normalizeTrackKeys(anim, trackId) {
   sortTrackKeys(anim, trackId);
   const keys = getTrackKeys(anim, trackId);
   const parsed = parseTrackId(trackId);
-  const parsedVertexSlot = parsed && parsed.type === "vertex" && Number.isFinite(parsed.slotIndex) ? Number(parsed.slotIndex) : null;
+  const parsedVertexSlot = parsed && parsed.type === "mesh" && Number.isFinite(parsed.slotIndex) ? Number(parsed.slotIndex) : null;
   const duration = getTimelineDisplayDuration(anim);
   if (keys.length <= 1) {
     if (keys[0]) {
@@ -12483,7 +14418,7 @@ function normalizeTrackKeys(anim, trackId) {
     const prev = out[out.length - 1];
     const prevSlot = Number.isFinite(prev && prev.slotIndex) ? Number(prev.slotIndex) : null;
     const curSlot = Number.isFinite(k && k.slotIndex) ? Number(k.slotIndex) : parsedVertexSlot;
-    const canMerge = !(parsed && parsed.type === "vertex") || prevSlot === curSlot;
+    const canMerge = !(parsed && parsed.type === "mesh") || prevSlot === curSlot;
     if (prev && Math.abs(prev.time - k.time) < 1e-4 && canMerge) {
       prev.value = k.value;
       prev.interp = k.interp || prev.interp || "linear";
@@ -12786,7 +14721,7 @@ function getTrackGroupKey(trackId) {
   if (trackId === DRAWORDER_TRACK_ID) return "draworder";
   const p = parseTrackId(trackId);
   if (!p) return "";
-  if (p.type === "vertex") return "vertex";
+  if (p.type === "mesh") return "vertex";
   if (p.type === "slot") return `slot:${p.slotIndex}`;
   if (p.type === "bone") return String(p.boneIndex);
   if (p.type === "ik") return "ik";
@@ -12867,7 +14802,7 @@ function refreshTrackSelect() {
     const opt = document.createElement("option");
     opt.value = t.id;
     const parsed = parseTrackId(t.id);
-    if (parsed && parsed.type === "vertex") {
+    if (parsed && parsed.type === "mesh") {
       if (Number.isFinite(parsed.slotIndex)) {
         const s = state.slots[parsed.slotIndex];
         const slotName = s && s.name ? s.name : `slot_${parsed.slotIndex}`;
@@ -13451,6 +15386,18 @@ function collectUniqueKeyTimes(anim, trackIds) {
   return out;
 }
 
+function collectKeysAtTimeForTracks(anim, t, trackIds) {
+  const out = [];
+  if (!anim || !Array.isArray(trackIds) || trackIds.length <= 0) return out;
+  for (const trackId of trackIds) {
+    const keys = getTrackKeys(anim, trackId);
+    for (const k of keys) {
+      if (Math.abs((Number(k.time) || 0) - t) < 1e-4) out.push({ trackId, keyId: k.id });
+    }
+  }
+  return out;
+}
+
 function clearTimelineKeySelection() {
   state.anim.selectedKeys = [];
   state.anim.selectedKey = null;
@@ -13538,6 +15485,41 @@ function getDragSeedFromSelection(anim, selected) {
   return seed;
 }
 
+function getTimelineScaleSpanFromSeed(seed, anchorTime, timelineDuration) {
+  let span = 0;
+  for (const it of seed || []) {
+    span = Math.max(span, Math.abs((Number(it.time) || 0) - (Number(anchorTime) || 0)));
+  }
+  if (span < 1e-4) {
+    span = Math.max(0.05, Math.min(Math.max(0.1, Number(timelineDuration) || 5) * 0.2, 2.0));
+  }
+  return span;
+}
+
+function pickSelectionAnchorNearTime(anim, selection, t, prefer = null) {
+  if (!anim || !Array.isArray(selection) || selection.length <= 0) return null;
+  const target = Number(t) || 0;
+  let best = null;
+  let bestDist = Infinity;
+  const preferKey = prefer && prefer.trackId && prefer.keyId ? `${prefer.trackId}::${prefer.keyId}` : "";
+  for (const s of selection) {
+    if (!s || !s.trackId || !s.keyId) continue;
+    const keyObj = getTrackKeys(anim, s.trackId).find((kk) => kk.id === s.keyId);
+    if (!keyObj) continue;
+    const dist = Math.abs((Number(keyObj.time) || 0) - target);
+    const sk = `${s.trackId}::${s.keyId}`;
+    if (dist < bestDist - 1e-6) {
+      best = { trackId: s.trackId, keyId: s.keyId };
+      bestDist = dist;
+      continue;
+    }
+    if (Math.abs(dist - bestDist) < 1e-6 && preferKey && sk === preferKey) {
+      best = { trackId: s.trackId, keyId: s.keyId };
+    }
+  }
+  return best;
+}
+
 function collectKeysAtTime(anim, t) {
   const out = [];
   for (const trackId of Object.keys(anim.tracks || {})) {
@@ -13550,12 +15532,35 @@ function collectKeysAtTime(anim, t) {
   return out;
 }
 
+function collectSummaryKeyTargets(anim, scope, time, groupKey = "") {
+  if (!anim || !Number.isFinite(time)) return [];
+  if (scope === "all") return collectKeysAtTime(anim, time);
+  if (scope !== "group") return [];
+  const groups = getTimelineGroupsForView(anim);
+  const g = groups.find((it) => String(it.groupKey ?? "") === String(groupKey));
+  if (!g || !Array.isArray(g.children) || g.children.length <= 0) return [];
+  const trackIds = g.children.map((c) => c.id).filter(Boolean);
+  return collectKeysAtTimeForTracks(anim, time, trackIds);
+}
+
 function applyTimelineSelectionClasses() {
+  const anim = getCurrentAnimation();
   const selected = new Set((state.anim.selectedKeys || []).map((s) => `${s.trackId}::${s.keyId}`));
-  const nodes = els.timelineTracks.querySelectorAll(".track-key[data-track-id][data-key-id]");
+  const nodes = els.timelineTracks.querySelectorAll(".track-key");
   for (const el of nodes) {
-    const key = `${el.dataset.trackId || ""}::${el.dataset.keyId || ""}`;
-    el.classList.toggle("selected", selected.has(key));
+    const trackId = String(el.dataset.trackId || "");
+    const keyId = String(el.dataset.keyId || "");
+    if (trackId && keyId) {
+      const key = `${trackId}::${keyId}`;
+      el.classList.toggle("selected", selected.has(key));
+      continue;
+    }
+    const scope = String(el.dataset.summaryScope || "");
+    const time = Number(el.dataset.summaryTime);
+    const groupKey = String(el.dataset.summaryGroupKey || "");
+    const targets = collectSummaryKeyTargets(anim, scope, time, groupKey);
+    const allSelected = targets.length > 0 && targets.every((s) => selected.has(`${s.trackId}::${s.keyId}`));
+    el.classList.toggle("selected", allSelected);
   }
 }
 
@@ -13612,7 +15617,8 @@ function renderTimelineTracks() {
   for (const t of collectUniqueKeyTimes(anim, allTrackIds)) {
     const mk = document.createElement("div");
     mk.className = "track-key";
-    mk.dataset.allTime = String(Number(t).toFixed(6));
+    mk.dataset.summaryScope = "all";
+    mk.dataset.summaryTime = String(Number(t).toFixed(6));
     mk.style.left = `${(timelineXForTime(t, 100, timelineDuration)).toFixed(4)}%`;
     mk.style.opacity = "0.55";
     allLane.appendChild(mk);
@@ -13687,9 +15693,11 @@ function renderTimelineTracks() {
       for (const t of collectUniqueKeyTimes(anim, childTrackIds)) {
         const mk = document.createElement("div");
         mk.className = "track-key";
+        mk.dataset.summaryScope = "group";
+        mk.dataset.summaryGroupKey = groupKey;
+        mk.dataset.summaryTime = String(Number(t).toFixed(6));
         mk.style.left = `${(timelineXForTime(t, 100, timelineDuration)).toFixed(4)}%`;
         mk.style.opacity = "0.55";
-        mk.style.pointerEvents = "none";
         lane.appendChild(mk);
       }
     }
@@ -13733,6 +15741,8 @@ function renderTimelineTracks() {
       root.appendChild(crow);
     }
   }
+
+  applyTimelineSelectionClasses();
 
   if (state.anim.selectedKeys && state.anim.selectedKeys.length > 1) {
     els.keyInfo.value = `${state.anim.selectedKeys.length} keys selected`;
@@ -13934,14 +15944,14 @@ function addOrUpdateKeyframeForTrack(trackId, silent = false) {
   const v = getTrackValue(m, p);
   const keys = getTrackKeys(anim, trackId);
   const vertexSlotIndex =
-    p.type === "vertex"
+    p.type === "mesh"
       ? Number.isFinite(p.slotIndex)
         ? Number(p.slotIndex)
         : state.activeSlot
       : null;
   const existing = keys.find((k) => {
     if (Math.abs(k.time - t) >= 1e-4) return false;
-    if (p.type !== "vertex") return true;
+    if (p.type !== "mesh") return true;
     if (!Number.isFinite(vertexSlotIndex) || vertexSlotIndex < 0) return true;
     return Number.isFinite(k.slotIndex) ? Number(k.slotIndex) === Number(vertexSlotIndex) : false;
   });
@@ -14263,7 +16273,7 @@ function pasteKeyframeAtCurrentTime() {
   const trackId = state.anim.selectedTrack || state.anim.keyClipboard.trackId;
   const parsed = parseTrackId(trackId);
   const pasteSlotIndex =
-    parsed && parsed.type === "vertex"
+    parsed && parsed.type === "mesh"
       ? Number.isFinite(parsed.slotIndex)
         ? Number(parsed.slotIndex)
         : Number.isFinite(state.anim.keyClipboard.slotIndex)
@@ -14274,7 +16284,7 @@ function pasteKeyframeAtCurrentTime() {
   const t = snapTimeIfNeeded(state.anim.time);
   const existing = keys.find((k) => {
     if (Math.abs(k.time - t) >= 1e-4) return false;
-    if (!(parsed && parsed.type === "vertex")) return true;
+    if (!(parsed && parsed.type === "mesh")) return true;
     if (!Number.isFinite(pasteSlotIndex) || pasteSlotIndex < 0) return true;
     return Number.isFinite(k.slotIndex) ? Number(k.slotIndex) === Number(pasteSlotIndex) : false;
   });
@@ -14286,7 +16296,7 @@ function pasteKeyframeAtCurrentTime() {
     } else {
       delete existing.curve;
     }
-    if (parsed && parsed.type === "vertex" && Number.isFinite(pasteSlotIndex) && pasteSlotIndex >= 0) {
+    if (parsed && parsed.type === "mesh" && Number.isFinite(pasteSlotIndex) && pasteSlotIndex >= 0) {
       existing.slotIndex = Number(pasteSlotIndex);
     }
     setSingleTimelineSelection(trackId, existing.id);
@@ -14300,7 +16310,7 @@ function pasteKeyframeAtCurrentTime() {
     if (Array.isArray(state.anim.keyClipboard.curve) && state.anim.keyClipboard.curve.length >= 4) {
       nk.curve = state.anim.keyClipboard.curve.slice(0, 4);
     }
-    if (parsed && parsed.type === "vertex" && Number.isFinite(pasteSlotIndex) && pasteSlotIndex >= 0) {
+    if (parsed && parsed.type === "mesh" && Number.isFinite(pasteSlotIndex) && pasteSlotIndex >= 0) {
       nk.slotIndex = Number(pasteSlotIndex);
     }
     keys.push(nk);
@@ -14525,7 +16535,7 @@ function sampleTrackValueAtTime(keys, parsed, t) {
   const interp = k0.interp || "linear";
   if (interp === "stepped") return cloneTrackValue(k0.value);
   if (interp === "bezier") alpha = evalBezierEase(alpha, k0.curve);
-  if (parsed.type === "vertex") return lerpArray(k0.value, k1.value, alpha);
+  if (parsed.type === "mesh") return lerpArray(k0.value, k1.value, alpha);
   if (parsed.type === "ik" && parsed.prop === "target") {
     return {
       x: (Number(k0.value && k0.value.x) || 0) + ((Number(k1.value && k1.value.x) || 0) - (Number(k0.value && k0.value.x) || 0)) * alpha,
@@ -15095,31 +17105,19 @@ if (els.boneTree) {
       const rig = state.mesh.rigBones && state.mesh.rigBones[bi];
       if (!Number.isFinite(bi) || bi < 0 || !rig) return;
       normalizeBoneChannels(rig);
-      const mode = !rig.workHidden ? "off" : rig.workHideSlots ? "bone_and_slots" : "bone_only";
-      if (mode === "off") {
-        rig.workHidden = true;
-        rig.workHideSlots = false;
-      } else if (mode === "bone_only") {
-        rig.workHidden = true;
-        rig.workHideSlots = true;
-      } else {
-        rig.workHidden = false;
-        rig.workHideSlots = false;
-      }
+      rig.workHidden = !rig.workHidden;
       if (state.mesh.poseBones && state.mesh.poseBones[bi]) {
         normalizeBoneChannels(state.mesh.poseBones[bi]);
         state.mesh.poseBones[bi].workHidden = rig.workHidden;
-        state.mesh.poseBones[bi].workHideSlots = rig.workHideSlots;
       }
       refreshSlotUI();
       renderBoneTree();
       if (state.selectedBone === bi) updateBoneUI();
+      const hideScopeLabel = getGlobalBoneWorkHideMode() === "bone_and_slots" ? "bone+slots" : "bone only";
       setStatus(
         !rig.workHidden
           ? `Work hide off: ${rig.name}`
-          : rig.workHideSlots
-            ? `Work hide on (bone+slots): ${rig.name}`
-            : `Work hide on (bone only): ${rig.name}`
+          : `Work hide on (${hideScopeLabel}, subtree): ${rig.name}`
       );
       return;
     }
@@ -15144,7 +17142,7 @@ if (els.boneTree) {
       refreshSlotUI();
       renderBoneTree();
       if (state.selectedBone === bi) updateBoneUI();
-      setStatus(`${b.animHidden ? "Anim hide ON" : "Anim hide OFF"} (bone+slots key): ${b.name} @ ${state.anim.time.toFixed(2)}s`);
+      setStatus(`${b.animHidden ? "Anim hide ON" : "Anim hide OFF"} (bone+slots subtree key): ${b.name} @ ${state.anim.time.toFixed(2)}s`);
       return;
     }
     const eyeBtn = ev.target.closest(".slot-eye[data-slot-eye]");
@@ -15186,6 +17184,18 @@ if (els.boneTree) {
         setSelectedUnassignedSlotIndices([si], false);
       } else {
         state.boneTreeSelectedUnassignedSlotIds = [];
+        if (ev.ctrlKey || ev.metaKey) {
+          const bi = Number(slot && slot.bone);
+          if (Number.isFinite(bi) && bi >= 0) {
+            const sid = slot && slot.id != null ? String(slot.id) : "";
+            const pickedIndex = getSelectedSlotIndexForBone(bi);
+            if (pickedIndex === si) delete state.boneTreeSelectedSlotByBone[bi];
+            else if (sid) state.boneTreeSelectedSlotByBone[bi] = sid;
+            setActiveSlot(si);
+            renderBoneTree();
+            return;
+          }
+        }
       }
       state.treeSlotLastClickIndex = si;
       state.treeSlotLastClickTs = window.performance && typeof window.performance.now === "function" ? window.performance.now() : Date.now();
@@ -15416,6 +17426,15 @@ document.addEventListener("pointerdown", (ev) => {
   }
 });
 
+document.addEventListener("click", (ev) => {
+  const target = ev.target;
+  if (!(target instanceof Element)) return;
+  const btn = target.closest("#setupHumanoidBoneBtn");
+  if (!btn) return;
+  ev.preventDefault();
+  void handleSetupHumanoidBoneBuild();
+});
+
 window.addEventListener("blur", () => {
   if (state.boneTreeMenuOpen) closeBoneTreeContextMenu();
   closeBoneDeleteQuickMenu();
@@ -15452,6 +17471,18 @@ if (els.boneTreeOnlyActiveSlotBtn) {
     setStatus(state.boneTreeOnlyActiveSlot ? "Bone tree: showing active slot only." : "Bone tree: showing all slots.");
   });
 }
+if (els.boneTreeHideScopeBtn) {
+  els.boneTreeHideScopeBtn.addEventListener("click", () => {
+    state.boneTreeWorkHideMode = getGlobalBoneWorkHideMode() === "bone_and_slots" ? "bone_only" : "bone_and_slots";
+    refreshSlotUI();
+    renderBoneTree();
+    setStatus(
+      getGlobalBoneWorkHideMode() === "bone_and_slots"
+        ? "Bone tree hide scope: bone+slots."
+        : "Bone tree hide scope: bone only."
+    );
+  });
+}
 if (els.boneTreeAddBoneBtn) {
   els.boneTreeAddBoneBtn.addEventListener("click", () => {
     if (!state.mesh || state.boneMode !== "edit") {
@@ -15469,19 +17500,19 @@ if (els.boneTreeAddBoneBtn) {
 if (els.boneTreeDeleteBoneBtn) {
   els.boneTreeDeleteBoneBtn.addEventListener("click", () => {
     closeBoneDeleteQuickMenu();
+    const info = getSelectedBoneDeleteInfo();
     const m = state.mesh;
-    if (!m || state.boneMode !== "edit") {
-      setStatus("Switch to Skeleton/Edit mode to delete bone.");
+    if (!m || !info.canDelete) {
+      setStatus("Delete bone failed.");
       return;
     }
-    const bi = Number(state.selectedBone);
-    const name =
-      Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
-    if (!deleteBoneWithSlotPolicy("to_staging")) {
-      setStatus("Delete bone failed. Keep at least one bone.");
+    const bi = Number(info.boneIndex);
+    const name = Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
+    if (!deleteSelectedBoneTreeWithSlotPolicy("to_staging")) {
+      setStatus("Delete bone failed.");
       return;
     }
-    setStatus(`Bone deleted: ${name} (slots moved to staging).`);
+    setStatus(info.mode === "subtree" ? `Bone tree deleted: ${name} (slots moved to staging).` : `Bone deleted: ${name} (slots moved to staging).`);
   });
 }
 if (els.boneTreeDeleteBoneMenuBtn) {
@@ -15494,37 +17525,37 @@ if (els.boneTreeDeleteBoneMenuBtn) {
 if (els.boneTreeDeleteBoneToStagingBtn) {
   els.boneTreeDeleteBoneToStagingBtn.addEventListener("click", () => {
     closeBoneDeleteQuickMenu();
+    const info = getSelectedBoneDeleteInfo();
     const m = state.mesh;
-    if (!m || state.boneMode !== "edit") {
-      setStatus("Switch to Skeleton/Edit mode to delete bone.");
+    if (!m || !info.canDelete) {
+      setStatus("Delete bone failed.");
       return;
     }
-    const bi = Number(state.selectedBone);
-    const name =
-      Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
-    if (!deleteBoneWithSlotPolicy("to_staging")) {
-      setStatus("Delete bone failed. Keep at least one bone.");
+    const bi = Number(info.boneIndex);
+    const name = Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
+    if (!deleteSelectedBoneTreeWithSlotPolicy("to_staging")) {
+      setStatus("Delete bone failed.");
       return;
     }
-    setStatus(`Bone deleted: ${name} (slots moved to staging).`);
+    setStatus(info.mode === "subtree" ? `Bone tree deleted: ${name} (slots moved to staging).` : `Bone deleted: ${name} (slots moved to staging).`);
   });
 }
 if (els.boneTreeDeleteBoneWithSlotsBtn) {
   els.boneTreeDeleteBoneWithSlotsBtn.addEventListener("click", () => {
     closeBoneDeleteQuickMenu();
+    const info = getSelectedBoneDeleteInfo();
     const m = state.mesh;
-    if (!m || state.boneMode !== "edit") {
-      setStatus("Switch to Skeleton/Edit mode to delete bone.");
+    if (!m || !info.canDelete) {
+      setStatus("Delete bone failed.");
       return;
     }
-    const bi = Number(state.selectedBone);
-    const name =
-      Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
-    if (!deleteBoneWithSlotPolicy("delete_slots")) {
-      setStatus("Delete bone failed. Keep at least one bone.");
+    const bi = Number(info.boneIndex);
+    const name = Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
+    if (!deleteSelectedBoneTreeWithSlotPolicy("delete_slots")) {
+      setStatus("Delete bone failed.");
       return;
     }
-    setStatus(`Bone deleted: ${name} (bound slots deleted).`);
+    setStatus(info.mode === "subtree" ? `Bone tree deleted: ${name} (bound slots deleted).` : `Bone deleted: ${name} (bound slots deleted).`);
   });
 }
 if (els.boneTreeBindSelectedUnassignedBtn) {
@@ -15585,6 +17616,7 @@ function ensureObjectModeWorkspaceFromToolClick() {
     setStatus("Object tools require Skeleton or Object edit mode.");
     return false;
   }
+  const prevMode = state.boneMode;
   let changed = false;
   if (state.boneMode !== "object") {
     state.boneMode = "object";
@@ -15595,6 +17627,7 @@ function ensureObjectModeWorkspaceFromToolClick() {
     state.uiPage = "object";
     changed = true;
   }
+  applyBoneModeTransition(prevMode, state.boneMode);
   if (changed) {
     updateWorkspaceUI();
     updateBoneUI();
@@ -16265,6 +18298,9 @@ if (els.fileNewBtn) {
     state.boneTreeSelectedSlotByBone = Object.create(null);
     state.baseImageTransform = normalizeBaseImageTransform({ enabled: false, tx: 0, ty: 0, rot: 0, scale: 1 });
     state.mesh = null;
+    state.rigCoordinateSpace = "runtime";
+    state.rigEditNeedsRuntimeNormalize = false;
+    clearRigEditPreviewCache();
     state.selectedBone = -1;
     state.selectedBonesForWeight = [];
     state.selectedIK = -1;
@@ -16499,6 +18535,7 @@ function buildProjectPayload() {
     gridX: Number(els.gridX.value) || 24,
     gridY: Number(els.gridY.value) || 24,
     rigBones: state.mesh ? state.mesh.rigBones : [],
+    rigCoordinateSpace: state.rigCoordinateSpace === "edit" ? "edit" : "runtime",
     ikConstraints:
       state.mesh && Array.isArray(state.mesh.ikConstraints)
         ? state.mesh.ikConstraints.map((c, i) => ({
@@ -18038,7 +20075,7 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
     const drawOrderRows = [];
     for (const [trackId, keys] of Object.entries(tracks)) {
       const parsed = parseTrackId(trackId);
-      if (parsed && parsed.type === "vertex" && Array.isArray(keys) && keys.length > 0) {
+      if (parsed && parsed.type === "mesh" && Array.isArray(keys) && keys.length > 0) {
         hasVertexTrack = true;
         for (const k of keys) {
           const si = Number.isFinite(k.slotIndex)
@@ -19334,7 +21371,7 @@ function applyDiagnosticsSafeFixes() {
     const p = parseTrackId(trackId);
     if (!p) return false;
     if (p.type === "bone") return Number.isFinite(p.boneIndex) && p.boneIndex >= 0 && p.boneIndex < bones.length;
-    if (p.type === "vertex") return p.slotIndex == null || (Number.isFinite(p.slotIndex) && p.slotIndex >= 0 && p.slotIndex < slots.length);
+    if (p.type === "mesh") return p.slotIndex == null || (Number.isFinite(p.slotIndex) && p.slotIndex >= 0 && p.slotIndex < slots.length);
     if (p.type === "slot") return Number.isFinite(p.slotIndex) && p.slotIndex >= 0 && p.slotIndex < slots.length;
     if (p.type === "ik") return state.mesh && Number.isFinite(p.ikIndex) && p.ikIndex >= 0 && p.ikIndex < ensureIKConstraints(state.mesh).length;
     if (p.type === "tfc") return state.mesh && Number.isFinite(p.transformIndex) && p.transformIndex >= 0 && p.transformIndex < ensureTransformConstraints(state.mesh).length;
@@ -19577,6 +21614,7 @@ async function handleProjectLoadInputChange(e) {
                     ? null
                     : String(src.clipEndSlotId)
                   : null,
+              meshContour: src && src.meshContour ? JSON.parse(JSON.stringify(src.meshContour)) : undefined,
               rect:
                 src && src.rect && Number.isFinite(src.rect.w) && Number.isFinite(src.rect.h)
                   ? {
@@ -19612,11 +21650,23 @@ async function handleProjectLoadInputChange(e) {
       return;
     }
 
+    const loadedRigCoordinateSpace =
+      data && data.rigCoordinateSpace === "edit"
+        ? "edit"
+        : data && data.rigCoordinateSpace === "runtime"
+          ? "runtime"
+          : state.boneMode === "edit"
+            ? "edit"
+            : "runtime";
+
     rebuildMesh();
+    if (state.mesh) {
+      state.rigCoordinateSpace = loadedRigCoordinateSpace;
+      state.rigEditNeedsRuntimeNormalize = false;
+      clearRigEditPreviewCache();
+    }
     if (state.mesh && Array.isArray(data.rigBones)) {
-      state.mesh.rigBones = data.rigBones;
-      syncPoseFromRig(state.mesh);
-      syncBindPose(state.mesh);
+      state.mesh.rigBones = cloneBones(data.rigBones);
       refreshWeightsForBoneCount();
     }
     if (state.mesh && Array.isArray(data.ikConstraints)) {
@@ -19914,6 +21964,11 @@ async function handleProjectLoadInputChange(e) {
                 .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
               : [],
           };
+          if (dst.meshContour.closed &&
+            ((dst.meshContour.fillPoints && dst.meshContour.fillPoints.length >= 3) ||
+              (dst.meshContour.points && dst.meshContour.points.length >= 3))) {
+            applyContourMeshToSlot(dst);
+          }
         } else {
           ensureSlotContour(dst);
         }
@@ -19953,6 +22008,26 @@ async function handleProjectLoadInputChange(e) {
     state.selectedSkinSet = Number.isFinite(Number(data.selectedSkinSet)) ? Number(data.selectedSkinSet) : 0;
     ensureSkinSets();
     ensureSlotsHaveBoneBinding();
+    if (state.mesh) {
+      if (state.boneMode === "edit") {
+        if (state.rigCoordinateSpace !== "edit") {
+          if (!normalizeRigRuntimeForEdit(state.mesh)) state.rigCoordinateSpace = "edit";
+        }
+        else {
+          syncPoseFromRig(state.mesh);
+          syncBindPose(state.mesh);
+        }
+      } else if (state.rigCoordinateSpace !== "runtime") {
+        if (!normalizeRigEditForRuntime(state.mesh)) state.rigCoordinateSpace = "runtime";
+      } else {
+        syncPoseFromRig(state.mesh);
+        syncBindPose(state.mesh);
+      }
+    } else {
+      state.rigCoordinateSpace = state.boneMode === "edit" ? "edit" : "runtime";
+    }
+    state.rigEditNeedsRuntimeNormalize = false;
+    clearRigEditPreviewCache();
     rebuildSlotTriangleIndices();
     state.selectedBone = state.mesh && state.mesh.rigBones.length > 0 ? 0 : -1;
     refreshAnimationUI();
@@ -20011,15 +22086,83 @@ if (els.diagnosticsList) {
   });
 }
 
+ensureSetupQuickUIElements();
 els.remeshBtn.addEventListener("click", rebuildMesh);
+if (els.setupAddBoneBtn) {
+  els.setupAddBoneBtn.addEventListener("click", () => {
+    if (els.addBoneBtn) els.addBoneBtn.click();
+  });
+}
+if (els.setupDeleteBoneBtn) {
+  els.setupDeleteBoneBtn.addEventListener("click", () => {
+    if (els.deleteBoneBtn) els.deleteBoneBtn.click();
+  });
+}
+bindSetupHumanoidBoneButton();
+bindBoneTreeHumanoidBoneButton();
+if (els.setupBindBoneBtn) {
+  els.setupBindBoneBtn.addEventListener("click", () => {
+    if (els.slotBindBoneBtn) els.slotBindBoneBtn.click();
+  });
+}
+if (els.setupBindWeightedBtn) {
+  els.setupBindWeightedBtn.addEventListener("click", () => {
+    if (els.slotBindWeightedBtn) els.slotBindWeightedBtn.click();
+  });
+}
+if (els.setupEditWeightsBtn) {
+  els.setupEditWeightsBtn.addEventListener("click", () => {
+    if (els.slotWeightQuickEditBtn) els.slotWeightQuickEditBtn.click();
+  });
+}
+if (els.setupAutoWeightSingleBtn) {
+  els.setupAutoWeightSingleBtn.addEventListener("click", () => {
+    if (els.weightMode) {
+      els.weightMode.value = "hard";
+      els.weightMode.dispatchEvent(new Event("change"));
+    } else {
+      state.weightMode = "hard";
+    }
+    const updated = autoWeightActiveSlot("single");
+    if (updated > 0) {
+      const picked = state.mesh ? getSelectedBonesForWeight(state.mesh) : [];
+      const targetLabel = state.slots.length > 0 ? `${updated} slot(s)` : "mesh";
+      setStatus(
+        `Auto weights updated (single) on ${targetLabel}; bones: ${picked.length > 0 ? picked.join(", ") : "(slot default)"}`
+      );
+    }
+    refreshSetupQuickActions();
+  });
+}
+if (els.setupAutoWeightMultiBtn) {
+  els.setupAutoWeightMultiBtn.addEventListener("click", () => {
+    if (els.weightMode) {
+      els.weightMode.value = "soft";
+      els.weightMode.dispatchEvent(new Event("change"));
+    } else {
+      state.weightMode = "soft";
+    }
+    const updated = autoWeightActiveSlot("weighted");
+    if (updated > 0) {
+      const picked = state.mesh ? getSelectedBonesForWeight(state.mesh) : [];
+      const targetLabel = state.slots.length > 0 ? `${updated} slot(s)` : "mesh";
+      setStatus(
+        `Auto weights updated (multi) on ${targetLabel}; bones: ${picked.length > 0 ? picked.join(", ") : "(slot default)"}`
+      );
+    }
+    refreshSetupQuickActions();
+  });
+}
+
 els.editMode.addEventListener("change", () => {
+  const prevMode = state.boneMode;
   const v = els.editMode.value;
-  state.editMode = v === "vertex" ? "vertex" : v === "slotmesh" ? "slotmesh" : v === "object" ? "object" : "skeleton";
+  state.editMode = v === "mesh" ? "mesh" : v === "object" ? "object" : "skeleton";
   if (state.editMode === "object") {
     state.boneMode = "object";
     state.uiPage = "object";
     state.leftToolTab = "object";
-  } else if (state.editMode === "slotmesh") {
+  } else if (state.editMode === "mesh") {
     state.uiPage = "slot";
     if (state.leftToolTab !== "slotmesh" && state.leftToolTab !== "canvas") state.leftToolTab = "slotmesh";
   } else if (state.uiPage === "slot" || state.uiPage === "object") {
@@ -20031,25 +22174,32 @@ els.editMode.addEventListener("change", () => {
     if (state.leftToolTab === "slotmesh" || state.leftToolTab === "canvas" || state.leftToolTab === "object") state.leftToolTab = "setup";
   }
   if (state.editMode !== "skeleton" && state.editMode !== "object") state.pathEdit.drawArmed = false;
-  state.workspaceMode = state.editMode === "slotmesh" ? "slotmesh" : "rig";
+  state.workspaceMode = state.editMode === "mesh" ? "slotmesh" : "rig";
+  applyBoneModeTransition(prevMode, state.boneMode);
   updateWorkspaceUI();
 });
 if (els.systemMode) els.systemMode.addEventListener("change", () => {
+  const prevMode = state.boneMode;
   const sysMode = els.systemMode.value;
   if (state.editMode === "object") {
     state.boneMode = "object";
   } else if (sysMode === "animate") {
+    state.uiPage = "anim";
+    state.animSubPanel = "timeline";
     state.boneMode = "pose";
     if (state.mesh) {
       syncPoseFromRig(state.mesh);
       samplePoseAtTime(state.mesh, state.anim.time);
     }
   } else {
+    if (state.uiPage === "anim") state.uiPage = "rig";
     state.boneMode = "edit";
     state.addBoneArmed = false;
     state.addBoneDraft = null;
     els.addBoneBtn.textContent = "Add Bone";
+    refreshSetupQuickActions();
   }
+  applyBoneModeTransition(prevMode, state.boneMode);
   updateWorkspaceUI();
   updateBoneUI();
 });
@@ -20068,22 +22218,40 @@ els.addBoneBtn.addEventListener("click", () => {
   state.addBoneArmed = !state.addBoneArmed;
   state.addBoneDraft = null;
   els.addBoneBtn.textContent = state.addBoneArmed ? "Cancel Add" : "Add Bone";
+  refreshSetupQuickActions();
   setStatus(state.addBoneArmed ? "Add bone armed: drag in canvas to create." : "Add bone canceled.");
 });
-els.deleteBoneBtn.addEventListener("click", deleteBone);
+els.deleteBoneBtn.addEventListener("click", () => {
+  const info = getSelectedBoneDeleteInfo();
+  const m = state.mesh;
+  if (!m || !info.canDelete) {
+    setStatus("Delete bone failed.");
+    return;
+  }
+  const bi = Number(info.boneIndex);
+  const name = Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
+  if (!deleteBone()) {
+    setStatus("Delete bone failed.");
+    return;
+  }
+  setStatus(info.mode === "subtree" ? `Bone tree deleted: ${name} (slots moved to staging).` : `Bone deleted: ${name} (slots moved to staging).`);
+});
 els.autoWeightBtn.addEventListener("click", () => {
   if (!state.mesh) return;
   if (state.boneMode !== "edit") return;
-  if (autoWeightActiveSlot()) {
+  const updated = autoWeightActiveSlot();
+  if (updated > 0) {
     const picked = getSelectedBonesForWeight(state.mesh);
+    const targetLabel = state.slots.length > 0 ? `${updated} slot(s)` : "mesh";
     setStatus(
-      `Auto weights updated (${state.weightMode}) on ${state.slots.length > 0 ? "active slot" : "mesh"}; bones: ${picked.length > 0 ? picked.join(", ") : "(slot default)"
+      `Auto weights updated (${state.weightMode}) on ${targetLabel}; bones: ${picked.length > 0 ? picked.join(", ") : "(slot default)"
       }.`
     );
   }
 });
 els.weightMode.addEventListener("change", () => {
   state.weightMode = els.weightMode.value;
+  refreshSetupQuickActions();
 });
 if (els.skinSelect) {
   els.skinSelect.addEventListener("change", () => {
@@ -20242,41 +22410,43 @@ if (els.treeCtxSlotDeleteBtn) {
 }
 if (els.treeCtxBoneDeleteBtn) {
   els.treeCtxBoneDeleteBtn.addEventListener("click", () => {
+    const info = getSelectedBoneDeleteInfo();
     const m = state.mesh;
     if (!m || state.boneTreeMenuContextKind !== "bone") {
       setStatus("Right-click a bone row first.");
       closeBoneTreeContextMenu();
       return;
     }
-    const bi = Number(state.selectedBone);
+    const bi = Number(info.boneIndex);
     const name =
       Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
-    if (!deleteBoneWithSlotPolicy("to_staging")) {
-      setStatus("Delete bone failed. Keep at least one bone, and only in Edit mode.");
+    if (!deleteSelectedBoneTreeWithSlotPolicy("to_staging")) {
+      setStatus("Delete bone failed.");
       closeBoneTreeContextMenu();
       return;
     }
-    setStatus(`Bone deleted: ${name} (slots moved to staging).`);
+    setStatus(info.mode === "subtree" ? `Bone tree deleted: ${name} (slots moved to staging).` : `Bone deleted: ${name} (slots moved to staging).`);
     closeBoneTreeContextMenu();
   });
 }
 if (els.treeCtxBoneDeleteWithSlotsBtn) {
   els.treeCtxBoneDeleteWithSlotsBtn.addEventListener("click", () => {
+    const info = getSelectedBoneDeleteInfo();
     const m = state.mesh;
     if (!m || state.boneTreeMenuContextKind !== "bone") {
       setStatus("Right-click a bone row first.");
       closeBoneTreeContextMenu();
       return;
     }
-    const bi = Number(state.selectedBone);
+    const bi = Number(info.boneIndex);
     const name =
       Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length ? String(m.rigBones[bi].name || `bone_${bi}`) : "bone";
-    if (!deleteBoneWithSlotPolicy("delete_slots")) {
-      setStatus("Delete bone failed. Keep at least one bone, and only in Edit mode.");
+    if (!deleteSelectedBoneTreeWithSlotPolicy("delete_slots")) {
+      setStatus("Delete bone failed.");
       closeBoneTreeContextMenu();
       return;
     }
-    setStatus(`Bone deleted: ${name} (bound slots deleted).`);
+    setStatus(info.mode === "subtree" ? `Bone tree deleted: ${name} (bound slots deleted).` : `Bone deleted: ${name} (bound slots deleted).`);
     closeBoneTreeContextMenu();
   });
 }
@@ -20310,6 +22480,28 @@ if (els.vertexHeatmapToggle) {
     refreshVertexDeformUI();
     setStatus(`Vertex heatmap preview ${state.vertexDeform.heatmap ? "ON" : "OFF"}.`);
   });
+}
+if (els.vertexWeightVizToggle) {
+  els.vertexWeightVizToggle.addEventListener("change", () => {
+    state.vertexDeform.weightViz = !!els.vertexWeightVizToggle.checked;
+    refreshVertexDeformUI();
+    setStatus(`Weight overlay ${state.vertexDeform.weightViz ? "ON" : "OFF"}.`);
+  });
+}
+if (els.vertexWeightVizMode) {
+  els.vertexWeightVizMode.addEventListener("change", () => {
+    state.vertexDeform.weightVizMode = sanitizeWeightVizMode(els.vertexWeightVizMode.value);
+    refreshVertexDeformUI();
+    setStatus(`Weight overlay mode: ${state.vertexDeform.weightVizMode}.`);
+  });
+}
+if (els.vertexWeightVizOpacity) {
+  const applyWeightVizOpacity = () => {
+    state.vertexDeform.weightVizOpacity = math.clamp(Number(els.vertexWeightVizOpacity.value) || 0.75, 0.05, 1);
+    refreshVertexDeformUI();
+  };
+  els.vertexWeightVizOpacity.addEventListener("input", applyWeightVizOpacity);
+  els.vertexWeightVizOpacity.addEventListener("change", applyWeightVizOpacity);
 }
 if (els.vertexProportionalRadius) {
   const applyVertexRadius = () => {
@@ -20739,6 +22931,7 @@ if (els.slotMeshCloseBtn) {
     const slot = getActiveSlot();
     if (!slot) return;
     const c = ensureSlotContour(slot);
+    markSlotContourDirty(slot, true);
     if (c.points.length < 3) {
       setStatus("Need at least 3 points to close contour.");
       return;
@@ -20757,6 +22950,7 @@ if (els.slotMeshTriangulateBtn) {
     const slot = getActiveSlot();
     if (!slot) return;
     const c = ensureSlotContour(slot);
+    markSlotContourDirty(slot, true);
     if (!c.closed || c.points.length < 3) {
       setStatus("Close contour first, then triangulate.");
       return;
@@ -20779,6 +22973,7 @@ if (els.slotMeshGridFillBtn) {
     const slot = getActiveSlot();
     if (!slot) return;
     const c = ensureSlotContour(slot);
+    markSlotContourDirty(slot, true);
     if (!c.closed || c.points.length < 3) {
       setStatus("Close contour first, then run Grid Fill.");
       return;
@@ -20845,6 +23040,7 @@ if (els.slotMeshAutoForegroundBtn) {
   els.slotMeshAutoForegroundBtn.addEventListener("click", () => {
     const slot = getActiveSlot();
     if (!slot) return;
+    markSlotContourDirty(slot, true);
     const result = autoBuildForegroundMeshForSlot(slot, Number(els.gridX.value) || 24, Number(els.gridY.value) || 24);
     if (!result || !result.ok) {
       setStatus(`Auto Foreground failed: ${(result && result.reason) || "unknown error"}`);
@@ -20863,6 +23059,7 @@ if (els.slotMeshApplyBtn) {
       setStatus("Apply failed. Need a closed contour with valid triangulation.");
       return;
     }
+    syncSlotContourFromMeshData(slot, true);
     clearSlotMeshSelection();
     setStatus("Slot mesh applied from contour.");
   });
@@ -20883,6 +23080,7 @@ if (els.slotMeshCreateApplyBtn) {
       setStatus("Create slot + apply failed. Need a closed contour with valid triangulation.");
       return;
     }
+    syncSlotContourFromMeshData(created, true);
     clearSlotMeshSelection();
     setStatus(`Created slot "${created.name}" and applied contour mesh.`);
   });
@@ -20897,6 +23095,7 @@ if (els.slotMeshLinkEdgeBtn) {
       setStatus("Select exactly 2 vertices, then Link Edge.");
       return;
     }
+    markSlotContourDirty(slot, true);
     setStatus(`Edge linked (${activeSet}).`);
     renderAll();
   });
@@ -20911,6 +23110,7 @@ if (els.slotMeshUnlinkEdgeBtn) {
       setStatus("Select exactly 2 vertices, then Unlink Edge.");
       return;
     }
+    markSlotContourDirty(slot, true);
     setStatus(`Edge unlinked (${activeSet}).`);
     renderAll();
   });
@@ -20943,6 +23143,7 @@ if (els.slotMeshResetBtn) {
   els.slotMeshResetBtn.addEventListener("click", () => {
     const slot = getActiveSlot();
     if (!slot) return;
+    markSlotContourDirty(slot, true);
     const c = ensureSlotContour(slot);
     const source = getSlotContourSourcePoints(c);
     if (Array.isArray(source) && source.length >= 3) {
@@ -21016,10 +23217,15 @@ if (els.boneInherit) {
 els.boneTx.addEventListener("input", () => {
   const m = state.mesh;
   if (!m) return;
-  const b = getBonesForCurrentMode(m)[state.selectedBone];
+  const bones = getBonesForCurrentMode(m);
+  const b = bones[state.selectedBone];
   if (!b) return;
   if (b.parent >= 0 && b.connected) return;
+  const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
   b.tx = Number(els.boneTx.value) || 0;
+  if (state.boneMode === "edit") {
+    preserveConnectedChildTipsAfterEdit(bones, snapshot, [state.selectedBone]);
+  }
   markDirtyByBoneProp(state.selectedBone, "translate");
   if (state.boneMode === "edit") {
     commitRigEdit(m, true);
@@ -21030,10 +23236,15 @@ els.boneTx.addEventListener("input", () => {
 els.boneTy.addEventListener("input", () => {
   const m = state.mesh;
   if (!m) return;
-  const b = getBonesForCurrentMode(m)[state.selectedBone];
+  const bones = getBonesForCurrentMode(m);
+  const b = bones[state.selectedBone];
   if (!b) return;
   if (b.parent >= 0 && b.connected) return;
+  const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
   b.ty = Number(els.boneTy.value) || 0;
+  if (state.boneMode === "edit") {
+    preserveConnectedChildTipsAfterEdit(bones, snapshot, [state.selectedBone]);
+  }
   markDirtyByBoneProp(state.selectedBone, "translate");
   if (state.boneMode === "edit") {
     commitRigEdit(m, true);
@@ -21044,9 +23255,14 @@ els.boneTy.addEventListener("input", () => {
 els.boneRot.addEventListener("input", () => {
   const m = state.mesh;
   if (!m) return;
-  const b = getBonesForCurrentMode(m)[state.selectedBone];
+  const bones = getBonesForCurrentMode(m);
+  const b = bones[state.selectedBone];
   if (!b) return;
+  const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
   b.rot = math.degToRad(Number(els.boneRot.value) || 0);
+  if (state.boneMode === "edit") {
+    preserveConnectedChildTipsAfterEdit(bones, snapshot, [state.selectedBone]);
+  }
   if (state.boneMode === "pose") {
     steerIKTargetFromBoneEdit(m, state.selectedBone, null);
   }
@@ -21060,10 +23276,15 @@ els.boneRot.addEventListener("input", () => {
 els.boneLen.addEventListener("input", () => {
   const m = state.mesh;
   if (!m) return;
-  const b = getBonesForCurrentMode(m)[state.selectedBone];
+  const bones = getBonesForCurrentMode(m);
+  const b = bones[state.selectedBone];
   if (!b) return;
   if (state.boneMode === "pose" && b.poseLenEditable === false) return;
+  const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
   b.length = Math.max(1, Number(els.boneLen.value) || 1);
+  if (state.boneMode === "edit") {
+    preserveConnectedChildTipsAfterEdit(bones, snapshot, [state.selectedBone]);
+  }
   if (state.boneMode === "pose") {
     steerIKTargetFromBoneEdit(m, state.selectedBone, null);
   }
@@ -21158,6 +23379,10 @@ if (els.boneWorkHidden) {
     if (!m) return;
     const i = state.selectedBone;
     if (!Number.isFinite(i) || i < 0 || i >= m.rigBones.length) return;
+    if (!isRootBoneIndex(m.rigBones, i)) {
+      updateBoneUI();
+      return;
+    }
     const hidden = !!els.boneWorkHidden.checked;
     normalizeBoneChannels(m.rigBones[i]);
     m.rigBones[i].workHidden = hidden;
@@ -21167,7 +23392,8 @@ if (els.boneWorkHidden) {
     }
     renderBoneTree();
     updateBoneUI();
-    setStatus(hidden ? `Work hide on: ${m.rigBones[i].name}` : `Work hide off: ${m.rigBones[i].name}`);
+    const hideScopeLabel = getGlobalBoneWorkHideMode() === "bone_and_slots" ? "bone+slots" : "bone only";
+    setStatus(hidden ? `Work hide on (${hideScopeLabel}, subtree): ${m.rigBones[i].name}` : `Work hide off: ${m.rigBones[i].name}`);
   });
 }
 
@@ -21178,13 +23404,17 @@ if (els.boneAnimHidden) {
     const i = state.selectedBone;
     const bones = getBonesForCurrentMode(m);
     if (!Number.isFinite(i) || i < 0 || i >= bones.length) return;
+    if (!isRootBoneIndex(bones, i)) {
+      updateBoneUI();
+      return;
+    }
     const hidden = !!els.boneAnimHidden.checked;
     normalizeBoneChannels(bones[i]);
     bones[i].animHidden = hidden;
     markDirtyByBoneProp(i, "animHide");
     renderBoneTree();
     updateBoneUI();
-    setStatus(hidden ? `Anim hide on: ${bones[i].name}` : `Anim hide off: ${bones[i].name}`);
+    setStatus(hidden ? `Anim hide on (subtree): ${bones[i].name}` : `Anim hide off: ${bones[i].name}`);
   });
 }
 
@@ -21215,6 +23445,7 @@ function applyHeadTipFromInputs() {
   const bones = getBonesForCurrentMode(m);
   const b = bones[i];
   if (!b) return;
+  const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
   const hx = Number(els.boneHeadX.value);
   const hy = Number(els.boneHeadY.value);
   const tx = Number(els.boneTipX.value);
@@ -21227,6 +23458,14 @@ function applyHeadTipFromInputs() {
     x: Number.isFinite(tx) ? tx : head.x + Math.max(1, b.length),
     y: Number.isFinite(ty) ? ty : head.y,
   };
+  if (state.boneMode === "edit" && b.parent >= 0 && b.connected) {
+    const parentIndex = Number(b.parent);
+    if (Number.isFinite(parentIndex) && parentIndex >= 0 && parentIndex < bones.length) {
+      const parentEp = getBoneWorldEndpointsFromBones(bones, parentIndex);
+      setBoneFromWorldEndpoints(bones, parentIndex, parentEp.head, head);
+      markRigEditDirty();
+    }
+  }
   const resolvedHead = b.parent >= 0 && b.connected ? getBoneWorldEndpointsFromBones(bones, i).head : head;
   if (state.boneMode === "pose" && b.poseLenEditable === false) {
     const a = angleTo(resolvedHead, tip);
@@ -21234,6 +23473,18 @@ function applyHeadTipFromInputs() {
     tip.y = resolvedHead.y + Math.sin(a) * b.length;
   }
   setBoneFromWorldEndpoints(bones, i, resolvedHead, tip);
+  if (state.boneMode === "edit") {
+    const activeId = document.activeElement && document.activeElement.id ? String(document.activeElement.id) : "";
+    const editingTip = activeId === "boneTipX" || activeId === "boneTipY";
+    const editingHead = activeId === "boneHeadX" || activeId === "boneHeadY";
+    let exclude = [i];
+    if (b.parent >= 0 && b.connected && editingHead) {
+      exclude = [Number(b.parent)];
+    } else if (editingTip) {
+      exclude = [i];
+    }
+    preserveConnectedChildTipsAfterEdit(bones, snapshot, exclude);
+  }
   if (state.boneMode === "pose") {
     steerIKTargetFromBoneEdit(m, i, tip);
   }
@@ -22855,22 +25106,39 @@ els.timelineTracks.addEventListener("pointerdown", (ev) => {
 
   if (keyEl) {
     clearTimelineMarqueeEl();
-    if (trackId === "__all__") {
-      const allTime = Number(keyEl.dataset.allTime);
-      if (!Number.isFinite(allTime)) return;
-      const picked = collectKeysAtTime(anim, allTime);
+    normalizeSelectedKeys(anim);
+    const currentSelection = Array.isArray(state.anim.selectedKeys) ? state.anim.selectedKeys.filter(Boolean) : [];
+    const hasCurrentMultiSelection = currentSelection.length > 1;
+    const wantToggle = ev.ctrlKey || ev.metaKey;
+    const summaryScope = String(keyEl.dataset.summaryScope || "");
+    if (summaryScope) {
+      const summaryTime = Number(keyEl.dataset.summaryTime);
+      const summaryGroupKey = String(keyEl.dataset.summaryGroupKey || "");
+      const picked = collectSummaryKeyTargets(anim, summaryScope, summaryTime, summaryGroupKey);
       if (picked.length <= 0) return;
-      state.anim.selectedKeys = picked;
-      state.anim.selectedKey = { ...picked[0] };
+      // UX: if user already has multi-selection, clicking summary key should drag that set,
+      // not collapse to one/few keys from the clicked summary point.
+      const dragSelection = !wantToggle && hasCurrentMultiSelection ? currentSelection : picked;
+      const selectedKeyRef = state.anim.selectedKey;
+      const anchor =
+        pickSelectionAnchorNearTime(anim, dragSelection, summaryTime, selectedKeyRef) || dragSelection[0] || picked[0];
+      const seed = getDragSeedFromSelection(anim, dragSelection);
+      state.anim.selectedKeys = dragSelection;
+      state.anim.selectedKey = anchor ? { ...anchor } : null;
+      state.anim.selectedTrack = anchor ? anchor.trackId : picked[0].trackId;
+      if (els.trackSelect) els.trackSelect.value = state.anim.selectedTrack;
+      syncLayerPanelFromSelectedTrack();
       state.anim.timelineDrag = {
         mode: "key_set",
         laneTrackId: trackId,
         pointerId: ev.pointerId,
-        anchorTime: allTime,
-        seed: getDragSeedFromSelection(anim, picked),
+        anchorTime: summaryTime,
+        keyAnchor: anchor ? { trackId: anchor.trackId, keyId: anchor.keyId } : null,
+        seed,
+        scaleSpan: getTimelineScaleSpanFromSeed(seed, summaryTime, timelineDuration),
       };
       els.timelineTracks.setPointerCapture(ev.pointerId);
-      setAnimTime(allTime, timelineDuration);
+      setAnimTime(summaryTime, timelineDuration);
       renderTimelineTracks();
       return;
     }
@@ -22882,25 +25150,33 @@ els.timelineTracks.addEventListener("pointerdown", (ev) => {
     const keys = getTrackKeys(anim, trackId);
     const k = keys.find((kk) => kk.id === keyId);
     if (!k) return;
-    const wantToggle = ev.ctrlKey || ev.metaKey;
+    const hasMultiSelection = hasCurrentMultiSelection;
+    const clickedAlreadySelected = keySelectionHas(trackId, k.id);
     if (wantToggle) {
       toggleTimelineSelection(trackId, k.id);
-    } else if (!keySelectionHas(trackId, k.id) || !(state.anim.selectedKeys && state.anim.selectedKeys.length > 1)) {
+    } else if (hasMultiSelection) {
+      // Keep current multi-selection stable so pressing on a selected set can drag as a group.
+      if (clickedAlreadySelected) state.anim.selectedKey = { trackId, keyId: k.id };
+      else {
+        state.anim.selectedKeys = [{ trackId, keyId: k.id }];
+        state.anim.selectedKey = { trackId, keyId: k.id };
+      }
+    } else if (!clickedAlreadySelected) {
       setSingleTimelineSelection(trackId, k.id);
     } else {
       state.anim.selectedKey = { trackId, keyId: k.id };
     }
-    const dragSelection =
-      !wantToggle && keySelectionHas(trackId, k.id) && state.anim.selectedKeys && state.anim.selectedKeys.length > 1
-        ? state.anim.selectedKeys
-        : [{ trackId, keyId: k.id }];
+    const dragSelection = !wantToggle && hasMultiSelection ? state.anim.selectedKeys : [{ trackId, keyId: k.id }];
+    const seed = getDragSeedFromSelection(anim, dragSelection);
     els.keyInterp.value = k.interp || "linear";
     state.anim.timelineDrag = {
       mode: "key_set",
       laneTrackId: trackId,
       pointerId: ev.pointerId,
       anchorTime: Number(k.time) || 0,
-      seed: getDragSeedFromSelection(anim, dragSelection),
+      keyAnchor: { trackId, keyId: k.id },
+      seed,
+      scaleSpan: getTimelineScaleSpanFromSeed(seed, Number(k.time) || 0, timelineDuration),
     };
     els.timelineTracks.setPointerCapture(ev.pointerId);
     setAnimTime(k.time, timelineDuration);
@@ -22997,11 +25273,21 @@ els.timelineTracks.addEventListener("pointermove", (ev) => {
       bottom: Math.max(drag.startClientY, ev.clientY),
     };
     const hit = [];
-    for (const keyNode of els.timelineTracks.querySelectorAll(".track-key[data-track-id][data-key-id]")) {
+    for (const keyNode of els.timelineTracks.querySelectorAll(".track-key")) {
       const r = keyNode.getBoundingClientRect();
-      if (rectsOverlap(pickRect, r)) {
+      if (!rectsOverlap(pickRect, r)) continue;
+      const trackId = String(keyNode.dataset.trackId || "");
+      const keyId = String(keyNode.dataset.keyId || "");
+      if (trackId && keyId) {
         hit.push({ trackId: keyNode.dataset.trackId, keyId: keyNode.dataset.keyId });
+        continue;
       }
+      const summaryScope = String(keyNode.dataset.summaryScope || "");
+      const summaryTime = Number(keyNode.dataset.summaryTime);
+      const summaryGroupKey = String(keyNode.dataset.summaryGroupKey || "");
+      if (!summaryScope || !Number.isFinite(summaryTime)) continue;
+      const picked = collectSummaryKeyTargets(anim, summaryScope, summaryTime, summaryGroupKey);
+      for (const s of picked) hit.push(s);
     }
     const out = [];
     const seen = new Set();
@@ -23031,19 +25317,33 @@ els.timelineTracks.addEventListener("pointermove", (ev) => {
     return;
   }
   const delta = t - (Number(drag.anchorTime) || 0);
+  const scaleMode = !!state.anim.timelineScaleHeld;
   const touched = new Set();
+  const preferredAnchor = drag.keyAnchor && drag.keyAnchor.trackId && drag.keyAnchor.keyId ? drag.keyAnchor : null;
   let anchorSelection = null;
+  let fallbackSelection = null;
   for (const it of drag.seed || []) {
     const keys = getTrackKeys(anim, it.trackId);
     const keyObj = keys.find((kk) => kk.id === it.keyId);
     if (!keyObj) continue;
-    keyObj.time = sanitizeTimelineTime(snapTimeIfNeeded((Number(it.time) || 0) + delta), timelineDuration);
+    let nextTime = (Number(it.time) || 0) + delta;
+    if (scaleMode) {
+      const span = Math.max(1e-4, Number(drag.scaleSpan) || 1);
+      const factor = math.clamp(1 + delta / span, 0.01, 100);
+      nextTime = (Number(drag.anchorTime) || 0) + ((Number(it.time) || 0) - (Number(drag.anchorTime) || 0)) * factor;
+    }
+    keyObj.time = sanitizeTimelineTime(snapTimeIfNeeded(nextTime), timelineDuration);
     touched.add(it.trackId);
-    if (!anchorSelection) anchorSelection = { trackId: it.trackId, keyId: it.keyId, time: keyObj.time };
+    if (!fallbackSelection) fallbackSelection = { trackId: it.trackId, keyId: it.keyId, time: keyObj.time };
+    if (preferredAnchor && it.trackId === preferredAnchor.trackId && it.keyId === preferredAnchor.keyId) {
+      anchorSelection = { trackId: it.trackId, keyId: it.keyId, time: keyObj.time };
+    }
   }
+  if (!anchorSelection && fallbackSelection) anchorSelection = fallbackSelection;
   drag.touchedTracks = [...touched];
   if (anchorSelection) {
     state.anim.selectedKey = { trackId: anchorSelection.trackId, keyId: anchorSelection.keyId };
+    drag.keyAnchor = { trackId: anchorSelection.trackId, keyId: anchorSelection.keyId };
   }
   setAnimTime(t, timelineDuration);
   renderTimelineTracks();
@@ -23068,6 +25368,7 @@ function clearTimelineDrag(ev) {
       samplePoseAtTime(state.mesh, state.anim.time);
       if (state.boneMode === "pose") updateBoneUI();
     }
+    state.anim.timelineScaleHeld = false;
     state.anim.timelineDrag = null;
     renderTimelineTracks();
     return;
@@ -23083,11 +25384,27 @@ function clearTimelineDrag(ev) {
   if (drag.mode === "marquee" || drag.mode === "marquee_pending") {
     clearTimelineMarqueeEl();
   }
+  state.anim.timelineScaleHeld = false;
   state.anim.timelineDrag = null;
   renderTimelineTracks();
 }
 els.timelineTracks.addEventListener("pointerup", clearTimelineDrag);
 els.timelineTracks.addEventListener("pointercancel", clearTimelineDrag);
+window.addEventListener("keydown", (ev) => {
+  if (String(ev.key || "").toLowerCase() !== "s") return;
+  if (isEditableHotkeyTarget(ev.target)) return;
+  const drag = state.anim.timelineDrag;
+  if (!drag || drag.mode !== "key_set") return;
+  state.anim.timelineScaleHeld = true;
+  ev.preventDefault();
+});
+window.addEventListener("keyup", (ev) => {
+  if (String(ev.key || "").toLowerCase() !== "s") return;
+  state.anim.timelineScaleHeld = false;
+});
+window.addEventListener("blur", () => {
+  state.anim.timelineScaleHeld = false;
+});
 els.timelineResizer.addEventListener("pointerdown", (ev) => {
   state.anim.resizing = {
     pointerId: ev.pointerId,
@@ -23197,7 +25514,7 @@ window.addEventListener("keydown", async (ev) => {
     return;
   }
   const hotkey = String(ev.key || "").toLowerCase();
-  if (state.editMode === "vertex") {
+  if (state.editMode === "mesh") {
     if (hotkey === "h" && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
       state.vertexDeform.mirror = !state.vertexDeform.mirror;
       refreshVertexDeformUI();
@@ -23302,6 +25619,7 @@ window.addEventListener("keydown", async (ev) => {
   if (isSlotMeshEditTabActive()) {
     const slot = getActiveSlot();
     if (!slot) return;
+    syncSlotContourFromMeshData(slot, false);
     const contour = ensureSlotContour(slot);
     const activeSet = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
     const activePoints = activeSet === "fill" ? contour.fillPoints : contour.points;
@@ -23312,6 +25630,7 @@ window.addEventListener("keydown", async (ev) => {
       return;
     }
     if (ev.key === "Enter") {
+      markSlotContourDirty(slot, true);
       if (!contour.closed && contour.points.length >= 3) contour.closed = true;
       contour.triangles = triangulateContourPoints(contour.points, contour.contourEdges, contour.manualEdges);
       contour.fillPoints = [];
@@ -23328,6 +25647,7 @@ window.addEventListener("keydown", async (ev) => {
       return;
     }
     if ((ev.key === "Backspace" || ev.key === "Delete" || ev.key.toLowerCase() === "x") && activePoints.length > 0) {
+      markSlotContourDirty(slot, true);
       const selected = getSlotMeshSelection(activeSet, activePoints.length);
       const indices = selected.length > 0 ? selected : [state.slotMesh.activePoint >= 0 ? state.slotMesh.activePoint : activePoints.length - 1];
       const removed = removeSlotMeshPointsByIndices(contour, activeSet, indices);
@@ -23348,6 +25668,7 @@ window.addEventListener("keydown", async (ev) => {
         ev.preventDefault();
         return;
       }
+      markSlotContourDirty(slot, true);
       const [a0, b0] = state.slotMesh.edgeSelection;
       const a = Math.min(a0, b0);
       const b = Math.max(a0, b0);
@@ -23361,6 +25682,7 @@ window.addEventListener("keydown", async (ev) => {
         ev.preventDefault();
         return;
       }
+      markSlotContourDirty(slot, true);
       const [a0, b0] = state.slotMesh.edgeSelection;
       const a = Math.min(a0, b0);
       const b = Math.max(a0, b0);
@@ -23422,6 +25744,7 @@ window.addEventListener("keydown", async (ev) => {
     els.addBoneParent.value = String(state.selectedBone);
     els.addBoneConnect.value = "true";
     els.addBoneBtn.textContent = "Cancel Add";
+    refreshSetupQuickActions();
     setStatus(`Chain add armed from parent bone ${state.selectedBone}. Drag in canvas to set new tail.`);
     ev.preventDefault();
     return;
@@ -23486,20 +25809,25 @@ window.addEventListener("keydown", async (ev) => {
     state.addBoneArmed = !state.addBoneArmed;
     state.addBoneDraft = null;
     els.addBoneBtn.textContent = state.addBoneArmed ? "Cancel Add" : "Add Bone";
+    refreshSetupQuickActions();
     setStatus(state.addBoneArmed ? "Add bone armed: drag in canvas to create." : "Add bone canceled.");
     ev.preventDefault();
     return;
   }
-  if ((ev.key === "Delete" || ev.key === "Backspace") && state.boneMode === "edit") {
-    deleteBone();
+  if ((ev.key === "Delete" || ev.key === "Backspace") && (state.boneMode === "edit" || state.boneMode === "object")) {
+    if (!deleteBone()) {
+      setStatus(state.boneMode === "object" ? "Delete bone failed. Select a root bone in Object mode." : "Delete bone failed.");
+    }
     ev.preventDefault();
     return;
   }
   if (key === "w" && state.boneMode === "edit") {
-    if (autoWeightActiveSlot()) {
+    const updated = autoWeightActiveSlot();
+    if (updated > 0) {
       const picked = getSelectedBonesForWeight(state.mesh);
+      const targetLabel = state.slots.length > 0 ? `${updated} slot(s)` : "mesh";
       setStatus(
-        `Auto weights updated (${state.weightMode}) on ${state.slots.length > 0 ? "active slot" : "mesh"}; bones: ${picked.length > 0 ? picked.join(", ") : "(slot default)"
+        `Auto weights updated (${state.weightMode}) on ${targetLabel}; bones: ${picked.length > 0 ? picked.join(", ") : "(slot default)"
         }.`
       );
     }
@@ -23572,7 +25900,9 @@ window.addEventListener("keydown", async (ev) => {
     return;
   }
   if (key === "1") {
+    const prevMode = state.boneMode;
     state.boneMode = "edit";
+    applyBoneModeTransition(prevMode, state.boneMode);
     if (els.systemMode) els.systemMode.value = "setup";
     if (state.editMode === "object") { state.editMode = "skeleton"; if (els.editMode) els.editMode.value = "skeleton"; }
     updateWorkspaceUI();
@@ -23581,7 +25911,9 @@ window.addEventListener("keydown", async (ev) => {
     return;
   }
   if (key === "2") {
+    const prevMode = state.boneMode;
     state.boneMode = "pose";
+    applyBoneModeTransition(prevMode, state.boneMode);
     if (els.systemMode) els.systemMode.value = "animate";
     if (state.editMode === "object") { state.editMode = "skeleton"; if (els.editMode) els.editMode.value = "skeleton"; }
     syncPoseFromRig(state.mesh);
@@ -23591,8 +25923,10 @@ window.addEventListener("keydown", async (ev) => {
     return;
   }
   if (key === "3") {
+    const prevMode = state.boneMode;
     state.boneMode = "object";
     state.editMode = "object";
+    applyBoneModeTransition(prevMode, state.boneMode);
     if (els.editMode) els.editMode.value = "object";
     updateWorkspaceUI();
     updateBoneUI();
@@ -23711,6 +26045,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
   if (isSlotMeshEditTabActive()) {
     const slot = getActiveSlot();
     if (!slot) return;
+    syncSlotContourFromMeshData(slot, false);
     const contour = ensureSlotContour(slot);
     const toolMode = normalizeSlotMeshToolMode(state.slotMesh.toolMode);
     const slotLocal = screenToSlotMeshLocal(slot, mx, my, poseWorldForGizmo);
@@ -23786,6 +26121,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
       const dx = fs.x - mx;
       const dy = fs.y - my;
       if (dx * dx + dy * dy <= 11 * 11) {
+        markSlotContourDirty(slot, true);
         contour.closed = true;
         // If they close by shift-clicking the first point, add exactly one connecting edge
         if (ev.shiftKey) {
@@ -23805,6 +26141,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
       }
     }
     if (contour.closed) {
+      markSlotContourDirty(slot, true);
       contour.closed = false;
       contour.triangles = [];
       contour.fillPoints = [];
@@ -23813,6 +26150,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     }
     const prevActive = state.slotMesh.activePoint;
     contour.points.push({ x: slotLocal.x, y: slotLocal.y });
+    markSlotContourDirty(slot, true);
     const newIdx = contour.points.length - 1;
     if (!Array.isArray(contour.contourEdges)) contour.contourEdges = [];
     // Shift held: auto-connect from previous active point to new point
@@ -23839,7 +26177,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     const rigBones = state.mesh.rigBones;
     let head = { ...local };
     if (parent >= 0 && connected && rigBones[parent]) {
-      const world = computeWorld(rigBones);
+      const world = getEditAwareWorld(rigBones);
       head = transformPoint(world[parent], rigBones[parent].length, 0);
     }
     state.addBoneDraft = { parent, connected, head, tail: { ...local } };
@@ -23892,7 +26230,9 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     return;
   }
 
-  let hit = pickSkeletonHandle(mx, my);
+  const forceMarquee = state.editMode === "skeleton" && state.boneMode !== "object" && !!ev.altKey;
+  const dragPickRadius = forceMarquee ? 0 : 8;
+  let hit = pickSkeletonHandle(mx, my, dragPickRadius);
   if ((state.editMode === "skeleton" || state.editMode === "object") && state.boneMode === "object") {
     const objectScaleRoot = pickObjectModeScaleHandleAtCanvas(mx, my);
     if (objectScaleRoot >= 0) {
@@ -23949,7 +26289,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
       state.selectedBonesForWeight = [targetBone];
       updateBoneUI();
       const forcedType = state.dragTool === "move_head" ? "bone_joint" : "bone_tip";
-      state.drag = { type: forcedType, boneIndex: targetBone, pointerId: ev.pointerId, needsReweight: state.boneMode === "edit" };
+      state.drag = { type: forcedType, boneIndex: targetBone, pointerId: ev.pointerId, needsReweight: false };
       els.overlay.setPointerCapture(ev.pointerId);
       return;
     }
@@ -24058,33 +26398,39 @@ els.overlay.addEventListener("pointerdown", (ev) => {
       if (set.has(hit.boneIndex)) set.delete(hit.boneIndex);
       else set.add(hit.boneIndex);
       state.selectedBonesForWeight = [...set];
+      const partType = hit.type === "bone_joint" ? "head" : "tail";
+      const parts = state.selectedBoneParts || [];
+      const partIdx = parts.findIndex(p => p.index === hit.boneIndex && p.type === partType);
+      if (partIdx >= 0) parts.splice(partIdx, 1);
+      else parts.push({ index: hit.boneIndex, type: partType });
+      state.selectedBoneParts = parts;
       state.selectedBone = hit.boneIndex;
       updateBoneUI();
       return;
     }
     state.selectedBone = hit.boneIndex;
-    const selected = getSelectedBonesForWeight(state.mesh);
-    // Node editing should stay responsive even under multi-select.
-    // Hold Alt to move the whole selected bone set instead.
-    const wantGroupMove = !!ev.altKey;
-    if (!wantGroupMove || selected.length <= 1 || !selected.includes(hit.boneIndex)) {
+    const selectedParts = state.selectedBoneParts || [];
+    const hitPartType = hit.type === "bone_joint" ? "head" : "tail";
+    const dragWholeSelection = selectedParts.length > 1 && selectedParts.some(p => p.index === hit.boneIndex && p.type === hitPartType);
+    if (!dragWholeSelection) {
       state.selectedBonesForWeight = [hit.boneIndex];
+      state.selectedBoneParts = [{ index: hit.boneIndex, type: hitPartType }];
       updateBoneUI();
-      state.drag = { ...hit, pointerId: ev.pointerId, needsReweight: state.boneMode === "edit" };
+      state.drag = { ...hit, pointerId: ev.pointerId, needsReweight: false };
       els.overlay.setPointerCapture(ev.pointerId);
       return;
     }
     const bones = getBonesForCurrentMode(state.mesh);
-    const world = computeWorld(bones);
+    const world = state.boneMode === "pose" ? getSolvedPoseWorld(state.mesh) : getEditAwareWorld(bones);
     state.drag = {
-      type: "bone_multi_move",
+      type: "bone_part_multi_move",
       pointerId: ev.pointerId,
       startLocal: local,
-      needsReweight: state.boneMode === "edit",
-      items: selected.map((bi) => {
-        const ep = getBoneWorldEndpointsFromBones(bones, bi, world);
-        return { boneIndex: bi, head: ep.head, tip: ep.tip };
-      }),
+      needsReweight: false,
+      items: selectedParts.map(p => {
+        const ep = getBoneWorldEndpointsFromBones(bones, p.index, world);
+        return { boneIndex: p.index, type: p.type, head: ep.head, tip: ep.tip };
+      })
     };
     els.overlay.setPointerCapture(ev.pointerId);
     updateBoneUI();
@@ -24325,6 +26671,7 @@ els.overlay.addEventListener("pointermove", (ev) => {
     const i = state.drag.pointIndex;
     if (i >= 0 && i < points.length) {
       points[i] = { x: slotLocal.x, y: slotLocal.y };
+      markSlotContourDirty(slot, true);
       if (setName === "contour") {
         contour.triangles = [];
         contour.fillPoints = [];
@@ -24357,6 +26704,7 @@ els.overlay.addEventListener("pointermove", (ev) => {
         p.x = (Number(p.x) || 0) + dx;
         p.y = (Number(p.y) || 0) + dy;
       }
+      markSlotContourDirty(slot, true);
       if (setName === "contour") {
         contour.triangles = [];
         contour.fillPoints = [];
@@ -24442,12 +26790,21 @@ els.overlay.addEventListener("pointermove", (ev) => {
 
   const bones = getBonesForCurrentMode(m);
   if (state.drag.type === "bone_joint") {
+    if (state.boneMode === "edit") {
+      const snapshot = captureEditBoneSnapshot(bones);
+      const ep = getBoneWorldEndpointsFromBones(bones, state.drag.boneIndex);
+      setBoneFromWorldEndpoints(bones, state.drag.boneIndex, local, ep.tip);
+      preserveConnectedChildTipsAfterEdit(bones, snapshot, [state.drag.boneIndex]);
+      markDirtyByBoneProp(state.drag.boneIndex, "translate");
+      markDirtyByBoneProp(state.drag.boneIndex, "rotate");
+      markDirtyByBoneProp(state.drag.boneIndex, "scale");
+      commitRigEditPreserveCurrentLook(m);
+      updateBoneUI();
+      return;
+    }
     const ikDriven = moveBoneJointToLocal(bones, state.drag.boneIndex, local);
     if (!ikDriven) {
       markDirtyByBoneProp(state.drag.boneIndex, "translate");
-    }
-    if (state.boneMode === "edit") {
-      commitRigEdit(m, false);
     }
     updateBoneUI();
     return;
@@ -24467,7 +26824,40 @@ els.overlay.addEventListener("pointermove", (ev) => {
       markDirtyByBoneProp(state.drag.boneIndex, "scale");
     }
     if (state.boneMode === "edit") {
-      commitRigEdit(m, false);
+      commitRigEditPreserveCurrentLook(m);
+    }
+    updateBoneUI();
+    return;
+  }
+
+  if (state.drag.type === "bone_part_multi_move") {
+    const d = state.drag;
+    const dx = local.x - d.startLocal.x;
+    const dy = local.y - d.startLocal.y;
+    const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
+
+    const movesByBone = new Map();
+    for (const it of d.items) {
+      const b = movesByBone.get(it.boneIndex) || { headMove: false, tailMove: false, origHead: it.head, origTip: it.tip };
+      if (it.type === "head") b.headMove = true;
+      if (it.type === "tail") b.tailMove = true;
+      movesByBone.set(it.boneIndex, b);
+    }
+
+    const editedIndices = [];
+    for (const [bi, bData] of movesByBone.entries()) {
+      const nh = bData.headMove ? { x: bData.origHead.x + dx, y: bData.origHead.y + dy } : bData.origHead;
+      const nt = bData.tailMove ? { x: bData.origTip.x + dx, y: bData.origTip.y + dy } : bData.origTip;
+      setBoneFromWorldEndpoints(bones, bi, nh, nt);
+      markDirtyByBoneProp(bi, "translate");
+      markDirtyByBoneProp(bi, "rotate");
+      markDirtyByBoneProp(bi, "scale");
+      editedIndices.push(bi);
+    }
+
+    if (state.boneMode === "edit" && snapshot) {
+      preserveConnectedChildTipsAfterEdit(bones, snapshot, editedIndices);
+      commitRigEditPreserveCurrentLook(m);
     }
     updateBoneUI();
     return;
@@ -24484,7 +26874,7 @@ els.overlay.addEventListener("pointermove", (ev) => {
       markDirtyByBoneProp(it.boneIndex, "translate");
     }
     if (state.boneMode === "edit") {
-      commitRigEdit(m, false);
+      commitRigEditPreserveCurrentLook(m);
     }
     updateBoneUI();
     return;
@@ -24683,10 +27073,12 @@ function clearDrag(ev) {
       els.addBoneParent.value = String(createdIdx);
       els.addBoneConnect.value = "true";
       els.addBoneBtn.textContent = "Cancel Add";
+      refreshSetupQuickActions();
       setStatus(`Chain add: parent set to bone ${createdIdx}. Drag next tail.`);
     } else {
       state.addBoneArmed = false;
       els.addBoneBtn.textContent = "Add Bone";
+      refreshSetupQuickActions();
     }
   }
   if (state.mesh && drag.type !== "vertex" && drag.needsReweight) {
@@ -24764,11 +27156,11 @@ mountAnimateAuxPanelsInLeftTools();
 setupApplicationMenuBar();
 render();
 state.editMode =
-  els.editMode && (els.editMode.value === "skeleton" || els.editMode.value === "vertex" || els.editMode.value === "slotmesh")
+  els.editMode && (els.editMode.value === "skeleton" || els.editMode.value === "mesh")
     ? els.editMode.value
     : "skeleton";
-state.workspaceMode = state.editMode === "slotmesh" ? "slotmesh" : "rig";
-state.uiPage = state.editMode === "slotmesh" ? "slot" : "rig";
+state.workspaceMode = state.editMode === "mesh" ? "slotmesh" : "rig";
+state.uiPage = state.editMode === "mesh" ? "slot" : "rig";
 state.boneMode = (els.boneMode && els.boneMode.value) || "edit";
 state.weightMode = els.weightMode.value || "hard";
 state.anim.loop = !!els.animLoop.checked;
@@ -24781,8 +27173,16 @@ state.view.panMode = !!state.view.panMode;
 state.vertexDeform.proportional = els.vertexProportionalToggle ? !!els.vertexProportionalToggle.checked : true;
 state.vertexDeform.mirror = els.vertexMirrorToggle ? !!els.vertexMirrorToggle.checked : false;
 state.vertexDeform.heatmap = els.vertexHeatmapToggle ? !!els.vertexHeatmapToggle.checked : false;
+state.vertexDeform.weightViz = els.vertexWeightVizToggle ? !!els.vertexWeightVizToggle.checked : false;
+state.vertexDeform.weightVizMode = sanitizeWeightVizMode(els.vertexWeightVizMode && els.vertexWeightVizMode.value);
+state.vertexDeform.weightVizOpacity = math.clamp(Number(els.vertexWeightVizOpacity && els.vertexWeightVizOpacity.value) || 0.75, 0.05, 1);
 state.vertexDeform.radius = math.clamp(Number(els.vertexProportionalRadius && els.vertexProportionalRadius.value) || 80, 4, 400);
 state.vertexDeform.falloff = sanitizeVertexFalloff(els.vertexProportionalFalloff && els.vertexProportionalFalloff.value);
+state.poseAutoRig.sourceMode = sanitizePoseAutoRigSourceMode(els.setupHumanoidSourceMode && els.setupHumanoidSourceMode.value);
+state.poseAutoRig.minScore = sanitizePoseAutoRigMinScore(els.setupHumanoidMinScore && els.setupHumanoidMinScore.value);
+state.poseAutoRig.smoothing = els.setupHumanoidSmoothing ? !!els.setupHumanoidSmoothing.checked : true;
+state.poseAutoRig.allowFallback = els.setupHumanoidFallback ? !!els.setupHumanoidFallback.checked : true;
+syncPoseAutoRigOptionsToUI();
 state.export.spineCompat = getSpineCompatPreset(els.spineCompat && els.spineCompat.value).id;
 if (els.spineCompat) els.spineCompat.value = state.export.spineCompat;
 ensureCurrentAnimation();
@@ -24804,7 +27204,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") saveAutosaveSnapshot("hidden", true);
 });
 setStatus(
-  `${hasGL ? "WebGL" : "2D fallback"} ready. Hotkeys: +/- zoom, 0 fit view, wheel zoom at cursor (vertex mode: Alt+wheel radius), A select all, Shift+A add bone, Alt+drag selected bones move group, G/T/R tools, C connect, B bind slot to selected bone, Shift+B weighted bind, P parent pick, O proportional vertex toggle, [ ] radius, Vertex: H mirror, J heatmap, Shift/Ctrl+Click multi-select, drag box select, P pin, U unpin, M relax, Enter triangulate contour, L/U link edge, Del/X delete vertex, I/K key, Shift+K clip key, Shift+Alt+K clip end key, Space play, ,/. jump keys.`
+  `${hasGL ? "WebGL" : "2D fallback"} ready. Hotkeys: +/- zoom, 0 fit view, wheel zoom at cursor (vertex mode: Alt+wheel radius), A select all, Shift+A add bone, drag a selected handle to move all selected bones, Alt+drag force bone marquee, G/T/R tools, C connect, B bind slot to selected bone, Shift+B weighted bind, P parent pick, O proportional vertex toggle, [ ] radius, Vertex: H mirror, J heatmap, Shift/Ctrl+Click multi-select, drag box select, P pin, U unpin, M relax, Enter triangulate contour, L/U link edge, Del/X delete vertex, I/K key, Shift+K clip key, Shift+Alt+K clip end key, Space play, ,/. jump keys.`
 );
 
 void (async () => {
@@ -24813,8 +27213,3 @@ void (async () => {
   saveAutosaveSnapshot("startup", false);
   startAutosaveLoop();
 })();
-
-
-
-
-

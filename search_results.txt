@@ -1,0 +1,98 @@
+94: setupAutoWeightBtn: document.getElementById("setupAutoWeightBtn"),
+218: autoWeightBtn: document.getElementById("autoWeightBtn"),
+462: const AUTOSAVE_STORAGE_KEY = "mesh_deformer_autosave_v1";
+463: const AUTOSAVE_INTERVAL_MS = 15000;
+464: const AUTOSAVE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+600: autosave: {
+2396: function autoWeightMesh(m) {
+2405: m.weights = autoWeightForPositions(m.positions, bones, null, {
+2528: function autoWeightForPositions(positions, bones, allowedBones = null, options = null) {
+2899: slot.meshData.weights = autoWeightForPositions(
+2900: getSlotWeightedAutoWeightPositions(slot, m),
+2916: function getSlotWeightedAutoWeightPositions(slot, m) {
+3097: autoWeightMesh(m);
+3104: function autoWeightActiveSlot() {
+3108: autoWeightMesh(m);
+3122: slot.meshData.weights = autoWeightForPositions(
+3123: getSlotWeightedAutoWeightPositions(slot, m),
+3732: els.autoWeightBtn.disabled = poseMode;
+3942: autoWeightMesh(m);
+4698: !!els.setupAutoWeightBtn &&
+4722: <button id="setupAutoWeightBtn" type="button">Auto Weight</button>
+4738: els.setupAutoWeightBtn = document.getElementById("setupAutoWeightBtn");
+4758: if (els.setupAutoWeightBtn) els.setupAutoWeightBtn.disabled = !hasMesh || !editMode;
+7775: slot.meshData.weights = autoWeightForPositions(
+7776: getSlotWeightedAutoWeightPositions(slot, m),
+12219: function getAutosaveEnvelope() {
+12221: const raw = localStorage.getItem(AUTOSAVE_STORAGE_KEY);
+12223: const env = JSON.parse(raw);
+12232: function clearAutosaveSnapshot() {
+12234: localStorage.removeItem(AUTOSAVE_STORAGE_KEY);
+12240: function saveAutosaveFromSnapshotText(snapshotText, reason = "checkpoint", force = false) {
+12244: if (!force && text === state.autosave.lastSig) return false;
+12250: project: JSON.parse(text),
+12252: localStorage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(envelope));
+12253: state.autosave.lastSig = text;
+12257: if (now - (Number(state.autosave.lastErrorAt) || 0) > 10000) {
+12258: state.autosave.lastErrorAt = now;
+12259: setStatus(`Autosave failed: ${err && err.message ? err.message : "storage unavailable/quota ex
+12265: function saveAutosaveSnapshot(reason = "interval", force = false) {
+12270: if (!force && payloadText === state.autosave.lastSig) return false;
+12277: localStorage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(envelope));
+12278: state.autosave.lastSig = payloadText;
+12282: if (now - (Number(state.autosave.lastErrorAt) || 0) > 10000) {
+12283: state.autosave.lastErrorAt = now;
+12284: setStatus(`Autosave failed: ${err && err.message ? err.message : "storage unavailable/quota ex
+12290: function startAutosaveLoop() {
+12291: if (state.autosave.timerId) clearInterval(state.autosave.timerId);
+12292: state.autosave.timerId = window.setInterval(() => {
+12293: saveAutosaveSnapshot("interval", false);
+12294: }, AUTOSAVE_INTERVAL_MS);
+12297: async function tryRestoreAutosaveAtStartup() {
+12298: const env = getAutosaveEnvelope();
+12301: if (ts <= 0 || Date.now() - ts > AUTOSAVE_MAX_AGE_MS) {
+12302: clearAutosaveSnapshot();
+12306: const ok = window.confirm(`Found autosave snapshot (${savedAtText}). Restore it now?`);
+12308: const discard = window.confirm("Discard this autosave snapshot?");
+12309: if (discard) clearAutosaveSnapshot();
+12313: state.autosave.lastSig = JSON.stringify(env.project);
+12314: setStatus(`Recovered autosave from ${savedAtText}.`);
+12329: if (state.autosave.ready) saveAutosaveFromSnapshotText(snap, "checkpoint", false);
+14890: ikConstraints: JSON.parse(JSON.stringify(m.ikConstraints || [])),
+14891: transformConstraints: JSON.parse(JSON.stringify(m.transformConstraints || [])),
+14892: pathConstraints: JSON.parse(JSON.stringify(m.pathConstraints || [])),
+15566: ikConstraints: JSON.parse(JSON.stringify(m.ikConstraints || [])),
+15567: transformConstraints: JSON.parse(JSON.stringify(m.transformConstraints || [])),
+15568: pathConstraints: JSON.parse(JSON.stringify(m.pathConstraints || [])),
+15622: ikConstraints: JSON.parse(JSON.stringify(m.ikConstraints || [])),
+15623: transformConstraints: JSON.parse(JSON.stringify(m.transformConstraints || [])),
+15624: pathConstraints: JSON.parse(JSON.stringify(m.pathConstraints || [])),
+15631: ikConstraints: JSON.parse(JSON.stringify(m.ikConstraints || [])),
+15632: transformConstraints: JSON.parse(JSON.stringify(m.transformConstraints || [])),
+15633: pathConstraints: JSON.parse(JSON.stringify(m.pathConstraints || [])),
+17187: saveAutosaveSnapshot("new_project", true);
+17475: stateMachine: JSON.parse(JSON.stringify(ensureStateMachine())),
+17476: onionSkin: JSON.parse(JSON.stringify(ensureOnionSkinSettings())),
+18695: const aliasAtt = JSON.parse(JSON.stringify(att));
+18706: const setupAlias = JSON.parse(JSON.stringify(skinDefault[si.name][si.setupAttachmentName]));
+19617: const cloned = JSON.parse(JSON.stringify(srcMap[expAtt]));
+19623: attachments[si.name][expAtt] = JSON.parse(JSON.stringify(srcMap[expAtt]));
+19636: attachments[si.name][expAtt] = JSON.parse(JSON.stringify(srcMap[expAtt]));
+20297: saveAutosaveSnapshot("manual_save", true);
+20323: const data = JSON.parse(await f.text());
+20867: saveAutosaveSnapshot("project_load", true);
+20905: const action = JSON.parse(row.dataset.action);
+20935: if (els.setupAutoWeightBtn) {
+20936: els.setupAutoWeightBtn.addEventListener("click", () => {
+20937: if (els.autoWeightBtn) els.autoWeightBtn.click();
+21026: els.autoWeightBtn.addEventListener("click", () => {
+21029: if (autoWeightActiveSlot()) {
+22288: tracks: JSON.parse(JSON.stringify(curr.tracks)),
+24557: if (autoWeightActiveSlot()) {
+25765: autoWeightMesh(state.mesh);
+25876: saveAutosaveSnapshot("beforeunload", true);
+25879: if (document.visibilityState === "hidden") saveAutosaveSnapshot("hidden", true);
+25886: await tryRestoreAutosaveAtStartup();
+25887: state.autosave.ready = true;
+25888: saveAutosaveSnapshot("startup", false);
+25889: startAutosaveLoop();
