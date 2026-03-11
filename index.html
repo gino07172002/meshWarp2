@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 
 <head>
@@ -306,8 +306,9 @@
           </label>
           <label class="slot-inline-check">
             <input id="vertexWeightVizToggle" type="checkbox" />
-            <span>Weight Overlay</span>
+            <span>Weight Gradient Overlay</span>
           </label>
+          <p class="muted">Edit Weights 後，權重會直接以 Blender 風格 gradient 顯示在畫布上。</p>
           <div class="field two-col">
             <label>
               <span>Weight View</span>
@@ -386,8 +387,11 @@
       <p id="status" class="status">Load an image to start.</p>
     </aside>
 
+    <div id="leftResizer" class="col-resizer left-resizer"></div>
+
     <main class="stage-wrap">
       <div id="stage" class="stage">
+        <canvas id="backdropCanvas"></canvas>
         <canvas id="glCanvas"></canvas>
         <canvas id="overlay"></canvas>
         <div id="objectTransformTools" class="object-transform-tools" aria-label="Object Transform Tools">
@@ -403,6 +407,8 @@
         </div>
       </div>
     </main>
+
+    <div id="rightResizer" class="col-resizer right-resizer"></div>
 
     <div id="rightCol" class="right-col">
       <aside id="rightTree" class="right-tree">
@@ -445,6 +451,8 @@
           <button id="treeCtxSlotLoadImageBtn" type="button" role="menuitem">Load Image</button>
         </div>
       </aside>
+
+      <div id="rightColResizer" class="row-resizer right-col-resizer"></div>
 
       <aside id="rightProps" class="right-props">
         <h2>Properties</h2>
@@ -522,6 +530,7 @@
               <button id="slotBindBoneBtn">Bind to Selected Bone</button>
               <button id="slotBindWeightedBtn">Use Selected Bones</button>
             </div>
+            <p id="slotBindSelectionSummary" class="muted"></p>
             <div class="field two-col">
               <label>
                 <span>Show In Editor</span>
@@ -1178,23 +1187,31 @@
     <div id="timelineResizer" class="timeline-resizer" title="Drag to resize timeline"></div>
 
     <section id="timelineDock" class="timeline-dock">
-      <div class="timeline-head">Timeline</div>
+      <div class="timeline-head">
+        <span>Timeline</span>
+      </div>
       <div class="field anim-toolbar">
         <select id="animSelect" title="Animation"></select>
         <button id="addAnimBtn">+Anim</button>
         <button id="deleteAnimBtn">-Anim</button>
         <button id="duplicateAnimBtn">Dup</button>
         <input id="animName" type="text" value="Anim 1" placeholder="Name" title="Animation Name" />
-        <input id="animTime" type="number" min="0" step="0.01" value="0" title="Time" />
+        <input id="animTime" type="number" min="0" step="0.1" value="0" title="Time" />
         <input id="animDuration" type="number" min="0.1" step="0.1" value="5" title="Duration" />
+        <label class="mini-flag">Start <input id="animRangeStart" type="number" min="0" step="0.1" value="0" title="Animation Start Time" /></label>
+        <label class="mini-flag">End <input id="animRangeEnd" type="number" min="0.1" step="0.1" value="5" title="Animation End Time" /></label>
         <label class="mini-flag"><input id="animLoop" type="checkbox" checked />Loop</label>
         <label class="mini-flag"><input id="animSnap" type="checkbox" />Snap</label>
         <label class="mini-flag">FPS <input id="animFps" type="number" min="1" step="1" value="30" /></label>
-        <label class="mini-flag">Step <input id="animTimeStep" type="number" min="0.001" step="0.001"
-            value="0.01" /></label>
+        <label class="mini-flag">Step <input id="animTimeStep" type="number" min="0.1" step="0.1"
+            value="0.1" /></label>
+        <button id="timelineZoomOutBtn" type="button" title="Zoom out timeline">-</button>
+        <button id="timelineZoomResetBtn" type="button" title="Reset timeline zoom">100%</button>
+        <button id="timelineZoomInBtn" type="button" title="Zoom in timeline">+</button>
+        <button id="timelineCollapseBtn" type="button" title="Minimize timeline">Min</button>
       </div>
       <div class="field timeline-meta timeline-meta-tight">
-        <select id="trackSelect" title="Track"></select>
+        <input id="trackSelect" type="text" value="" readonly title="Selected Track" placeholder="Select a track in timeline" />
         <input id="keyInfo" type="text" value="(none)" readonly title="Current Key" />
         <input id="timelineFilter" type="text" value="" placeholder="Filter tracks" title="Filter tracks" />
         <label class="mini-flag"><input id="timelineOnlyKeyed" type="checkbox" />Only Keyed</label>
@@ -1216,6 +1233,7 @@
         <button id="loopPingPongBtn" type="button">Loop PingPong</button>
         <button id="drawOrderToggleBtn" type="button">DrawOrder Edit</button>
         <button id="deleteKeyBtn">Del Key</button>
+        <button id="cutKeyBtn">Cut</button>
         <button id="copyKeyBtn">Copy</button>
         <button id="pasteKeyBtn">Paste</button>
         <button id="playBtn">Play</button>
@@ -1244,6 +1262,12 @@
       </div>
       <div class="timeline-main">
         <div id="timelineTracks" class="timeline-tracks"></div>
+        <div id="timelineKeyContextMenu" class="context-menu collapsed" role="menu" aria-label="Timeline key actions">
+          <button id="timelineCtxCutBtn" type="button" role="menuitem">Cut</button>
+          <button id="timelineCtxCopyBtn" type="button" role="menuitem">Copy</button>
+          <button id="timelineCtxPasteBtn" type="button" role="menuitem">Paste</button>
+          <button id="timelineCtxDeleteBtn" type="button" role="menuitem">Delete</button>
+        </div>
         <aside id="curveEditorWrap" class="curve-side collapsed">
           <div class="curve-side-head">Curve Editor</div>
           <div class="curve-side-tools">

@@ -1,4 +1,4 @@
-﻿const els = {
+const els = {
   appRoot: document.getElementById("appRoot"),
   fileNewBtn: document.getElementById("fileNewBtn"),
   fileOpenBtn: document.getElementById("fileOpenBtn"),
@@ -237,12 +237,17 @@
   vertexProportionalFalloff: document.getElementById("vertexProportionalFalloff"),
   animTime: document.getElementById("animTime"),
   animDuration: document.getElementById("animDuration"),
+  animRangeStart: document.getElementById("animRangeStart"),
+  animRangeEnd: document.getElementById("animRangeEnd"),
   animSelect: document.getElementById("animSelect"),
   animName: document.getElementById("animName"),
   animLoop: document.getElementById("animLoop"),
   animSnap: document.getElementById("animSnap"),
   animFps: document.getElementById("animFps"),
   animTimeStep: document.getElementById("animTimeStep"),
+  timelineZoomOutBtn: document.getElementById("timelineZoomOutBtn"),
+  timelineZoomResetBtn: document.getElementById("timelineZoomResetBtn"),
+  timelineZoomInBtn: document.getElementById("timelineZoomInBtn"),
   addAnimBtn: document.getElementById("addAnimBtn"),
   deleteAnimBtn: document.getElementById("deleteAnimBtn"),
   duplicateAnimBtn: document.getElementById("duplicateAnimBtn"),
@@ -339,6 +344,7 @@
   timelineTracks: document.getElementById("timelineTracks"),
   timelineResizer: document.getElementById("timelineResizer"),
   timelineDock: document.getElementById("timelineDock"),
+  timelineCollapseBtn: document.getElementById("timelineCollapseBtn"),
   exportDock: document.getElementById("exportDock"),
   stateDock: document.getElementById("stateDock"),
   layerDock: document.getElementById("layerDock"),
@@ -358,6 +364,7 @@
   drawOrderApplyBtn: document.getElementById("drawOrderApplyBtn"),
   drawOrderApplyKeyBtn: document.getElementById("drawOrderApplyKeyBtn"),
   deleteKeyBtn: document.getElementById("deleteKeyBtn"),
+  cutKeyBtn: document.getElementById("cutKeyBtn"),
   copyKeyBtn: document.getElementById("copyKeyBtn"),
   pasteKeyBtn: document.getElementById("pasteKeyBtn"),
   playBtn: document.getElementById("playBtn"),
@@ -379,6 +386,11 @@
   commandPaletteList: document.getElementById("commandPaletteList"),
   status: document.getElementById("status"),
   boneTreeContextMenu: document.getElementById("boneTreeContextMenu"),
+  timelineKeyContextMenu: document.getElementById("timelineKeyContextMenu"),
+  timelineCtxCutBtn: document.getElementById("timelineCtxCutBtn"),
+  timelineCtxCopyBtn: document.getElementById("timelineCtxCopyBtn"),
+  timelineCtxPasteBtn: document.getElementById("timelineCtxPasteBtn"),
+  timelineCtxDeleteBtn: document.getElementById("timelineCtxDeleteBtn"),
   treeCtxSlotAddBtn: document.getElementById("treeCtxSlotAddBtn"),
   treeCtxSlotDupBtn: document.getElementById("treeCtxSlotDupBtn"),
   treeCtxSlotRenameBtn: document.getElementById("treeCtxSlotRenameBtn"),
@@ -436,6 +448,7 @@
   slotDarkColor: document.getElementById("slotDarkColor"),
   slotWeightMode: document.getElementById("slotWeightMode"),
   slotWeightModeHint: document.getElementById("slotWeightModeHint"),
+  slotBindSelectionSummary: document.getElementById("slotBindSelectionSummary"),
   slotInfluenceBones: document.getElementById("slotInfluenceBones"),
   slotTx: document.getElementById("slotTx"),
   slotTy: document.getElementById("slotTy"),
@@ -457,6 +470,7 @@
   slotMeshCreateApplyBtn: document.getElementById("slotMeshCreateApplyBtn"),
   slotMeshResetBtn: document.getElementById("slotMeshResetBtn"),
   stage: document.getElementById("stage"),
+  backdropCanvas: document.getElementById("backdropCanvas"),
   glCanvas: document.getElementById("glCanvas"),
   overlay: document.getElementById("overlay"),
 };
@@ -465,19 +479,23 @@ const gl =
   els.glCanvas.getContext("webgl2", { alpha: true, premultipliedAlpha: false }) ||
   els.glCanvas.getContext("webgl", { alpha: true, premultipliedAlpha: false }) ||
   els.glCanvas.getContext("experimental-webgl", { alpha: true, premultipliedAlpha: false });
+const backdropCtx = els.backdropCanvas ? els.backdropCanvas.getContext("2d") : null;
 const overlayCtx = els.overlay.getContext("2d");
 const stage2dCtx = !gl ? els.glCanvas.getContext("2d") : null;
 const AUTOSAVE_STORAGE_KEY = "mesh_deformer_autosave_v1";
 const AUTOSAVE_INTERVAL_MS = 15000;
 const AUTOSAVE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-if (!overlayCtx || (!gl && !stage2dCtx)) {
+if (!backdropCtx || !overlayCtx || (!gl && !stage2dCtx)) {
   throw new Error("2D canvas context unavailable.");
 }
 
 const hasGL = !!gl;
 const isWebGL2 = hasGL && typeof WebGL2RenderingContext !== "undefined" && gl instanceof WebGL2RenderingContext;
 const hasVAO = hasGL && typeof gl.createVertexArray === "function";
+const TIMELINE_MIN_STEP = 0.1;
+const TIMELINE_ZOOM_MIN = 0.5;
+const TIMELINE_ZOOM_MAX = 8;
 
 const state = {
   sourceCanvas: null,
@@ -488,6 +506,11 @@ const state = {
   activeSlot: -1,
   slotViewMode: "all",
   leftToolTab: "setup",
+  leftToolTabBySystemMode: {
+    setup: "setup",
+    animate: "canvas",
+  },
+  currentSystemMode: "setup",
   workspaceMode: "rig",
   uiPage: "rig",
   animSubPanel: "timeline",
@@ -543,9 +566,13 @@ const state = {
     selectedKey: null,
     selectedKeys: [],
     keyClipboard: null,
+    timelineContextMenuOpen: false,
+    timelineContextTrackId: "",
+    timelineContextTime: 0,
     timelineDrag: null,
     timelineMarqueeEl: null,
     timelineScaleHeld: false,
+    timelineMinimized: false,
     drawOrderEditorOpen: false,
     dirtyTracks: [],
     trackExpanded: {},
@@ -564,7 +591,8 @@ const state = {
     autoKey: false,
     autoKeyPending: false,
     fps: 30,
-    timeStep: 0.01,
+    timeStep: TIMELINE_MIN_STEP,
+    timelineZoom: 1,
     mix: {
       active: false,
       fromAnimId: null,
@@ -685,6 +713,39 @@ const math = {
   clamp: (v, lo, hi) => Math.max(lo, Math.min(hi, v)),
 };
 
+const LEFT_TOOL_TABS = new Set(["canvas", "setup", "rig", "object", "ik", "constraint", "path", "skin", "tools", "slotmesh"]);
+
+function getCurrentSystemMode() {
+  return els.systemMode && els.systemMode.value === "animate" ? "animate" : "setup";
+}
+
+function getDefaultLeftToolTab(systemMode = getCurrentSystemMode()) {
+  return systemMode === "animate" ? "canvas" : "setup";
+}
+
+function normalizeLeftToolTab(tab, systemMode = getCurrentSystemMode()) {
+  const value = typeof tab === "string" ? tab : "";
+  return LEFT_TOOL_TABS.has(value) ? value : getDefaultLeftToolTab(systemMode);
+}
+
+function persistLeftToolTabForSystemMode(systemMode, tab) {
+  if (systemMode !== "setup" && systemMode !== "animate") return;
+  state.leftToolTabBySystemMode[systemMode] = normalizeLeftToolTab(tab, systemMode);
+}
+
+function restoreLeftToolTabForSystemMode(systemMode) {
+  const mode = systemMode === "animate" ? "animate" : "setup";
+  state.leftToolTab = normalizeLeftToolTab(state.leftToolTabBySystemMode[mode], mode);
+  return state.leftToolTab;
+}
+
+function setLeftToolTab(tab, systemMode = getCurrentSystemMode()) {
+  const next = normalizeLeftToolTab(tab, systemMode);
+  state.leftToolTab = next;
+  persistLeftToolTabForSystemMode(systemMode, next);
+  return next;
+}
+
 function normalizeBaseImageTransform(raw) {
   const src = raw && typeof raw === "object" ? raw : {};
   const scaleRaw = Number(src.scale);
@@ -725,11 +786,15 @@ function isSlotMeshModeActive() {
 }
 
 function isSlotMeshEditTabActive() {
-  return state.editMode === "mesh" && state.leftToolTab === "slotmesh";
+  return state.editMode === "mesh" && state.leftToolTab === "slotmesh" && state.uiPage !== "anim";
 }
 
 function isBaseImageEditTabActive() {
   return state.editMode === "mesh" && state.leftToolTab === "canvas";
+}
+
+function isVertexDeformInteractionActive() {
+  return state.editMode === "mesh" && !isBaseImageEditTabActive() && !isSlotMeshEditTabActive();
 }
 
 function isBaseImageTransformEditable() {
@@ -1153,7 +1218,7 @@ function buildCommandPaletteItems() {
       hotkey: "",
       action: () => {
         setSelectValueAndTrigger(els.editMode, "mesh");
-        state.leftToolTab = "canvas";
+        setLeftToolTab("canvas");
         updateWorkspaceUI();
       },
     },
@@ -1188,9 +1253,10 @@ function buildCommandPaletteItems() {
     { id: "play.pause", label: "Playback: Pause", group: "Timeline", hotkey: "", action: () => triggerButtonAction(els.pauseBtn) },
     { id: "play.stop", label: "Playback: Stop", group: "Timeline", hotkey: "", action: () => triggerButtonAction(els.stopBtn) },
     { id: "key.add", label: "Key: Add/Update Key", group: "Timeline", hotkey: "I", action: () => triggerButtonAction(els.addKeyBtn) },
-    { id: "key.delete", label: "Key: Delete Selected", group: "Timeline", hotkey: "K", action: () => triggerButtonAction(els.deleteKeyBtn) },
-    { id: "key.copy", label: "Key: Copy", group: "Timeline", hotkey: "", action: () => triggerButtonAction(els.copyKeyBtn) },
-    { id: "key.paste", label: "Key: Paste", group: "Timeline", hotkey: "", action: () => triggerButtonAction(els.pasteKeyBtn) },
+    { id: "key.delete", label: "Key: Delete Selected", group: "Timeline", hotkey: "Delete / K", action: () => triggerButtonAction(els.deleteKeyBtn) },
+    { id: "key.cut", label: "Key: Cut", group: "Timeline", hotkey: "Ctrl/Cmd+X", action: () => triggerButtonAction(els.cutKeyBtn) },
+    { id: "key.copy", label: "Key: Copy", group: "Timeline", hotkey: "Ctrl/Cmd+C", action: () => triggerButtonAction(els.copyKeyBtn) },
+    { id: "key.paste", label: "Key: Paste", group: "Timeline", hotkey: "Ctrl/Cmd+V", action: () => triggerButtonAction(els.pasteKeyBtn) },
     {
       id: "onion.toggle",
       label: `Onion Skin: ${ensureOnionSkinSettings().enabled ? "Disable" : "Enable"}`,
@@ -1658,30 +1724,188 @@ function buildMirrorIndexMap(vCount = null) {
   return map;
 }
 
-function getHeatmapColor(t) {
+function getHeatmapColorParts(t) {
   const u = math.clamp(Number(t) || 0, 0, 1);
-  const r = Math.round(40 + 215 * u);
-  const g = Math.round(190 - 150 * u);
-  const b = Math.round(255 - 235 * u);
-  return `rgba(${r}, ${g}, ${b}, ${0.2 + 0.65 * u})`;
+  const stops = [
+    { t: 0.0, c: [34, 54, 186] },
+    { t: 0.2, c: [52, 136, 255] },
+    { t: 0.42, c: [44, 214, 176] },
+    { t: 0.68, c: [237, 220, 72] },
+    { t: 1.0, c: [236, 74, 54] },
+  ];
+  let a = stops[0];
+  let b = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i += 1) {
+    if (u >= stops[i].t && u <= stops[i + 1].t) {
+      a = stops[i];
+      b = stops[i + 1];
+      break;
+    }
+  }
+  const span = Math.max(1e-6, b.t - a.t);
+  const f = math.clamp((u - a.t) / span, 0, 1);
+  const lerp = (x, y) => Math.round(x + (y - x) * f);
+  return {
+    r: lerp(a.c[0], b.c[0]),
+    g: lerp(a.c[1], b.c[1]),
+    b: lerp(a.c[2], b.c[2]),
+    value: u,
+  };
+}
+
+function getHeatmapColor(t) {
+  const parts = getHeatmapColorParts(t);
+  return `rgba(${parts.r}, ${parts.g}, ${parts.b}, ${0.2 + 0.65 * parts.value})`;
 }
 
 function getHeatmapColorWithAlpha(t, alphaScale = 1) {
-  const u = math.clamp(Number(t) || 0, 0, 1);
-  const r = Math.round(40 + 215 * u);
-  const g = Math.round(190 - 150 * u);
-  const b = Math.round(255 - 235 * u);
-  const a = math.clamp((0.2 + 0.65 * u) * (Number(alphaScale) || 1), 0.05, 1);
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
+  const parts = getHeatmapColorParts(t);
+  const scale = Number(alphaScale) || 0;
+  if (scale <= 0) return `rgba(${parts.r}, ${parts.g}, ${parts.b}, 0)`;
+  const a = math.clamp((0.2 + 0.65 * parts.value) * scale, 0.05, 1);
+  return `rgba(${parts.r}, ${parts.g}, ${parts.b}, ${a})`;
+}
+
+function getBoneVizColorParts(index, strength = 1) {
+  const i = Number(index);
+  const s = math.clamp(Number(strength) || 0, 0, 1);
+  return {
+    h: ((Number.isFinite(i) ? i : 0) * 57) % 360,
+    s: Math.round(62 + 30 * s),
+    l: Math.round(42 + 16 * s),
+  };
 }
 
 function getBoneVizColor(index, alpha = 0.72, strength = 1) {
-  const i = Number(index);
-  const h = ((Number.isFinite(i) ? i : 0) * 57) % 360;
-  const s = Math.round(62 + 30 * math.clamp(Number(strength) || 0, 0, 1));
-  const l = Math.round(42 + 16 * math.clamp(Number(strength) || 0, 0, 1));
+  const parts = getBoneVizColorParts(index, strength);
   const a = math.clamp(Number(alpha) || 0.72, 0, 1);
-  return `hsla(${h}, ${s}%, ${l}%, ${a})`;
+  return `hsla(${parts.h}, ${parts.s}%, ${parts.l}%, ${a})`;
+}
+
+function getWeightOverlayVertexInfo(weights, vertexIndex, boneCount, selectedBone) {
+  let domBone = 0;
+  let domW = -1;
+  let selectedW = 0;
+  for (let b = 0; b < boneCount; b += 1) {
+    const w = Number(weights[vertexIndex * boneCount + b]) || 0;
+    if (w > domW) {
+      domW = w;
+      domBone = b;
+    }
+    if (b === selectedBone) selectedW = w;
+  }
+  return {
+    domBone,
+    domW: math.clamp(domW, 0, 1),
+    selectedW: math.clamp(selectedW, 0, 1),
+  };
+}
+
+function drawWeightTriangleGradient(ctx, points, paints, baseFillStyle) {
+  if (!ctx || !Array.isArray(points) || points.length !== 3 || !Array.isArray(paints) || paints.length !== 3) return;
+  const minX = Math.min(points[0].x, points[1].x, points[2].x);
+  const minY = Math.min(points[0].y, points[1].y, points[2].y);
+  const maxX = Math.max(points[0].x, points[1].x, points[2].x);
+  const maxY = Math.max(points[0].y, points[1].y, points[2].y);
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return;
+  const w = maxX - minX;
+  const h = maxY - minY;
+  if (w < 1 || h < 1) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  ctx.lineTo(points[1].x, points[1].y);
+  ctx.lineTo(points[2].x, points[2].y);
+  ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle = baseFillStyle;
+  ctx.fillRect(minX, minY, w, h);
+  for (let i = 0; i < 3; i += 1) {
+    const p = points[i];
+    const a = points[(i + 1) % 3];
+    const b = points[(i + 2) % 3];
+    const radius = Math.max(18, Math.max(Math.hypot(p.x - a.x, p.y - a.y), Math.hypot(p.x - b.x, p.y - b.y)) * 0.95);
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+    g.addColorStop(0, paints[i].hot);
+    g.addColorStop(0.58, paints[i].mid);
+    g.addColorStop(1, paints[i].soft);
+    ctx.fillStyle = g;
+    ctx.fillRect(minX, minY, w, h);
+  }
+  ctx.restore();
+}
+
+function drawWeightOverlayLegend(ctx, mode, selectedBone, selectedValid, m, alphaBase) {
+  if (!ctx) return;
+  const x = 14;
+  const y = 44;
+  const w = 172;
+  const h = 12;
+  ctx.save();
+  ctx.fillStyle = "rgba(8, 13, 20, 0.82)";
+  ctx.fillRect(x - 8, y - 20, w + 16, 54);
+  ctx.strokeStyle = "rgba(160, 176, 194, 0.28)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x - 8, y - 20, w + 16, 54);
+  ctx.font = "12px Segoe UI, sans-serif";
+  ctx.fillStyle = "rgba(235,245,255,0.96)";
+  if (mode === "dominant" || !selectedValid) {
+    ctx.fillText("Weight Gradient: Dominant Bone", x, y - 8);
+  } else {
+    const name =
+      Number.isFinite(selectedBone) &&
+      selectedBone >= 0 &&
+      selectedBone < m.rigBones.length &&
+      m.rigBones[selectedBone]
+        ? String(m.rigBones[selectedBone].name || `bone_${selectedBone}`)
+        : "None";
+    ctx.fillText(`Weight Gradient: ${name}`, x, y - 8);
+  }
+  const g = ctx.createLinearGradient(x, y, x + w, y);
+  for (let i = 0; i <= 8; i += 1) {
+    const t = i / 8;
+    g.addColorStop(t, getHeatmapColorWithAlpha(t, Math.max(0.9, alphaBase)));
+  }
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = "rgba(255,255,255,0.24)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = "rgba(215, 226, 237, 0.92)";
+  ctx.fillText("0.0", x, y + 25);
+  ctx.fillText("1.0", x + w - 18, y + 25);
+  ctx.restore();
+}
+
+function drawWeightMeshOutline(ctx, meshData, screenPoints) {
+  if (!ctx || !meshData || !screenPoints) return;
+  const idx = meshData.indices;
+  if (!Array.isArray(idx) && !(idx && typeof idx.length === "number")) return;
+  if (!idx || idx.length < 3) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(245, 249, 255, 0.22)";
+  ctx.lineWidth = 1;
+  for (let t = 0; t + 2 < idx.length; t += 3) {
+    const i0 = Number(idx[t]);
+    const i1 = Number(idx[t + 1]);
+    const i2 = Number(idx[t + 2]);
+    if (!Number.isFinite(i0) || !Number.isFinite(i1) || !Number.isFinite(i2)) continue;
+    ctx.beginPath();
+    ctx.moveTo(Number(screenPoints[i0 * 2]) || 0, Number(screenPoints[i0 * 2 + 1]) || 0);
+    ctx.lineTo(Number(screenPoints[i1 * 2]) || 0, Number(screenPoints[i1 * 2 + 1]) || 0);
+    ctx.lineTo(Number(screenPoints[i2 * 2]) || 0, Number(screenPoints[i2 * 2 + 1]) || 0);
+    ctx.closePath();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function getMeshTriangleIndexArray(meshData) {
+  const idx = meshData && meshData.indices;
+  if (Array.isArray(idx)) return idx;
+  if (idx instanceof Uint16Array || idx instanceof Uint32Array || idx instanceof Int32Array) return idx;
+  if (idx && typeof idx.length === "number") return idx;
+  return null;
 }
 
 function drawWeightOverlayForMesh(ctx, m, meshData, screenPoints) {
@@ -1694,48 +1918,75 @@ function drawWeightOverlayForMesh(ctx, m, meshData, screenPoints) {
   const alphaBase = math.clamp(Number(state.vertexDeform.weightVizOpacity) || 0.75, 0.05, 1);
   const selectedBone = getPrimarySelectedBoneIndex();
   const selectedValid = Number.isFinite(selectedBone) && selectedBone >= 0 && selectedBone < boneCount;
+  const vertexInfos = new Array(vCount);
   for (let i = 0; i < vCount; i += 1) {
-    let domBone = 0;
-    let domW = -1;
-    let selectedW = 0;
-    for (let b = 0; b < boneCount; b += 1) {
-      const w = Number(weights[i * boneCount + b]) || 0;
-      if (w > domW) {
-        domW = w;
-        domBone = b;
+    vertexInfos[i] = getWeightOverlayVertexInfo(weights, i, boneCount, selectedBone);
+  }
+  drawWeightMeshOutline(ctx, meshData, screenPoints);
+  const triIndices = getMeshTriangleIndexArray(meshData);
+  if (triIndices && triIndices.length >= 3) {
+    for (let t = 0; t + 2 < triIndices.length; t += 3) {
+      const i0 = Number(triIndices[t]);
+      const i1 = Number(triIndices[t + 1]);
+      const i2 = Number(triIndices[t + 2]);
+      if (!Number.isFinite(i0) || !Number.isFinite(i1) || !Number.isFinite(i2)) continue;
+      if (i0 < 0 || i1 < 0 || i2 < 0 || i0 >= vCount || i1 >= vCount || i2 >= vCount) continue;
+      const infos = [vertexInfos[i0], vertexInfos[i1], vertexInfos[i2]];
+      const pts = [
+        { x: Number(screenPoints[i0 * 2]) || 0, y: Number(screenPoints[i0 * 2 + 1]) || 0 },
+        { x: Number(screenPoints[i1 * 2]) || 0, y: Number(screenPoints[i1 * 2 + 1]) || 0 },
+        { x: Number(screenPoints[i2 * 2]) || 0, y: Number(screenPoints[i2 * 2 + 1]) || 0 },
+      ];
+      let paints;
+      let baseFillStyle;
+      if (mode === "dominant" || !selectedValid) {
+        const triScores = new Map();
+        let triBone = infos[0].domBone;
+        let triScore = -1;
+        let avgStrength = 0;
+        for (const info of infos) {
+          const next = (triScores.get(info.domBone) || 0) + info.domW;
+          triScores.set(info.domBone, next);
+          if (next > triScore) {
+            triScore = next;
+            triBone = info.domBone;
+          }
+          avgStrength += info.domW;
+        }
+        avgStrength /= 3;
+        paints = infos.map((info) => ({
+          hot: getBoneVizColor(info.domBone, alphaBase * (0.62 + 0.28 * info.domW), info.domW),
+          mid: getBoneVizColor(info.domBone, alphaBase * (0.34 + 0.22 * info.domW), info.domW),
+          soft: getBoneVizColor(info.domBone, 0, info.domW),
+        }));
+        baseFillStyle = getBoneVizColor(triBone, alphaBase * (0.18 + 0.22 * avgStrength), avgStrength);
+      } else {
+        const avgWeight = (infos[0].selectedW + infos[1].selectedW + infos[2].selectedW) / 3;
+        paints = infos.map((info) => ({
+          hot: getHeatmapColorWithAlpha(info.selectedW, alphaBase * 1.12),
+          mid: getHeatmapColorWithAlpha(info.selectedW, alphaBase * 0.5),
+          soft: getHeatmapColorWithAlpha(info.selectedW, 0),
+        }));
+        baseFillStyle = getHeatmapColorWithAlpha(avgWeight, alphaBase * 0.42);
       }
-      if (b === selectedBone) selectedW = w;
+      drawWeightTriangleGradient(ctx, pts, paints, baseFillStyle);
     }
+  }
+  for (let i = 0; i < vCount; i += 1) {
+    const info = vertexInfos[i];
     const sx = Number(screenPoints[i * 2]) || 0;
     const sy = Number(screenPoints[i * 2 + 1]) || 0;
     if (mode === "dominant" || !selectedValid) {
-      const a = alphaBase * (0.25 + 0.75 * math.clamp(domW, 0, 1));
-      ctx.fillStyle = getBoneVizColor(domBone, a, domW);
+      const a = alphaBase * (0.14 + 0.42 * info.domW);
+      ctx.fillStyle = getBoneVizColor(info.domBone, a, info.domW);
     } else {
-      const sW = math.clamp(selectedW, 0, 1);
-      ctx.fillStyle = getHeatmapColorWithAlpha(sW, alphaBase);
+      ctx.fillStyle = getHeatmapColorWithAlpha(info.selectedW, alphaBase * 0.75);
     }
     ctx.beginPath();
-    ctx.arc(sx, sy, 4.1, 0, Math.PI * 2);
+    ctx.arc(sx, sy, 2.2, 0, Math.PI * 2);
     ctx.fill();
   }
-
-  ctx.save();
-  ctx.font = "12px Segoe UI, sans-serif";
-  ctx.fillStyle = "rgba(235,245,255,0.96)";
-  if (mode === "dominant" || !selectedValid) {
-    ctx.fillText("Weight Overlay: Dominant Bone", 14, 48);
-  } else {
-    const name =
-      Number.isFinite(selectedBone) &&
-        selectedBone >= 0 &&
-        selectedBone < m.rigBones.length &&
-        m.rigBones[selectedBone]
-        ? String(m.rigBones[selectedBone].name || `bone_${selectedBone}`)
-        : "None";
-    ctx.fillText(`Weight Overlay: Selected Bone (${name})`, 14, 48);
-  }
-  ctx.restore();
+  drawWeightOverlayLegend(ctx, mode, selectedBone, selectedValid, m, alphaBase);
 }
 
 function sanitizeVertexIndexArray(list, vCount) {
@@ -2140,11 +2391,55 @@ function createDefaultBones(w, h) {
   ];
 }
 
-const POSE_AUTO_RIG_SCRIPT_URLS = [
-  "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core",
-  "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter",
-  "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl",
-  "https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection",
+const POSE_AUTO_RIG_RUNTIME_CANDIDATES = [
+  {
+    key: "mediapipe-local",
+    runtime: "mediapipe",
+    label: "MediaPipe local",
+    solutionPath: "./vendor/mediapipe/pose",
+    scriptUrls: [
+      "./vendor/pose-runtime/tfjs-core.js",
+      "./vendor/pose-runtime/tfjs-converter.js",
+      "./vendor/pose-runtime/tfjs-backend-webgl.js",
+      "./vendor/mediapipe/pose/pose.js",
+      "./vendor/pose-runtime/pose-detection.js",
+    ],
+  },
+  {
+    key: "mediapipe-cdn",
+    runtime: "mediapipe",
+    label: "MediaPipe CDN",
+    solutionPath: "https://cdn.jsdelivr.net/npm/@mediapipe/pose",
+    scriptUrls: [
+      "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core",
+      "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter",
+      "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl",
+      "https://cdn.jsdelivr.net/npm/@mediapipe/pose",
+      "https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection",
+    ],
+  },
+  {
+    key: "tfjs-local",
+    runtime: "tfjs",
+    label: "TFJS local",
+    scriptUrls: [
+      "./vendor/pose-runtime/tfjs-core.js",
+      "./vendor/pose-runtime/tfjs-converter.js",
+      "./vendor/pose-runtime/tfjs-backend-webgl.js",
+      "./vendor/pose-runtime/pose-detection.js",
+    ],
+  },
+  {
+    key: "tfjs-cdn",
+    runtime: "tfjs",
+    label: "TFJS CDN",
+    scriptUrls: [
+      "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core",
+      "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter",
+      "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl",
+      "https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection",
+    ],
+  },
 ];
 
 const BLAZEPOSE_KP = Object.freeze({
@@ -2181,6 +2476,7 @@ let poseAutoRigDepsPromise = null;
 let poseAutoRigDetectorPromise = null;
 let poseAutoRigDetector = null;
 let poseAutoRigDetectorConfigKey = "";
+let poseAutoRigRuntimeInfo = null;
 let poseAutoRigBusy = false;
 
 function loadExternalScriptOnce(url) {
@@ -2225,43 +2521,62 @@ function loadExternalScriptOnce(url) {
 }
 
 async function ensurePoseAutoRigRuntime() {
-  if (window.poseDetection && window.tf) return true;
+  if (poseAutoRigRuntimeInfo) return poseAutoRigRuntimeInfo;
   if (!poseAutoRigDepsPromise) {
     poseAutoRigDepsPromise = (async () => {
-      for (const url of POSE_AUTO_RIG_SCRIPT_URLS) {
-        await loadExternalScriptOnce(url);
-      }
-      if (!window.poseDetection || !window.tf) {
-        throw new Error("Pose runtime is unavailable.");
-      }
-      if (typeof window.tf.ready === "function") {
+      const errors = [];
+      for (const candidate of POSE_AUTO_RIG_RUNTIME_CANDIDATES) {
         try {
-          if (typeof window.tf.setBackend === "function") {
+          for (const url of candidate.scriptUrls) {
+            await loadExternalScriptOnce(url);
+          }
+          if (!window.poseDetection) throw new Error("pose-detection library is unavailable.");
+          if (candidate.runtime === "mediapipe") {
+            const hasPoseCtor = typeof window.Pose === "function" || !!(window.pose && typeof window.pose.Pose === "function");
+            if (!hasPoseCtor) throw new Error("MediaPipe Pose runtime is unavailable.");
+            if (!window.tf) throw new Error("TensorFlow.js runtime is unavailable.");
+            poseAutoRigRuntimeInfo = candidate;
+            return candidate;
+          }
+          if (!window.tf) throw new Error("TensorFlow.js runtime is unavailable.");
+          if (typeof window.tf.ready === "function") {
             try {
-              await window.tf.setBackend("webgl");
+              if (typeof window.tf.setBackend === "function") {
+                try {
+                  await window.tf.setBackend("webgl");
+                } catch {
+                  // Keep default backend.
+                }
+              }
+              await window.tf.ready();
             } catch {
-              // Keep default backend.
+              // Continue; detector init will report final failure if runtime is still invalid.
             }
           }
-          await window.tf.ready();
-        } catch {
-          // Continue; detector init will report final failure if runtime is still invalid.
+          poseAutoRigRuntimeInfo = candidate;
+          return candidate;
+        } catch (err) {
+          errors.push(`${candidate.label}: ${(err && err.message) || "unknown error"}`);
         }
       }
-      return true;
+      throw new Error(
+        `Pose runtime is unavailable. Tried local vendor files and CDN fallbacks. ${errors.join(" | ")}`
+      );
     })().catch((err) => {
       poseAutoRigDepsPromise = null;
+      poseAutoRigRuntimeInfo = null;
       throw err;
     });
   }
-  await poseAutoRigDepsPromise;
-  return true;
+  return poseAutoRigDepsPromise;
 }
 
 async function ensurePoseAutoRigDetector(options = null) {
   const opts = options && typeof options === "object" ? options : {};
   const smoothing = opts.smoothing !== false;
-  const detectorKey = `smooth:${smoothing ? 1 : 0}`;
+  const runtimeInfo = await ensurePoseAutoRigRuntime();
+  const runtimeKey = runtimeInfo && runtimeInfo.key ? runtimeInfo.key : "unknown";
+  const detectorKey = `${runtimeKey}:smooth:${smoothing ? 1 : 0}`;
   if (poseAutoRigDetector && poseAutoRigDetectorConfigKey === detectorKey) return poseAutoRigDetector;
   if (poseAutoRigDetector && poseAutoRigDetectorConfigKey !== detectorKey) {
     try {
@@ -2280,11 +2595,19 @@ async function ensurePoseAutoRigDetector(options = null) {
       if (!pd || !pd.SupportedModels || !pd.SupportedModels.BlazePose) {
         throw new Error("BlazePose runtime not found.");
       }
-      const detector = await pd.createDetector(pd.SupportedModels.BlazePose, {
-        runtime: "tfjs",
-        enableSmoothing: smoothing,
-        modelType: "heavy",
-      });
+      const config = runtimeInfo && runtimeInfo.runtime === "mediapipe"
+        ? {
+          runtime: "mediapipe",
+          enableSmoothing: smoothing,
+          modelType: "heavy",
+          solutionPath: runtimeInfo.solutionPath,
+        }
+        : {
+          runtime: "tfjs",
+          enableSmoothing: smoothing,
+          modelType: "heavy",
+        };
+      const detector = await pd.createDetector(pd.SupportedModels.BlazePose, config);
       poseAutoRigDetector = detector;
       poseAutoRigDetectorConfigKey = detectorKey;
       return detector;
@@ -3046,6 +3369,52 @@ function pointToSegmentDistanceSquared(px, py, ax, ay, bx, by) {
   return dx * dx + dy * dy;
 }
 
+function lineSegmentsIntersect(ax, ay, bx, by, cx, cy, dx, dy) {
+  const cross = (ux, uy, vx, vy) => ux * vy - uy * vx;
+  const abx = bx - ax;
+  const aby = by - ay;
+  const acx = cx - ax;
+  const acy = cy - ay;
+  const adx = dx - ax;
+  const ady = dy - ay;
+  const cdx = dx - cx;
+  const cdy = dy - cy;
+  const cax = ax - cx;
+  const cay = ay - cy;
+  const cbx = bx - cx;
+  const cby = by - cy;
+  const d1 = cross(abx, aby, acx, acy);
+  const d2 = cross(abx, aby, adx, ady);
+  const d3 = cross(cdx, cdy, cax, cay);
+  const d4 = cross(cdx, cdy, cbx, cby);
+  const onSeg = (px, py, qx, qy, rx, ry) =>
+    Math.min(px, rx) - 1e-6 <= qx &&
+    qx <= Math.max(px, rx) + 1e-6 &&
+    Math.min(py, ry) - 1e-6 <= qy &&
+    qy <= Math.max(py, ry) + 1e-6;
+  if (Math.abs(d1) < 1e-6 && onSeg(ax, ay, cx, cy, bx, by)) return true;
+  if (Math.abs(d2) < 1e-6 && onSeg(ax, ay, dx, dy, bx, by)) return true;
+  if (Math.abs(d3) < 1e-6 && onSeg(cx, cy, ax, ay, dx, dy)) return true;
+  if (Math.abs(d4) < 1e-6 && onSeg(cx, cy, bx, by, dx, dy)) return true;
+  return (d1 > 0) !== (d2 > 0) && (d3 > 0) !== (d4 > 0);
+}
+
+function segmentIntersectsRect(ax, ay, bx, by, left, top, right, bottom) {
+  const pointInside = (px, py) => px >= left && px <= right && py >= top && py <= bottom;
+  if (pointInside(ax, ay) || pointInside(bx, by)) return true;
+  const segLeft = Math.min(ax, bx);
+  const segRight = Math.max(ax, bx);
+  const segTop = Math.min(ay, by);
+  const segBottom = Math.max(ay, by);
+  if (segRight < left || segLeft > right || segBottom < top || segTop > bottom) return false;
+  return (
+    lineSegmentsIntersect(ax, ay, bx, by, left, top, right, top) ||
+    lineSegmentsIntersect(ax, ay, bx, by, right, top, right, bottom) ||
+    lineSegmentsIntersect(ax, ay, bx, by, right, bottom, left, bottom) ||
+    lineSegmentsIntersect(ax, ay, bx, by, left, bottom, left, top)
+  );
+}
+
 function getBoneWorldEndpointsFromBones(bones, i, world = null) {
   const w = world || getEditAwareWorld(bones);
   const b = bones[i];
@@ -3523,8 +3892,11 @@ function switchToVertexWeightEditing() {
     els.editMode.value = "mesh";
     els.editMode.dispatchEvent(new Event("change", { bubbles: true }));
   }
-  state.leftToolTab = "skin";
+  setLeftToolTab("skin");
+  state.vertexDeform.weightViz = true;
   updateWorkspaceUI();
+  refreshVertexDeformUI();
+  renderAll();
 }
 
 function applyActiveSlotWeightMode(modeRaw, options = {}) {
@@ -5016,6 +5388,160 @@ function collectObjectModeTargets(m, bones, world, poseWorld) {
   return out;
 }
 
+function getSlotObjectRootIndex(slot, m, bones = null) {
+  if (!slot || !m || !Array.isArray(m.rigBones)) return -1;
+  const rigBones = Array.isArray(bones) ? bones : m.rigBones;
+  const primary = Number(slot.bone);
+  if (Number.isFinite(primary) && primary >= 0 && primary < rigBones.length) {
+    const root = getBoneRootIndexFromBones(rigBones, primary);
+    if (root >= 0) return root;
+  }
+  for (const biRaw of getSlotInfluenceBones(slot, m)) {
+    const bi = Number(biRaw);
+    if (!Number.isFinite(bi) || bi < 0 || bi >= rigBones.length) continue;
+    const root = getBoneRootIndexFromBones(rigBones, bi);
+    if (root >= 0) return root;
+  }
+  return -1;
+}
+
+function toObjectLocalPoint(rootInverse, point) {
+  if (!Array.isArray(rootInverse) || !point) return { x: 0, y: 0 };
+  return transformPoint(rootInverse, Number(point.x) || 0, Number(point.y) || 0);
+}
+
+function captureObjectSpaceSlotSnapshot(m, bones, rootIndices, world = null) {
+  if (!m || !Array.isArray(m.rigBones) || !Array.isArray(rootIndices) || rootIndices.length <= 0) {
+    return { roots: new Map(), slots: [] };
+  }
+  const rigBones = Array.isArray(bones) ? bones : m.rigBones;
+  const rootSet = new Set(
+    rootIndices
+      .map((v) => Number(v))
+      .filter((v) => Number.isFinite(v) && v >= 0 && v < rigBones.length)
+  );
+  const worldNow = Array.isArray(world) ? world : computeWorld(rigBones);
+  const roots = new Map();
+  for (const rootIndex of rootSet) {
+    const rootWorld = worldNow[rootIndex];
+    if (!rootWorld) continue;
+    roots.set(rootIndex, {
+      rootIndex,
+      world: rootWorld.slice(),
+      inverse: invert(rootWorld),
+      pivot: transformPoint(rootWorld, 0, 0),
+    });
+  }
+  const slots = [];
+  for (const slot of state.slots) {
+    if (!slot) continue;
+    const rootIndex = getSlotObjectRootIndex(slot, m, rigBones);
+    const rootState = roots.get(rootIndex);
+    if (!rootState) continue;
+    ensureSlotMeshData(slot, m);
+    const contour = ensureSlotContour(slot);
+    const slotTm = getSlotTransformMatrix(slot, worldNow);
+    const captureWorldPoints = (points) =>
+      cloneSlotMeshPoints(points).map((p) => transformPoint(slotTm, Number(p.x) || 0, Number(p.y) || 0));
+    const toLocalPoints = (points) => points.map((p) => toObjectLocalPoint(rootState.inverse, p));
+    const rectCornersWorld =
+      slot.rect && typeof slot.rect === "object"
+        ? [
+            { x: Number(slot.rect.x) || 0, y: Number(slot.rect.y) || 0 },
+            { x: (Number(slot.rect.x) || 0) + (Number(slot.rect.w) || 0), y: Number(slot.rect.y) || 0 },
+            { x: (Number(slot.rect.x) || 0) + (Number(slot.rect.w) || 0), y: (Number(slot.rect.y) || 0) + (Number(slot.rect.h) || 0) },
+            { x: Number(slot.rect.x) || 0, y: (Number(slot.rect.y) || 0) + (Number(slot.rect.h) || 0) },
+          ]
+        : [];
+    const positions =
+      slot.meshData && slot.meshData.positions
+        ? Array.from({ length: slot.meshData.positions.length / 2 }, (_, i) =>
+            toObjectLocalPoint(rootState.inverse, {
+              x: Number(slot.meshData.positions[i * 2]) || 0,
+              y: Number(slot.meshData.positions[i * 2 + 1]) || 0,
+            })
+          )
+        : [];
+    slots.push({
+      slot,
+      rootIndex,
+      rectCorners: toLocalPoints(rectCornersWorld),
+      positions,
+      fillPoints: toLocalPoints(captureWorldPoints(contour.fillPoints)),
+      points: toLocalPoints(captureWorldPoints(contour.points)),
+      sourcePoints: toLocalPoints(captureWorldPoints(contour.sourcePoints)),
+      authorContourPoints: toLocalPoints(captureWorldPoints(contour.authorContourPoints)),
+    });
+  }
+  return { roots, slots };
+}
+
+function makeTranslationMatrix(dx, dy) {
+  return [1, 0, 0, 1, Number(dx) || 0, Number(dy) || 0];
+}
+
+function makeRotationAroundPointMatrix(pivot, delta) {
+  const px = Number(pivot && pivot.x) || 0;
+  const py = Number(pivot && pivot.y) || 0;
+  return mul(matFromTR(px, py, 0), mul(matFromTR(0, 0, Number(delta) || 0), matFromTR(-px, -py, 0)));
+}
+
+function makeScaleAroundPointMatrix(pivot, scale) {
+  const px = Number(pivot && pivot.x) || 0;
+  const py = Number(pivot && pivot.y) || 0;
+  const s = Number(scale) || 1;
+  return [s, 0, 0, s, px - s * px, py - s * py];
+}
+
+function applyObjectSpaceSlotSnapshot(snapshot, deltaByRoot, bonesWorld) {
+  if (!snapshot || !(snapshot.roots instanceof Map) || !Array.isArray(snapshot.slots) || snapshot.slots.length <= 0) return;
+  const worldNow = Array.isArray(bonesWorld) ? bonesWorld : computeWorld(getRigBones(state.mesh));
+  const rootWorldByRoot = new Map();
+  for (const [rootIndex, rootState] of snapshot.roots.entries()) {
+    const delta = deltaByRoot instanceof Map ? deltaByRoot.get(rootIndex) : null;
+    rootWorldByRoot.set(rootIndex, delta ? mul(delta, rootState.world) : rootState.world);
+  }
+  for (const snap of snapshot.slots) {
+    const slot = snap && snap.slot;
+    const rootWorld = rootWorldByRoot.get(Number(snap && snap.rootIndex));
+    if (!slot || !rootWorld) continue;
+    ensureSlotMeshData(slot, state.mesh);
+    if (slot.meshData && slot.meshData.positions) {
+      const expected = slot.meshData.positions.length / 2;
+      if (Array.isArray(snap.positions) && snap.positions.length === expected) {
+        for (let i = 0; i < expected; i += 1) {
+          const p = transformPoint(rootWorld, Number(snap.positions[i] && snap.positions[i].x) || 0, Number(snap.positions[i] && snap.positions[i].y) || 0);
+          slot.meshData.positions[i * 2] = Number(p.x) || 0;
+          slot.meshData.positions[i * 2 + 1] = Number(p.y) || 0;
+        }
+      }
+    }
+    if (Array.isArray(snap.rectCorners) && snap.rectCorners.length >= 4) {
+      const corners = snap.rectCorners.map((p) => transformPoint(rootWorld, Number(p.x) || 0, Number(p.y) || 0));
+      const xs = corners.map((p) => Number(p.x) || 0);
+      const ys = corners.map((p) => Number(p.y) || 0);
+      slot.rect = {
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        w: Math.max(...xs) - Math.min(...xs),
+        h: Math.max(...ys) - Math.min(...ys),
+      };
+    }
+    const slotTm = getSlotTransformMatrix(slot, worldNow);
+    const invSlotTm = invert(slotTm);
+    const toSlotLocalPoints = (points) =>
+      points.map((p) => {
+        const worldPoint = transformPoint(rootWorld, Number(p && p.x) || 0, Number(p && p.y) || 0);
+        return transformPoint(invSlotTm, Number(worldPoint.x) || 0, Number(worldPoint.y) || 0);
+      });
+    const contour = ensureSlotContour(slot);
+    contour.fillPoints = toSlotLocalPoints(Array.isArray(snap.fillPoints) ? snap.fillPoints : []);
+    contour.points = toSlotLocalPoints(Array.isArray(snap.points) ? snap.points : []);
+    contour.sourcePoints = toSlotLocalPoints(Array.isArray(snap.sourcePoints) ? snap.sourcePoints : []);
+    contour.authorContourPoints = toSlotLocalPoints(Array.isArray(snap.authorContourPoints) ? snap.authorContourPoints : []);
+  }
+}
+
 function pointInScreenTriangles(mx, my, screen, indices) {
   if (!screen || screen.length < 6 || !indices || indices.length < 3) return false;
   const p = { x: Number(mx) || 0, y: Number(my) || 0 };
@@ -5294,6 +5820,10 @@ function refreshSlotUI() {
   refreshBoneTreeContextMenuUI();
   if (els.slotSelect) {
     els.slotSelect.innerHTML = "";
+    const none = document.createElement("option");
+    none.value = "-1";
+    none.textContent = "(none)";
+    els.slotSelect.appendChild(none);
     for (let i = 0; i < state.slots.length; i += 1) {
       const s = state.slots[i];
       const opt = document.createElement("option");
@@ -5303,6 +5833,8 @@ function refreshSlotUI() {
     }
     if (state.activeSlot >= 0 && state.activeSlot < state.slots.length) {
       els.slotSelect.value = String(state.activeSlot);
+    } else {
+      els.slotSelect.value = "-1";
     }
   }
   if (els.slotViewMode) {
@@ -5562,6 +6094,26 @@ function refreshSlotUI() {
   if (els.slotWeightModeHint) {
     els.slotWeightModeHint.textContent = getSlotWeightModeHintText(slotWeightMode);
   }
+  const bindSelection = state.mesh
+    ? getBindSelectionState(state.mesh)
+    : { slotIndices: [], boneIndices: [], primaryBone: -1, slotPreview: "(none)", bonePreview: "(slot default)" };
+  if (els.slotBindBoneBtn) {
+    els.slotBindBoneBtn.disabled = !(state.mesh && bindSelection.slotIndices.length > 0 && bindSelection.primaryBone >= 0);
+    els.slotBindBoneBtn.textContent =
+      bindSelection.slotIndices.length > 1 ? `Bind ${bindSelection.slotIndices.length} Slot(s) -> Bone` : "Bind to Selected Bone";
+  }
+  if (els.slotBindWeightedBtn) {
+    els.slotBindWeightedBtn.disabled = !(state.mesh && bindSelection.slotIndices.length > 0 && bindSelection.boneIndices.length > 0);
+    els.slotBindWeightedBtn.textContent =
+      bindSelection.slotIndices.length > 1 || bindSelection.boneIndices.length > 1
+        ? `Use ${bindSelection.boneIndices.length} Bone(s) on ${bindSelection.slotIndices.length} Slot(s)`
+        : "Use Selected Bones";
+  }
+  if (els.slotBindSelectionSummary) {
+    els.slotBindSelectionSummary.textContent = state.mesh
+      ? `Bind target: ${bindSelection.slotIndices.length} slot(s) | Slots: ${bindSelection.slotPreview} | Bones: ${bindSelection.bonePreview}`
+      : "Bind target: no mesh.";
+  }
   if (els.slotInfluenceBones && s && state.mesh) {
     const allow = new Set(getSlotInfluenceBones(s, state.mesh).map((x) => String(x)));
     for (const opt of els.slotInfluenceBones.options) {
@@ -5769,11 +6321,11 @@ function refreshSetupQuickActions() {
   const hasMesh = !!state.mesh;
   const editMode = state.boneMode === "edit";
   const hasSlot = !!getActiveSlot();
-  const hasSelectedBone = hasMesh && Number.isFinite(state.selectedBone) && state.selectedBone >= 0;
-  const canBindSingle = hasMesh && editMode && hasSlot && hasSelectedBone;
-  const selectedBones = hasMesh ? getSelectedBonesForWeight(state.mesh) : [];
-  const selectedSlots = hasMesh && state.slots.length > 0 ? getSelectedSlotIndicesForAutoWeight() : [];
-  const canBindWeighted = hasMesh && editMode && hasSlot && selectedBones.length > 0;
+  const bindSelection = hasMesh ? getBindSelectionState(state.mesh) : { slotIndices: [], boneIndices: [], primaryBone: -1, slotPreview: "(none)", bonePreview: "(slot default)" };
+  const selectedBones = bindSelection.boneIndices;
+  const selectedSlots = bindSelection.slotIndices;
+  const canBindSingle = hasMesh && editMode && selectedSlots.length > 0 && bindSelection.primaryBone >= 0;
+  const canBindWeighted = hasMesh && editMode && selectedSlots.length > 0 && selectedBones.length > 0;
   if (els.setupAddBoneBtn) {
     els.setupAddBoneBtn.disabled = !hasMesh || !editMode;
     els.setupAddBoneBtn.textContent = state.addBoneArmed ? "Cancel Add" : "Add Bone";
@@ -5790,8 +6342,18 @@ function refreshSetupQuickActions() {
   if (els.setupHumanoidMinScore) els.setupHumanoidMinScore.disabled = false;
   if (els.setupHumanoidSmoothing) els.setupHumanoidSmoothing.disabled = false;
   if (els.setupHumanoidFallback) els.setupHumanoidFallback.disabled = false;
-  if (els.setupBindBoneBtn) els.setupBindBoneBtn.disabled = !canBindSingle;
-  if (els.setupBindWeightedBtn) els.setupBindWeightedBtn.disabled = !canBindWeighted;
+  if (els.setupBindBoneBtn) {
+    els.setupBindBoneBtn.disabled = !canBindSingle;
+    els.setupBindBoneBtn.textContent =
+      selectedSlots.length > 1 ? `Bind ${selectedSlots.length} Slot(s) -> Bone` : "Bind Slot -> Selected Bone";
+  }
+  if (els.setupBindWeightedBtn) {
+    els.setupBindWeightedBtn.disabled = !canBindWeighted;
+    els.setupBindWeightedBtn.textContent =
+      selectedSlots.length > 1 || selectedBones.length > 1
+        ? `Bind ${selectedSlots.length} Slot(s) -> ${selectedBones.length} Bone(s)`
+        : "Bind Slot -> Selected Bones";
+  }
   if (els.setupAutoWeightSingleBtn) {
     const singleOn = (state.weightMode || "hard") === "hard";
     els.setupAutoWeightSingleBtn.disabled = !hasMesh || !editMode;
@@ -5805,31 +6367,30 @@ function refreshSetupQuickActions() {
   if (els.setupEditWeightsBtn) els.setupEditWeightsBtn.disabled = !hasMesh || !hasSlot;
   if (els.setupAutoWeightSelectionSummary) {
     if (!hasMesh) {
-      els.setupAutoWeightSelectionSummary.textContent = "Auto Weight selection: no mesh.";
+      els.setupAutoWeightSelectionSummary.textContent = "Bind / Auto Weight target: no mesh.";
     } else {
-      const slotPreview = selectedSlots
-        .slice(0, 3)
-        .map((si) => (state.slots[si] && state.slots[si].name ? state.slots[si].name : `slot_${si}`))
-        .join(", ");
-      const bonePreview = selectedBones
-        .slice(0, 3)
-        .map((bi) => (state.mesh && state.mesh.rigBones && state.mesh.rigBones[bi] && state.mesh.rigBones[bi].name ? state.mesh.rigBones[bi].name : `bone_${bi}`))
-        .join(", ");
-      const slotTail = selectedSlots.length > 3 ? "..." : "";
-      const boneTail = selectedBones.length > 3 ? "..." : "";
       els.setupAutoWeightSelectionSummary.textContent =
-        `Batch Auto Weight: ${selectedSlots.length} slot(s) x ${selectedBones.length} bone(s) | ` +
-        `Slots: ${slotPreview || "(none)"}${slotTail} | Bones: ${bonePreview || "(slot default)"}${boneTail}`;
+        `Bind / Auto Weight target: ${selectedSlots.length} slot(s) x ${selectedBones.length} bone(s) | ` +
+        `Slots: ${bindSelection.slotPreview} | Bones: ${bindSelection.bonePreview}`;
     }
   }
 }
 
 function updateWorkspaceUI() {
+  const systemMode = getCurrentSystemMode();
+  if (state.currentSystemMode !== systemMode) {
+    persistLeftToolTabForSystemMode(state.currentSystemMode, state.leftToolTab);
+    state.currentSystemMode = systemMode;
+    restoreLeftToolTabForSystemMode(systemMode);
+  }
   const canBuildPages = state.boneMode === "edit";
-  const isSysAnimate = !!(els.systemMode && els.systemMode.value === "animate");
+  const isSysAnimate = systemMode === "animate";
   const canObjectPage = state.boneMode === "object" && (state.editMode === "skeleton" || state.editMode === "object");
   let page = state.uiPage === "slot" || state.uiPage === "anim" || state.uiPage === "object" ? state.uiPage : "rig";
-  if (page === "anim" && !isSysAnimate) {
+  if (isSysAnimate && page !== "anim") {
+    page = "anim";
+    state.uiPage = page;
+  } else if (page === "anim" && !isSysAnimate) {
     page = "rig";
     state.uiPage = page;
   }
@@ -5843,6 +6404,8 @@ function updateWorkspaceUI() {
   }
   const sub = state.animSubPanel === "layers" || state.animSubPanel === "state" ? state.animSubPanel : "timeline";
   const animAuxMode = page === "anim" && (sub === "layers" || sub === "state");
+  const timelineVisible = page === "anim" && sub === "timeline";
+  const timelineMinimized = timelineVisible && !!state.anim.timelineMinimized;
   const isSlotMesh = isSlotMeshModeActive();
   const setVisible = (el, show) => {
     if (!el) return;
@@ -5853,6 +6416,7 @@ function updateWorkspaceUI() {
     els.appRoot.classList.toggle("page-rig", page === "rig");
     els.appRoot.classList.toggle("page-object", page === "object");
     els.appRoot.classList.toggle("page-anim", page === "anim");
+    els.appRoot.classList.toggle("timeline-minimized", timelineMinimized);
   }
   if (els.workspaceTabSlot) setVisible(els.workspaceTabSlot, canBuildPages);
   if (els.workspaceTabRig) setVisible(els.workspaceTabRig, canBuildPages);
@@ -5877,6 +6441,7 @@ function updateWorkspaceUI() {
   const isRigEdit = !isMeshEdit && isSkeleton && state.boneMode === "edit";
   const isRigObject = !isMeshEdit && (isSkeleton || state.editMode === "object") && state.boneMode === "object";
   const isRigPose = !isMeshEdit && isSkeleton && state.boneMode === "pose";
+  const isAnimTimelinePage = page === "anim" && !animAuxMode;
 
   const tabVisible = isMeshEdit
     ? {
@@ -5892,18 +6457,22 @@ function updateWorkspaceUI() {
     }
     : {
       canvas: !animAuxMode,
-      setup: page === "rig" && !isMeshEdit && !animAuxMode,
+      setup: (page === "rig" || isAnimTimelinePage) && !isMeshEdit && !animAuxMode,
       rig: page === "rig" && isRigEdit && !animAuxMode,
-      object: page === "object" && isRigObject && !animAuxMode,
-      ik: (page === "rig" || page === "object") && !isMeshEdit && isSkeleton && !animAuxMode,
-      constraint: (page === "rig" || page === "object") && !isMeshEdit && isSkeleton && !animAuxMode,
-      path: (page === "rig" || page === "object") && !isMeshEdit && isSkeleton && !animAuxMode,
-      skin: (page === "rig" || page === "object") && (isRigEdit || isRigObject) && !animAuxMode,
-      tools: (page === "rig" || page === "object") && !isMeshEdit && !animAuxMode,
+      object: (page === "object" || isAnimTimelinePage) && isRigObject && !animAuxMode,
+      ik: (page === "rig" || page === "object" || isAnimTimelinePage) && !isMeshEdit && isSkeleton && !animAuxMode,
+      constraint: (page === "rig" || page === "object" || isAnimTimelinePage) && !isMeshEdit && isSkeleton && !animAuxMode,
+      path: (page === "rig" || page === "object" || isAnimTimelinePage) && !isMeshEdit && isSkeleton && !animAuxMode,
+      skin: (page === "rig" || page === "object" || isAnimTimelinePage) && (isRigEdit || isRigObject || isRigPose) && !animAuxMode,
+      tools: (page === "rig" || page === "object" || isAnimTimelinePage) && !isMeshEdit && !animAuxMode,
       slotmesh: page === "slot" || isMeshEdit,
     };
   const visibleTabs = Object.keys(tabVisible).filter((k) => tabVisible[k]);
-  if (!animAuxMode && !visibleTabs.includes(state.leftToolTab)) state.leftToolTab = visibleTabs[0] || "setup";
+  if (!animAuxMode && !visibleTabs.includes(state.leftToolTab)) {
+    setLeftToolTab(visibleTabs[0] || getDefaultLeftToolTab(systemMode), systemMode);
+  } else {
+    persistLeftToolTabForSystemMode(systemMode, state.leftToolTab);
+  }
 
   const tabButtonById = {
     canvas: els.leftTabCanvas,
@@ -5942,10 +6511,18 @@ function updateWorkspaceUI() {
       panel.style.display = show ? "flex" : "none";
     }
   }
-  if (els.timelineDock) setVisible(els.timelineDock, page === "anim" && sub === "timeline");
+  if (els.timelineDock) {
+    setVisible(els.timelineDock, timelineVisible);
+    els.timelineDock.classList.toggle("minimized", timelineMinimized);
+  }
   if (els.layerDock) els.layerDock.style.display = page === "anim" && sub === "layers" ? "flex" : "none";
   if (els.stateDock) els.stateDock.style.display = page === "anim" && sub === "state" ? "flex" : "none";
-  if (els.timelineResizer) setVisible(els.timelineResizer, page === "anim");
+  if (els.timelineResizer) setVisible(els.timelineResizer, page === "anim" && !timelineMinimized);
+  if (els.timelineCollapseBtn) {
+    els.timelineCollapseBtn.textContent = timelineMinimized ? "Restore" : "Min";
+    els.timelineCollapseBtn.title = timelineMinimized ? "Restore timeline" : "Minimize timeline";
+    els.timelineCollapseBtn.setAttribute("aria-pressed", timelineMinimized ? "true" : "false");
+  }
   if (els.exportDock) els.exportDock.style.display = state.exportPanelOpen ? "flex" : "none";
   if (els.animSubTabTimeline) els.animSubTabTimeline.classList.toggle("active", page === "anim" && sub === "timeline");
   if (els.animSubTabLayers) els.animSubTabLayers.classList.toggle("active", page === "anim" && sub === "layers");
@@ -5960,6 +6537,8 @@ function updateWorkspaceUI() {
       els.leftToolModeHint.textContent = "Animate > Animation Layers: tools are shown below in Canvas Tools.";
     } else if (page === "anim" && sub === "state") {
       els.leftToolModeHint.textContent = "Animate > State Machine: tools are shown below in Canvas Tools.";
+    } else if (page === "anim" && isMeshEdit) {
+      els.leftToolModeHint.textContent = "Animate Mesh: drag vertices directly on canvas to key FFD deformation.";
     } else if (isMeshEdit) {
       els.leftToolModeHint.textContent = "Mesh mode: use Base Transform tab for base image transform, Mesh tab for mesh edit and deformation weights.";
     } else if (isRigEdit) {
@@ -5987,19 +6566,28 @@ function updateWorkspaceUI() {
 
 function setWorkspacePage(page) {
   const prevMode = state.boneMode;
-  const next = page === "slot" || page === "anim" || page === "object" ? page : "rig";
+  const systemMode = getCurrentSystemMode();
+  const requested = page === "slot" || page === "anim" || page === "object" ? page : "rig";
+  const next = systemMode === "animate" && requested === "object" ? "anim" : requested;
   state.uiPage = next;
-  if (next === "slot") {
-    state.editMode = "mesh";
-    if (state.leftToolTab !== "slotmesh" && state.leftToolTab !== "canvas") state.leftToolTab = "slotmesh";
-  } else if (next === "object") {
+  if (requested === "object") {
     state.editMode = "skeleton";
     state.boneMode = "object";
     if (els.boneMode) els.boneMode.value = "object";
-    if (state.leftToolTab === "slotmesh") state.leftToolTab = "object";
+    if (systemMode === "animate") state.animSubPanel = "timeline";
+    if (state.leftToolTab === "slotmesh" || (systemMode === "animate" && state.leftToolTab !== "object")) setLeftToolTab("object");
+  } else if (next === "slot") {
+    state.editMode = "mesh";
+    if (state.leftToolTab !== "slotmesh" && state.leftToolTab !== "canvas") setLeftToolTab("slotmesh");
+  } else if (next === "anim" && state.editMode === "mesh") {
+    state.animSubPanel = "timeline";
+    if (state.leftToolTab !== "slotmesh" && state.leftToolTab !== "canvas") setLeftToolTab("slotmesh");
+  } else if (next === "anim") {
+    state.animSubPanel = "timeline";
+    if (state.editMode === "skeleton" && state.boneMode !== "object") state.boneMode = "pose";
   } else if (state.editMode === "mesh") {
     state.editMode = "skeleton";
-    if (state.leftToolTab === "slotmesh" || state.leftToolTab === "canvas") state.leftToolTab = "setup";
+    if (state.leftToolTab === "slotmesh" || state.leftToolTab === "canvas") setLeftToolTab("setup");
   }
   if (els.editMode) els.editMode.value = state.editMode;
   state.workspaceMode = state.editMode === "mesh" ? "slotmesh" : "rig";
@@ -6017,7 +6605,7 @@ function setupLeftToolTabs() {
   const bind = (el, tab) => {
     if (!el) return;
     el.addEventListener("click", () => {
-      state.leftToolTab = tab;
+      setLeftToolTab(tab);
       updateWorkspaceUI();
     });
   };
@@ -6100,15 +6688,12 @@ function mountAnimateAuxPanelsInLeftTools() {
   }
 }
 
-function setActiveSlot(index) {
+function setActiveSlot(index, options = null) {
   if (!Number.isFinite(index) || index < 0 || index >= state.slots.length) return;
+  const opts = options && typeof options === "object" ? options : {};
   state.activeSlot = index;
   const slot = state.slots[index];
-  const bi = Number(slot && slot.bone);
-  if (Number.isFinite(bi) && bi >= 0) {
-    const sid = slot && slot.id != null ? String(slot.id) : "";
-    if (sid) state.boneTreeSelectedSlotByBone[bi] = sid;
-  }
+  if (opts.syncBindSelection !== false) syncBindSelectionToSingleSlot(index);
   setRightPropsFocus("slot");
   ensureSlotContour(slot);
   state.slotMesh.activePoint = -1;
@@ -6123,6 +6708,28 @@ function setActiveSlot(index) {
   updateTexture();
   refreshSlotUI();
   renderBoneTree();
+}
+
+function clearActiveSlotSelection(options = null) {
+  const opts = options && typeof options === "object" ? options : {};
+  const clearTargets = opts.clearTargets !== false;
+  state.activeSlot = -1;
+  if (clearTargets) {
+    state.boneTreeSelectedSlotByBone = Object.create(null);
+    state.boneTreeSelectedUnassignedSlotIds = [];
+  }
+  state.treeSlotLastClickIndex = -1;
+  state.treeSlotLastClickTs = 0;
+  state.slotMesh.activePoint = -1;
+  state.slotMesh.activeSet = "contour";
+  state.slotMesh.edgeSelection = [];
+  state.slotMesh.edgeSelectionSet = "contour";
+  clearSlotMeshSelection();
+  if (opts.clearSourceCanvas) state.sourceCanvas = null;
+  if (state.selectedBone >= 0) setRightPropsFocus("bone");
+  refreshSlotUI();
+  renderBoneTree();
+  renderAll();
 }
 
 function addSlotEntry(entry, activate = true) {
@@ -6395,6 +7002,41 @@ function cloneSlotMeshData(src) {
     deformedScreen: null,
     interleaved: null,
   };
+}
+
+function serializeSlotMeshData(src) {
+  if (!src || typeof src !== "object") return null;
+  return {
+    cols: Number(src.cols) || 0,
+    rows: Number(src.rows) || 0,
+    positions: src.positions ? Array.from(src.positions, (v) => Number(v) || 0) : [],
+    uvs: src.uvs ? Array.from(src.uvs, (v) => Number(v) || 0) : [],
+    offsets: src.offsets ? Array.from(src.offsets, (v) => Number(v) || 0) : [],
+    baseOffsets: src.baseOffsets ? Array.from(src.baseOffsets, (v) => Number(v) || 0) : [],
+    weights: src.weights ? Array.from(src.weights, (v) => Number(v) || 0) : [],
+    indices: src.indices ? Array.from(src.indices, (v) => Number(v) || 0) : [],
+  };
+}
+
+function restoreSlotMeshDataFromPayload(src, boneCount = 0) {
+  const meshData = cloneSlotMeshData(src);
+  if (!meshData) return null;
+  const vCount = Math.floor((Number(meshData.positions.length) || 0) / 2);
+  if (vCount <= 0 || meshData.positions.length !== vCount * 2) return null;
+  if (!meshData.uvs || meshData.uvs.length !== vCount * 2) meshData.uvs = new Float32Array(vCount * 2);
+  if (!meshData.offsets || meshData.offsets.length !== vCount * 2) meshData.offsets = new Float32Array(vCount * 2);
+  if (!meshData.baseOffsets || meshData.baseOffsets.length !== vCount * 2) {
+    meshData.baseOffsets = new Float32Array(meshData.offsets.length === vCount * 2 ? meshData.offsets : new Float32Array(vCount * 2));
+  }
+  const expectedWeights = boneCount > 0 ? vCount * boneCount : 0;
+  if (!meshData.weights || (expectedWeights > 0 ? meshData.weights.length !== expectedWeights : meshData.weights.length > 0)) {
+    meshData.weights = new Float32Array(0);
+  }
+  if (!meshData.indices) meshData.indices = new Uint16Array(0);
+  meshData.deformedLocal = new Float32Array(vCount * 2);
+  meshData.deformedScreen = new Float32Array(vCount * 2);
+  meshData.interleaved = new Float32Array(vCount * 4);
+  return meshData;
 }
 
 function duplicateActiveSlotQuick() {
@@ -6819,6 +7461,40 @@ function openBoneTreeContextMenu(clientX, clientY) {
   els.boneTreeContextMenu.style.top = `${Math.round(top)}px`;
 }
 
+function closeTimelineKeyContextMenu() {
+  state.anim.timelineContextMenuOpen = false;
+  state.anim.timelineContextTrackId = "";
+  if (els.timelineKeyContextMenu) els.timelineKeyContextMenu.classList.add("collapsed");
+}
+
+function refreshTimelineKeyContextMenuUI() {
+  const hasSelection = getActiveTimelineKeySelection().length > 0;
+  const hasClipboard = hasTimelineClipboardData();
+  if (els.timelineCtxCutBtn) els.timelineCtxCutBtn.disabled = !hasSelection;
+  if (els.timelineCtxCopyBtn) els.timelineCtxCopyBtn.disabled = !hasSelection;
+  if (els.timelineCtxDeleteBtn) els.timelineCtxDeleteBtn.disabled = !hasSelection;
+  if (els.timelineCtxPasteBtn) els.timelineCtxPasteBtn.disabled = !hasClipboard;
+}
+
+function openTimelineKeyContextMenu(clientX, clientY) {
+  if (!els.timelineKeyContextMenu) return;
+  closeBoneTreeContextMenu();
+  closeBoneDeleteQuickMenu();
+  refreshTimelineKeyContextMenuUI();
+  els.timelineKeyContextMenu.classList.remove("collapsed");
+  state.anim.timelineContextMenuOpen = true;
+  const menuRect = els.timelineKeyContextMenu.getBoundingClientRect();
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  const margin = 8;
+  let left = Number(clientX) || 0;
+  let top = Number(clientY) || 0;
+  if (left + menuRect.width + margin > vw) left = Math.max(margin, vw - menuRect.width - margin);
+  if (top + menuRect.height + margin > vh) top = Math.max(margin, vh - menuRect.height - margin);
+  els.timelineKeyContextMenu.style.left = `${Math.round(left)}px`;
+  els.timelineKeyContextMenu.style.top = `${Math.round(top)}px`;
+}
+
 function normalizeSlotBlendMode(mode) {
   const v = String(mode || "").toLowerCase();
   if (v === "additive") return "additive";
@@ -6932,6 +7608,26 @@ function setSelectedUnassignedSlotIndices(indices, append = false) {
     if (!next.includes(sid)) next.push(sid);
   }
   state.boneTreeSelectedUnassignedSlotIds = next;
+}
+
+function syncBindSelectionToSingleSlot(index) {
+  const si = Number(index);
+  if (!Number.isFinite(si) || si < 0 || si >= state.slots.length) return false;
+  const slot = state.slots[si];
+  if (!slot) return false;
+  state.boneTreeSelectedSlotByBone = Object.create(null);
+  state.boneTreeSelectedUnassignedSlotIds = [];
+  if (Number(slot.bone) === -1) {
+    setSelectedUnassignedSlotIndices([si], false);
+    return true;
+  }
+  const bi = Number(slot.bone);
+  const sid = slot.id != null ? String(slot.id) : "";
+  if (Number.isFinite(bi) && bi >= 0 && sid) {
+    state.boneTreeSelectedSlotByBone[bi] = sid;
+    return true;
+  }
+  return false;
 }
 
 function getSelectedSlotIndicesForAutoWeight() {
@@ -7304,12 +8000,46 @@ function getPrimarySelectedBoneIndex() {
   return -1;
 }
 
-function bindActiveSlotToSelectedBone() {
-  const m = state.mesh;
-  const slot = getActiveSlot();
-  if (!m || !slot) return false;
-  const bone = getPrimarySelectedBoneIndex();
-  if (bone < 0) return false;
+function getSlotDisplayNameByIndex(index) {
+  const si = Number(index);
+  const slot = Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : null;
+  return slot && slot.name ? String(slot.name) : `slot_${Number.isFinite(si) ? si : "?"}`;
+}
+
+function getBoneDisplayName(m, index) {
+  const bi = Number(index);
+  const bones = m && Array.isArray(m.rigBones) ? m.rigBones : [];
+  const bone = Number.isFinite(bi) && bi >= 0 && bi < bones.length ? bones[bi] : null;
+  return bone && bone.name ? String(bone.name) : `bone_${Number.isFinite(bi) ? bi : "?"}`;
+}
+
+function summarizeSelectionNames(names, maxItems = 3, emptyLabel = "(none)") {
+  const list = Array.isArray(names) ? names.filter((name) => String(name || "").trim().length > 0) : [];
+  if (list.length <= 0) return emptyLabel;
+  const shown = list.slice(0, Math.max(1, Number(maxItems) || 3)).join(", ");
+  return list.length > maxItems ? `${shown}...` : shown;
+}
+
+function getBindSelectionState(m = state.mesh) {
+  const hasMesh = !!(m && Array.isArray(m.rigBones));
+  const slotIndices = hasMesh && state.slots.length > 0 ? getSelectedSlotIndicesForAutoWeight() : [];
+  const boneIndices = hasMesh ? getSelectedBonesForWeight(m) : [];
+  const primaryBone = hasMesh ? getPrimarySelectedBoneIndex() : -1;
+  return {
+    slotIndices,
+    boneIndices,
+    primaryBone,
+    slotPreview: summarizeSelectionNames(slotIndices.map((si) => getSlotDisplayNameByIndex(si))),
+    bonePreview: summarizeSelectionNames(
+      boneIndices.map((bi) => getBoneDisplayName(m, bi)),
+      3,
+      "(slot default)"
+    ),
+  };
+}
+
+function bindSingleSlotToBone(slot, m, bone) {
+  if (!slot || !m || !Number.isFinite(bone) || bone < 0 || bone >= m.rigBones.length) return false;
   slot.bone = bone;
   const mode = getSlotWeightMode(slot);
   if (mode === "single") {
@@ -7323,20 +8053,18 @@ function bindActiveSlotToSelectedBone() {
     slot.useWeights = true;
     slot.influenceBones = [...new Set([bone, ...(Array.isArray(slot.influenceBones) ? slot.influenceBones : [])])];
   } else {
+    slot.weightMode = "single";
+    slot.weightBindMode = "single";
+    slot.useWeights = true;
     slot.influenceBones = [bone];
   }
   ensureSlotsHaveBoneBinding();
   rebuildSlotWeights(slot, m);
-  refreshSlotUI();
-  renderBoneTree();
   return true;
 }
 
-function bindActiveSlotWeightedToSelectedBones() {
-  const m = state.mesh;
-  const slot = getActiveSlot();
-  if (!m || !slot) return false;
-  const picked = getSelectedBonesForWeight(m);
+function bindSingleSlotWeightedToBones(slot, m, picked) {
+  if (!slot || !m) return false;
   const expandedPicked = expandSelectedBonesToSubtrees(m, picked);
   if (!Array.isArray(expandedPicked) || expandedPicked.length === 0) return false;
   slot.bone = expandedPicked[0];
@@ -7346,9 +8074,70 @@ function bindActiveSlotWeightedToSelectedBones() {
   slot.influenceBones = [...new Set(expandedPicked)];
   ensureSlotsHaveBoneBinding();
   rebuildSlotWeights(slot, m);
-  refreshSlotUI();
-  renderBoneTree();
   return true;
+}
+
+function finalizeBatchSlotBinding(boundSlotIndices) {
+  if (!Array.isArray(boundSlotIndices) || boundSlotIndices.length <= 0) return;
+  const focusIndex = Number(boundSlotIndices[boundSlotIndices.length - 1]);
+  if (Number.isFinite(focusIndex) && focusIndex >= 0 && focusIndex < state.slots.length) {
+    if (state.activeSlot !== focusIndex) setActiveSlot(focusIndex);
+    else refreshSlotUI();
+  } else {
+    refreshSlotUI();
+  }
+  renderBoneTree();
+  renderAll();
+}
+
+function buildSingleBindStatusMessage(boundCount, boneIndex, m = state.mesh) {
+  const boneName = getBoneDisplayName(m, boneIndex);
+  return `Bound ${boundCount} slot(s) -> ${boneName}.`;
+}
+
+function buildWeightedBindStatusMessage(boundCount, boneIndices, m = state.mesh) {
+  const names = Array.isArray(boneIndices) ? boneIndices.map((bi) => getBoneDisplayName(m, bi)) : [];
+  return `Weighted bound ${boundCount} slot(s) -> ${summarizeSelectionNames(names, 4, "(none)")}.`;
+}
+
+function bindSelectedSlotsToPrimaryBone() {
+  const m = state.mesh;
+  if (!m) return 0;
+  const selection = getBindSelectionState(m);
+  if (selection.slotIndices.length <= 0 || selection.primaryBone < 0) return 0;
+  const boundSlotIndices = [];
+  for (const si of selection.slotIndices) {
+    const slot = state.slots[si];
+    if (!slot) continue;
+    if (!bindSingleSlotToBone(slot, m, selection.primaryBone)) continue;
+    boundSlotIndices.push(si);
+  }
+  if (boundSlotIndices.length > 0) finalizeBatchSlotBinding(boundSlotIndices);
+  return boundSlotIndices.length;
+}
+
+function bindSelectedSlotsToSelectedBones() {
+  const m = state.mesh;
+  if (!m) return 0;
+  const selection = getBindSelectionState(m);
+  if (selection.slotIndices.length <= 0 || selection.boneIndices.length <= 0) return 0;
+  const boundSlotIndices = [];
+  for (const si of selection.slotIndices) {
+    const slot = state.slots[si];
+    if (!slot) continue;
+    if (!bindSingleSlotWeightedToBones(slot, m, selection.boneIndices)) continue;
+    boundSlotIndices.push(si);
+  }
+  if (boundSlotIndices.length > 0) finalizeBatchSlotBinding(boundSlotIndices);
+  return boundSlotIndices.length;
+}
+
+function bindActiveSlotToSelectedBone() {
+  return bindSelectedSlotsToPrimaryBone();
+}
+
+function bindActiveSlotWeightedToSelectedBones() {
+  return bindSelectedSlotsToSelectedBones();
 }
 
 function normalizeEdgePairs(edges, pointCount) {
@@ -11071,6 +11860,8 @@ function resize() {
   const prevH = Math.max(1, Number(els.glCanvas.height) || 1);
 
   if (els.glCanvas.width !== w || els.glCanvas.height !== h) {
+    els.backdropCanvas.width = w;
+    els.backdropCanvas.height = h;
     els.glCanvas.width = w;
     els.glCanvas.height = h;
     els.overlay.width = w;
@@ -11291,154 +12082,258 @@ function screenToLocal(x, y) {
 }
 
 function getGridMajorStepLocal() {
-  const scale = Math.max(1e-6, Number(state.view.scale) || 1);
-  const targetPx = 44;
-  const raw = targetPx / scale;
-  const exp = Math.floor(Math.log10(Math.max(raw, 1e-6)));
-  const base = Math.pow(10, exp);
-  const choices = [1, 2, 5, 10];
-  let step = base;
-  for (const c of choices) {
-    step = base * c;
-    if (step >= raw) break;
-  }
-  return Math.max(1e-6, step);
+  // Keep background grid scale fixed in local space so zoom is visually continuous
+  // (no 1/2/5 step snapping jumps while zooming in/out).
+  return 50;
 }
 
-function drawBackdropGridAndRuler(ctx) {
+function getBackdropGridMetrics() {
   const w = Math.max(1, Number(els.overlay.width) || 1);
   const h = Math.max(1, Number(els.overlay.height) || 1);
-  if (!Number.isFinite(state.view.scale) || state.view.scale <= 0) return;
+  if (!Number.isFinite(state.view.scale) || state.view.scale <= 0) return null;
+  const ruler = 22;
+  const contentLeft = ruler;
+  const contentTop = ruler;
+  const contentRight = w;
+  const contentBottom = h;
+  if (contentRight <= contentLeft || contentBottom <= contentTop) return null;
   const major = getGridMajorStepLocal();
   const minor = major / 5;
-  const minL = screenToLocal(0, h).x;
-  const maxL = screenToLocal(w, 0).x;
-  const minT = screenToLocal(0, 0).y;
-  const maxT = screenToLocal(w, h).y;
+  const minL = screenToLocal(contentLeft, contentBottom).x;
+  const maxL = screenToLocal(contentRight, contentTop).x;
+  const minT = screenToLocal(contentLeft, contentTop).y;
+  const maxT = screenToLocal(contentRight, contentBottom).y;
   const x0 = Math.min(minL, maxL);
   const x1 = Math.max(minL, maxL);
   const y0 = Math.min(minT, maxT);
   const y1 = Math.max(minT, maxT);
-
   const firstMinorX = Math.floor(x0 / minor) * minor;
   const firstMinorY = Math.floor(y0 / minor) * minor;
   const firstMajorX = Math.floor(x0 / major) * major;
   const firstMajorY = Math.floor(y0 / major) * major;
-
-  ctx.save();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(143, 163, 178, 0.18)";
+  const minorXs = [];
+  const minorYs = [];
+  const majorXs = [];
+  const majorYs = [];
   for (let x = firstMinorX; x <= x1 + 1e-6; x += minor) {
-    const sx = localToScreen(x, 0).x;
-    ctx.beginPath();
-    ctx.moveTo(sx, 0);
-    ctx.lineTo(sx, h);
-    ctx.stroke();
+    minorXs.push({ local: x, screen: Math.round(localToScreen(x, 0).x) + 0.5 });
   }
   for (let y = firstMinorY; y <= y1 + 1e-6; y += minor) {
-    const sy = localToScreen(0, y).y;
-    ctx.beginPath();
-    ctx.moveTo(0, sy);
-    ctx.lineTo(w, sy);
-    ctx.stroke();
+    minorYs.push({ local: y, screen: Math.round(localToScreen(0, y).y) + 0.5 });
   }
-
-  ctx.strokeStyle = "rgba(186, 209, 226, 0.36)";
-  ctx.lineWidth = 1.2;
   for (let x = firstMajorX; x <= x1 + 1e-6; x += major) {
-    const sx = localToScreen(x, 0).x;
-    ctx.beginPath();
-    ctx.moveTo(sx, 0);
-    ctx.lineTo(sx, h);
-    ctx.stroke();
+    majorXs.push({ local: x, screen: Math.round(localToScreen(x, 0).x) + 0.5 });
   }
   for (let y = firstMajorY; y <= y1 + 1e-6; y += major) {
-    const sy = localToScreen(0, y).y;
+    majorYs.push({ local: y, screen: Math.round(localToScreen(0, y).y) + 0.5 });
+  }
+  return {
+    w,
+    h,
+    ruler,
+    contentLeft,
+    contentTop,
+    contentRight,
+    contentBottom,
+    major,
+    minor,
+    minorXs,
+    minorYs,
+    majorXs,
+    majorYs,
+    axisX: Math.round(localToScreen(0, 0).x) + 0.5,
+    axisY: Math.round(localToScreen(0, 0).y) + 0.5,
+  };
+}
+
+function drawBackdropGridAndRuler(ctx, options = null) {
+  const opts = options && typeof options === "object" ? options : {};
+  const drawGrid = opts.drawGrid !== false;
+  const drawRuler = opts.drawRuler !== false;
+  const metrics = getBackdropGridMetrics();
+  if (!metrics) return;
+  const {
+    w,
+    h,
+    ruler,
+    contentLeft,
+    contentTop,
+    contentRight,
+    contentBottom,
+    major,
+    minor,
+    minorXs,
+    minorYs,
+    majorXs,
+    majorYs,
+    axisX,
+    axisY,
+  } = metrics;
+
+  if (drawGrid) {
+    ctx.save();
     ctx.beginPath();
-    ctx.moveTo(0, sy);
-    ctx.lineTo(w, sy);
+    ctx.rect(contentLeft, contentTop, contentRight - contentLeft, contentBottom - contentTop);
+    ctx.clip();
+
+  // Spine-like checker backdrop.
+  const checkerDark = "rgba(36, 38, 42, 0.9)";
+  const checkerLight = "rgba(46, 48, 53, 0.9)";
+  for (const row of minorYs) {
+    const y = row.local;
+    const sy0 = row.screen - 0.5;
+    const sy1 = Math.round(localToScreen(0, y + minor).y) + 0.5;
+    const top = Math.min(sy0, sy1);
+    const cellH = Math.abs(sy1 - sy0);
+    if (cellH < 0.5) continue;
+    for (const col of minorXs) {
+      const x = col.local;
+      const sx0 = col.screen - 0.5;
+      const sx1 = Math.round(localToScreen(x + minor, 0).x) + 0.5;
+      const left = Math.min(sx0, sx1);
+      const cellW = Math.abs(sx1 - sx0);
+      if (cellW < 0.5) continue;
+      const gx = Math.round(x / minor);
+      const gy = Math.round(y / minor);
+      ctx.fillStyle = ((gx + gy) & 1) === 0 ? checkerDark : checkerLight;
+      ctx.fillRect(left, top, cellW + 1, cellH + 1);
+    }
+  }
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(148, 158, 168, 0.2)";
+  for (const line of minorXs) {
+    const sx = line.screen;
+    ctx.beginPath();
+    ctx.moveTo(sx, contentTop);
+    ctx.lineTo(sx, contentBottom);
+    ctx.stroke();
+  }
+  for (const line of minorYs) {
+    const sy = line.screen;
+    ctx.beginPath();
+    ctx.moveTo(contentLeft, sy);
+    ctx.lineTo(contentRight, sy);
     ctx.stroke();
   }
 
-  const axisX = localToScreen(0, 0).x;
-  const axisY = localToScreen(0, 0).y;
+  ctx.strokeStyle = "rgba(186, 199, 212, 0.3)";
+  ctx.lineWidth = 1.2;
+  for (const line of majorXs) {
+    const sx = line.screen;
+    ctx.beginPath();
+    ctx.moveTo(sx, contentTop);
+    ctx.lineTo(sx, contentBottom);
+    ctx.stroke();
+  }
+  for (const line of majorYs) {
+    const sy = line.screen;
+    ctx.beginPath();
+    ctx.moveTo(contentLeft, sy);
+    ctx.lineTo(contentRight, sy);
+    ctx.stroke();
+  }
   ctx.lineWidth = 2;
-  if (axisX >= -2 && axisX <= w + 2) {
+  if (axisX >= contentLeft - 2 && axisX <= contentRight + 2) {
     ctx.strokeStyle = "rgba(112, 214, 166, 0.92)";
     ctx.beginPath();
-    ctx.moveTo(axisX, 0);
-    ctx.lineTo(axisX, h);
+    ctx.moveTo(axisX, contentTop);
+    ctx.lineTo(axisX, contentBottom);
     ctx.stroke();
   }
-  if (axisY >= -2 && axisY <= h + 2) {
+  if (axisY >= contentTop - 2 && axisY <= contentBottom + 2) {
     ctx.strokeStyle = "rgba(236, 124, 124, 0.92)";
     ctx.beginPath();
-    ctx.moveTo(0, axisY);
-    ctx.lineTo(w, axisY);
+    ctx.moveTo(contentLeft, axisY);
+    ctx.lineTo(contentRight, axisY);
     ctx.stroke();
   }
+    ctx.restore();
+  }
 
+  if (drawRuler) {
+  // Draw ruler last to avoid visual overlap with the grid.
+    ctx.save();
+    ctx.fillStyle = "rgba(29, 31, 35, 0.98)";
+    ctx.fillRect(0, 0, w, ruler);
+    ctx.fillRect(0, 0, ruler, h);
+    ctx.fillStyle = "rgba(24, 26, 30, 1)";
+    ctx.fillRect(0, 0, ruler, ruler);
+    ctx.strokeStyle = "rgba(188, 198, 208, 0.7)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, ruler + 0.5);
+    ctx.lineTo(w, ruler + 0.5);
+    ctx.moveTo(ruler + 0.5, 0);
+    ctx.lineTo(ruler + 0.5, h);
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(214, 222, 230, 0.96)";
+    ctx.font = "11px Segoe UI, sans-serif";
+    ctx.strokeStyle = "rgba(168, 178, 188, 0.8)";
+    ctx.lineWidth = 1;
+    for (const line of minorXs) {
+      const sx = line.screen;
+      if (sx < ruler + 2 || sx > w - 2) continue;
+      const ratio = Math.abs((line.local / major) - Math.round(line.local / major));
+      if (ratio <= 1e-4) continue;
+      ctx.beginPath();
+      ctx.moveTo(sx, ruler - 5);
+      ctx.lineTo(sx, ruler);
+      ctx.stroke();
+    }
+    for (const line of minorYs) {
+      const sy = line.screen;
+      if (sy < ruler + 2 || sy > h - 2) continue;
+      const ratio = Math.abs((line.local / major) - Math.round(line.local / major));
+      if (ratio <= 1e-4) continue;
+      ctx.beginPath();
+      ctx.moveTo(ruler - 5, sy);
+      ctx.lineTo(ruler, sy);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = "rgba(222, 230, 238, 0.96)";
+    ctx.lineWidth = 1.4;
+    for (const line of majorXs) {
+      const sx = line.screen;
+      if (sx < ruler + 2 || sx > w - 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(sx, ruler - 10);
+      ctx.lineTo(sx, ruler);
+      ctx.stroke();
+      ctx.fillText(`${Math.round(line.local)}`, sx + 3, 14);
+    }
+    for (const line of majorYs) {
+      const sy = line.screen;
+      if (sy < ruler + 2 || sy > h - 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(ruler - 10, sy);
+      ctx.lineTo(ruler, sy);
+      ctx.stroke();
+      ctx.fillText(`${Math.round(line.local)}`, 3, sy - 3);
+    }
+    ctx.fillStyle = "rgba(242, 248, 253, 0.98)";
+    ctx.fillText("0", 4, 14);
+    ctx.restore();
+  }
+}
+
+function drawRulerOverlayFromBackdrop(ctx) {
+  if (!ctx || !els.backdropCanvas) return;
+  const src = els.backdropCanvas;
+  const w = Math.max(1, Number(src.width) || 1);
+  const h = Math.max(1, Number(src.height) || 1);
   const ruler = 22;
-  ctx.fillStyle = "rgba(33, 42, 50, 0.96)";
-  ctx.fillRect(0, 0, w, ruler);
-  ctx.fillRect(0, 0, ruler, h);
-  ctx.strokeStyle = "rgba(212, 224, 236, 0.72)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, ruler + 0.5);
-  ctx.lineTo(w, ruler + 0.5);
-  ctx.moveTo(ruler + 0.5, 0);
-  ctx.lineTo(ruler + 0.5, h);
-  ctx.stroke();
+  ctx.drawImage(src, 0, 0, w, ruler, 0, 0, w, ruler);
+  ctx.drawImage(src, 0, 0, ruler, h, 0, 0, ruler, h);
+}
 
-  ctx.fillStyle = "rgba(232, 240, 248, 0.96)";
-  ctx.font = "11px Segoe UI, sans-serif";
-  ctx.strokeStyle = "rgba(196, 215, 231, 0.76)";
-  ctx.lineWidth = 1;
-  for (let x = firstMinorX; x <= x1 + 1e-6; x += minor) {
-    const sx = localToScreen(x, 0).x;
-    if (sx < ruler + 2 || sx > w - 2) continue;
-    const ratio = Math.abs((x / major) - Math.round(x / major));
-    if (ratio <= 1e-4) continue;
-    ctx.beginPath();
-    ctx.moveTo(sx, ruler - 5);
-    ctx.lineTo(sx, ruler);
-    ctx.stroke();
-  }
-  for (let y = firstMinorY; y <= y1 + 1e-6; y += minor) {
-    const sy = localToScreen(0, y).y;
-    if (sy < ruler + 2 || sy > h - 2) continue;
-    const ratio = Math.abs((y / major) - Math.round(y / major));
-    if (ratio <= 1e-4) continue;
-    ctx.beginPath();
-    ctx.moveTo(ruler - 5, sy);
-    ctx.lineTo(ruler, sy);
-    ctx.stroke();
-  }
-
-  ctx.strokeStyle = "rgba(232, 241, 249, 0.96)";
-  ctx.lineWidth = 1.4;
-  for (let x = firstMajorX; x <= x1 + 1e-6; x += major) {
-    const sx = localToScreen(x, 0).x;
-    if (sx < ruler + 2 || sx > w - 2) continue;
-    ctx.beginPath();
-    ctx.moveTo(sx, ruler - 10);
-    ctx.lineTo(sx, ruler);
-    ctx.stroke();
-    ctx.fillText(`${Math.round(x)}`, sx + 3, 14);
-  }
-  for (let y = firstMajorY; y <= y1 + 1e-6; y += major) {
-    const sy = localToScreen(0, y).y;
-    if (sy < ruler + 2 || sy > h - 2) continue;
-    ctx.beginPath();
-    ctx.moveTo(ruler - 10, sy);
-    ctx.lineTo(ruler, sy);
-    ctx.stroke();
-    ctx.fillText(`${Math.round(y)}`, 3, sy - 3);
-  }
-  ctx.fillStyle = "rgba(242, 248, 253, 0.98)";
-  ctx.fillText("0", 4, 14);
-  ctx.restore();
+function drawBackdrop() {
+  if (!backdropCtx || !els.backdropCanvas) return;
+  const ctx = backdropCtx;
+  ctx.clearRect(0, 0, els.backdropCanvas.width, els.backdropCanvas.height);
+  drawBackdropGridAndRuler(ctx, { drawGrid: true, drawRuler: true });
 }
 
 function updateDeformation(offsetsOverride = null) {
@@ -11516,6 +12411,112 @@ function getSolvedPoseWorld(m) {
   return computeWorld(pose);
 }
 
+function getScreenBoundsFromPoints(screenPoints) {
+  if (!screenPoints || screenPoints.length < 2) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (let i = 0; i + 1 < screenPoints.length; i += 2) {
+    const x = Number(screenPoints[i]);
+    const y = Number(screenPoints[i + 1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return null;
+  return { minX, minY, maxX, maxY };
+}
+
+function drawBindingSelectionOverlay(ctx, m) {
+  if (!ctx || !m || state.editMode !== "skeleton" || state.boneMode !== "edit") return;
+  const selection = getBindSelectionState(m);
+  if (selection.slotIndices.length <= 0) return;
+  const poseWorld = getSolvedPoseWorld(m);
+  ctx.save();
+  ctx.font = "12px Segoe UI, sans-serif";
+  for (const si of selection.slotIndices) {
+    const slot = state.slots[si];
+    if (!slot) continue;
+    const geom = buildSlotGeometry(slot, poseWorld);
+    const bounds = getScreenBoundsFromPoints(geom && geom.screen);
+    if (!bounds) continue;
+    const active = Number(si) === Number(state.activeSlot);
+    const pad = active ? 10 : 8;
+    const x = bounds.minX - pad;
+    const y = bounds.minY - pad;
+    const w = (bounds.maxX - bounds.minX) + pad * 2;
+    const h = (bounds.maxY - bounds.minY) + pad * 2;
+    ctx.fillStyle = active ? "rgba(255, 228, 110, 0.08)" : "rgba(125, 211, 252, 0.06)";
+    ctx.strokeStyle = active ? "rgba(255, 228, 110, 0.92)" : "rgba(125, 211, 252, 0.82)";
+    ctx.lineWidth = active ? 2.1 : 1.5;
+    ctx.setLineDash(active ? [] : [8, 5]);
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = active ? "#fff0b8" : "#d8f4ff";
+    ctx.fillText(getSlotDisplayNameByIndex(si), x + 6, Math.max(44, y - 6));
+  }
+  const header = `Bind Target: ${selection.slotIndices.length} slot(s)`;
+  const detail = `Slots: ${selection.slotPreview} | Bones: ${selection.bonePreview}`;
+  const boxW = Math.max(ctx.measureText(header).width, ctx.measureText(detail).width) + 18;
+  ctx.fillStyle = "rgba(9, 15, 22, 0.78)";
+  ctx.fillRect(12, 52, boxW, 34);
+  ctx.fillStyle = "#eaf7ff";
+  ctx.fillText(header, 20, 66);
+  ctx.fillStyle = "#9fd8ff";
+  ctx.fillText(detail, 20, 82);
+  ctx.restore();
+}
+
+function getBoneScreenShapePoints(headScreen, tipScreen) {
+  const head = headScreen || { x: 0, y: 0 };
+  const tip = tipScreen || head;
+  const dx = (Number(tip.x) || 0) - (Number(head.x) || 0);
+  const dy = (Number(tip.y) || 0) - (Number(head.y) || 0);
+  const len = Math.max(1, Math.hypot(dx, dy));
+  const ux = dx / len;
+  const uy = dy / len;
+  const px = -uy;
+  const py = ux;
+  const neckOffset = Math.min(16, Math.max(6, len * 0.13));
+  const wingOffset = Math.min(34, Math.max(10, len * 0.3));
+  const neckHalf = Math.min(5.5, Math.max(2.1, len * 0.045));
+  const wingHalf = Math.min(13, Math.max(4.2, len * 0.105));
+  const tailInset = Math.min(8, Math.max(2, len * 0.05));
+  const tailHalf = Math.min(3.4, Math.max(1.1, len * 0.02));
+  const neckCenterX = (Number(head.x) || 0) + ux * neckOffset;
+  const neckCenterY = (Number(head.y) || 0) + uy * neckOffset;
+  const wingCenterX = (Number(head.x) || 0) + ux * wingOffset;
+  const wingCenterY = (Number(head.y) || 0) + uy * wingOffset;
+  const tailBaseX = (Number(tip.x) || 0) - ux * tailInset;
+  const tailBaseY = (Number(tip.y) || 0) - uy * tailInset;
+  return [
+    { x: Number(head.x) || 0, y: Number(head.y) || 0 },
+    { x: neckCenterX + px * neckHalf, y: neckCenterY + py * neckHalf },
+    { x: wingCenterX + px * wingHalf, y: wingCenterY + py * wingHalf },
+    { x: tailBaseX + px * tailHalf, y: tailBaseY + py * tailHalf },
+    { x: Number(tip.x) || 0, y: Number(tip.y) || 0 },
+    { x: tailBaseX - px * tailHalf, y: tailBaseY - py * tailHalf },
+    { x: wingCenterX - px * wingHalf, y: wingCenterY - py * wingHalf },
+    { x: neckCenterX - px * neckHalf, y: neckCenterY - py * neckHalf },
+  ];
+}
+
+function traceBoneScreenShapePath(ctx, points) {
+  if (!ctx || !Array.isArray(points) || points.length < 3) return;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i += 1) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.closePath();
+}
+
 function drawOverlay() {
   const m = state.mesh;
   const ctx = overlayCtx;
@@ -11523,7 +12524,7 @@ function drawOverlay() {
   if (state.overlayScene.enabled && state.overlayScene.canvas) {
     ctx.drawImage(state.overlayScene.canvas, 0, 0);
   }
-  drawBackdropGridAndRuler(ctx);
+  drawRulerOverlayFromBackdrop(ctx);
   if (!m) return;
 
   ctx.lineWidth = 1;
@@ -11547,6 +12548,7 @@ function drawOverlay() {
     meshForOverlay.cols > 0 &&
     meshForOverlay.rows > 0 &&
     (meshForOverlay.cols + 1) * (meshForOverlay.rows + 1) === screenForOverlay.length / 2;
+  const showMeshWireframe = state.editMode === "mesh";
 
   if (isSlotMeshEditTabActive()) {
     const slot = getActiveSlot();
@@ -11593,7 +12595,9 @@ function drawOverlay() {
     ctx.restore();
   }
 
-  if (isGridMesh) {
+  drawBindingSelectionOverlay(ctx, m);
+
+  if (showMeshWireframe && isGridMesh) {
     for (let y = 0; y <= meshForOverlay.rows; y += 1) {
       ctx.beginPath();
       for (let x = 0; x <= meshForOverlay.cols; x += 1) {
@@ -11616,7 +12620,7 @@ function drawOverlay() {
       }
       ctx.stroke();
     }
-  } else if (meshForOverlay.indices && meshForOverlay.indices.length > 0) {
+  } else if (showMeshWireframe && meshForOverlay.indices && meshForOverlay.indices.length > 0) {
     const idx = meshForOverlay.indices;
     for (let t = 0; t + 2 < idx.length; t += 3) {
       const i0 = idx[t];
@@ -11640,6 +12644,8 @@ function drawOverlay() {
   if (state.editMode !== "mesh") {
     const bones = getActiveBones(m);
     const world = state.boneMode === "pose" ? getSolvedPoseWorld(m) : (enforceConnectedHeads(bones), getEditAwareWorld(bones));
+    const focusedBoneSet = new Set(getSelectedBonesForWeight(m));
+    const dimUnselectedBones = state.boneMode === "edit";
     const ikBones = getIkConstrainedBoneSet(m);
     const ikTargets = getIkTargetBoneSet(m);
     const tfcBones = getTransformConstrainedBoneSet(m);
@@ -11731,6 +12737,7 @@ function drawOverlay() {
       const end = transformPoint(world[i], b.length, 0);
       const ss = localToScreen(start.x, start.y);
       const es = localToScreen(end.x, end.y);
+      const boneShape = getBoneScreenShapePoints(ss, es);
 
       const isPrimarySelected = i === state.selectedBone;
       const isMultiSelected = Array.isArray(state.selectedBonesForWeight) && state.selectedBonesForWeight.includes(i);
@@ -11742,79 +12749,143 @@ function drawOverlay() {
       const isTFCTarget = tfcTargets.has(i);
       const isPathBone = pathBones.has(i);
       const isPathTarget = pathTargets.has(i);
-      if (isPrimarySelected) {
-        ctx.strokeStyle = "rgba(255, 236, 153, 0.28)";
-        ctx.lineWidth = 10;
-        ctx.beginPath();
-        ctx.moveTo(ss.x, ss.y);
-        ctx.lineTo(es.x, es.y);
+      const isHeadSelected = state.selectedBoneParts && state.selectedBoneParts.some(p => p.index === i && p.type === "head");
+      const isTailSelected = state.selectedBoneParts && state.selectedBoneParts.some(p => p.index === i && p.type === "tail");
+      const isJointSelected = !!(isHeadSelected && isTailSelected && state.boneMode === "edit");
+      const bodyPartSelectionActive = state.boneMode === "edit" && (isHeadSelected || isTailSelected);
+      const isBodyPrimarySelected = !!(isPrimarySelected && (!bodyPartSelectionActive || isJointSelected));
+      const shouldDimBone =
+        dimUnselectedBones &&
+        (
+          focusedBoneSet.size <= 0
+            ? !isParentCandidate && !isIkTargetCandidate
+            : !isPrimarySelected && !isMultiSelected && !isParentCandidate && !isIkTargetCandidate
+        );
+      const boneOutline = shouldDimBone
+        ? (b.connected ? "rgba(142, 147, 154, 0.78)" : "rgba(112, 118, 126, 0.72)")
+        : isParentCandidate
+          ? "#ff7ad9"
+          : isBodyPrimarySelected
+            ? "#ffe46e"
+            : isMultiSelected
+              ? "#7dd3fc"
+              : isIKBone
+                ? "#5df5ff"
+                : isIKTarget
+                  ? "#6effd8"
+                  : isTFCBone
+                    ? "#f8a3ff"
+                    : isTFCTarget
+                      ? "#ffcc66"
+                      : isPathBone
+                        ? "#7ea4ff"
+                        : isPathTarget
+                          ? "#9ac4ff"
+                          : state.addBoneArmed
+                            ? "rgba(246,184,76,0.7)"
+                            : b.connected
+                              ? "#f6b84c"
+                              : "#7dd3fc";
+      const boneFill = shouldDimBone
+        ? "rgba(98, 103, 111, 0.28)"
+        : isParentCandidate
+          ? "rgba(255, 122, 217, 0.18)"
+          : isBodyPrimarySelected
+            ? "rgba(255, 228, 110, 0.24)"
+            : isMultiSelected
+              ? "rgba(125, 211, 252, 0.2)"
+              : isIKBone
+                ? "rgba(93, 245, 255, 0.16)"
+                : isIKTarget
+                  ? "rgba(110, 255, 216, 0.16)"
+                  : isTFCBone
+                    ? "rgba(248, 163, 255, 0.16)"
+                    : isTFCTarget
+                      ? "rgba(255, 204, 102, 0.16)"
+                      : isPathBone
+                        ? "rgba(126, 164, 255, 0.15)"
+                        : isPathTarget
+                          ? "rgba(154, 196, 255, 0.15)"
+                          : state.addBoneArmed
+                            ? "rgba(246,184,76,0.12)"
+                            : b.connected
+                              ? "rgba(246,184,76,0.12)"
+                              : "rgba(125,211,252,0.1)";
+      if (isBodyPrimarySelected) {
+        ctx.strokeStyle = "rgba(255, 236, 153, 0.24)";
+        ctx.lineWidth = 5.5;
+        ctx.lineJoin = "round";
+        traceBoneScreenShapePath(ctx, boneShape);
         ctx.stroke();
       } else if (isMultiSelected) {
-        ctx.strokeStyle = "rgba(125, 211, 252, 0.25)";
-        ctx.lineWidth = 8;
-        ctx.beginPath();
-        ctx.moveTo(ss.x, ss.y);
-        ctx.lineTo(es.x, es.y);
+        ctx.strokeStyle = "rgba(125, 211, 252, 0.2)";
+        ctx.lineWidth = 4.2;
+        ctx.lineJoin = "round";
+        traceBoneScreenShapePath(ctx, boneShape);
         ctx.stroke();
       }
 
-      ctx.strokeStyle = isParentCandidate
-        ? "#ff7ad9"
-        : isPrimarySelected
-          ? "#ffe46e"
-          : isMultiSelected
-            ? "#7dd3fc"
-            : isIKBone
-              ? "#5df5ff"
-              : isIKTarget
-                ? "#6effd8"
-                : isTFCBone
-                  ? "#f8a3ff"
-                  : isTFCTarget
-                    ? "#ffcc66"
-                    : isPathBone
-                      ? "#7ea4ff"
-                      : isPathTarget
-                        ? "#9ac4ff"
-                        : state.addBoneArmed
-                          ? "rgba(246,184,76,0.55)"
-                          : b.connected
-                            ? "#f6b84c"
-                            : "#7dd3fc";
-      ctx.lineWidth = isPrimarySelected || isParentCandidate ? 4 : isMultiSelected ? 3 : 2;
+      ctx.fillStyle = boneFill;
+      traceBoneScreenShapePath(ctx, boneShape);
+      ctx.fill();
+      ctx.strokeStyle = boneOutline;
+      ctx.lineWidth = shouldDimBone ? 1.1 : isBodyPrimarySelected || isParentCandidate ? 2.1 : isMultiSelected ? 1.8 : 1.45;
+      ctx.lineJoin = "round";
+      traceBoneScreenShapePath(ctx, boneShape);
+      ctx.stroke();
+      ctx.strokeStyle = shouldDimBone ? "rgba(214, 219, 224, 0.2)" : "rgba(245, 248, 252, 0.24)";
+      ctx.lineWidth = shouldDimBone ? 0.7 : 0.8;
       ctx.beginPath();
       ctx.moveTo(ss.x, ss.y);
       ctx.lineTo(es.x, es.y);
       ctx.stroke();
 
-      const isHeadSelected = state.selectedBoneParts && state.selectedBoneParts.some(p => p.index === i && p.type === "head");
-      const isTailSelected = state.selectedBoneParts && state.selectedBoneParts.some(p => p.index === i && p.type === "tail");
-
-      ctx.fillStyle = isParentCandidate
-        ? "#ffd0f5"
-        : isHeadSelected || isPrimarySelected
-          ? "#fff0b8"
-          : isMultiSelected
-            ? "#d3f2ff"
-            : isIKTarget
-              ? "#b8ffea"
-              : "#ffd9a0";
+      ctx.fillStyle = shouldDimBone
+        ? "rgba(176, 181, 188, 0.82)"
+        : isParentCandidate
+          ? "#ffd0f5"
+          : isHeadSelected || isJointSelected || isBodyPrimarySelected
+            ? "#fff0b8"
+            : isMultiSelected
+              ? "#d3f2ff"
+              : isIKTarget
+                ? "#b8ffea"
+                : "#ffd9a0";
       ctx.beginPath();
-      ctx.arc(ss.x, ss.y, isHeadSelected || isPrimarySelected || isParentCandidate ? 6 : isMultiSelected ? 5.5 : 5, 0, Math.PI * 2);
+      ctx.arc(ss.x, ss.y, isHeadSelected || isJointSelected || isBodyPrimarySelected || isParentCandidate ? 4 : isMultiSelected ? 3.7 : 3.3, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = isParentCandidate
-        ? "#ffd0f5"
-        : isTailSelected || isPrimarySelected
-          ? "#fff0b8"
-          : isMultiSelected
-            ? "#d3f2ff"
-            : isIKTarget
-              ? "#b8ffea"
-              : "#ffd9a0";
+      ctx.fillStyle = shouldDimBone
+        ? "rgba(176, 181, 188, 0.82)"
+        : isParentCandidate
+          ? "#ffd0f5"
+          : isTailSelected || isJointSelected || isBodyPrimarySelected
+            ? "#fff0b8"
+            : isMultiSelected
+              ? "#d3f2ff"
+              : isIKTarget
+                ? "#b8ffea"
+                : "#ffd9a0";
       ctx.beginPath();
-      ctx.arc(es.x, es.y, isTailSelected || isPrimarySelected || isParentCandidate ? 8 : isMultiSelected ? 7 : 6, 0, Math.PI * 2);
+      ctx.arc(es.x, es.y, isTailSelected || isJointSelected || isBodyPrimarySelected || isParentCandidate ? 4.7 : isMultiSelected ? 4.3 : 4, 0, Math.PI * 2);
       ctx.fill();
+
+      if (isJointSelected) {
+        const midX = (ss.x + es.x) * 0.5;
+        const midY = (ss.y + es.y) * 0.5;
+        ctx.strokeStyle = "rgba(255, 228, 110, 0.92)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(midX, midY, 6.4, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(255, 228, 110, 0.18)";
+        ctx.beginPath();
+        ctx.arc(midX, midY, 4.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffe46e";
+        ctx.font = "10px Segoe UI, sans-serif";
+        ctx.fillText("JOINT", midX + 9, midY + 3);
+      }
 
       if (isIkTargetCandidate) {
         ctx.strokeStyle = "#6effd8";
@@ -11827,7 +12898,7 @@ function drawOverlay() {
         ctx.stroke();
       }
 
-      if (isPrimarySelected) {
+      if (isBodyPrimarySelected) {
         ctx.fillStyle = "#ffe46e";
         ctx.font = "12px Segoe UI, sans-serif";
         ctx.fillText("SEL", es.x + 10, es.y - 8);
@@ -12420,6 +13491,7 @@ function render(ts = 0) {
   if (state.mesh) {
     updateDeformation();
   }
+  drawBackdrop();
 
   const slots = getRenderableSlots();
   const hasClipSlot = slots.some((s) => s && s.clipEnabled);
@@ -12438,7 +13510,7 @@ function render(ts = 0) {
     }
     gl.enable(gl.BLEND);
     applyGLBlendMode("normal");
-    gl.clearColor(0.04, 0.06, 0.08, 1);
+    gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     if (state.mesh && state.texture) {
       gl.useProgram(program);
@@ -12476,7 +13548,7 @@ function render(ts = 0) {
     const ctx = hasGL ? ensureOverlaySceneCanvas() : stage2dCtx;
     if (hasGL) {
       state.overlayScene.enabled = true;
-      gl.clearColor(0.04, 0.06, 0.08, 1);
+      gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
     } else {
       state.overlayScene.enabled = false;
@@ -12488,8 +13560,6 @@ function render(ts = 0) {
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, els.glCanvas.width, els.glCanvas.height);
-    ctx.fillStyle = "rgb(10, 15, 20)";
-    ctx.fillRect(0, 0, els.glCanvas.width, els.glCanvas.height);
     if (hasBaseReference) drawBaseImageReference2D(ctx);
     if (wantsOnion) drawOnionSkins2D(ctx, slots);
     const poseWorld = state.mesh ? getSolvedPoseWorld(state.mesh) : [];
@@ -12609,17 +13679,15 @@ function selectBonesByRect(x0, y0, x1, y1, append = false) {
     const ts = localToScreen(ep.tip.x, ep.tip.y);
     const headInside = hs.x >= left && hs.x <= right && hs.y >= top && hs.y <= bottom;
     const tailInside = ts.x >= left && ts.x <= right && ts.y >= top && ts.y <= bottom;
+    const segmentInside = segmentIntersectsRect(hs.x, hs.y, ts.x, ts.y, left, top, right, bottom);
 
     if (headInside) pickedParts.push({ index: i, type: "head" });
     if (tailInside) pickedParts.push({ index: i, type: "tail" });
-    if (headInside || tailInside) pickedBones.push(i);
+    if (headInside || tailInside || segmentInside) pickedBones.push(i);
   }
   if (pickedBones.length === 0) {
     if (!append) {
-      state.selectedBonesForWeight = [];
-      state.selectedBoneParts = [];
-      state.selectedBone = -1;
-      updateBoneUI();
+      clearBoneSelection(false);
     }
     return 0;
   }
@@ -12638,7 +13706,7 @@ function selectBonesByRect(x0, y0, x1, y1, append = false) {
   }
   state.selectedBone = pickedBones[pickedBones.length - 1];
   updateBoneUI();
-  return picked.length;
+  return pickedBones.length;
 }
 
 function toggleSelectAllBones() {
@@ -12647,9 +13715,7 @@ function toggleSelectAllBones() {
   const all = m.rigBones.map((_, i) => i);
   const curr = getSelectedBonesForWeight(m);
   if (curr.length === all.length) {
-    state.selectedBonesForWeight = [];
-    state.selectedBone = -1;
-    setStatus("Bone selection cleared.");
+    clearBoneSelection(true);
   } else {
     state.selectedBonesForWeight = all;
     state.selectedBone = all[all.length - 1];
@@ -12946,6 +14012,14 @@ function selectBoneDelta(delta) {
   updateBoneUI();
 }
 
+function clearBoneSelection(updateStatus = false) {
+  state.selectedBonesForWeight = [];
+  state.selectedBoneParts = [];
+  state.selectedBone = -1;
+  updateBoneUI();
+  if (updateStatus) setStatus("Bone selection cleared.");
+}
+
 function getSelectedBonesForWeight(m) {
   if (!m || !m.rigBones) return [];
   const count = m.rigBones.length;
@@ -12989,11 +14063,39 @@ function makeLayerTrackId() {
 }
 
 function createAnimation(name = "Anim") {
-  return {
+  return normalizeAnimationRecord({
     id: makeAnimId(),
     name,
     duration: 5,
+    rangeStart: 0,
+    rangeEnd: 5,
     tracks: {},
+  });
+}
+
+function normalizeAnimationRecord(anim, fallbackName = "Anim") {
+  const out = anim && typeof anim === "object" ? anim : {};
+  out.id = out.id ? String(out.id) : makeAnimId();
+  out.name = out.name ? String(out.name) : fallbackName;
+  out.duration = Math.max(0.1, Number(out.duration) || 5);
+  const minSpan = 0.01;
+  const maxStart = Math.max(0, out.duration - minSpan);
+  const rawStart = Number.isFinite(Number(out.rangeStart)) ? Number(out.rangeStart) : 0;
+  const start = math.clamp(rawStart, 0, maxStart);
+  const rawEnd = Number.isFinite(Number(out.rangeEnd)) ? Number(out.rangeEnd) : out.duration;
+  const end = math.clamp(rawEnd, Math.min(out.duration, start + minSpan), out.duration);
+  out.rangeStart = start;
+  out.rangeEnd = end;
+  out.tracks = out.tracks && typeof out.tracks === "object" ? out.tracks : {};
+  return out;
+}
+
+function getAnimationActiveRange(anim) {
+  const a = normalizeAnimationRecord(anim);
+  return {
+    start: Number(a.rangeStart) || 0,
+    end: Number(a.rangeEnd) || a.duration,
+    duration: Number(a.duration) || 0.1,
   };
 }
 
@@ -13523,6 +14625,7 @@ function ensureCurrentAnimation() {
   } else if (!getCurrentAnimation()) {
     state.anim.currentAnimId = state.anim.animations[0].id;
   }
+  state.anim.animations = state.anim.animations.map((a, i) => normalizeAnimationRecord(a, `Anim ${i + 1}`));
   migrateLegacyVertexTracksAllAnimations();
   ensureStateMachine();
 }
@@ -14454,14 +15557,96 @@ function ensureOnionSkinSettings() {
 
 function getOnionSampleTime(baseTime, frameOffset, duration) {
   const d = Math.max(0.1, Number(duration) || 0.1);
-  const step = Math.max(0.001, getTimelineTimeStep());
+  const step = Math.max(TIMELINE_MIN_STEP, getTimelineTimeStep());
   const t = Number(baseTime) + Number(frameOffset) * step;
   if (state.anim.loop) return wrapTime(t, d);
   return math.clamp(t, 0, d);
 }
 
+function clampTimelineZoom(value) {
+  return math.clamp(Number(value) || 1, TIMELINE_ZOOM_MIN, TIMELINE_ZOOM_MAX);
+}
+
+function formatTimelineTimeLabel(t) {
+  const digits = Math.max(1, getTimelineTimeDigits());
+  return `${(Number(t) || 0).toFixed(digits).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1")}s`;
+}
+
+function syncTimelineZoomUI() {
+  const zoom = clampTimelineZoom(state.anim.timelineZoom);
+  if (els.timelineZoomResetBtn) els.timelineZoomResetBtn.textContent = `${Math.round(zoom * 100)}%`;
+  if (els.timelineZoomOutBtn) els.timelineZoomOutBtn.disabled = zoom <= TIMELINE_ZOOM_MIN + 1e-6;
+  if (els.timelineZoomInBtn) els.timelineZoomInBtn.disabled = zoom >= TIMELINE_ZOOM_MAX - 1e-6;
+}
+
+function zoomTimelineBy(factor) {
+  const next = clampTimelineZoom(clampTimelineZoom(state.anim.timelineZoom) * (Number(factor) || 1));
+  if (Math.abs(next - clampTimelineZoom(state.anim.timelineZoom)) < 1e-6) {
+    syncTimelineZoomUI();
+    return;
+  }
+  state.anim.timelineZoom = next;
+  syncTimelineZoomUI();
+  renderTimelineTracks();
+}
+
+function resetTimelineZoom() {
+  state.anim.timelineZoom = 1;
+  syncTimelineZoomUI();
+  renderTimelineTracks();
+}
+
+function getTimelineViewRange(anim) {
+  const active = getAnimationActiveRange(anim);
+  const span = Math.max(0.1, active.end - active.start);
+  const padBefore = Math.max(0.5, span * 0.25);
+  const padAfter = Math.max(0.9, span * 0.4);
+  const unclampedStart = active.start - padBefore;
+  const baseStart = Math.max(0, unclampedStart);
+  const lostBefore = Math.max(0, baseStart - unclampedStart);
+  const contentEnd = Math.max(active.duration, active.end);
+  const baseEnd = Math.max(baseStart + 0.1, contentEnd + padAfter + lostBefore);
+  const baseSpan = Math.max(0.1, baseEnd - baseStart);
+  const zoom = clampTimelineZoom(state.anim.timelineZoom);
+  const targetSpan = math.clamp(baseSpan / zoom, Math.max(TIMELINE_MIN_STEP * 4, 0.4), baseSpan / TIMELINE_ZOOM_MIN);
+  const center = math.clamp(Number(state.anim.time) || active.start, baseStart, baseEnd);
+  let start = center - targetSpan * 0.5;
+  let end = center + targetSpan * 0.5;
+  if (start < 0) {
+    end += -start;
+    start = 0;
+  }
+  if (end < start + targetSpan) end = start + targetSpan;
+  return { start, end };
+}
+
+function normalizeTimelineRange(rangeOrDuration) {
+  if (rangeOrDuration && typeof rangeOrDuration === "object") {
+    const start = Number(rangeOrDuration.start) || 0;
+    const end = Math.max(start + 0.1, Number(rangeOrDuration.end) || start + 0.1);
+    return { start, end };
+  }
+  return { start: 0, end: Math.max(0.1, Number(rangeOrDuration) || 0.1) };
+}
+
+function getTimelineRulerTickStep(rangeOrDuration) {
+  const range = normalizeTimelineRange(rangeOrDuration);
+  const span = Math.max(0.1, range.end - range.start);
+  const target = span / 10;
+  const minStep = getTimelineTimeStep();
+  const raw = Math.max(target, minStep);
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const ratio = raw / pow;
+  let nice = 10;
+  if (ratio <= 1) nice = 1;
+  else if (ratio <= 2) nice = 2;
+  else if (ratio <= 2.5) nice = 2.5;
+  else if (ratio <= 5) nice = 5;
+  return Math.max(minStep, nice * pow);
+}
+
 function getTimelineTimeStep() {
-  const base = Math.max(0.001, Number(state.anim.timeStep) || 0.01);
+  const base = Math.max(TIMELINE_MIN_STEP, Number(state.anim.timeStep) || TIMELINE_MIN_STEP);
   const frameStep = 1 / Math.max(1, Number(state.anim.fps) || 30);
   return Math.max(base, frameStep);
 }
@@ -14498,16 +15683,21 @@ function setAnimTime(value, durationOverride = null) {
   ensureCurrentAnimation();
   const anim = getCurrentAnimation();
   if (!anim) return;
+  normalizeAnimationRecord(anim);
   const baseDuration = Math.max(0.1, Number(els.animDuration.value) || anim.duration || 5);
   anim.duration = baseDuration;
+  const active = getAnimationActiveRange(anim);
   const effectiveDuration = Number.isFinite(Number(durationOverride))
     ? Math.max(baseDuration, Number(durationOverride))
     : Math.max(baseDuration, Number(state.anim.duration) || baseDuration);
   state.anim.duration = effectiveDuration;
   state.anim.time = sanitizeTimelineTime(value, effectiveDuration);
   els.animDuration.value = String(baseDuration);
+  if (els.animRangeStart) els.animRangeStart.value = active.start.toFixed(getTimelineTimeDigits());
+  if (els.animRangeEnd) els.animRangeEnd.value = active.end.toFixed(getTimelineTimeDigits());
   els.animTime.step = String(getTimelineTimeStep());
   els.animTime.value = state.anim.time.toFixed(getTimelineTimeDigits());
+  syncTimelineZoomUI();
   renderTimelineTracks();
 }
 
@@ -14517,82 +15707,35 @@ function getTimelineDisplayDuration(anim) {
   return Math.max(base, curr);
 }
 
+function getTimelineBoneGroupKeyForSlotIndex(slotIndex) {
+  const si = Number(slotIndex);
+  if (!Number.isFinite(si) || si < 0 || si >= state.slots.length) return "slot:unassigned";
+  const slot = state.slots[si];
+  const bi = Number(slot && slot.bone);
+  return Number.isFinite(bi) && bi >= 0 && state.mesh && bi < state.mesh.rigBones.length ? String(bi) : "slot:unassigned";
+}
+
+function buildTimelineSlotTrackChildren(slot, slotIndex) {
+  const si = Number(slotIndex);
+  const name = slot && slot.name ? slot.name : `slot_${si}`;
+  return [
+    { id: `slot:${si}:attachment`, kind: "track", slotIndex: si, prop: "attachment", label: `${name}.Attachment` },
+    { id: `slot:${si}:color`, kind: "track", slotIndex: si, prop: "color", label: `${name}.Color/Alpha` },
+    { id: getVertexTrackId(si), kind: "track", slotIndex: si, prop: "deform", label: `${name}.Deform` },
+    { id: `slot:${si}:clip`, kind: "track", slotIndex: si, prop: "clip", label: `${name}.Clip` },
+    { id: `slot:${si}:clipSource`, kind: "track", slotIndex: si, prop: "clipSource", label: `${name}.Clip Source` },
+    { id: `slot:${si}:clipEnd`, kind: "track", slotIndex: si, prop: "clipEnd", label: `${name}.Clip End` },
+  ];
+}
+
 function getVisibleTrackDefinitions() {
   const m = state.mesh;
   if (!m) return [];
   const out = [];
-  out.push({
-    id: "group:vertex",
-    kind: "group",
-    groupKey: "vertex",
-    label: "Deform",
-    expanded: state.anim.trackExpanded.vertex !== false,
-    children:
-      state.slots && state.slots.length > 0
-        ? state.slots.map((s, si) => ({
-          id: getVertexTrackId(si),
-          kind: "track",
-          slotIndex: si,
-          prop: "deform",
-          label: `${s && s.name ? s.name : `slot_${si}`}.Deform`,
-        }))
-        : [{ id: VERTEX_TRACK_ID, kind: "track", label: "Deform" }],
-  });
-  out.push({
-    id: "group:event",
-    kind: "group",
-    groupKey: "event",
-    label: "Event",
-    expanded: state.anim.trackExpanded.event !== false,
-    children: [{ id: EVENT_TRACK_ID, kind: "track", label: "Events" }],
-  });
-  out.push({
-    id: "group:draworder",
-    kind: "group",
-    groupKey: "draworder",
-    label: "Draw Order",
-    expanded: state.anim.trackExpanded.draworder !== false,
-    children: [{ id: DRAWORDER_TRACK_ID, kind: "track", label: "Timeline" }],
-  });
-  const sm = ensureStateMachine();
-  if (Array.isArray(sm.parameters) && sm.parameters.length > 0) {
-    out.push({
-      id: "group:smparam",
-      kind: "group",
-      groupKey: "smparam",
-      label: "State Params",
-      expanded: state.anim.trackExpanded.smparam !== false,
-      children: sm.parameters.map((p) => ({
-        id: getStateParamTrackId(p.id),
-        kind: "track",
-        paramId: p.id,
-        prop: "value",
-        label: `${p.name}.${p.type}`,
-      })),
-    });
-  }
-  if (state.slots && state.slots.length > 0) {
-    for (let si = 0; si < state.slots.length; si += 1) {
-      const s = state.slots[si];
-      out.push({
-        id: `group:slot:${si}`,
-        kind: "group",
-        groupKey: `slot:${si}`,
-        label: `Slot ${si}: ${s && s.name ? s.name : `slot_${si}`}`,
-        expanded: state.anim.trackExpanded[`slot:${si}`] === true,
-        children: [
-          { id: `slot:${si}:attachment`, kind: "track", slotIndex: si, prop: "attachment", label: "Attachment" },
-          { id: `slot:${si}:clip`, kind: "track", slotIndex: si, prop: "clip", label: "Clip" },
-          { id: `slot:${si}:clipSource`, kind: "track", slotIndex: si, prop: "clipSource", label: "Clip Source" },
-          { id: `slot:${si}:clipEnd`, kind: "track", slotIndex: si, prop: "clipEnd", label: "Clip End" },
-          { id: `slot:${si}:color`, kind: "track", slotIndex: si, prop: "color", label: "Color/Alpha" },
-        ],
-      });
-    }
-  }
+  const boneGroups = [];
   for (let idx = 0; idx < m.rigBones.length; idx += 1) {
     const b = m.rigBones[idx];
-    out.push({
+    boneGroups.push({
       id: `group:${idx}`,
       kind: "group",
       groupKey: String(idx),
@@ -14609,6 +15752,34 @@ function getVisibleTrackDefinitions() {
         { id: getTrackId(idx, "shearY"), kind: "track", boneIndex: idx, prop: "shearY", label: "Shear Y" },
         { id: getTrackId(idx, "animHide"), kind: "track", boneIndex: idx, prop: "animHide", label: "Anim Hide" },
       ],
+    });
+  }
+  const unassignedSlotChildren = [];
+  if (state.slots && state.slots.length > 0) {
+    for (let si = 0; si < state.slots.length; si += 1) {
+      const slot = state.slots[si];
+      const groupKey = getTimelineBoneGroupKeyForSlotIndex(si);
+      const slotChildren = buildTimelineSlotTrackChildren(slot, si);
+      if (groupKey === "slot:unassigned") {
+        unassignedSlotChildren.push(...slotChildren);
+        continue;
+      }
+      const bi = Number(groupKey);
+      if (Number.isFinite(bi) && boneGroups[bi]) boneGroups[bi].children.push(...slotChildren);
+      else unassignedSlotChildren.push(...slotChildren);
+    }
+  } else {
+    unassignedSlotChildren.push({ id: VERTEX_TRACK_ID, kind: "track", label: "deform" });
+  }
+  out.push(...boneGroups);
+  if (unassignedSlotChildren.length > 0) {
+    out.push({
+      id: "group:slot:unassigned",
+      kind: "group",
+      groupKey: "slot:unassigned",
+      label: "Unassigned Slots",
+      expanded: state.anim.trackExpanded["slot:unassigned"] === true,
+      children: unassignedSlotChildren,
     });
   }
   const ikList = ensureIKConstraints(m);
@@ -14711,18 +15882,40 @@ function getVisibleTrackDefinitions() {
       ]),
     });
   }
+  const sm = ensureStateMachine();
+  if (Array.isArray(sm.parameters) && sm.parameters.length > 0) {
+    out.push({
+      id: "group:smparam",
+      kind: "group",
+      groupKey: "smparam",
+      label: "State Params",
+      expanded: state.anim.trackExpanded.smparam !== false,
+      children: sm.parameters.map((p) => ({
+        id: getStateParamTrackId(p.id),
+        kind: "track",
+        paramId: p.id,
+        prop: "value",
+        label: `${p.name}.${p.type}`,
+      })),
+    });
+  }
   return out;
+}
+
+function getTimelineOtherTrackDefinitions() {
+  return [
+    { id: DRAWORDER_TRACK_ID, kind: "track", label: "Draw Order" },
+    { id: EVENT_TRACK_ID, kind: "track", label: "Events" },
+  ];
 }
 
 function getTrackGroupKey(trackId) {
   if (!trackId) return "";
-  if (trackId === VERTEX_TRACK_ID) return "vertex";
-  if (trackId === EVENT_TRACK_ID) return "event";
-  if (trackId === DRAWORDER_TRACK_ID) return "draworder";
+  if (trackId === EVENT_TRACK_ID || trackId === DRAWORDER_TRACK_ID) return "";
   const p = parseTrackId(trackId);
   if (!p) return "";
-  if (p.type === "mesh") return "vertex";
-  if (p.type === "slot") return `slot:${p.slotIndex}`;
+  if (p.type === "mesh") return getTimelineBoneGroupKeyForSlotIndex(p.slotIndex);
+  if (p.type === "slot") return getTimelineBoneGroupKeyForSlotIndex(p.slotIndex);
   if (p.type === "bone") return String(p.boneIndex);
   if (p.type === "ik") return "ik";
   if (p.type === "tfc") return "tfc";
@@ -14790,58 +15983,92 @@ function getTimelineGroupsForView(anim) {
   return out;
 }
 
-function refreshTrackSelect() {
-  const anim = getCurrentAnimation();
-  const groups = getTimelineGroupsForView(anim);
+function getTimelineOtherRowsForView(anim) {
+  const query = String(state.anim.filterText || "").trim().toLowerCase();
+  const onlyKeyed = !!state.anim.onlyKeyed;
+  const rows = [];
+  for (const track of getTimelineOtherTrackDefinitions()) {
+    if (!track || !track.id) continue;
+    const keys = anim ? getTrackKeys(anim, track.id) : [];
+    const isSelected = state.anim.selectedTrack === track.id;
+    if (onlyKeyed && !isSelected && (!Array.isArray(keys) || keys.length <= 0)) continue;
+    if (query) {
+      const hay = `${String(track.label || "")} ${String(track.id || "")}`.toLowerCase();
+      if (!hay.includes(query)) continue;
+    }
+    rows.push(track);
+  }
+  return rows;
+}
+
+function getAvailableTimelineTracks() {
+  const groups = getVisibleTrackDefinitions();
   const tracks = [];
   for (const g of groups) {
-    for (const c of g.children) tracks.push(c);
-  }
-  els.trackSelect.innerHTML = "";
-  for (const t of tracks) {
-    const opt = document.createElement("option");
-    opt.value = t.id;
-    const parsed = parseTrackId(t.id);
-    if (parsed && parsed.type === "mesh") {
-      if (Number.isFinite(parsed.slotIndex)) {
-        const s = state.slots[parsed.slotIndex];
-        const slotName = s && s.name ? s.name : `slot_${parsed.slotIndex}`;
-        opt.textContent = `${slotName}.deform`;
-      } else {
-        opt.textContent = "deform";
-      }
-    } else if (t.id === DRAWORDER_TRACK_ID) {
-      opt.textContent = "drawOrder.timeline";
-    } else if (t.id.startsWith("slot:")) {
-      const s = state.slots[t.slotIndex];
-      const slotName = s && s.name ? s.name : `slot_${t.slotIndex}`;
-      opt.textContent = `${slotName}.${t.label}`;
-    } else if (t.id === EVENT_TRACK_ID) {
-      opt.textContent = "event.timeline";
-    } else if (t.id.startsWith("ik:")) {
-      opt.textContent = t.label;
-    } else if (t.id.startsWith("tfc:")) {
-      opt.textContent = t.label;
-    } else if (t.id.startsWith("pth:")) {
-      opt.textContent = t.label;
-    } else if (t.id.startsWith("layer:")) {
-      opt.textContent = t.label;
-    } else if (t.id.startsWith("smparam:")) {
-      opt.textContent = t.label;
-    } else {
-      const boneName = state.mesh && state.mesh.rigBones[t.boneIndex] ? state.mesh.rigBones[t.boneIndex].name : `bone_${t.boneIndex}`;
-      opt.textContent = `${boneName}.${t.label}`;
+    if (!g || !Array.isArray(g.children)) continue;
+    for (const c of g.children) {
+      if (c && c.id) tracks.push(c);
     }
-    els.trackSelect.appendChild(opt);
   }
+  for (const t of getTimelineOtherTrackDefinitions()) {
+    if (t && t.id) tracks.push(t);
+  }
+  return tracks;
+}
+
+function getTimelineTrackDisplayLabel(track) {
+  const t = track && typeof track === "object" ? track : null;
+  if (!t || !t.id) return "";
+  const parsed = parseTrackId(t.id);
+  if (parsed && parsed.type === "mesh") {
+    if (Number.isFinite(parsed.slotIndex)) {
+      const s = state.slots[parsed.slotIndex];
+      const slotName = s && s.name ? s.name : `slot_${parsed.slotIndex}`;
+      return `${slotName}.deform`;
+    }
+    return "deform";
+  }
+  if (t.id === DRAWORDER_TRACK_ID) return "Draw Order";
+  if (t.id === EVENT_TRACK_ID) return "Events";
+  if (t.id.startsWith("slot:")) {
+    const s = state.slots[t.slotIndex];
+    const slotName = s && s.name ? s.name : `slot_${t.slotIndex}`;
+    return `${slotName}.${t.label}`;
+  }
+  if (t.id.startsWith("ik:") || t.id.startsWith("tfc:") || t.id.startsWith("pth:") || t.id.startsWith("layer:") || t.id.startsWith("smparam:")) {
+    return t.label;
+  }
+  const boneName = state.mesh && state.mesh.rigBones[t.boneIndex] ? state.mesh.rigBones[t.boneIndex].name : `bone_${t.boneIndex}`;
+  return `${boneName}.${t.label}`;
+}
+
+function refreshTrackSelect() {
+  if (!els.trackSelect) return;
+  const tracks = getAvailableTimelineTracks();
   if (tracks.length === 0) {
     state.anim.selectedTrack = "";
+    els.trackSelect.value = "";
+    els.trackSelect.placeholder = "No tracks available";
+    els.trackSelect.title = "No tracks available";
     return;
   }
-  if (!tracks.find((t) => t.id === state.anim.selectedTrack)) {
+  let selected = tracks.find((t) => t.id === state.anim.selectedTrack) || null;
+  if (!selected) {
     state.anim.selectedTrack = tracks[0].id;
+    selected = tracks[0];
   }
-  els.trackSelect.value = state.anim.selectedTrack;
+  const label = getTimelineTrackDisplayLabel(selected);
+  els.trackSelect.value = label;
+  els.trackSelect.placeholder = "Select a track in timeline";
+  els.trackSelect.title = label ? `Selected Track: ${label}` : "Select a track in the timeline below";
+}
+
+function setSelectedTimelineTrack(trackId, options = {}) {
+  state.anim.selectedTrack = trackId ? String(trackId) : "";
+  refreshTrackSelect();
+  if (options.syncLayer !== false) syncLayerPanelFromSelectedTrack();
+  if (options.clearKeys) clearTimelineKeySelection();
+  if (options.render) renderTimelineTracks();
 }
 
 function refreshAnimationUI() {
@@ -14855,9 +16082,13 @@ function refreshAnimationUI() {
     els.animSelect.appendChild(opt);
   }
   if (current) {
+    normalizeAnimationRecord(current);
+    const active = getAnimationActiveRange(current);
     els.animSelect.value = current.id;
     els.animName.value = current.name;
     els.animDuration.value = String(current.duration);
+    if (els.animRangeStart) els.animRangeStart.value = active.start.toFixed(getTimelineTimeDigits());
+    if (els.animRangeEnd) els.animRangeEnd.value = active.end.toFixed(getTimelineTimeDigits());
     state.anim.duration = current.duration;
   }
   els.animLoop.checked = !!state.anim.loop;
@@ -14870,8 +16101,9 @@ function refreshAnimationUI() {
   els.animFps.value = String(Math.max(1, state.anim.fps || 30));
   if (els.animTimeStep) {
     els.animTimeStep.value = String(getTimelineTimeStep());
-    els.animTimeStep.step = "0.001";
+    els.animTimeStep.step = String(TIMELINE_MIN_STEP);
   }
+  syncTimelineZoomUI();
   if (els.timelineFilter) els.timelineFilter.value = String(state.anim.filterText || "");
   if (els.timelineOnlyKeyed) els.timelineOnlyKeyed.checked = !!state.anim.onlyKeyed;
   refreshAnimationMixUI();
@@ -15328,8 +16560,7 @@ function applyDrawOrderFromUI(writeKey = false) {
   renderTimelineTracks();
   if (state.mesh) samplePoseAtTime(state.mesh, state.anim.time);
   if (writeKey) {
-    state.anim.selectedTrack = DRAWORDER_TRACK_ID;
-    if (els.trackSelect) els.trackSelect.value = DRAWORDER_TRACK_ID;
+    setSelectedTimelineTrack(DRAWORDER_TRACK_ID);
     addOrUpdateKeyframeForTrack(DRAWORDER_TRACK_ID, false);
   } else {
     setStatus("Draw order applied.");
@@ -15364,12 +16595,16 @@ function removeSelectedAnimationLayerTrack() {
 }
 
 function timelineXForTime(t, width, duration) {
-  return math.clamp((t / Math.max(0.1, duration)) * width, 0, width);
+  const range = normalizeTimelineRange(duration);
+  const span = Math.max(0.1, range.end - range.start);
+  return math.clamp((((Number(t) || 0) - range.start) / span) * width, 0, width);
 }
 
 function timeForTimelineX(x, width, duration) {
-  if (width <= 1) return 0;
-  return math.clamp((x / width) * Math.max(0.1, duration), 0, Math.max(0.1, duration));
+  const range = normalizeTimelineRange(duration);
+  const span = Math.max(0.1, range.end - range.start);
+  if (width <= 1) return range.start;
+  return math.clamp(range.start + (x / width) * span, range.start, range.end);
 }
 
 function collectUniqueKeyTimes(anim, trackIds) {
@@ -15403,6 +16638,140 @@ function clearTimelineKeySelection() {
   state.anim.selectedKey = null;
 }
 
+function getActiveTimelineKeySelection(anim = null) {
+  const currentAnim = anim || getCurrentAnimation();
+  if (!currentAnim) return [];
+  normalizeSelectedKeys(currentAnim);
+  const selected = Array.isArray(state.anim.selectedKeys) ? state.anim.selectedKeys.filter(Boolean) : [];
+  if (selected.length > 0) return selected.map((s) => ({ trackId: s.trackId, keyId: s.keyId }));
+  const sk = state.anim.selectedKey;
+  if (!sk || !sk.trackId || !sk.keyId) return [];
+  const keys = getTrackKeys(currentAnim, sk.trackId);
+  if (!keys.some((k) => k.id === sk.keyId)) return [];
+  return [{ trackId: sk.trackId, keyId: sk.keyId }];
+}
+
+function getTimelineClipboardItems(selection = null, anim = null) {
+  const currentAnim = anim || getCurrentAnimation();
+  const selected = Array.isArray(selection) ? selection : getActiveTimelineKeySelection(currentAnim);
+  if (!currentAnim || selected.length <= 0) return [];
+  const out = [];
+  const seen = new Set();
+  for (const s of selected) {
+    if (!s || !s.trackId || !s.keyId) continue;
+    const key = `${s.trackId}::${s.keyId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const item = getTrackKeys(currentAnim, s.trackId).find((k) => k.id === s.keyId);
+    if (!item) continue;
+    out.push({
+      trackId: s.trackId,
+      keyId: s.keyId,
+      time: Number(item.time) || 0,
+      value: cloneTrackValue(item.value),
+      interp: item.interp || "linear",
+      curve: Array.isArray(item.curve) && item.curve.length >= 4 ? item.curve.slice(0, 4) : null,
+      slotIndex: Number.isFinite(item.slotIndex) ? Number(item.slotIndex) : null,
+    });
+  }
+  out.sort((a, b) => {
+    const dt = (Number(a.time) || 0) - (Number(b.time) || 0);
+    if (Math.abs(dt) > 1e-6) return dt;
+    return String(a.trackId || "").localeCompare(String(b.trackId || ""));
+  });
+  return out;
+}
+
+function buildTimelineClipboardPayload(items, anchorSelection = null) {
+  if (!Array.isArray(items) || items.length <= 0) return null;
+  const anchorKey =
+    anchorSelection && anchorSelection.trackId && anchorSelection.keyId
+      ? `${anchorSelection.trackId}::${anchorSelection.keyId}`
+      : "";
+  const anchorItem = items.find((it) => `${it.trackId}::${it.keyId}` === anchorKey) || items[0];
+  const anchorTime = Number(anchorItem && anchorItem.time);
+  return {
+    type: "timeline_keys",
+    sourceTrackId: String(anchorItem && anchorItem.trackId ? anchorItem.trackId : items[0].trackId || ""),
+    anchorTime: Number.isFinite(anchorTime) ? anchorTime : Number(items[0].time) || 0,
+    items: items.map((it) => ({
+      trackId: String(it.trackId || ""),
+      relTime: (Number(it.time) || 0) - (Number.isFinite(anchorTime) ? anchorTime : Number(items[0].time) || 0),
+      value: cloneTrackValue(it.value),
+      interp: it.interp || "linear",
+      curve: Array.isArray(it.curve) && it.curve.length >= 4 ? it.curve.slice(0, 4) : null,
+      slotIndex: Number.isFinite(it.slotIndex) ? Number(it.slotIndex) : null,
+    })),
+  };
+}
+
+function hasTimelineClipboardData() {
+  const clip = state.anim.keyClipboard;
+  return !!(
+    clip &&
+    Array.isArray(clip.items) &&
+    clip.items.length > 0 &&
+    (clip.type === "timeline_keys" || clip.value != null)
+  );
+}
+
+function resolveTimelineClipboardItems() {
+  const clip = state.anim.keyClipboard;
+  if (!clip) return [];
+  if (Array.isArray(clip.items) && clip.items.length > 0) {
+    return clip.items.map((it) => ({
+      trackId: String(it.trackId || clip.sourceTrackId || ""),
+      relTime: Number(it.relTime) || 0,
+      value: cloneTrackValue(it.value),
+      interp: it.interp || "linear",
+      curve: Array.isArray(it.curve) && it.curve.length >= 4 ? it.curve.slice(0, 4) : null,
+      slotIndex: Number.isFinite(it.slotIndex) ? Number(it.slotIndex) : null,
+    }));
+  }
+  return [
+    {
+      trackId: String(clip.trackId || clip.sourceTrackId || ""),
+      relTime: 0,
+      value: cloneTrackValue(clip.value),
+      interp: clip.interp || "linear",
+      curve: Array.isArray(clip.curve) && clip.curve.length >= 4 ? clip.curve.slice(0, 4) : null,
+      slotIndex: Number.isFinite(clip.slotIndex) ? Number(clip.slotIndex) : null,
+    },
+  ];
+}
+
+function removeTimelineKeysBySelection(selection, options = {}) {
+  const anim = getCurrentAnimation();
+  const picked = Array.isArray(selection) ? selection.filter(Boolean) : getActiveTimelineKeySelection(anim);
+  if (!anim || picked.length <= 0) {
+    if (!options.silent) setStatus("No selected key.");
+    return 0;
+  }
+  const keySet = new Set(picked.map((s) => `${s.trackId}::${s.keyId}`));
+  let removed = 0;
+  for (const trackId of Object.keys(anim.tracks || {})) {
+    const list = getTrackKeys(anim, trackId);
+    const next = list.filter((k) => {
+      const keep = !keySet.has(`${trackId}::${k.id}`);
+      if (!keep) removed += 1;
+      return keep;
+    });
+    anim.tracks[trackId] = next;
+  }
+  if (removed > 0) {
+    clearTimelineKeySelection();
+    renderTimelineTracks();
+  } else if (!options.silent) {
+    setStatus("No key removed.");
+  }
+  return removed;
+}
+
+function isTimelineEditingActive() {
+  const systemMode = els.systemMode ? String(els.systemMode.value || "").toLowerCase() : "";
+  return systemMode === "animate" && state.uiPage === "anim" && state.animSubPanel === "timeline";
+}
+
 function keySelectionHas(trackId, keyId) {
   return state.anim.selectedKeys.some((s) => s && s.trackId === trackId && s.keyId === keyId);
 }
@@ -15425,11 +16794,25 @@ function setSingleTimelineSelection(trackId, keyId) {
   state.anim.selectedKey = { trackId, keyId };
 }
 
+function getBoneJointSelectionParts(boneIndex) {
+  return [
+    { index: boneIndex, type: "head" },
+    { index: boneIndex, type: "tail" },
+  ];
+}
+
+function hasBonePartSelection(boneIndex, partType) {
+  return !!(state.selectedBoneParts || []).some((p) => p.index === boneIndex && p.type === partType);
+}
+
+function hasBoneJointSelection(boneIndex) {
+  return hasBonePartSelection(boneIndex, "head") && hasBonePartSelection(boneIndex, "tail");
+}
+
 function focusTimelineTrack(trackId, preferNearestKey = true) {
   const anim = getCurrentAnimation();
   if (!anim || !trackId) return;
-  state.anim.selectedTrack = trackId;
-  if (els.trackSelect) els.trackSelect.value = trackId;
+  setSelectedTimelineTrack(trackId);
   if (!preferNearestKey) {
     clearTimelineKeySelection();
     renderTimelineTracks();
@@ -15564,13 +16947,77 @@ function applyTimelineSelectionClasses() {
   }
 }
 
+function buildTimelineTickMarks(timelineRange) {
+  const tickStep = getTimelineRulerTickStep(timelineRange);
+  const tickStart = Math.ceil(timelineRange.start / tickStep) * tickStep;
+  const tickCount = Math.floor((timelineRange.end - tickStart) / tickStep) + 1;
+  const majorEvery = tickStep >= 0.5 ? 1 : 5;
+  const labelEvery = tickStep >= 0.5 ? 1 : 5;
+  const out = [];
+  if (tickCount > 600) return out;
+  for (let i = 0; i <= tickCount; i += 1) {
+    const tt = tickStart + i * tickStep;
+    if (tt > timelineRange.end + 1e-6) break;
+    out.push({
+      time: tt,
+      left: timelineXForTime(tt, 100, timelineRange),
+      major: i % majorEvery === 0,
+      label: i % labelEvery === 0,
+    });
+  }
+  return out;
+}
+
+function buildTimelineMinorRulerTicks(timelineRange) {
+  const minorStep = 0.1;
+  const majorStep = getTimelineRulerTickStep(timelineRange);
+  if (majorStep <= minorStep + 1e-6) return [];
+  const span = Math.max(0.1, Number(timelineRange.end) - Number(timelineRange.start));
+  const tickCount = Math.floor(span / minorStep) + 2;
+  if (tickCount > 400) return [];
+  const tickStart = Math.ceil(timelineRange.start / minorStep) * minorStep;
+  const out = [];
+  for (let i = 0; i <= tickCount; i += 1) {
+    const tt = tickStart + i * minorStep;
+    if (tt > timelineRange.end + 1e-6) break;
+    const snappedMajor = Math.round(tt / majorStep) * majorStep;
+    if (Math.abs(tt - snappedMajor) < 1e-4) continue;
+    out.push({
+      time: tt,
+      left: timelineXForTime(tt, 100, timelineRange),
+    });
+  }
+  return out;
+}
+
+function appendTimelineGridToLane(lane, ticks, options = {}) {
+  const opts = options && typeof options === "object" ? options : {};
+  for (const tick of ticks || []) {
+    const line = document.createElement("div");
+    line.className = `timeline-tick timeline-grid-line${tick.major ? " major" : ""}`;
+    line.style.left = `${tick.left.toFixed(4)}%`;
+    lane.appendChild(line);
+    if (!opts.labels || !tick.label) continue;
+    const label = document.createElement("div");
+    label.className = `timeline-tick-label${tick.major ? " major" : ""}`;
+    label.style.left = `${tick.left.toFixed(4)}%`;
+    label.textContent = formatTimelineTimeLabel(tick.time);
+    lane.appendChild(label);
+  }
+}
+
 function renderTimelineTracks() {
   const anim = getCurrentAnimation();
+  refreshTrackSelect();
+  syncTimelineZoomUI();
   const groups = getTimelineGroupsForView(anim);
+  const otherRows = getTimelineOtherRowsForView(anim);
   const root = els.timelineTracks;
   root.innerHTML = "";
   if (!anim) return;
-  const timelineDuration = getTimelineDisplayDuration(anim);
+  normalizeAnimationRecord(anim);
+  const timelineRange = getTimelineViewRange(anim);
+  const activeRange = getAnimationActiveRange(anim);
   const ruler = document.createElement("div");
   ruler.className = "timeline-ruler";
   const rulerLabel = document.createElement("div");
@@ -15582,26 +17029,37 @@ function renderTimelineTracks() {
   const rulerPlayhead = document.createElement("div");
   rulerPlayhead.className = "timeline-playhead handle";
   rulerPlayhead.dataset.playhead = "1";
-  rulerPlayhead.style.left = `${(timelineXForTime(state.anim.time, 100, timelineDuration)).toFixed(4)}%`;
-  const tickStep = getTimelineTimeStep();
-  const tickCount = Math.floor(timelineDuration / tickStep) + 1;
-  const majorEvery = Math.max(1, Math.round(1 / tickStep));
-  if (tickCount <= 600) {
-    for (let i = 0; i <= tickCount; i += 1) {
-      const tt = i * tickStep;
-      if (tt > timelineDuration + 1e-6) break;
-      const tick = document.createElement("div");
-      tick.className = `timeline-tick${i % majorEvery === 0 ? " major" : ""}`;
-      tick.style.left = `${(timelineXForTime(tt, 100, timelineDuration)).toFixed(4)}%`;
-      rulerLane.appendChild(tick);
-    }
+  rulerPlayhead.style.left = `${(timelineXForTime(state.anim.time, 100, timelineRange)).toFixed(4)}%`;
+  const rulerBand = document.createElement("div");
+  rulerBand.className = "timeline-active-range ruler";
+  const rulerBandLeft = timelineXForTime(activeRange.start, 100, timelineRange);
+  const rulerBandRight = timelineXForTime(activeRange.end, 100, timelineRange);
+  rulerBand.style.left = `${rulerBandLeft.toFixed(4)}%`;
+  rulerBand.style.width = `${Math.max(0, rulerBandRight - rulerBandLeft).toFixed(4)}%`;
+  rulerLane.appendChild(rulerBand);
+  const minorTickMarks = buildTimelineMinorRulerTicks(timelineRange);
+  for (const tick of minorTickMarks) {
+    const line = document.createElement("div");
+    line.className = "timeline-tick minor";
+    line.style.left = `${tick.left.toFixed(4)}%`;
+    rulerLane.appendChild(line);
   }
+  const tickMarks = buildTimelineTickMarks(timelineRange);
+  appendTimelineGridToLane(rulerLane, tickMarks, { labels: true });
+  const rulerPlayheadLabel = document.createElement("div");
+  rulerPlayheadLabel.className = "timeline-playhead-label";
+  rulerPlayheadLabel.style.left = `${(timelineXForTime(state.anim.time, 100, timelineRange)).toFixed(4)}%`;
+  rulerPlayheadLabel.textContent = formatTimelineTimeLabel(state.anim.time);
+  rulerLane.appendChild(rulerPlayheadLabel);
   rulerLane.appendChild(rulerPlayhead);
   ruler.appendChild(rulerLabel);
   ruler.appendChild(rulerLane);
   root.appendChild(ruler);
 
-  const allTrackIds = groups.flatMap((g) => (Array.isArray(g.children) ? g.children.map((c) => c.id) : []));
+  const allTrackIds = [
+    ...groups.flatMap((g) => (Array.isArray(g.children) ? g.children.map((c) => c.id) : [])),
+    ...otherRows.map((r) => r.id),
+  ];
   const allRow = document.createElement("div");
   allRow.className = "track-row track-group";
   const allLabel = document.createElement("div");
@@ -15610,16 +17068,22 @@ function renderTimelineTracks() {
   const allLane = document.createElement("div");
   allLane.className = "track-lane";
   allLane.dataset.trackId = "__all__";
+  const allBand = document.createElement("div");
+  allBand.className = "timeline-active-range";
+  allBand.style.left = `${rulerBandLeft.toFixed(4)}%`;
+  allBand.style.width = `${Math.max(0, rulerBandRight - rulerBandLeft).toFixed(4)}%`;
+  allLane.appendChild(allBand);
+  appendTimelineGridToLane(allLane, tickMarks);
   const allPlayhead = document.createElement("div");
   allPlayhead.className = "timeline-playhead";
-  allPlayhead.style.left = `${(timelineXForTime(state.anim.time, 100, timelineDuration)).toFixed(4)}%`;
+  allPlayhead.style.left = `${(timelineXForTime(state.anim.time, 100, timelineRange)).toFixed(4)}%`;
   allLane.appendChild(allPlayhead);
   for (const t of collectUniqueKeyTimes(anim, allTrackIds)) {
     const mk = document.createElement("div");
     mk.className = "track-key";
     mk.dataset.summaryScope = "all";
     mk.dataset.summaryTime = String(Number(t).toFixed(6));
-    mk.style.left = `${(timelineXForTime(t, 100, timelineDuration)).toFixed(4)}%`;
+    mk.style.left = `${(timelineXForTime(t, 100, timelineRange)).toFixed(4)}%`;
     mk.style.opacity = "0.55";
     allLane.appendChild(mk);
   }
@@ -15682,9 +17146,15 @@ function renderTimelineTracks() {
     const lane = document.createElement("div");
     lane.className = "track-lane";
     lane.dataset.trackId = g.id;
+    const groupBand = document.createElement("div");
+    groupBand.className = "timeline-active-range";
+    groupBand.style.left = `${rulerBandLeft.toFixed(4)}%`;
+    groupBand.style.width = `${Math.max(0, rulerBandRight - rulerBandLeft).toFixed(4)}%`;
+    lane.appendChild(groupBand);
+    appendTimelineGridToLane(lane, tickMarks);
     const playhead = document.createElement("div");
     playhead.className = "timeline-playhead";
-    playhead.style.left = `${(timelineXForTime(state.anim.time, 100, timelineDuration)).toFixed(4)}%`;
+    playhead.style.left = `${(timelineXForTime(state.anim.time, 100, timelineRange)).toFixed(4)}%`;
     lane.appendChild(playhead);
 
     // Aggregate and render summary keys for the group
@@ -15696,7 +17166,7 @@ function renderTimelineTracks() {
         mk.dataset.summaryScope = "group";
         mk.dataset.summaryGroupKey = groupKey;
         mk.dataset.summaryTime = String(Number(t).toFixed(6));
-        mk.style.left = `${(timelineXForTime(t, 100, timelineDuration)).toFixed(4)}%`;
+        mk.style.left = `${(timelineXForTime(t, 100, timelineRange)).toFixed(4)}%`;
         mk.style.opacity = "0.55";
         lane.appendChild(mk);
       }
@@ -15718,10 +17188,16 @@ function renderTimelineTracks() {
       const clane = document.createElement("div");
       clane.className = `track-lane${state.anim.selectedTrack === td.id ? " selected" : ""}`;
       clane.dataset.trackId = td.id;
+      const childBand = document.createElement("div");
+      childBand.className = "timeline-active-range";
+      childBand.style.left = `${rulerBandLeft.toFixed(4)}%`;
+      childBand.style.width = `${Math.max(0, rulerBandRight - rulerBandLeft).toFixed(4)}%`;
+      clane.appendChild(childBand);
+      appendTimelineGridToLane(clane, tickMarks);
 
       const cplay = document.createElement("div");
       cplay.className = "timeline-playhead";
-      cplay.style.left = `${(timelineXForTime(state.anim.time, 100, timelineDuration)).toFixed(4)}%`;
+      cplay.style.left = `${(timelineXForTime(state.anim.time, 100, timelineRange)).toFixed(4)}%`;
       clane.appendChild(cplay);
 
       const keys = getTrackKeys(anim, td.id);
@@ -15732,7 +17208,7 @@ function renderTimelineTracks() {
         if (keySelectionHas(td.id, k.id)) mk.classList.add("selected");
         mk.dataset.trackId = td.id;
         mk.dataset.keyId = k.id;
-        mk.style.left = `${(timelineXForTime(k.time, 100, timelineDuration)).toFixed(4)}%`;
+        mk.style.left = `${(timelineXForTime(k.time, 100, timelineRange)).toFixed(4)}%`;
         clane.appendChild(mk);
       }
 
@@ -15740,6 +17216,46 @@ function renderTimelineTracks() {
       crow.appendChild(clane);
       root.appendChild(crow);
     }
+  }
+
+  for (const td of otherRows) {
+    const trackPlayable = isTrackPlayable(td.id);
+    const row = document.createElement("div");
+    row.className = "track-row child";
+    if (!trackPlayable) row.classList.add("dimmed");
+    const label = document.createElement("div");
+    label.className = "track-label";
+    label.textContent = td.label;
+    const lane = document.createElement("div");
+    lane.className = `track-lane${state.anim.selectedTrack === td.id ? " selected" : ""}`;
+    lane.dataset.trackId = td.id;
+    const otherBand = document.createElement("div");
+    otherBand.className = "timeline-active-range";
+    otherBand.style.left = `${rulerBandLeft.toFixed(4)}%`;
+    otherBand.style.width = `${Math.max(0, rulerBandRight - rulerBandLeft).toFixed(4)}%`;
+    lane.appendChild(otherBand);
+    appendTimelineGridToLane(lane, tickMarks);
+
+    const playhead = document.createElement("div");
+    playhead.className = "timeline-playhead";
+    playhead.style.left = `${(timelineXForTime(state.anim.time, 100, timelineRange)).toFixed(4)}%`;
+    lane.appendChild(playhead);
+
+    const keys = getTrackKeys(anim, td.id);
+    for (const k of keys) {
+      if (!k.id) k.id = `k_${Math.random().toString(36).slice(2, 10)}`;
+      const mk = document.createElement("div");
+      mk.className = "track-key";
+      if (keySelectionHas(td.id, k.id)) mk.classList.add("selected");
+      mk.dataset.trackId = td.id;
+      mk.dataset.keyId = k.id;
+      mk.style.left = `${(timelineXForTime(k.time, 100, timelineRange)).toFixed(4)}%`;
+      lane.appendChild(mk);
+    }
+
+    row.appendChild(label);
+    row.appendChild(lane);
+    root.appendChild(row);
   }
 
   applyTimelineSelectionClasses();
@@ -15792,6 +17308,12 @@ function renderTimelineTracks() {
       els.keyInterp.value = "linear";
     }
   }
+  const selectionCount = getActiveTimelineKeySelection(anim).length;
+  if (els.deleteKeyBtn) els.deleteKeyBtn.disabled = selectionCount <= 0;
+  if (els.cutKeyBtn) els.cutKeyBtn.disabled = selectionCount <= 0;
+  if (els.copyKeyBtn) els.copyKeyBtn.disabled = selectionCount <= 0;
+  if (els.pasteKeyBtn) els.pasteKeyBtn.disabled = !hasTimelineClipboardData();
+  if (state.anim.timelineContextMenuOpen) refreshTimelineKeyContextMenuUI();
   refreshEventKeyListUI();
   renderCurveEditor();
 }
@@ -15925,8 +17447,7 @@ function addOrUpdateClipBundleKeyForActiveSlot(silent = false) {
   addOrUpdateKeyframeForTrack(clipTrackId, true);
   addOrUpdateKeyframeForTrack(clipSourceTrackId, true);
   addOrUpdateKeyframeForTrack(clipEndTrackId, true);
-  state.anim.selectedTrack = clipTrackId;
-  if (els.trackSelect) els.trackSelect.value = clipTrackId;
+  setSelectedTimelineTrack(clipTrackId);
   renderTimelineTracks();
   if (!silent) setStatus(`Clip+Src+End key saved @ ${state.anim.time.toFixed(2)}s`);
   return true;
@@ -16222,104 +17743,116 @@ function updatePlaybackButtons() {
 }
 
 function deleteSelectedOrCurrentKeyframe() {
-  const anim = getCurrentAnimation();
-  if (!anim) return;
-  const sk = state.anim.selectedKey;
-  if (!sk) {
+  const removed = removeTimelineKeysBySelection(null, { silent: true });
+  if (removed <= 0) {
     setStatus("No selected key.");
     return;
   }
-  const selectedSet = new Set((state.anim.selectedKeys || []).map((s) => `${s.trackId}::${s.keyId}`));
-  const keySet = new Set([...selectedSet, `${sk.trackId}::${sk.keyId}`]);
-  let removed = 0;
-  for (const trackId of Object.keys(anim.tracks || {})) {
-    const list = getTrackKeys(anim, trackId);
-    const next = list.filter((k) => {
-      const keep = !keySet.has(`${trackId}::${k.id}`);
-      if (!keep) removed += 1;
-      return keep;
-    });
-    anim.tracks[trackId] = next;
-  }
-  if (removed <= 0) {
-    setStatus("No key removed.");
-    return;
-  }
-  clearTimelineKeySelection();
-  renderTimelineTracks();
   setStatus(removed > 1 ? `${removed} keys deleted.` : "Key deleted.");
 }
 
 function copySelectedKeyframe() {
   const anim = getCurrentAnimation();
-  const sk = state.anim.selectedKey;
-  if (!anim || !sk) return;
-  const keys = getTrackKeys(anim, sk.trackId);
-  const k = keys.find((x) => x.id === sk.keyId);
-  if (!k) return;
-  state.anim.keyClipboard = {
-    trackId: sk.trackId,
-    value: cloneTrackValue(k.value),
-    interp: k.interp || "linear",
-    curve: Array.isArray(k.curve) && k.curve.length >= 4 ? k.curve.slice(0, 4) : null,
-    slotIndex: Number.isFinite(k.slotIndex) ? Number(k.slotIndex) : null,
-  };
-  setStatus("Key copied.");
+  const selection = getActiveTimelineKeySelection(anim);
+  const items = getTimelineClipboardItems(selection, anim);
+  if (!anim || items.length <= 0) {
+    setStatus("No selected key.");
+    return 0;
+  }
+  state.anim.keyClipboard = buildTimelineClipboardPayload(items, state.anim.selectedKey);
+  const count = items.length;
+  setStatus(count > 1 ? `${count} keys copied.` : "Key copied.");
+  return count;
+}
+
+function cutSelectedKeyframe() {
+  const anim = getCurrentAnimation();
+  const selection = getActiveTimelineKeySelection(anim);
+  const items = getTimelineClipboardItems(selection, anim);
+  if (!anim || items.length <= 0) {
+    setStatus("No selected key.");
+    return 0;
+  }
+  state.anim.keyClipboard = buildTimelineClipboardPayload(items, state.anim.selectedKey);
+  const removed = removeTimelineKeysBySelection(selection, { silent: true });
+  if (removed <= 0) {
+    setStatus("No key removed.");
+    return 0;
+  }
+  setStatus(removed > 1 ? `${removed} keys cut.` : "Key cut.");
+  return removed;
 }
 
 function pasteKeyframeAtCurrentTime() {
   const anim = getCurrentAnimation();
-  if (!anim || !state.anim.keyClipboard) return;
-  const trackId = state.anim.selectedTrack || state.anim.keyClipboard.trackId;
-  const parsed = parseTrackId(trackId);
-  const pasteSlotIndex =
-    parsed && parsed.type === "mesh"
-      ? Number.isFinite(parsed.slotIndex)
-        ? Number(parsed.slotIndex)
-        : Number.isFinite(state.anim.keyClipboard.slotIndex)
-          ? Number(state.anim.keyClipboard.slotIndex)
-          : state.activeSlot
-      : null;
-  const keys = getTrackKeys(anim, trackId);
-  const t = snapTimeIfNeeded(state.anim.time);
-  const existing = keys.find((k) => {
-    if (Math.abs(k.time - t) >= 1e-4) return false;
-    if (!(parsed && parsed.type === "mesh")) return true;
-    if (!Number.isFinite(pasteSlotIndex) || pasteSlotIndex < 0) return true;
-    return Number.isFinite(k.slotIndex) ? Number(k.slotIndex) === Number(pasteSlotIndex) : false;
-  });
-  if (existing) {
-    existing.value = cloneTrackValue(state.anim.keyClipboard.value);
-    existing.interp = state.anim.keyClipboard.interp || "linear";
-    if (Array.isArray(state.anim.keyClipboard.curve) && state.anim.keyClipboard.curve.length >= 4) {
-      existing.curve = state.anim.keyClipboard.curve.slice(0, 4);
-    } else {
-      delete existing.curve;
-    }
-    if (parsed && parsed.type === "mesh" && Number.isFinite(pasteSlotIndex) && pasteSlotIndex >= 0) {
-      existing.slotIndex = Number(pasteSlotIndex);
-    }
-    setSingleTimelineSelection(trackId, existing.id);
-  } else {
-    const nk = {
-      id: `k_${Math.random().toString(36).slice(2, 10)}`,
-      time: t,
-      value: cloneTrackValue(state.anim.keyClipboard.value),
-      interp: state.anim.keyClipboard.interp || "linear",
-    };
-    if (Array.isArray(state.anim.keyClipboard.curve) && state.anim.keyClipboard.curve.length >= 4) {
-      nk.curve = state.anim.keyClipboard.curve.slice(0, 4);
-    }
-    if (parsed && parsed.type === "mesh" && Number.isFinite(pasteSlotIndex) && pasteSlotIndex >= 0) {
-      nk.slotIndex = Number(pasteSlotIndex);
-    }
-    keys.push(nk);
-    setSingleTimelineSelection(trackId, nk.id);
+  const clipItems = resolveTimelineClipboardItems();
+  if (!anim || clipItems.length <= 0) {
+    setStatus("Clipboard is empty.");
+    return 0;
   }
-  normalizeTrackKeys(anim, trackId);
-  setAnimTime(t);
+  const anchorTime = snapTimeIfNeeded(state.anim.time);
+  const touchedTracks = new Set();
+  const pasted = [];
+  for (const item of clipItems) {
+    const targetTrackId =
+      clipItems.length === 1
+        ? String(state.anim.selectedTrack || item.trackId || state.anim.keyClipboard.sourceTrackId || "")
+        : String(item.trackId || "");
+    if (!targetTrackId) continue;
+    const parsed = parseTrackId(targetTrackId);
+    const pasteSlotIndex =
+      parsed && parsed.type === "mesh"
+        ? Number.isFinite(parsed.slotIndex)
+          ? Number(parsed.slotIndex)
+          : Number.isFinite(item.slotIndex)
+            ? Number(item.slotIndex)
+            : state.activeSlot
+        : null;
+    const keys = getTrackKeys(anim, targetTrackId);
+    const t = sanitizeTimelineTime(snapTimeIfNeeded(anchorTime + (Number(item.relTime) || 0)), getTimelineDisplayDuration(anim));
+    const existing = keys.find((k) => {
+      if (Math.abs((Number(k.time) || 0) - t) >= 1e-4) return false;
+      if (!(parsed && parsed.type === "mesh")) return true;
+      if (!Number.isFinite(pasteSlotIndex) || pasteSlotIndex < 0) return true;
+      return Number.isFinite(k.slotIndex) ? Number(k.slotIndex) === Number(pasteSlotIndex) : false;
+    });
+    if (existing) {
+      existing.value = cloneTrackValue(item.value);
+      existing.interp = item.interp || "linear";
+      if (Array.isArray(item.curve) && item.curve.length >= 4) existing.curve = item.curve.slice(0, 4);
+      else delete existing.curve;
+      if (parsed && parsed.type === "mesh" && Number.isFinite(pasteSlotIndex) && pasteSlotIndex >= 0) {
+        existing.slotIndex = Number(pasteSlotIndex);
+      }
+      pasted.push({ trackId: targetTrackId, keyId: existing.id });
+    } else {
+      const nk = {
+        id: `k_${Math.random().toString(36).slice(2, 10)}`,
+        time: t,
+        value: cloneTrackValue(item.value),
+        interp: item.interp || "linear",
+      };
+      if (Array.isArray(item.curve) && item.curve.length >= 4) nk.curve = item.curve.slice(0, 4);
+      if (parsed && parsed.type === "mesh" && Number.isFinite(pasteSlotIndex) && pasteSlotIndex >= 0) {
+        nk.slotIndex = Number(pasteSlotIndex);
+      }
+      keys.push(nk);
+      pasted.push({ trackId: targetTrackId, keyId: nk.id });
+    }
+    touchedTracks.add(targetTrackId);
+  }
+  if (pasted.length <= 0) {
+    setStatus("No valid key target to paste.");
+    return 0;
+  }
+  for (const trackId of touchedTracks) normalizeTrackKeys(anim, trackId);
+  state.anim.selectedKeys = pasted.map((s) => ({ trackId: s.trackId, keyId: s.keyId }));
+  state.anim.selectedKey = pasted.length > 0 ? { ...pasted[0] } : null;
+  setSelectedTimelineTrack(pasted[0].trackId);
+  setAnimTime(anchorTime);
   renderTimelineTracks();
-  setStatus("Key pasted/overwritten.");
+  setStatus(pasted.length > 1 ? `${pasted.length} keys pasted/overwritten.` : "Key pasted/overwritten.");
+  return pasted.length;
 }
 
 function jumpToNeighborKey(direction) {
@@ -16680,7 +18213,7 @@ function getLayerSampleTime(layer, anim, baseTime) {
 }
 
 function getPlaybackDurationForCurrentState(baseAnim) {
-  let out = Math.max(0.1, Number(baseAnim && baseAnim.duration) || 0.1);
+  let out = getAnimationActiveRange(baseAnim).end;
   for (const layer of ensureAnimLayerTracks()) {
     if (!layer || layer.enabled === false || layer.loop !== false) continue;
     const la = state.anim.animations.find((a) => a.id === layer.animId);
@@ -16693,6 +18226,14 @@ function getPlaybackDurationForCurrentState(baseAnim) {
     out = Math.max(out, doneTime);
   }
   return Math.max(0.1, out);
+}
+
+function getPlaybackRangeForCurrentState(baseAnim) {
+  const active = getAnimationActiveRange(baseAnim);
+  return {
+    start: active.start,
+    end: Math.max(active.end, getPlaybackDurationForCurrentState(baseAnim)),
+  };
 }
 
 function applyAnimationLayersToModelAtTime(m, baseAnim, t, opts = null) {
@@ -16885,18 +18426,20 @@ function updateAnimationPlayback(ts) {
       refreshAnimationMixUI();
       return;
     }
-    const advanceTime = (curr, duration) => {
-      const d = Math.max(0.1, Number(duration) || 0.1);
+    const advanceTime = (curr, animRef) => {
+      const range = getAnimationActiveRange(animRef);
       let next = curr + dt;
-      if (next > d) next = state.anim.loop ? 0 : d;
+      if (next > range.end) next = state.anim.loop ? range.start : range.end;
       return next;
     };
     const prevFrom = state.anim.mix.fromTime;
     const prevTo = state.anim.mix.toTime;
-    state.anim.mix.fromTime = advanceTime(prevFrom, fromAnim.duration);
-    state.anim.mix.toTime = advanceTime(prevTo, toAnim.duration);
-    emitTimelineEventsBetween(fromAnim, prevFrom, state.anim.mix.fromTime, state.anim.mix.fromTime < prevFrom, "mix_from");
-    emitTimelineEventsBetween(toAnim, prevTo, state.anim.mix.toTime, state.anim.mix.toTime < prevTo, "mix_to");
+    const fromRange = getAnimationActiveRange(fromAnim);
+    const toRange = getAnimationActiveRange(toAnim);
+    state.anim.mix.fromTime = advanceTime(prevFrom, fromAnim);
+    state.anim.mix.toTime = advanceTime(prevTo, toAnim);
+    emitTimelineEventsBetween(fromAnim, prevFrom, state.anim.mix.fromTime, state.anim.mix.fromTime < prevFrom, "mix_from", fromRange.start, fromRange.end);
+    emitTimelineEventsBetween(toAnim, prevTo, state.anim.mix.toTime, state.anim.mix.toTime < prevTo, "mix_to", toRange.start, toRange.end);
     state.anim.mix.elapsed += dt;
     const alpha = math.clamp(state.anim.mix.elapsed / Math.max(1e-6, state.anim.mix.duration), 0, 1);
     blendTwoAnimationSamples(state.mesh, fromAnim, state.anim.mix.fromTime, toAnim, state.anim.mix.toTime, alpha);
@@ -16951,22 +18494,22 @@ function updateAnimationPlayback(ts) {
     return;
   }
   const prevTime = state.anim.time;
-  const playbackDuration = getPlaybackDurationForCurrentState(anim);
+  const playbackRange = getPlaybackRangeForCurrentState(anim);
   let next = prevTime + dt;
   let looped = false;
   let reachedEnd = false;
-  if (next > playbackDuration) {
-    if (state.anim.loop) next = 0;
+  if (next > playbackRange.end) {
+    if (state.anim.loop) next = playbackRange.start;
     else {
-      next = playbackDuration;
+      next = playbackRange.end;
       state.anim.playing = false;
       updatePlaybackButtons();
       reachedEnd = true;
     }
     looped = state.anim.loop;
   }
-  setAnimTime(next, playbackDuration);
-  emitTimelineEventsBetween(anim, prevTime, next, next < prevTime, "play");
+  setAnimTime(next, playbackRange.end);
+  emitTimelineEventsBetween(anim, prevTime, next, next < prevTime, "play", playbackRange.start, playbackRange.end);
   for (const layer of ensureAnimLayerTracks()) {
     if (!layer || layer.enabled === false) continue;
     const la = state.anim.animations.find((a) => a.id === layer.animId);
@@ -16987,15 +18530,18 @@ function updateAnimationPlayback(ts) {
   refreshAnimationMixUI();
 }
 
-function emitTimelineEventsBetween(anim, fromTime, toTime, looped = false, phase = "play") {
+function emitTimelineEventsBetween(anim, fromTime, toTime, looped = false, phase = "play", rangeStart = 0, rangeEnd = null) {
   if (!anim) return;
   const rows = getTrackKeys(anim, EVENT_TRACK_ID);
   if (!rows || rows.length === 0) return;
   const out = [];
   const t0 = Number(fromTime) || 0;
   const t1 = Number(toTime) || 0;
+  const lo = Math.max(0, Number(rangeStart) || 0);
+  const hi = rangeEnd == null ? Math.max(0.1, Number(anim.duration) || 0.1) : Math.max(lo, Number(rangeEnd) || lo);
   for (const r of rows) {
     const tr = Number(r.time) || 0;
+    if (tr < lo - 1e-6 || tr > hi + 1e-6) continue;
     if (!looped) {
       if (tr > t0 + 1e-6 && tr <= t1 + 1e-6) out.push(r);
     } else if (tr > t0 + 1e-6 || tr <= t1 + 1e-6) {
@@ -17177,7 +18723,7 @@ if (els.boneTree) {
             else current.add(sid);
             state.boneTreeSelectedUnassignedSlotIds = [...current];
           }
-          setActiveSlot(si);
+          setActiveSlot(si, { syncBindSelection: false });
           renderBoneTree();
           return;
         }
@@ -17191,7 +18737,7 @@ if (els.boneTree) {
             const pickedIndex = getSelectedSlotIndexForBone(bi);
             if (pickedIndex === si) delete state.boneTreeSelectedSlotByBone[bi];
             else if (sid) state.boneTreeSelectedSlotByBone[bi] = sid;
-            setActiveSlot(si);
+            setActiveSlot(si, { syncBindSelection: false });
             renderBoneTree();
             return;
           }
@@ -17209,7 +18755,13 @@ if (els.boneTree) {
     state.treeSlotLastClickIndex = -1;
     state.treeSlotLastClickTs = 0;
     const item = ev.target.closest(".tree-item[data-bone-index]");
-    if (!item || !state.mesh) return;
+    if (!item || !state.mesh) {
+      if (!ev.ctrlKey && !ev.metaKey && !ev.shiftKey && !ev.altKey) {
+        clearActiveSlotSelection();
+        setStatus("Slot selection cleared.");
+      }
+      return;
+    }
     const i = Number(item.dataset.boneIndex);
     if (!Number.isFinite(i)) return;
     state.treeBoneLastClickIndex = i;
@@ -17410,16 +18962,25 @@ if (els.boneTreeContextMenu) {
     ev.preventDefault();
   });
 }
+if (els.timelineKeyContextMenu) {
+  els.timelineKeyContextMenu.addEventListener("contextmenu", (ev) => {
+    ev.preventDefault();
+  });
+}
 
 document.addEventListener("pointerdown", (ev) => {
   const target = ev.target;
   if (!(target instanceof Element)) {
     if (state.boneTreeMenuOpen) closeBoneTreeContextMenu();
+    if (state.anim.timelineContextMenuOpen) closeTimelineKeyContextMenu();
     closeBoneDeleteQuickMenu();
     return;
   }
   if (state.boneTreeMenuOpen && !target.closest("#boneTreeContextMenu")) {
     closeBoneTreeContextMenu();
+  }
+  if (state.anim.timelineContextMenuOpen && !target.closest("#timelineKeyContextMenu")) {
+    closeTimelineKeyContextMenu();
   }
   if (!target.closest("#boneTreeDeleteBoneMenu") && !target.closest("#boneTreeDeleteBoneMenuBtn")) {
     closeBoneDeleteQuickMenu();
@@ -17437,6 +18998,7 @@ document.addEventListener("click", (ev) => {
 
 window.addEventListener("blur", () => {
   if (state.boneTreeMenuOpen) closeBoneTreeContextMenu();
+  if (state.anim.timelineContextMenuOpen) closeTimelineKeyContextMenu();
   closeBoneDeleteQuickMenu();
 });
 
@@ -17450,6 +19012,11 @@ if (els.slotSelect) {
   els.slotSelect.addEventListener("change", () => {
     const i = Number(els.slotSelect.value);
     if (!Number.isFinite(i)) return;
+    if (i < 0) {
+      clearActiveSlotSelection();
+      setStatus("Slot selection cleared.");
+      return;
+    }
     setActiveSlot(i);
     setStatus(`Switched to slot: ${state.slots[i]?.name || i}`);
   });
@@ -17757,8 +19324,7 @@ if (els.slotClipSetKeyBtn) {
   els.slotClipSetKeyBtn.addEventListener("click", () => {
     if (!state.mesh || state.activeSlot < 0) return;
     const trackId = getSlotTrackId(state.activeSlot, "clip");
-    state.anim.selectedTrack = trackId;
-    if (els.trackSelect) els.trackSelect.value = trackId;
+    setSelectedTimelineTrack(trackId);
     addOrUpdateKeyframeForTrack(trackId);
   });
 }
@@ -17766,8 +19332,7 @@ if (els.slotClipSourceSetKeyBtn) {
   els.slotClipSourceSetKeyBtn.addEventListener("click", () => {
     if (!state.mesh || state.activeSlot < 0) return;
     const trackId = getSlotTrackId(state.activeSlot, "clipSource");
-    state.anim.selectedTrack = trackId;
-    if (els.trackSelect) els.trackSelect.value = trackId;
+    setSelectedTimelineTrack(trackId);
     addOrUpdateKeyframeForTrack(trackId);
   });
 }
@@ -17802,8 +19367,7 @@ if (els.slotClipEndSetKeyBtn) {
   els.slotClipEndSetKeyBtn.addEventListener("click", () => {
     if (!state.mesh || state.activeSlot < 0) return;
     const trackId = getSlotTrackId(state.activeSlot, "clipEnd");
-    state.anim.selectedTrack = trackId;
-    if (els.trackSelect) els.trackSelect.value = trackId;
+    setSelectedTimelineTrack(trackId);
     addOrUpdateKeyframeForTrack(trackId);
   });
 }
@@ -18226,7 +19790,7 @@ if (els.slotWeightQuickEditBtn) {
       return;
     }
     switchToVertexWeightEditing();
-    setStatus("Weight editing mode ready.");
+    setStatus("Weight editing mode ready. Gradient weights are shown on the canvas.");
   });
 }
 
@@ -18490,6 +20054,7 @@ function buildProjectPayload() {
       docHeight: s.docHeight || state.imageHeight,
       imageIndex,
       attachments: attachmentRecordsWithPlaceholder,
+      meshData: serializeSlotMeshData(s.meshData),
       meshContour:
         s.meshContour && Array.isArray(s.meshContour.points)
           ? {
@@ -18717,6 +20282,22 @@ class SpineBinaryWriter {
     this.byte(view.getUint8(3));
   }
 
+  short(value) {
+    const buf = new ArrayBuffer(2);
+    const view = new DataView(buf);
+    view.setInt16(0, value | 0, false);
+    this.byte(view.getUint8(0));
+    this.byte(view.getUint8(1));
+  }
+
+  long(value) {
+    let v = BigInt(value);
+    if (v < 0n) v = (1n << 64n) + v;
+    for (let shift = 56n; shift >= 0n; shift -= 8n) {
+      this.byte(Number((v >> shift) & 0xffn));
+    }
+  }
+
   string(text) {
     if (text == null) {
       this.byte(0);
@@ -18853,10 +20434,15 @@ function buildSharedStrings(spineJson) {
       for (const attName of Object.keys(attMap)) {
         add(attName);
         const att = attMap[attName] || {};
+        add(att.name);
         add(att.path);
+        add(att.skin);
+        add(att.parent);
       }
     }
   }
+  const events = spineJson && spineJson.events && typeof spineJson.events === "object" ? spineJson.events : {};
+  for (const [eventName] of Object.entries(events)) add(eventName);
   const anims = spineJson.animations || {};
   for (const animName of Object.keys(anims)) {
     add(animName);
@@ -18874,19 +20460,7 @@ function buildSharedStrings(spineJson) {
 }
 
 function writeCurve(writer, key) {
-  if (key && key.curve === "stepped") {
-    writer.byte(1);
-    return;
-  }
-  if (key && Array.isArray(key.curve) && key.curve.length >= 4) {
-    writer.byte(2);
-    writer.float(math.clamp(Number(key.curve[0]) || 0, 0, 1));
-    writer.float(math.clamp(Number(key.curve[1]) || 0, 0, 1));
-    writer.float(math.clamp(Number(key.curve[2]) || 0, 0, 1));
-    writer.float(math.clamp(Number(key.curve[3]) || 0, 0, 1));
-    return;
-  }
-  writer.byte(0);
+  writer.byte(key && key.curve === "stepped" ? 1 : 0);
 }
 
 function writeBoneTimelineList(writer, tl) {
@@ -18897,13 +20471,14 @@ function writeBoneTimelineList(writer, tl) {
   if (Array.isArray(tl.shear) && tl.shear.length > 0) keys.push({ type: 3, list: tl.shear });
   writer.varint(keys.length, true);
   for (const k of keys) {
-    writer.byte(k.type);
+    const typeCode = { 0: 0, 1: 1, 2: 4, 3: 7 }[k.type] ?? 0;
+    writer.byte(typeCode);
     writer.varint(k.list.length, true);
-    writer.varint(0, true);
+    if (typeCode !== 10) writer.varint(0, true);
     for (let i = 0; i < k.list.length; i += 1) {
       const row = k.list[i] || {};
       writer.float(Number(row.time) || 0);
-      if (k.type === 0) {
+      if (typeCode === 0) {
         writer.float(Number(row.value) || 0);
       } else {
         writer.float(Number(row.x) || 0);
@@ -18914,14 +20489,55 @@ function writeBoneTimelineList(writer, tl) {
   }
 }
 
+function writeSlotTimelineList(writer, tl, sharedMap) {
+  const keys = [];
+  if (Array.isArray(tl.attachment) && tl.attachment.length > 0) keys.push({ type: 0, list: tl.attachment });
+  if (Array.isArray(tl.color) && tl.color.length > 0) keys.push({ type: 1, list: tl.color });
+  if (Array.isArray(tl.twoColor) && tl.twoColor.length > 0) keys.push({ type: 2, list: tl.twoColor });
+  writer.varint(keys.length, true);
+  for (const k of keys) {
+    const typeCode = { 0: 0, 1: 1, 2: 3 }[k.type] ?? 0;
+    writer.byte(typeCode);
+    writer.varint(k.list.length, true);
+    if (typeCode !== 0) writer.varint(0, true);
+    for (let i = 0; i < k.list.length; i += 1) {
+      const row = k.list[i] || {};
+      writer.float(Number(row.time) || 0);
+      if (typeCode === 0) {
+        writer.refString(row.name != null ? String(row.name) : null, sharedMap);
+      } else if (typeCode === 1) {
+        const rgba = String(row.color || "ffffffff").trim();
+        const safe = /^[0-9a-fA-F]{8}$/.test(rgba) ? rgba : "ffffffff";
+        writer.byte(Number.parseInt(safe.slice(0, 2), 16));
+        writer.byte(Number.parseInt(safe.slice(2, 4), 16));
+        writer.byte(Number.parseInt(safe.slice(4, 6), 16));
+        writer.byte(Number.parseInt(safe.slice(6, 8), 16));
+        if (i < k.list.length - 1) writeCurve(writer, row);
+      } else {
+        const light = String(row.light || "ffffffff").trim();
+        const dark = String(row.dark || "000000").trim();
+        const safeLight = /^[0-9a-fA-F]{8}$/.test(light) ? light : "ffffffff";
+        const safeDark = /^[0-9a-fA-F]{6}$/.test(dark) ? dark : "000000";
+        writer.byte(Number.parseInt(safeLight.slice(0, 2), 16));
+        writer.byte(Number.parseInt(safeLight.slice(2, 4), 16));
+        writer.byte(Number.parseInt(safeLight.slice(4, 6), 16));
+        writer.byte(Number.parseInt(safeLight.slice(6, 8), 16));
+        writer.byte(Number.parseInt(safeDark.slice(0, 2), 16));
+        writer.byte(Number.parseInt(safeDark.slice(2, 4), 16));
+        writer.byte(Number.parseInt(safeDark.slice(4, 6), 16));
+        if (i < k.list.length - 1) writeCurve(writer, row);
+      }
+    }
+  }
+}
+
 function writeSkelVertices(writer, vertices, vertexCount) {
   const arr = Array.isArray(vertices) ? vertices : [];
+  writer.varint(vertexCount, true);
   if (arr.length === vertexCount * 2) {
-    writer.bool(false);
     for (let i = 0; i < arr.length; i += 1) writer.float(Number(arr[i]) || 0);
     return;
   }
-  writer.bool(true);
   let p = 0;
   for (let i = 0; i < vertexCount; i += 1) {
     const boneCount = Math.max(0, Number(arr[p++]) || 0);
@@ -18935,7 +20551,19 @@ function writeSkelVertices(writer, vertices, vertexCount) {
   }
 }
 
-function writeSkelAttachment(writer, attName, att, sharedMap) {
+function writeSkelSequence(writer, seq) {
+  const s = seq && typeof seq === "object" ? seq : {};
+  writer.varint(Math.max(1, Math.round(Number(s.count) || 1)), true);
+  writer.varint(Math.max(0, Math.round(Number(s.start) || 0)), true);
+  writer.varint(Math.max(1, Math.round(Number(s.digits) || 1)), true);
+  writer.varint(Math.max(0, Math.round(Number(s.setup != null ? s.setup : s.setupIndex) || 0)), true);
+}
+
+function isWeightedSkelVertices(vertices, vertexCount) {
+  return !(Array.isArray(vertices) && vertices.length === vertexCount * 2);
+}
+
+function writeSkelAttachment(writer, attName, att, sharedMap, skinNameToIndex, currentSkinIndex) {
   const a = att || {};
   const type = String(a.type || "region");
   const typeCode = {
@@ -18948,48 +20576,118 @@ function writeSkelAttachment(writer, attName, att, sharedMap) {
     clipping: 6,
   }[type];
   writer.refString(attName, sharedMap);
-  writer.string(a.name || attName);
-  writer.byte(Number.isFinite(typeCode) ? typeCode : 0);
+  const effectiveName = a.name && String(a.name).trim() ? String(a.name) : String(attName || "");
+  let flags = Number.isFinite(typeCode) ? typeCode : 0;
+  if (effectiveName !== String(attName || "")) flags |= 8;
 
-  if (type === "mesh") {
-    writer.refString(a.path || null, sharedMap);
-    writer.int(colorHexToInt(a.color || "ffffffff"));
-    const uvs = Array.isArray(a.uvs) ? a.uvs : [];
-    const triangles = Array.isArray(a.triangles) ? a.triangles : [];
-    const vertexCount = Math.floor(uvs.length / 2);
-    writer.varint(vertexCount, true);
-    for (let i = 0; i < uvs.length; i += 1) writer.float(Number(uvs[i]) || 0);
-    writer.varint(triangles.length, true);
-    for (let i = 0; i < triangles.length; i += 1) writer.varint(Math.max(0, Number(triangles[i]) || 0), true);
-    writeSkelVertices(writer, a.vertices, vertexCount);
-    writer.varint(Math.max(0, Number(a.hull) || 0), true);
-    writer.varint(0, true);
+  if (type === "region") {
+    const path = a.path != null && String(a.path).length > 0 ? String(a.path) : effectiveName;
+    const color = String(a.color || "").trim().toLowerCase();
+    if (path !== effectiveName) flags |= 16;
+    if (color && color !== "ffffffff") flags |= 32;
+    if (a.sequence && a.sequence.enabled) flags |= 64;
+    if (Math.abs(Number(a.rotation) || 0) > 1e-6) flags |= 128;
+    writer.byte(flags);
+    if (flags & 8) writer.refString(effectiveName, sharedMap);
+    if (flags & 16) writer.refString(path, sharedMap);
+    if (flags & 32) writer.int(colorHexToInt(color || "ffffffff"));
+    if (flags & 64) writeSkelSequence(writer, a.sequence);
+    if (flags & 128) writer.float(Number(a.rotation) || 0);
+    writer.float(Number(a.x) || 0);
+    writer.float(Number(a.y) || 0);
+    writer.float(Number(a.scaleX) || 1);
+    writer.float(Number(a.scaleY) || 1);
     writer.float(Number(a.width) || 0);
     writer.float(Number(a.height) || 0);
     return;
   }
-  if (type === "path") {
-    writer.bool(!!a.closed);
-    writer.bool(a.constantSpeed !== false);
-    const arr = Array.isArray(a.vertices) ? a.vertices : [];
-    const vertexCount = Math.max(0, Number(a.vertexCount) || Math.floor(arr.length / 2));
-    writer.varint(vertexCount, true);
-    writeSkelVertices(writer, arr, vertexCount);
-    const lens = Array.isArray(a.lengths) ? a.lengths : [];
-    writer.varint(lens.length, true);
-    for (let i = 0; i < lens.length; i += 1) writer.float(Number(lens[i]) || 0);
+
+  if (type === "boundingbox") {
+    const vertexCount = Math.max(0, Number(a.vertexCount) || Math.floor((Array.isArray(a.vertices) ? a.vertices.length : 0) / 2));
+    if (isWeightedSkelVertices(a.vertices, vertexCount)) flags |= 16;
+    writer.byte(flags);
+    if (flags & 8) writer.refString(effectiveName, sharedMap);
+    writeSkelVertices(writer, a.vertices, vertexCount);
     return;
   }
 
-  writer.refString(a.path || null, sharedMap);
-  writer.float(Number(a.rotation) || 0);
-  writer.float(Number(a.x) || 0);
-  writer.float(Number(a.y) || 0);
-  writer.float(Number(a.scaleX) || 1);
-  writer.float(Number(a.scaleY) || 1);
-  writer.float(Number(a.width) || 0);
-  writer.float(Number(a.height) || 0);
-  writer.int(colorHexToInt(a.color || "ffffffff"));
+  if (type === "mesh") {
+    const uvs = Array.isArray(a.uvs) ? a.uvs : [];
+    const triangles = Array.isArray(a.triangles) ? a.triangles : [];
+    const vertexCount = Math.floor(uvs.length / 2);
+    const path = a.path != null && String(a.path).length > 0 ? String(a.path) : effectiveName;
+    const color = String(a.color || "").trim().toLowerCase();
+    const hull = Math.max(0, Number(a.hull) || 0);
+    const expectedTriangleCount = Math.max(0, (vertexCount * 2 - hull - 2) * 3);
+    if (path !== effectiveName) flags |= 16;
+    if (color && color !== "ffffffff") flags |= 32;
+    if (a.sequence && a.sequence.enabled) flags |= 64;
+    if (isWeightedSkelVertices(a.vertices, vertexCount)) flags |= 128;
+    writer.byte(flags);
+    if (flags & 8) writer.refString(effectiveName, sharedMap);
+    if (flags & 16) writer.refString(path, sharedMap);
+    if (flags & 32) writer.int(colorHexToInt(color || "ffffffff"));
+    if (flags & 64) writeSkelSequence(writer, a.sequence);
+    writer.varint(hull, true);
+    for (let i = 0; i < uvs.length; i += 1) writer.float(Number(uvs[i]) || 0);
+    writeSkelVertices(writer, a.vertices, vertexCount);
+    for (let i = 0; i < expectedTriangleCount; i += 1) writer.varint(Math.max(0, Number(triangles[i]) || 0), true);
+    return;
+  }
+
+  if (type === "linkedmesh") {
+    const path = a.path != null && String(a.path).length > 0 ? String(a.path) : effectiveName;
+    const color = String(a.color || "").trim().toLowerCase();
+    if (path !== effectiveName) flags |= 16;
+    if (color && color !== "ffffffff") flags |= 32;
+    if (a.sequence && a.sequence.enabled) flags |= 64;
+    if (a.deform !== false) flags |= 128;
+    writer.byte(flags);
+    if (flags & 8) writer.refString(effectiveName, sharedMap);
+    if (flags & 16) writer.refString(path, sharedMap);
+    if (flags & 32) writer.int(colorHexToInt(color || "ffffffff"));
+    if (flags & 64) writeSkelSequence(writer, a.sequence);
+    const linkedSkinIndex = a.skin != null && String(a.skin).length > 0
+      ? Math.max(0, skinNameToIndex.get(String(a.skin)) || 0)
+      : Math.max(0, currentSkinIndex || 0);
+    writer.varint(linkedSkinIndex, true);
+    writer.refString(a.parent || null, sharedMap);
+    return;
+  }
+
+  if (type === "path") {
+    const arr = Array.isArray(a.vertices) ? a.vertices : [];
+    const vertexCount = Math.max(0, Number(a.vertexCount) || Math.floor(arr.length / 2));
+    const expectedLengths = Math.floor(vertexCount / 3);
+    const lens = Array.isArray(a.lengths) ? a.lengths : [];
+    if (a.closed) flags |= 16;
+    if (a.constantSpeed !== false) flags |= 32;
+    if (isWeightedSkelVertices(arr, vertexCount)) flags |= 64;
+    writer.byte(flags);
+    if (flags & 8) writer.refString(effectiveName, sharedMap);
+    writeSkelVertices(writer, arr, vertexCount);
+    for (let i = 0; i < expectedLengths; i += 1) writer.float(Number(lens[i]) || 0);
+    return;
+  }
+
+  if (type === "point") {
+    writer.byte(flags);
+    if (flags & 8) writer.refString(effectiveName, sharedMap);
+    writer.float(Number(a.rotation) || 0);
+    writer.float(Number(a.x) || 0);
+    writer.float(Number(a.y) || 0);
+    return;
+  }
+
+  if (type === "clipping") {
+    const vertexCount = Math.max(0, Number(a.vertexCount) || Math.floor((Array.isArray(a.vertices) ? a.vertices.length : 0) / 2));
+    if (isWeightedSkelVertices(a.vertices, vertexCount)) flags |= 16;
+    writer.byte(flags);
+    if (flags & 8) writer.refString(effectiveName, sharedMap);
+    writer.varint(Math.max(0, Number(a.end) || 0), true);
+    writeSkelVertices(writer, a.vertices, vertexCount);
+    return;
+  }
 }
 
 const SPINE_COMPAT_PRESETS = {
@@ -19015,27 +20713,37 @@ function exportSpineSkelBinary(spineJson) {
   const skel = spineJson.skeleton || {};
   const shared = buildSharedStrings(spineJson);
   const sharedMap = shared.index;
-
-  writer.string(skel.hash || "");
+  const hashValue =
+    typeof skel.hash === "number"
+      ? BigInt(Math.trunc(skel.hash))
+      : typeof skel.hash === "string" && /^-?\d+$/.test(skel.hash.trim())
+        ? BigInt(skel.hash.trim())
+        : 0n;
+  writer.long(hashValue);
   writer.string(skel.spine || getSpineCompatPreset(state.export && state.export.spineCompat).version);
   writer.float(Number(skel.x) || 0);
   writer.float(Number(skel.y) || 0);
   writer.float(Number(skel.width) || 0);
   writer.float(Number(skel.height) || 0);
-  writer.bool(true);
-  writer.float(30);
-  writer.string(skel.images || "./");
-  writer.string(skel.audio || "");
+  writer.float(1);
+  writer.bool(false);
 
   writer.varint(shared.strings.length, true);
   for (const s of shared.strings) writer.string(s);
 
   const bones = spineJson.bones || [];
+  const boneNameToIndex = new Map();
+  for (let i = 0; i < bones.length; i += 1) {
+    boneNameToIndex.set(String(bones[i] && bones[i].name ? bones[i].name : `bone_${i}`), i);
+  }
   writer.varint(bones.length, true);
   for (let i = 0; i < bones.length; i += 1) {
     const b = bones[i] || {};
     writer.string(b.name || `bone_${i}`);
-    if (i > 0) writer.refString(b.parent || null, sharedMap);
+    if (i > 0) {
+      const parentIndex = boneNameToIndex.get(String(b.parent || ""));
+      writer.varint(Number.isFinite(parentIndex) ? parentIndex : 0, true);
+    }
     writer.float(Number(b.rotation) || 0);
     writer.float(Number(b.x) || 0);
     writer.float(Number(b.y) || 0);
@@ -19067,7 +20775,8 @@ function exportSpineSkelBinary(spineJson) {
   for (let i = 0; i < slots.length; i += 1) {
     const s = slots[i] || {};
     writer.string(s.name || `slot_${i}`);
-    writer.refString(s.bone || null, sharedMap);
+    const boneIndex = boneNameToIndex.get(String(s.bone || ""));
+    writer.varint(Number.isFinite(boneIndex) ? boneIndex : 0, true);
     writer.int(colorHexToInt(s.color || "ffffffff"));
     writer.int(darkColorHexToInt(s.dark));
     writer.refString(s.attachment || null, sharedMap);
@@ -19076,14 +20785,12 @@ function exportSpineSkelBinary(spineJson) {
     writer.varint(blendIndex, true);
   }
 
-  const boneNameToIndex = new Map();
-  for (let i = 0; i < bones.length; i += 1) {
-    boneNameToIndex.set(String(bones[i] && bones[i].name ? bones[i].name : `bone_${i}`), i);
-  }
   const ikList = Array.isArray(spineJson.ik) ? spineJson.ik : [];
+  const ikNameToIndex = new Map();
   writer.varint(ikList.length, true);
   for (let i = 0; i < ikList.length; i += 1) {
     const ik = ikList[i] || {};
+    ikNameToIndex.set(String(ik.name || `ik_${i}`), i);
     const chain = Array.isArray(ik.bones) ? ik.bones : [];
     writer.string(ik.name || `ik_${i}`);
     writer.varint(getConstraintOrder(ik, i), true);
@@ -19095,17 +20802,24 @@ function exportSpineSkelBinary(spineJson) {
     }
     const targetIndex = boneNameToIndex.get(String(ik.target || ""));
     writer.varint(Number.isFinite(targetIndex) ? targetIndex : 0, true);
+    let flags = 0;
+    flags |= 32 | 64;
+    if (ik.skin) flags |= 1;
+    if (ik.bendPositive !== false) flags |= 2;
+    if (ik.compress) flags |= 4;
+    if (ik.stretch) flags |= 8;
+    if (ik.uniform) flags |= 16;
+    if (Math.abs(Number(ik.softness) || 0) > 1e-6) flags |= 128;
+    writer.byte(flags);
     writer.float(Math.max(0, Number(ik.mix) || 0));
-    writer.float(Math.max(0, Number(ik.softness) || 0));
-    writer.byte(ik.bendPositive === false ? -1 : 1);
-    writer.bool(!!ik.compress);
-    writer.bool(!!ik.stretch);
-    writer.bool(!!ik.uniform);
+    if (flags & 128) writer.float(Math.max(0, Number(ik.softness) || 0));
   }
   const tfcList = Array.isArray(spineJson.transform) ? spineJson.transform : [];
+  const tfcNameToIndex = new Map();
   writer.varint(tfcList.length, true);
   for (let i = 0; i < tfcList.length; i += 1) {
     const tc = tfcList[i] || {};
+    tfcNameToIndex.set(String(tc.name || `transform_${i}`), i);
     const chain = Array.isArray(tc.bones) ? tc.bones : [];
     writer.string(tc.name || `transform_${i}`);
     writer.varint(getConstraintOrder(tc, i), true);
@@ -19117,23 +20831,39 @@ function exportSpineSkelBinary(spineJson) {
     }
     const targetIndex = boneNameToIndex.get(String(tc.target || ""));
     writer.varint(Number.isFinite(targetIndex) ? targetIndex : 0, true);
-    writer.bool(!!tc.local);
-    writer.bool(!!tc.relative);
-    writer.float(Number(tc.rotation) || 0);
-    writer.float(Number(tc.x) || 0);
-    writer.float(Number(tc.y) || 0);
-    writer.float(Number(tc.scaleX) || 0);
-    writer.float(Number(tc.scaleY) || 0);
-    writer.float(Number(tc.shearY) || 0);
+    let flags1 = 0;
+    let flags2 = 0;
+    if (tc.skin) flags1 |= 1;
+    if (tc.local) flags1 |= 2;
+    if (tc.relative) flags1 |= 4;
+    if (Math.abs(Number(tc.rotation) || 0) > 1e-6) flags1 |= 8;
+    if (Math.abs(Number(tc.x) || 0) > 1e-6) flags1 |= 16;
+    if (Math.abs(Number(tc.y) || 0) > 1e-6) flags1 |= 32;
+    if (Math.abs(Number(tc.scaleX) || 0) > 1e-6) flags1 |= 64;
+    if (Math.abs(Number(tc.scaleY) || 0) > 1e-6) flags1 |= 128;
+    if (Math.abs(Number(tc.shearY) || 0) > 1e-6) flags2 |= 1;
+    flags2 |= 2 | 4 | 8 | 16 | 32 | 64;
+    writer.byte(flags1);
+    writer.byte(flags2);
+    if (flags1 & 8) writer.float(Number(tc.rotation) || 0);
+    if (flags1 & 16) writer.float(Number(tc.x) || 0);
+    if (flags1 & 32) writer.float(Number(tc.y) || 0);
+    if (flags1 & 64) writer.float(Number(tc.scaleX) || 0);
+    if (flags1 & 128) writer.float(Number(tc.scaleY) || 0);
+    if (flags2 & 1) writer.float(Number(tc.shearY) || 0);
     writer.float(math.clamp(Number(tc.rotateMix) || 0, 0, 1));
     writer.float(math.clamp(Number(tc.translateMix) || 0, 0, 1));
+    writer.float(math.clamp(Number(tc.translateMix) || 0, 0, 1));
+    writer.float(math.clamp(Number(tc.scaleMix) || 0, 0, 1));
     writer.float(math.clamp(Number(tc.scaleMix) || 0, 0, 1));
     writer.float(math.clamp(Number(tc.shearMix) || 0, 0, 1));
   }
   const pathList = Array.isArray(spineJson.path) ? spineJson.path : [];
+  const pathNameToIndex = new Map();
   writer.varint(pathList.length, true);
   for (let i = 0; i < pathList.length; i += 1) {
     const pc = pathList[i] || {};
+    pathNameToIndex.set(String(pc.name || `path_${i}`), i);
     const chain = Array.isArray(pc.bones) ? pc.bones : [];
     writer.string(pc.name || `path_${i}`);
     writer.varint(getConstraintOrder(pc, i), true);
@@ -19145,22 +20875,28 @@ function exportSpineSkelBinary(spineJson) {
     }
     const targetSlotIndex = slotNameToIndex.get(String(pc.target || ""));
     writer.varint(Number.isFinite(targetSlotIndex) ? targetSlotIndex : 0, true);
-
     const positionModeMap = { fixed: 0, percent: 1 };
     const spacingModeMap = { length: 0, fixed: 1, percent: 2, proportional: 3 };
     const rotateModeMap = { tangent: 0, chain: 1, chainScale: 2 };
-    writer.varint(positionModeMap[pc.positionMode] ?? 0, true);
-    writer.varint(spacingModeMap[pc.spacingMode] ?? 0, true);
-    writer.varint(rotateModeMap[pc.rotateMode] ?? 0, true);
-
-    writer.float(Number(pc.rotation) || 0);
+    let flags = (positionModeMap[pc.positionMode] ?? 0) & 1;
+    flags |= ((spacingModeMap[pc.spacingMode] ?? 0) & 3) << 1;
+    flags |= ((rotateModeMap[pc.rotateMode] ?? 0) & 3) << 3;
+    if (Math.abs(Number(pc.rotation) || 0) > 1e-6) flags |= 128;
+    writer.byte(flags);
+    if (flags & 128) writer.float(Number(pc.rotation) || 0);
     writer.float(Number(pc.position) || 0);
     writer.float(Number(pc.spacing) || 0);
     writer.float(math.clamp(Number(pc.rotateMix) || 0, 0, 1));
     writer.float(math.clamp(Number(pc.translateMix) || 0, 0, 1));
+    writer.float(math.clamp(Number(pc.translateMix) || 0, 0, 1));
   }
+  writer.varint(0, true);
 
   const skinEntries = getSkinEntries(spineJson);
+  const skinNameToIndex = new Map();
+  for (let i = 0; i < skinEntries.length; i += 1) {
+    skinNameToIndex.set(skinEntries[i].name, i);
+  }
   const defaultEntry = skinEntries.find((s) => s.name === "default") || skinEntries[0] || { name: "default", attachments: {} };
   const defaultSkin = defaultEntry.attachments || {};
   const defaultSlots = Object.keys(defaultSkin);
@@ -19168,11 +20904,15 @@ function exportSpineSkelBinary(spineJson) {
   for (const slotName of defaultSlots) {
     const attMap = defaultSkin[slotName] || {};
     const attNames = Object.keys(attMap);
-    writer.refString(slotName, sharedMap);
+    writer.varint(Math.max(0, slotNameToIndex.get(String(slotName)) || 0), true);
     writer.varint(attNames.length, true);
     for (const attName of attNames) {
-      const att = attMap[attName] || {};
-      writeSkelAttachment(writer, attName, att, sharedMap);
+      const att = { ...(attMap[attName] || {}) };
+      if (att.type === "clipping") {
+        const endIndex = slotNameToIndex.get(String(att.end || ""));
+        att.end = Number.isFinite(endIndex) ? endIndex : 0;
+      }
+      writeSkelAttachment(writer, attName, att, sharedMap, skinNameToIndex, skinNameToIndex.get(defaultEntry.name) || 0);
     }
   }
 
@@ -19180,41 +20920,70 @@ function exportSpineSkelBinary(spineJson) {
   writer.varint(extraSkins.length, true);
   for (const skinEntry of extraSkins) {
     const skin = skinEntry.attachments || {};
-    writer.string(skinEntry.name);
+    writer.refString(skinEntry.name, sharedMap);
+    writer.varint(0, true);
+    writer.varint(0, true);
+    writer.varint(0, true);
+    writer.varint(0, true);
+    writer.varint(0, true);
     const slotNames = Object.keys(skin);
     writer.varint(slotNames.length, true);
     for (const slotName of slotNames) {
       const attMap = skin[slotName] || {};
       const attNames = Object.keys(attMap);
-      writer.refString(slotName, sharedMap);
+      writer.varint(Math.max(0, slotNameToIndex.get(String(slotName)) || 0), true);
       writer.varint(attNames.length, true);
       for (const attName of attNames) {
-        const att = attMap[attName] || {};
-        writeSkelAttachment(writer, attName, att, sharedMap);
+        const att = { ...(attMap[attName] || {}) };
+        if (att.type === "clipping") {
+          const endIndex = slotNameToIndex.get(String(att.end || ""));
+          att.end = Number.isFinite(endIndex) ? endIndex : 0;
+        }
+        writeSkelAttachment(writer, attName, att, sharedMap, skinNameToIndex, skinNameToIndex.get(skinEntry.name) || 0);
       }
     }
   }
 
-  writer.varint(0, true);
+  const eventDefs = spineJson && spineJson.events && typeof spineJson.events === "object" ? spineJson.events : {};
+  const eventNames = Object.keys(eventDefs);
+  const eventNameToIndex = new Map();
+  writer.varint(eventNames.length, true);
+  for (let i = 0; i < eventNames.length; i += 1) {
+    const name = eventNames[i];
+    const ev = eventDefs[name] || {};
+    eventNameToIndex.set(String(name), i);
+    writer.string(name);
+    writer.varint(Number(ev.int) || 0, false);
+    writer.float(Number(ev.float) || 0);
+    writer.string(ev.string != null ? String(ev.string) : "");
+    const audioPath = ev.audio != null && String(ev.audio).length > 0 ? String(ev.audio) : null;
+    writer.string(audioPath);
+    if (audioPath != null) {
+      writer.float(Number(ev.volume) || 0);
+      writer.float(Number(ev.balance) || 0);
+    }
+  }
 
   const anims = spineJson.animations || {};
   const animNames = Object.keys(anims);
-  const skinNameToIndex = new Map();
-  for (let i = 0; i < skinEntries.length; i += 1) {
-    skinNameToIndex.set(skinEntries[i].name, i);
-  }
   writer.varint(animNames.length, true);
   for (const animName of animNames) {
     writer.string(animName);
     const a = anims[animName] || {};
 
-    writer.varint(0, true);
+    const slotTimelines = a.slots || {};
+    const slotEntries = Object.entries(slotTimelines).filter(([, tl]) => tl && typeof tl === "object");
+    writer.varint(slotEntries.length, true);
+    for (const [slotName, tl] of slotEntries) {
+      writer.varint(Math.max(0, slotNameToIndex.get(String(slotName)) || 0), true);
+      writeSlotTimelineList(writer, tl, sharedMap);
+    }
 
     const boneTimelines = a.bones || {};
     const boneEntries = Object.entries(boneTimelines).filter(([, tl]) => tl && typeof tl === "object");
     writer.varint(boneEntries.length, true);
     for (const [boneName, tl] of boneEntries) {
-      writer.refString(boneName, sharedMap);
+      writer.varint(Math.max(0, boneNameToIndex.get(String(boneName)) || 0), true);
       writeBoneTimelineList(writer, tl);
     }
 
@@ -19222,31 +20991,51 @@ function exportSpineSkelBinary(spineJson) {
     const ikEntries = Object.entries(ikTimelines).filter(([, rows]) => Array.isArray(rows) && rows.length > 0);
     writer.varint(ikEntries.length, true);
     for (const [ikName, rows] of ikEntries) {
-      writer.refString(ikName, sharedMap);
+      const setupIk = ikList[Number(ikNameToIndex.get(String(ikName)) || 0)] || {};
+      let currentMix = math.clamp(Number(setupIk.mix) || 0, 0, 1);
+      let currentSoftness = Math.max(0, Number(setupIk.softness) || 0);
+      let currentBend = setupIk.bendPositive !== false;
+      let currentCompress = !!setupIk.compress;
+      let currentStretch = !!setupIk.stretch;
+      writer.varint(Math.max(0, ikNameToIndex.get(String(ikName)) || 0), true);
       writer.varint(rows.length, true);
+      writer.varint(0, true);
       for (let i = 0; i < rows.length; i += 1) {
         const row = rows[i] || {};
+        if ("mix" in row) currentMix = math.clamp(Number(row.mix) || 0, 0, 1);
+        if ("softness" in row) currentSoftness = Math.max(0, Number(row.softness) || 0);
+        if ("bendPositive" in row) currentBend = row.bendPositive !== false;
+        if ("compress" in row) currentCompress = !!row.compress;
+        if ("stretch" in row) currentStretch = !!row.stretch;
+        let flags = 0;
+        flags |= 1 | 2;
+        if (currentSoftness > 1e-6) flags |= 4;
+        if (currentBend) flags |= 8;
+        if (currentCompress) flags |= 16;
+        if (currentStretch) flags |= 32;
+        if (i > 0 && rows[i - 1] && rows[i - 1].curve === "stepped") flags |= 64;
+        writer.byte(flags);
         writer.float(Number(row.time) || 0);
-        writer.float(math.clamp(Number(row.mix) || 0, 0, 1));
-        writer.float(Math.max(0, Number(row.softness) || 0));
-        writer.byte(row.bendPositive === false ? -1 : 1);
-        writer.bool(!!row.compress);
-        writer.bool(!!row.stretch);
-        writer.bool(!!row.uniform);
-        if (i < rows.length - 1) writeCurve(writer, row);
+        if (flags & 1) {
+          if (flags & 2) writer.float(currentMix);
+        }
+        if (flags & 4) writer.float(currentSoftness);
       }
     }
     const tfcTimelines = a.transform || {};
     const tfcEntries = Object.entries(tfcTimelines).filter(([, rows]) => Array.isArray(rows) && rows.length > 0);
     writer.varint(tfcEntries.length, true);
     for (const [tfcName, rows] of tfcEntries) {
-      writer.refString(tfcName, sharedMap);
+      writer.varint(Math.max(0, tfcNameToIndex.get(String(tfcName)) || 0), true);
       writer.varint(rows.length, true);
+      writer.varint(0, true);
       for (let i = 0; i < rows.length; i += 1) {
         const row = rows[i] || {};
         writer.float(Number(row.time) || 0);
         writer.float(math.clamp(Number(row.rotateMix) || 0, 0, 1));
         writer.float(math.clamp(Number(row.translateMix) || 0, 0, 1));
+        writer.float(math.clamp(Number(row.translateMix) || 0, 0, 1));
+        writer.float(math.clamp(Number(row.scaleMix) || 0, 0, 1));
         writer.float(math.clamp(Number(row.scaleMix) || 0, 0, 1));
         writer.float(math.clamp(Number(row.shearMix) || 0, 0, 1));
         if (i < rows.length - 1) writeCurve(writer, row);
@@ -19256,20 +21045,41 @@ function exportSpineSkelBinary(spineJson) {
     const pathEntries = Object.entries(pathTimelines).filter(([, tl]) => tl && typeof tl === "object");
     writer.varint(pathEntries.length, true);
     for (const [pathName, tl] of pathEntries) {
-      writer.refString(pathName, sharedMap);
+      writer.varint(Math.max(0, pathNameToIndex.get(String(pathName)) || 0), true);
       const timelines = [];
       if (Array.isArray(tl.position) && tl.position.length > 0) timelines.push({ type: 0, rows: tl.position });
       if (Array.isArray(tl.spacing) && tl.spacing.length > 0) timelines.push({ type: 1, rows: tl.spacing });
       if (Array.isArray(tl.mix) && tl.mix.length > 0) timelines.push({ type: 2, rows: tl.mix });
+      else if (
+        (Array.isArray(tl.rotateMix) && tl.rotateMix.length > 0) ||
+        (Array.isArray(tl.translateMix) && tl.translateMix.length > 0)
+      ) {
+        const byTime = new Map();
+        for (const row of tl.rotateMix || []) {
+          const item = byTime.get(row.time) || { time: row.time };
+          item.rotateMix = Number(row.value) || 0;
+          if (row.interp === "stepped") item.curve = "stepped";
+          byTime.set(row.time, item);
+        }
+        for (const row of tl.translateMix || []) {
+          const item = byTime.get(row.time) || { time: row.time };
+          item.translateMix = Number(row.value) || 0;
+          if (row.interp === "stepped") item.curve = "stepped";
+          byTime.set(row.time, item);
+        }
+        if (byTime.size > 0) timelines.push({ type: 2, rows: [...byTime.values()].sort((aa, bb) => aa.time - bb.time) });
+      }
       writer.varint(timelines.length, true);
       for (const t of timelines) {
-        writer.byte(t.type);
+        writer.byte(t.type === 2 ? 2 : t.type);
         writer.varint(t.rows.length, true);
+        writer.varint(0, true);
         for (let i = 0; i < t.rows.length; i += 1) {
           const row = t.rows[i] || {};
           writer.float(Number(row.time) || 0);
           if (t.type === 2) {
             writer.float(math.clamp(Number(row.rotateMix) || 0, 0, 1));
+            writer.float(math.clamp(Number(row.translateMix) || 0, 0, 1));
             writer.float(math.clamp(Number(row.translateMix) || 0, 0, 1));
           } else {
             writer.float(Number(row.value) || 0);
@@ -19278,6 +21088,7 @@ function exportSpineSkelBinary(spineJson) {
         }
       }
     }
+    writer.varint(0, true);
     const deform = a.deform || a.ffd || {};
     const deformSkinEntries = Object.entries(deform).filter(([, v]) => v && typeof v === "object");
     writer.varint(deformSkinEntries.length, true);
@@ -19291,7 +21102,9 @@ function exportSpineSkelBinary(spineJson) {
         writer.varint(deformAtts.length, true);
         for (const [attName, rows] of deformAtts) {
           writer.refString(attName, sharedMap);
+          writer.byte(0);
           writer.varint(rows.length, true);
+          writer.varint(0, true);
           for (let i = 0; i < rows.length; i += 1) {
             const row = rows[i] || {};
             writer.float(Number(row.time) || 0);
@@ -19299,9 +21112,9 @@ function exportSpineSkelBinary(spineJson) {
             if (verts.length === 0) {
               writer.varint(0, true);
             } else {
-              writer.varint(verts.length, true);
               const off = Math.max(0, Number(row.offset) || 0);
-              if (off > 0) writer.varint(off + 1, true);
+              writer.varint(off + verts.length, true);
+              if (off > 0) writer.varint(off, true);
               for (let j = 0; j < verts.length; j += 1) writer.float(Number(verts[j]) || 0);
             }
             if (i < rows.length - 1) writeCurve(writer, row);
@@ -19309,8 +21122,33 @@ function exportSpineSkelBinary(spineJson) {
         }
       }
     }
-    writer.varint(0, true);
-    writer.varint(0, true);
+    const drawOrderRows = Array.isArray(a.drawOrder) ? a.drawOrder : [];
+    writer.varint(drawOrderRows.length, true);
+    for (const row of drawOrderRows) {
+      const offsets = Array.isArray(row && row.offsets) ? row.offsets : [];
+      writer.float(Number(row && row.time) || 0);
+      writer.varint(offsets.length, true);
+      for (const off of offsets) {
+        writer.varint(Math.max(0, slotNameToIndex.get(String(off && off.slot ? off.slot : "")) || 0), true);
+        writer.varint(Number(off && off.offset) || 0, false);
+      }
+    }
+    const eventRows = Array.isArray(a.events) ? a.events : [];
+    writer.varint(eventRows.length, true);
+    for (const row of eventRows) {
+      const eventIndex = eventNameToIndex.get(String(row && row.name ? row.name : ""));
+      const ev = Number.isFinite(eventIndex) ? eventDefs[eventNames[eventIndex]] || {} : {};
+      writer.float(Number(row && row.time) || 0);
+      writer.varint(Number.isFinite(eventIndex) ? eventIndex : 0, true);
+      writer.varint(row && "int" in row ? Number(row.int) || 0 : Number(ev.int) || 0, false);
+      writer.float(row && "float" in row ? Number(row.float) || 0 : Number(ev.float) || 0);
+      writer.string(row && row.string != null ? String(row.string) : null);
+      const audioPath = ev.audio != null && String(ev.audio).length > 0 ? String(ev.audio) : null;
+      if (audioPath != null) {
+        writer.float(row && "volume" in row ? Number(row.volume) || 0 : Number(ev.volume) || 0);
+        writer.float(row && "balance" in row ? Number(row.balance) || 0 : Number(ev.balance) || 0);
+      }
+    }
   }
 
   return writer.toUint8Array();
@@ -21753,8 +23591,8 @@ async function handleProjectLoadInputChange(e) {
       ensurePathConstraints(state.mesh);
     }
     if (Array.isArray(data.animations) && data.animations.length > 0) {
-      state.anim.animations = data.animations;
-      state.anim.currentAnimId = data.animations[0].id;
+      state.anim.animations = data.animations.map((a, i) => normalizeAnimationRecord(a, `Anim ${i + 1}`));
+      state.anim.currentAnimId = state.anim.animations[0].id;
     }
     if (data && data.animationState && Array.isArray(data.animationState.layerTracks)) {
       state.anim.layerTracks = data.animationState.layerTracks.map((t, i) => ({
@@ -21974,11 +23812,20 @@ async function handleProjectLoadInputChange(e) {
         }
         dst.docWidth = Number.isFinite(src.docWidth) ? src.docWidth : state.imageWidth;
         dst.docHeight = Number.isFinite(src.docHeight) ? src.docHeight : state.imageHeight;
+        if (state.mesh) {
+          const restoredMeshData = restoreSlotMeshDataFromPayload(src.meshData, state.mesh.rigBones.length);
+          if (restoredMeshData) {
+            dst.meshData = restoredMeshData;
+          } else {
+            ensureSlotMeshData(dst, state.mesh);
+          }
+        }
         ensureSlotVisualState(dst);
       }
       if (Number.isFinite(data.activeSlot)) {
         state.activeSlot = math.clamp(Number(data.activeSlot), 0, state.slots.length - 1);
       }
+      rebuildSlotTriangleIndices();
     }
     state.slotViewMode = "all";
     state.boneTreeSelectedSlotByBone = Object.create(null);
@@ -22157,21 +24004,24 @@ if (els.setupAutoWeightMultiBtn) {
 els.editMode.addEventListener("change", () => {
   const prevMode = state.boneMode;
   const v = els.editMode.value;
+  const sysMode = els.systemMode ? els.systemMode.value : "setup";
   state.editMode = v === "mesh" ? "mesh" : v === "object" ? "object" : "skeleton";
   if (state.editMode === "object") {
     state.boneMode = "object";
-    state.uiPage = "object";
-    state.leftToolTab = "object";
+    state.uiPage = sysMode === "animate" ? "anim" : "object";
+    if (sysMode === "animate") state.animSubPanel = "timeline";
+    setLeftToolTab("object");
   } else if (state.editMode === "mesh") {
-    state.uiPage = "slot";
-    if (state.leftToolTab !== "slotmesh" && state.leftToolTab !== "canvas") state.leftToolTab = "slotmesh";
-  } else if (state.uiPage === "slot" || state.uiPage === "object") {
-    state.uiPage = "rig";
-    if (state.editMode === "skeleton") {
-      const sysMode = els.systemMode ? els.systemMode.value : "setup";
-      state.boneMode = sysMode === "animate" ? "pose" : "edit";
+    state.uiPage = sysMode === "animate" ? "anim" : "slot";
+    if (sysMode === "animate") state.animSubPanel = "timeline";
+    if (state.leftToolTab !== "slotmesh" && state.leftToolTab !== "canvas") setLeftToolTab("slotmesh");
+  } else {
+    state.uiPage = sysMode === "animate" ? "anim" : "rig";
+    state.boneMode = sysMode === "animate" ? "pose" : "edit";
+    if (sysMode === "animate") state.animSubPanel = "timeline";
+    if (state.leftToolTab === "slotmesh" || state.leftToolTab === "canvas" || state.leftToolTab === "object") {
+      setLeftToolTab("setup");
     }
-    if (state.leftToolTab === "slotmesh" || state.leftToolTab === "canvas" || state.leftToolTab === "object") state.leftToolTab = "setup";
   }
   if (state.editMode !== "skeleton" && state.editMode !== "object") state.pathEdit.drawArmed = false;
   state.workspaceMode = state.editMode === "mesh" ? "slotmesh" : "rig";
@@ -22181,19 +24031,21 @@ els.editMode.addEventListener("change", () => {
 if (els.systemMode) els.systemMode.addEventListener("change", () => {
   const prevMode = state.boneMode;
   const sysMode = els.systemMode.value;
-  if (state.editMode === "object") {
-    state.boneMode = "object";
-  } else if (sysMode === "animate") {
+  if (sysMode === "animate") {
     state.uiPage = "anim";
     state.animSubPanel = "timeline";
-    state.boneMode = "pose";
-    if (state.mesh) {
+    state.boneMode = state.editMode === "object" ? "object" : "pose";
+    if (state.mesh && state.boneMode === "pose") {
       syncPoseFromRig(state.mesh);
       samplePoseAtTime(state.mesh, state.anim.time);
     }
   } else {
-    if (state.uiPage === "anim") state.uiPage = "rig";
-    state.boneMode = "edit";
+    if (state.uiPage === "anim") {
+      if (state.editMode === "mesh") state.uiPage = "slot";
+      else if (state.editMode === "object") state.uiPage = "object";
+      else state.uiPage = "rig";
+    }
+    state.boneMode = state.editMode === "object" ? "object" : "edit";
     state.addBoneArmed = false;
     state.addBoneDraft = null;
     els.addBoneBtn.textContent = "Add Bone";
@@ -22773,7 +24625,7 @@ if (els.pathAddBtn) {
     }
     state.editMode = "skeleton";
     if (els.editMode) els.editMode.value = "skeleton";
-    state.leftToolTab = "path";
+    setLeftToolTab("path");
     state.pathEdit.drawArmed = true;
     state.workspaceMode = "rig";
     updateWorkspaceUI();
@@ -22876,7 +24728,7 @@ if (els.pathDrawBtn) {
     state.pathEdit.drawArmed = true;
     state.editMode = "skeleton";
     if (els.editMode) els.editMode.value = "skeleton";
-    state.leftToolTab = "path";
+    setLeftToolTab("path");
     updateWorkspaceUI();
     setStatus("Path draw armed: click canvas to add points.");
   });
@@ -23117,26 +24969,22 @@ if (els.slotMeshUnlinkEdgeBtn) {
 }
 if (els.slotBindBoneBtn) {
   els.slotBindBoneBtn.addEventListener("click", () => {
-    const ok = bindActiveSlotToSelectedBone();
-    if (!ok) {
-      setStatus("Bind failed. Select a bone first, and ensure an active slot exists.");
+    const bound = bindActiveSlotToSelectedBone();
+    if (!bound) {
+      setStatus("Bind failed. Select one or more target slots and a bone first.");
       return;
     }
-    const slot = getActiveSlot();
-    setStatus(`Slot "${slot ? slot.name : ""}" bound to bone ${slot ? slot.bone : -1}.`);
+    setStatus(buildSingleBindStatusMessage(bound, getPrimarySelectedBoneIndex()));
   });
 }
 if (els.slotBindWeightedBtn) {
   els.slotBindWeightedBtn.addEventListener("click", () => {
-    const ok = bindActiveSlotWeightedToSelectedBones();
-    if (!ok) {
-      setStatus("Weighted bind failed. Select one or more bones first.");
+    const bound = bindActiveSlotWeightedToSelectedBones();
+    if (!bound) {
+      setStatus("Weighted bind failed. Select one or more target slots and bones first.");
       return;
     }
-    const slot = getActiveSlot();
-    setStatus(
-      `Slot "${slot ? slot.name : ""}" weighted to bones: ${(slot && slot.influenceBones && slot.influenceBones.join(", ")) || "(none)"}`
-    );
+    setStatus(buildWeightedBindStatusMessage(bound, getSelectedBonesForWeight(state.mesh)));
   });
 }
 if (els.slotMeshResetBtn) {
@@ -23506,8 +25354,35 @@ els.animDuration.addEventListener("input", () => {
   const anim = getCurrentAnimation();
   if (!anim) return;
   anim.duration = Math.max(0.1, Number(els.animDuration.value) || anim.duration || 5);
+  normalizeAnimationRecord(anim);
   setAnimTime(state.anim.time);
 });
+if (els.animRangeStart) {
+  els.animRangeStart.addEventListener("input", () => {
+    const anim = getCurrentAnimation();
+    if (!anim) return;
+    anim.rangeStart = Number(els.animRangeStart.value) || 0;
+    normalizeAnimationRecord(anim);
+    if (state.anim.time < anim.rangeStart) setAnimTime(anim.rangeStart);
+    else {
+      refreshAnimationUI();
+      renderTimelineTracks();
+    }
+  });
+}
+if (els.animRangeEnd) {
+  els.animRangeEnd.addEventListener("input", () => {
+    const anim = getCurrentAnimation();
+    if (!anim) return;
+    anim.rangeEnd = Number(els.animRangeEnd.value) || anim.duration || 5;
+    normalizeAnimationRecord(anim);
+    if (state.anim.time > anim.rangeEnd) setAnimTime(anim.rangeEnd);
+    else {
+      refreshAnimationUI();
+      renderTimelineTracks();
+    }
+  });
+}
 els.animTime.addEventListener("input", () => {
   setAnimTime(Number(els.animTime.value) || 0);
   if (state.mesh) {
@@ -23520,11 +25395,12 @@ els.animSelect.addEventListener("change", () => {
   state.anim.currentAnimId = els.animSelect.value;
   const anim = getCurrentAnimation();
   if (!anim) return;
+  const active = getAnimationActiveRange(anim);
   clearTimelineKeySelection();
-  setAnimTime(0);
+  setAnimTime(active.start);
   refreshAnimationUI();
   if (state.mesh) {
-    samplePoseAtTime(state.mesh, 0);
+    samplePoseAtTime(state.mesh, active.start);
     if (state.boneMode === "pose") updateBoneUI();
   }
 });
@@ -23551,9 +25427,11 @@ els.duplicateAnimBtn.addEventListener("click", () => {
     id: makeAnimId(),
     name: `${curr.name} Copy`,
     duration: curr.duration,
+    rangeStart: Number(curr.rangeStart) || 0,
+    rangeEnd: Number(curr.rangeEnd) || curr.duration,
     tracks: JSON.parse(JSON.stringify(curr.tracks)),
   };
-  state.anim.animations.push(dup);
+  state.anim.animations.push(normalizeAnimationRecord(dup));
   state.anim.currentAnimId = dup.id;
   state.anim.mix.active = false;
   clearTimelineKeySelection();
@@ -23565,14 +25443,9 @@ els.deleteAnimBtn.addEventListener("click", () => {
   ensureCurrentAnimation();
   state.anim.mix.active = false;
   clearTimelineKeySelection();
-  setAnimTime(0);
+  const active = getAnimationActiveRange(getCurrentAnimation());
+  setAnimTime(active.start);
   refreshAnimationUI();
-});
-els.trackSelect.addEventListener("change", () => {
-  state.anim.selectedTrack = els.trackSelect.value;
-  syncLayerPanelFromSelectedTrack();
-  clearTimelineKeySelection();
-  renderTimelineTracks();
 });
 if (els.timelineFilter) {
   els.timelineFilter.addEventListener("input", () => {
@@ -23904,8 +25777,7 @@ if (els.smParamKeyBtn) {
     if (!p) return;
     const trackId = getStateParamTrackId(p.id);
     refreshTrackSelect();
-    state.anim.selectedTrack = trackId;
-    if (els.trackSelect) els.trackSelect.value = trackId;
+    setSelectedTimelineTrack(trackId);
     addOrUpdateKeyframeForTrack(trackId);
   });
 }
@@ -23998,8 +25870,7 @@ if (els.addSpecialKeyBtn) {
     const sel = els.addSpecialKeySelect.value;
 
     if (sel === "drawOrder") {
-      state.anim.selectedTrack = DRAWORDER_TRACK_ID;
-      if (els.trackSelect) els.trackSelect.value = DRAWORDER_TRACK_ID;
+      setSelectedTimelineTrack(DRAWORDER_TRACK_ID);
       addOrUpdateKeyframeForTrack(DRAWORDER_TRACK_ID);
       return;
     }
@@ -24014,8 +25885,7 @@ if (els.addSpecialKeyBtn) {
     if (state.activeSlot < 0) return;
     // Map the dropdown values to the track types if necessary (the values match exactly)
     const trackId = getSlotTrackId(state.activeSlot, sel);
-    state.anim.selectedTrack = trackId;
-    if (els.trackSelect) els.trackSelect.value = trackId;
+    setSelectedTimelineTrack(trackId);
     addOrUpdateKeyframeForTrack(trackId);
   });
 }
@@ -24079,12 +25949,41 @@ if (els.drawOrderApplyKeyBtn) {
 els.deleteKeyBtn.addEventListener("click", () => {
   deleteSelectedOrCurrentKeyframe();
 });
+if (els.cutKeyBtn) {
+  els.cutKeyBtn.addEventListener("click", () => {
+    cutSelectedKeyframe();
+  });
+}
 els.copyKeyBtn.addEventListener("click", () => {
   copySelectedKeyframe();
 });
 els.pasteKeyBtn.addEventListener("click", () => {
   pasteKeyframeAtCurrentTime();
 });
+if (els.timelineCtxCutBtn) {
+  els.timelineCtxCutBtn.addEventListener("click", () => {
+    cutSelectedKeyframe();
+    closeTimelineKeyContextMenu();
+  });
+}
+if (els.timelineCtxCopyBtn) {
+  els.timelineCtxCopyBtn.addEventListener("click", () => {
+    copySelectedKeyframe();
+    closeTimelineKeyContextMenu();
+  });
+}
+if (els.timelineCtxPasteBtn) {
+  els.timelineCtxPasteBtn.addEventListener("click", () => {
+    pasteKeyframeAtCurrentTime();
+    closeTimelineKeyContextMenu();
+  });
+}
+if (els.timelineCtxDeleteBtn) {
+  els.timelineCtxDeleteBtn.addEventListener("click", () => {
+    deleteSelectedOrCurrentKeyframe();
+    closeTimelineKeyContextMenu();
+  });
+}
 if (els.addEventBtn) {
   els.addEventBtn.addEventListener("click", () => {
     addOrUpdateEventAtCurrentTime();
@@ -24173,7 +26072,7 @@ els.animFps.addEventListener("input", () => {
 });
 if (els.animTimeStep) {
   els.animTimeStep.addEventListener("input", () => {
-    const step = Math.max(0.001, Number(els.animTimeStep.value) || 0.01);
+    const step = Math.max(TIMELINE_MIN_STEP, Number(els.animTimeStep.value) || TIMELINE_MIN_STEP);
     state.anim.timeStep = step;
     els.animTimeStep.value = String(step);
     const anim = getCurrentAnimation();
@@ -24224,15 +26123,16 @@ function beginAnimationMix(toAnimId, durationSec) {
   const from = getCurrentAnimation();
   const to = state.anim.animations.find((a) => a.id === toAnimId);
   if (!state.mesh || !from || !to || from.id === to.id) return false;
+  const toRange = getAnimationActiveRange(to);
   state.anim.mix.active = true;
   state.anim.mix.fromAnimId = from.id;
   state.anim.mix.toAnimId = to.id;
   state.anim.mix.duration = Math.max(0.01, Number(durationSec) || 0.2);
   state.anim.mix.elapsed = 0;
   state.anim.mix.fromTime = state.anim.time;
-  state.anim.mix.toTime = 0;
+  state.anim.mix.toTime = toRange.start;
   state.anim.currentAnimId = to.id;
-  setAnimTime(0);
+  setAnimTime(toRange.start);
   state.anim.playing = true;
   state.anim.lastTs = 0;
   updatePlaybackButtons();
@@ -25044,9 +26944,12 @@ function rectsOverlap(a, b) {
 }
 
 els.timelineTracks.addEventListener("pointerdown", (ev) => {
+  if (state.anim.timelineContextMenuOpen) closeTimelineKeyContextMenu();
+  if (ev.button !== 0) return;
   const anim = getCurrentAnimation();
   if (!anim) return;
-  const timelineDuration = getTimelineDisplayDuration(anim);
+  const timelineRange = getTimelineViewRange(anim);
+  const editDuration = getTimelineDisplayDuration(anim);
   const groupBtn = ev.target.closest("[data-group-action][data-group-key]");
   if (groupBtn) {
     ev.preventDefault();
@@ -25085,7 +26988,7 @@ els.timelineTracks.addEventListener("pointerdown", (ev) => {
 
   const rect = laneEl.getBoundingClientRect();
   const x = ev.clientX - rect.left;
-  const t = snapTimeIfNeeded(timeForTimelineX(x, rect.width, timelineDuration));
+  const t = snapTimeIfNeeded(timeForTimelineX(x, rect.width, timelineRange));
 
   if (playheadEl || trackId === "__ruler__") {
     clearTimelineMarqueeEl();
@@ -25095,7 +26998,7 @@ els.timelineTracks.addEventListener("pointerdown", (ev) => {
       pointerId: ev.pointerId,
     };
     els.timelineTracks.setPointerCapture(ev.pointerId);
-    setAnimTime(t, timelineDuration);
+    setAnimTime(t);
     if (state.mesh) {
       samplePoseAtTime(state.mesh, state.anim.time);
       if (state.boneMode === "pose") updateBoneUI();
@@ -25125,9 +27028,7 @@ els.timelineTracks.addEventListener("pointerdown", (ev) => {
       const seed = getDragSeedFromSelection(anim, dragSelection);
       state.anim.selectedKeys = dragSelection;
       state.anim.selectedKey = anchor ? { ...anchor } : null;
-      state.anim.selectedTrack = anchor ? anchor.trackId : picked[0].trackId;
-      if (els.trackSelect) els.trackSelect.value = state.anim.selectedTrack;
-      syncLayerPanelFromSelectedTrack();
+      setSelectedTimelineTrack(anchor ? anchor.trackId : picked[0].trackId);
       state.anim.timelineDrag = {
         mode: "key_set",
         laneTrackId: trackId,
@@ -25135,17 +27036,15 @@ els.timelineTracks.addEventListener("pointerdown", (ev) => {
         anchorTime: summaryTime,
         keyAnchor: anchor ? { trackId: anchor.trackId, keyId: anchor.keyId } : null,
         seed,
-        scaleSpan: getTimelineScaleSpanFromSeed(seed, summaryTime, timelineDuration),
+        scaleSpan: getTimelineScaleSpanFromSeed(seed, summaryTime, editDuration),
       };
       els.timelineTracks.setPointerCapture(ev.pointerId);
-      setAnimTime(summaryTime, timelineDuration);
+      setAnimTime(summaryTime);
       renderTimelineTracks();
       return;
     }
     if (!parseTrackId(trackId)) return;
-    state.anim.selectedTrack = trackId;
-    els.trackSelect.value = trackId;
-    syncLayerPanelFromSelectedTrack();
+    setSelectedTimelineTrack(trackId);
     const keyId = keyEl.dataset.keyId;
     const keys = getTrackKeys(anim, trackId);
     const k = keys.find((kk) => kk.id === keyId);
@@ -25176,10 +27075,10 @@ els.timelineTracks.addEventListener("pointerdown", (ev) => {
       anchorTime: Number(k.time) || 0,
       keyAnchor: { trackId, keyId: k.id },
       seed,
-      scaleSpan: getTimelineScaleSpanFromSeed(seed, Number(k.time) || 0, timelineDuration),
+      scaleSpan: getTimelineScaleSpanFromSeed(seed, Number(k.time) || 0, editDuration),
     };
     els.timelineTracks.setPointerCapture(ev.pointerId);
-    setAnimTime(k.time, timelineDuration);
+    setAnimTime(k.time);
     renderTimelineTracks();
     return;
   }
@@ -25201,11 +27100,9 @@ els.timelineTracks.addEventListener("pointerdown", (ev) => {
   }
 
   if (parseTrackId(trackId)) {
-    state.anim.selectedTrack = trackId;
-    els.trackSelect.value = trackId;
-    syncLayerPanelFromSelectedTrack();
+    setSelectedTimelineTrack(trackId);
   }
-  setAnimTime(t, timelineDuration);
+  setAnimTime(t);
   clearTimelineKeySelection();
   if (state.mesh) {
     samplePoseAtTime(state.mesh, state.anim.time);
@@ -25214,9 +27111,49 @@ els.timelineTracks.addEventListener("pointerdown", (ev) => {
   renderTimelineTracks();
 });
 
-// Prevent native context menu / text drag behaviors from interrupting timeline editing.
 els.timelineTracks.addEventListener("contextmenu", (ev) => {
   ev.preventDefault();
+  const anim = getCurrentAnimation();
+  if (!anim) return;
+  const laneEl = ev.target.closest(".track-lane");
+  const keyEl = ev.target.closest(".track-key");
+  if (!laneEl) return;
+  const trackId = String(laneEl.dataset.trackId || "");
+  if (!trackId) return;
+  const timelineRange = getTimelineViewRange(anim);
+  const rect = laneEl.getBoundingClientRect();
+  const x = ev.clientX - rect.left;
+  const t = snapTimeIfNeeded(timeForTimelineX(x, rect.width, timelineRange));
+  state.anim.timelineContextTrackId = trackId;
+  state.anim.timelineContextTime = t;
+  if (keyEl) {
+    const summaryScope = String(keyEl.dataset.summaryScope || "");
+    if (summaryScope) {
+      const summaryTime = Number(keyEl.dataset.summaryTime);
+      const summaryGroupKey = String(keyEl.dataset.summaryGroupKey || "");
+      const picked = collectSummaryKeyTargets(anim, summaryScope, summaryTime, summaryGroupKey);
+      if (picked.length > 0) {
+        state.anim.selectedKeys = picked.map((s) => ({ trackId: s.trackId, keyId: s.keyId }));
+        state.anim.selectedKey = { ...picked[0] };
+        setSelectedTimelineTrack(picked[0].trackId);
+        setAnimTime(summaryTime);
+      }
+    } else if (parseTrackId(trackId)) {
+      const keyId = String(keyEl.dataset.keyId || "");
+      if (!keySelectionHas(trackId, keyId)) setSingleTimelineSelection(trackId, keyId);
+      else state.anim.selectedKey = { trackId, keyId };
+      setSelectedTimelineTrack(trackId);
+      const keys = getTrackKeys(anim, trackId);
+      const k = keys.find((kk) => kk.id === keyId);
+      if (k) setAnimTime(Number(k.time) || 0);
+    }
+  } else {
+    if (parseTrackId(trackId)) setSelectedTimelineTrack(trackId, { syncLayer: false });
+    clearTimelineKeySelection();
+    setAnimTime(t);
+  }
+  renderTimelineTracks();
+  openTimelineKeyContextMenu(ev.clientX, ev.clientY);
 });
 els.timelineTracks.addEventListener("dragstart", (ev) => {
   ev.preventDefault();
@@ -25225,7 +27162,8 @@ els.timelineTracks.addEventListener("pointermove", (ev) => {
   const drag = state.anim.timelineDrag;
   const anim = getCurrentAnimation();
   if (!drag || !anim) return;
-  const timelineDuration = getTimelineDisplayDuration(anim);
+  const timelineRange = getTimelineViewRange(anim);
+  const editDuration = getTimelineDisplayDuration(anim);
   if (drag.mode === "marquee_pending" || drag.mode === "marquee") {
     ev.preventDefault();
   }
@@ -25306,9 +27244,9 @@ els.timelineTracks.addEventListener("pointermove", (ev) => {
   if (!laneEl) return;
   const rect = laneEl.getBoundingClientRect();
   const x = ev.clientX - rect.left;
-  const t = snapTimeIfNeeded(timeForTimelineX(x, rect.width, timelineDuration));
+  const t = snapTimeIfNeeded(timeForTimelineX(x, rect.width, timelineRange));
   if (drag.mode === "playhead") {
-    setAnimTime(t, timelineDuration);
+    setAnimTime(t);
     if (state.mesh) {
       samplePoseAtTime(state.mesh, state.anim.time);
       if (state.boneMode === "pose") updateBoneUI();
@@ -25332,7 +27270,7 @@ els.timelineTracks.addEventListener("pointermove", (ev) => {
       const factor = math.clamp(1 + delta / span, 0.01, 100);
       nextTime = (Number(drag.anchorTime) || 0) + ((Number(it.time) || 0) - (Number(drag.anchorTime) || 0)) * factor;
     }
-    keyObj.time = sanitizeTimelineTime(snapTimeIfNeeded(nextTime), timelineDuration);
+    keyObj.time = sanitizeTimelineTime(snapTimeIfNeeded(nextTime), editDuration);
     touched.add(it.trackId);
     if (!fallbackSelection) fallbackSelection = { trackId: it.trackId, keyId: it.keyId, time: keyObj.time };
     if (preferredAnchor && it.trackId === preferredAnchor.trackId && it.keyId === preferredAnchor.keyId) {
@@ -25345,7 +27283,7 @@ els.timelineTracks.addEventListener("pointermove", (ev) => {
     state.anim.selectedKey = { trackId: anchorSelection.trackId, keyId: anchorSelection.keyId };
     drag.keyAnchor = { trackId: anchorSelection.trackId, keyId: anchorSelection.keyId };
   }
-  setAnimTime(t, timelineDuration);
+  setAnimTime(t);
   renderTimelineTracks();
 });
 function clearTimelineDrag(ev) {
@@ -25359,8 +27297,7 @@ function clearTimelineDrag(ev) {
   const anim = getCurrentAnimation();
   if (drag.mode === "marquee_pending") {
     if (anim && parseTrackId(drag.trackId)) {
-      state.anim.selectedTrack = drag.trackId;
-      if (els.trackSelect) els.trackSelect.value = drag.trackId;
+      setSelectedTimelineTrack(drag.trackId, { syncLayer: false });
     }
     if (!drag.append) clearTimelineKeySelection();
     setAnimTime(Number(drag.time) || 0);
@@ -25405,6 +27342,30 @@ window.addEventListener("keyup", (ev) => {
 window.addEventListener("blur", () => {
   state.anim.timelineScaleHeld = false;
 });
+if (els.timelineZoomOutBtn) {
+  els.timelineZoomOutBtn.addEventListener("click", () => {
+    zoomTimelineBy(1 / 1.25);
+  });
+}
+if (els.timelineZoomResetBtn) {
+  els.timelineZoomResetBtn.addEventListener("click", () => {
+    resetTimelineZoom();
+  });
+}
+if (els.timelineZoomInBtn) {
+  els.timelineZoomInBtn.addEventListener("click", () => {
+    zoomTimelineBy(1.25);
+  });
+}
+els.timelineTracks.addEventListener(
+  "wheel",
+  (ev) => {
+    if (!(ev.ctrlKey || ev.metaKey)) return;
+    ev.preventDefault();
+    zoomTimelineBy(ev.deltaY > 0 ? 1 / 1.15 : 1.15);
+  },
+  { passive: false }
+);
 els.timelineResizer.addEventListener("pointerdown", (ev) => {
   state.anim.resizing = {
     pointerId: ev.pointerId,
@@ -25431,8 +27392,103 @@ function clearResize(ev) {
 }
 els.timelineResizer.addEventListener("pointerup", clearResize);
 els.timelineResizer.addEventListener("pointercancel", clearResize);
+
+const leftResizer = document.getElementById("leftResizer");
+const rightResizer = document.getElementById("rightResizer");
+const rightColResizer = document.getElementById("rightColResizer");
+
+if (leftResizer) {
+  leftResizer.addEventListener("pointerdown", (ev) => {
+    state.uiResizing = {
+      type: "left",
+      pointerId: ev.pointerId,
+      startX: ev.clientX,
+      startW: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--left-w")) || 260,
+    };
+    leftResizer.setPointerCapture(ev.pointerId);
+  });
+  leftResizer.addEventListener("pointermove", (ev) => {
+    if (!state.uiResizing || state.uiResizing.type !== "left") return;
+    const next = math.clamp(state.uiResizing.startW + (ev.clientX - state.uiResizing.startX), 150, 800);
+    document.documentElement.style.setProperty("--left-w", `${Math.round(next)}px`);
+  });
+  const clearLeft = (ev) => {
+    if (state.uiResizing && state.uiResizing.type === "left") {
+      try { leftResizer.releasePointerCapture(ev.pointerId); } catch {}
+      state.uiResizing = null;
+    }
+  };
+  leftResizer.addEventListener("pointerup", clearLeft);
+  leftResizer.addEventListener("pointercancel", clearLeft);
+}
+
+if (rightResizer) {
+  rightResizer.addEventListener("pointerdown", (ev) => {
+    state.uiResizing = {
+      type: "right",
+      pointerId: ev.pointerId,
+      startX: ev.clientX,
+      startW: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--right-w")) || 340,
+    };
+    rightResizer.setPointerCapture(ev.pointerId);
+  });
+  rightResizer.addEventListener("pointermove", (ev) => {
+    if (!state.uiResizing || state.uiResizing.type !== "right") return;
+    const next = math.clamp(state.uiResizing.startW - (ev.clientX - state.uiResizing.startX), 200, 800);
+    document.documentElement.style.setProperty("--right-w", `${Math.round(next)}px`);
+  });
+  const clearRight = (ev) => {
+    if (state.uiResizing && state.uiResizing.type === "right") {
+      try { rightResizer.releasePointerCapture(ev.pointerId); } catch {}
+      state.uiResizing = null;
+    }
+  };
+  rightResizer.addEventListener("pointerup", clearRight);
+  rightResizer.addEventListener("pointercancel", clearRight);
+}
+
+if (rightColResizer) {
+  rightColResizer.addEventListener("pointerdown", (ev) => {
+    const defaultH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tree-h"));
+    state.uiResizing = {
+      type: "tree",
+      pointerId: ev.pointerId,
+      startY: ev.clientY,
+      startH: !Number.isNaN(defaultH) ? defaultH : (document.getElementById("rightTree")?.offsetHeight || 160),
+    };
+    rightColResizer.setPointerCapture(ev.pointerId);
+  });
+  rightColResizer.addEventListener("pointermove", (ev) => {
+    if (!state.uiResizing || state.uiResizing.type !== "tree") return;
+    const delta = ev.clientY - state.uiResizing.startY;
+    const next = Math.max(100, state.uiResizing.startH + delta);
+    document.documentElement.style.setProperty("--tree-h", `${Math.round(next)}px`);
+  });
+  const clearTree = (ev) => {
+    if (state.uiResizing && state.uiResizing.type === "tree") {
+      try { rightColResizer.releasePointerCapture(ev.pointerId); } catch {}
+      state.uiResizing = null;
+    }
+  };
+  rightColResizer.addEventListener("pointerup", clearTree);
+  rightColResizer.addEventListener("pointercancel", clearTree);
+}
+if (els.timelineCollapseBtn) {
+  els.timelineCollapseBtn.addEventListener("click", () => {
+    state.anim.timelineMinimized = !state.anim.timelineMinimized;
+    updateWorkspaceUI();
+  });
+}
 if (els.playBtn) {
   els.playBtn.addEventListener("click", () => {
+    const anim = getCurrentAnimation();
+    if (anim) {
+      const active = getAnimationActiveRange(anim);
+      if (state.anim.time < active.start - 1e-6 || state.anim.time > active.end + 1e-6) {
+        setAnimTime(active.start);
+        if (state.mesh) samplePoseAtTime(state.mesh, state.anim.time);
+      }
+    }
     state.anim.playing = !state.anim.playing;
     state.anim.lastTs = 0;
     updatePlaybackButtons();
@@ -25448,9 +27504,10 @@ els.stopBtn.addEventListener("click", () => {
   state.anim.playing = false;
   state.anim.lastTs = 0;
   updatePlaybackButtons();
-  setAnimTime(0);
+  const active = getAnimationActiveRange(getCurrentAnimation());
+  setAnimTime(active.start);
   if (state.mesh) {
-    samplePoseAtTime(state.mesh, 0);
+    samplePoseAtTime(state.mesh, active.start);
     if (state.boneMode === "pose") updateBoneUI();
   }
 });
@@ -25691,23 +27748,21 @@ window.addEventListener("keydown", async (ev) => {
       return;
     }
     if (ev.key.toLowerCase() === "b" && !ev.shiftKey) {
-      if (!bindActiveSlotToSelectedBone()) {
-        setStatus("Bind failed. Select a bone first.");
+      const bound = bindActiveSlotToSelectedBone();
+      if (!bound) {
+        setStatus("Bind failed. Select one or more target slots and a bone first.");
       } else {
-        const s = getActiveSlot();
-        setStatus(`Slot "${s ? s.name : ""}" bound to bone ${s ? s.bone : -1}.`);
+        setStatus(buildSingleBindStatusMessage(bound, getPrimarySelectedBoneIndex()));
       }
       ev.preventDefault();
       return;
     }
     if (ev.key.toLowerCase() === "b" && ev.shiftKey) {
-      if (!bindActiveSlotWeightedToSelectedBones()) {
-        setStatus("Weighted bind failed. Select one or more bones first.");
+      const bound = bindActiveSlotWeightedToSelectedBones();
+      if (!bound) {
+        setStatus("Weighted bind failed. Select one or more target slots and bones first.");
       } else {
-        const s = getActiveSlot();
-        setStatus(
-          `Slot "${s ? s.name : ""}" weighted to bones: ${(s && s.influenceBones && s.influenceBones.join(", ")) || "(none)"}`
-        );
+        setStatus(buildWeightedBindStatusMessage(bound, getSelectedBonesForWeight(state.mesh)));
       }
       ev.preventDefault();
       return;
@@ -25721,6 +27776,33 @@ window.addEventListener("keydown", async (ev) => {
       state.ikPickArmed = false;
       state.ikHoverBone = -1;
       refreshIKUI();
+      ev.preventDefault();
+      return;
+    }
+  }
+  if (isTimelineEditingActive()) {
+    if (modKey && keyLower === "c") {
+      copySelectedKeyframe();
+      ev.preventDefault();
+      return;
+    }
+    if (modKey && keyLower === "x") {
+      cutSelectedKeyframe();
+      ev.preventDefault();
+      return;
+    }
+    if (modKey && keyLower === "v") {
+      pasteKeyframeAtCurrentTime();
+      ev.preventDefault();
+      return;
+    }
+    if ((ev.key === "Delete" || ev.key === "Backspace") && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      deleteSelectedOrCurrentKeyframe();
+      ev.preventDefault();
+      return;
+    }
+    if (keyLower === "k" && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      deleteSelectedOrCurrentKeyframe();
       ev.preventDefault();
       return;
     }
@@ -25781,21 +27863,21 @@ window.addEventListener("keydown", async (ev) => {
     return;
   }
   if (key === "b" && !ev.shiftKey) {
-    if (!bindActiveSlotToSelectedBone()) {
-      setStatus("Bind failed. Need active slot and selected bone.");
+    const bound = bindActiveSlotToSelectedBone();
+    if (!bound) {
+      setStatus("Bind failed. Select one or more target slots and a bone first.");
     } else {
-      const s = getActiveSlot();
-      setStatus(`Slot "${s ? s.name : ""}" bound to bone ${s ? s.bone : -1}.`);
+      setStatus(buildSingleBindStatusMessage(bound, getPrimarySelectedBoneIndex()));
     }
     ev.preventDefault();
     return;
   }
   if (key === "b" && ev.shiftKey) {
-    if (!bindActiveSlotWeightedToSelectedBones()) {
-      setStatus("Weighted bind failed. Select one or more bones first.");
+    const bound = bindActiveSlotWeightedToSelectedBones();
+    if (!bound) {
+      setStatus("Weighted bind failed. Select one or more target slots and bones first.");
     } else {
-      const s = getActiveSlot();
-      setStatus(`Slot "${s ? s.name : ""}" weighted to bones: ${(s && s.influenceBones && s.influenceBones.join(", ")) || "(none)"}`);
+      setStatus(buildWeightedBindStatusMessage(bound, getSelectedBonesForWeight(state.mesh)));
     }
     ev.preventDefault();
     return;
@@ -25842,8 +27924,7 @@ window.addEventListener("keydown", async (ev) => {
   if (key === "k" && ev.shiftKey && ev.altKey) {
     if (state.activeSlot >= 0) {
       const trackId = getSlotTrackId(state.activeSlot, "clipEnd");
-      state.anim.selectedTrack = trackId;
-      if (els.trackSelect) els.trackSelect.value = trackId;
+      setSelectedTimelineTrack(trackId);
       addOrUpdateKeyframeForTrack(trackId);
     }
     ev.preventDefault();
@@ -25852,8 +27933,7 @@ window.addEventListener("keydown", async (ev) => {
   if (key === "k" && ev.shiftKey) {
     if (state.activeSlot >= 0) {
       const trackId = getSlotTrackId(state.activeSlot, "clip");
-      state.anim.selectedTrack = trackId;
-      if (els.trackSelect) els.trackSelect.value = trackId;
+      setSelectedTimelineTrack(trackId);
       addOrUpdateKeyframeForTrack(trackId);
     }
     ev.preventDefault();
@@ -26186,7 +28266,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     return;
   }
 
-  if (state.editMode === "vertex") {
+  if (isVertexDeformInteractionActive()) {
     state.vertexDeform.cursorX = mx;
     state.vertexDeform.cursorY = my;
     state.vertexDeform.hasCursor = true;
@@ -26345,6 +28425,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
         startLocal: local,
         needsReweight: false,
         items: objectItems,
+        objectSnapshot: captureObjectSpaceSlotSnapshot(state.mesh, bones, roots, world),
       };
       if (dragType === "bone_object_rotate") {
         const angleByRoot = Object.create(null);
@@ -26398,11 +28479,21 @@ els.overlay.addEventListener("pointerdown", (ev) => {
       if (set.has(hit.boneIndex)) set.delete(hit.boneIndex);
       else set.add(hit.boneIndex);
       state.selectedBonesForWeight = [...set];
-      const partType = hit.type === "bone_joint" ? "head" : "tail";
       const parts = state.selectedBoneParts || [];
-      const partIdx = parts.findIndex(p => p.index === hit.boneIndex && p.type === partType);
-      if (partIdx >= 0) parts.splice(partIdx, 1);
-      else parts.push({ index: hit.boneIndex, type: partType });
+      if (state.boneMode === "edit" && hit.type === "bone_joint") {
+        const jointSelected = hasBoneJointSelection(hit.boneIndex);
+        for (let i = parts.length - 1; i >= 0; i -= 1) {
+          if (parts[i].index === hit.boneIndex && (parts[i].type === "head" || parts[i].type === "tail")) {
+            parts.splice(i, 1);
+          }
+        }
+        if (!jointSelected) parts.push(...getBoneJointSelectionParts(hit.boneIndex));
+      } else {
+        const partType = hit.type === "bone_joint" ? "head" : "tail";
+        const partIdx = parts.findIndex(p => p.index === hit.boneIndex && p.type === partType);
+        if (partIdx >= 0) parts.splice(partIdx, 1);
+        else parts.push({ index: hit.boneIndex, type: partType });
+      }
       state.selectedBoneParts = parts;
       state.selectedBone = hit.boneIndex;
       updateBoneUI();
@@ -26410,13 +28501,33 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     }
     state.selectedBone = hit.boneIndex;
     const selectedParts = state.selectedBoneParts || [];
-    const hitPartType = hit.type === "bone_joint" ? "head" : "tail";
-    const dragWholeSelection = selectedParts.length > 1 && selectedParts.some(p => p.index === hit.boneIndex && p.type === hitPartType);
+    const hitPartTypes = state.boneMode === "edit" && hit.type === "bone_joint" ? ["head", "tail"] : [hit.type === "bone_joint" ? "head" : "tail"];
+    const dragWholeSelection =
+      selectedParts.length > 1 &&
+      hitPartTypes.every((partType) => selectedParts.some(p => p.index === hit.boneIndex && p.type === partType));
     if (!dragWholeSelection) {
       state.selectedBonesForWeight = [hit.boneIndex];
-      state.selectedBoneParts = [{ index: hit.boneIndex, type: hitPartType }];
+      state.selectedBoneParts =
+        state.boneMode === "edit" && hit.type === "bone_joint"
+          ? getBoneJointSelectionParts(hit.boneIndex)
+          : [{ index: hit.boneIndex, type: hitPartTypes[0] }];
       updateBoneUI();
-      state.drag = { ...hit, pointerId: ev.pointerId, needsReweight: false };
+      if (state.boneMode === "edit" && hit.type === "bone_joint") {
+        const bones = getBonesForCurrentMode(state.mesh);
+        const world = getEditAwareWorld(bones);
+        state.drag = {
+          type: "bone_part_multi_move",
+          pointerId: ev.pointerId,
+          startLocal: local,
+          needsReweight: false,
+          items: getBoneJointSelectionParts(hit.boneIndex).map((p) => {
+            const ep = getBoneWorldEndpointsFromBones(bones, p.index, world);
+            return { boneIndex: p.index, type: p.type, head: ep.head, tip: ep.tip };
+          })
+        };
+      } else {
+        state.drag = { ...hit, pointerId: ev.pointerId, needsReweight: false };
+      }
       els.overlay.setPointerCapture(ev.pointerId);
       return;
     }
@@ -26448,6 +28559,11 @@ els.overlay.addEventListener("pointerdown", (ev) => {
       append: !!(ev.ctrlKey || ev.metaKey),
     };
     els.overlay.setPointerCapture(ev.pointerId);
+    return;
+  }
+
+  if (!ev.ctrlKey && !ev.metaKey && !ev.shiftKey && !ev.altKey) {
+    clearBoneSelection(true);
   }
 });
 
@@ -26464,7 +28580,7 @@ els.overlay.addEventListener("pointermove", (ev) => {
   const my = (ev.clientY - rect.top) * dpr;
   const local = screenToLocal(mx, my);
   const m = state.mesh;
-  if (state.editMode === "vertex") {
+  if (isVertexDeformInteractionActive()) {
     state.vertexDeform.cursorX = mx;
     state.vertexDeform.cursorY = my;
     state.vertexDeform.hasCursor = true;
@@ -26890,8 +29006,14 @@ els.overlay.addEventListener("pointermove", (ev) => {
       setBoneFromWorldEndpoints(bones, it.boneIndex, nh, nt);
       markDirtyByBoneProp(it.boneIndex, "translate");
     }
+    const deltaByRoot = new Map();
+    for (const [rootIndex, rootState] of (d.objectSnapshot && d.objectSnapshot.roots) || []) {
+      deltaByRoot.set(rootIndex, makeTranslationMatrix(dx, dy));
+    }
+    const nextWorld = computeWorld(bones);
+    applyObjectSpaceSlotSnapshot(d.objectSnapshot, deltaByRoot, nextWorld);
     if (state.boneMode === "edit") commitRigEdit(m, false);
-    else if (state.boneMode === "object") syncPoseFromRig(m);
+    else if (state.boneMode === "object") commitRigEdit(m, false);
     updateBoneUI();
     return;
   }
@@ -26924,8 +29046,18 @@ els.overlay.addEventListener("pointermove", (ev) => {
       }
     }
     enforceConnectedHeads(bones);
+    const deltaByRoot = new Map();
+    for (const [rootIndex, rootState] of (d.objectSnapshot && d.objectSnapshot.roots) || []) {
+      const rk = String(rootIndex);
+      const startDist = Math.max(1e-6, Number(startDistByRoot[rk]) || 1);
+      const currDist = Math.max(1e-6, Math.hypot(local.x - (Number(rootState.pivot && rootState.pivot.x) || 0), local.y - (Number(rootState.pivot && rootState.pivot.y) || 0)));
+      const scaleRatio = math.clamp(currDist / startDist, 0.05, 40);
+      deltaByRoot.set(rootIndex, makeScaleAroundPointMatrix(rootState.pivot, scaleRatio));
+    }
+    const nextWorld = computeWorld(bones);
+    applyObjectSpaceSlotSnapshot(d.objectSnapshot, deltaByRoot, nextWorld);
     if (state.boneMode === "edit") commitRigEdit(m, false);
-    else if (state.boneMode === "object") syncPoseFromRig(m);
+    else if (state.boneMode === "object") commitRigEdit(m, false);
     updateBoneUI();
     return;
   }
@@ -26952,8 +29084,15 @@ els.overlay.addEventListener("pointermove", (ev) => {
       markDirtyByBoneProp(it.boneIndex, "translate");
       markDirtyByBoneProp(it.boneIndex, "rotate");
     }
+    const slotDeltaByRoot = new Map();
+    for (const [rootIndex, rootState] of (d.objectSnapshot && d.objectSnapshot.roots) || []) {
+      const delta = Number(deltaByRoot[String(rootIndex)]) || 0;
+      slotDeltaByRoot.set(rootIndex, makeRotationAroundPointMatrix(rootState.pivot, delta));
+    }
+    const nextWorld = computeWorld(bones);
+    applyObjectSpaceSlotSnapshot(d.objectSnapshot, slotDeltaByRoot, nextWorld);
     if (state.boneMode === "edit") commitRigEdit(m, false);
-    else if (state.boneMode === "object") syncPoseFromRig(m);
+    else if (state.boneMode === "object") commitRigEdit(m, false);
     updateBoneUI();
   }
 });
@@ -27039,6 +29178,8 @@ function clearDrag(ev) {
     if (dx * dx + dy * dy > 16) {
       selectBonesByRect(drag.startX, drag.startY, drag.curX, drag.curY, !!drag.append);
       setStatus(`Selected bones: ${state.selectedBonesForWeight.join(", ") || "(none)"}`);
+    } else if (!drag.append) {
+      clearBoneSelection(true);
     }
   }
   if (drag.type === "vertex_marquee") {
@@ -27121,7 +29262,7 @@ els.overlay.addEventListener(
     if (!state.mesh && !(state.imageWidth > 0 && state.imageHeight > 0)) return;
     ev.preventDefault();
     const adjustVertexRadius =
-      state.editMode === "vertex" &&
+      isVertexDeformInteractionActive() &&
       state.vertexDeform.proportional &&
       ev.altKey &&
       !ev.ctrlKey &&
@@ -27166,7 +29307,7 @@ state.weightMode = els.weightMode.value || "hard";
 state.anim.loop = !!els.animLoop.checked;
 state.anim.snap = !!els.animSnap.checked;
 state.anim.fps = Math.max(1, Number(els.animFps.value) || 30);
-state.anim.timeStep = Math.max(0.001, Number(els.animTimeStep && els.animTimeStep.value) || 0.01);
+state.anim.timeStep = Math.max(TIMELINE_MIN_STEP, Number(els.animTimeStep && els.animTimeStep.value) || TIMELINE_MIN_STEP);
 state.slotViewMode = els.slotViewMode ? els.slotViewMode.value || "all" : "all";
 state.slotMesh.toolMode = normalizeSlotMeshToolMode(state.slotMesh.toolMode);
 state.view.panMode = !!state.view.panMode;
