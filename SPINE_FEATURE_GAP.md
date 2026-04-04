@@ -1,138 +1,110 @@
-# Spine2D Feature Gap (Current Prototype)
+# Spine 2D Feature Gap
 
-This document tracks parity status against Spine editor/runtime workflows.
+Tracks parity status against Spine editor/runtime workflows.
+Last updated: `2026-04-04`
 
-Status note: synced to current code behavior as of `2026-02-27`.
+---
 
-## Baseline: Already Implemented
+## ✅ 已實作（Implemented）
 
-### 1. Authoring reliability
+### Authoring
+- Undo/redo command stack
+- Autosave snapshots + startup recovery
+- Diagnostics panel (integrity checks + export validation + auto-fix)
+- Command palette (Ctrl/Cmd+K)
 
-- Undo/redo command stack for major editor operations.
-- Autosave snapshots + startup recovery prompt.
-- Diagnostics panel with:
-  - in-editor integrity checks
-  - export validation checks
-  - safe auto-fix actions
-- Command palette and hotkey command discovery.
+### Skeleton
+- Multi-bone hierarchy with drag-drop reorder
+- All 5 inherit modes: `normal` / `onlyTranslation` / `noRotationOrReflection` / `noScale` / `noScaleOrReflection`
+- Full bone channels: x/y, rotation, length, scaleX/Y, shearX/Y
+- Rig edit vs pose animate separation
 
-### 2. Rig and transforms
+### Slots & Attachments
+- Slot management (create/delete/z-order)
+- Slot alpha, color, dark color (two-color tint)
+- Blend modes: normal / additive / multiply / screen
+- Attachment types: Image, Mesh, Weighted Mesh, Clipping Path, Bounding Box, Point
+- Sequence attachment metadata
 
-- Multi-bone hierarchy and parent/child chain editing.
-- Rig edit vs pose animate mode.
-- Bone inherit modes:
-  - `normal`
-  - `onlyTranslation`
-  - `noRotationOrReflection`
-  - `noScale`
-  - `noScaleOrReflection`
-- Bone channels:
-  - `x/y`, `rotation`, `length`
-  - `scaleX/scaleY`
-  - `shearX/shearY`
+### Mesh / FFD
+- Vertex editing with Proportional Edit + Mirror Edit
+- Auto-triangulate, Grid Fill, Auto Foreground Mesh
+- Hard / Soft / Free vertex binding
+- Auto Weight (single bone / multi-bone strategies)
+- Weight heatmap + Blender-style gradient overlay
 
-### 3. Constraint stack
+### Constraints
+- IK: 1-bone & 2-bone; mix/softness/compress/stretch/uniform
+- Transform Constraint: per-channel mix, offsets, local mode
+- Path Constraint: Bezier path, position/spacing/rotation mix
 
-- IK constraints:
-  - 1-bone / 2-bone
-  - target bone
-  - bend direction
-  - mix, softness, compress, stretch, uniform
-  - skin-required toggle
-- Transform constraints:
-  - target + constrained bones
-  - local/relative
-  - rotate/translate/scale/shear mixes and offsets
-  - skin-required toggle
-- Path constraints:
-  - drawn path / slot contour source / bone-chain source
-  - target slot generation for export
-  - position/spacing/rotate/translate controls
-  - skin-required toggle
+### Animation
+- Timeline tracks: bone / slot / constraint / deform / drawOrder / event
+- Interpolation: linear / stepped / bezier (with control handles)
+- Auto-key, Onion Skin, Loop helpers (seam / ping-pong)
+- Animation Layers (with bone mask blending)
+- State Machine (states / transitions / parameters / conditions) + bridge export
 
-### 4. Animation and runtime workflow
+### Skins
+- Create, delete, apply, capture
 
-- Timeline tracks for bones, constraints, slots, deform, draw order, events.
-- Key interpolation: linear/stepped/bezier.
-- Animation mix and layered blending tracks.
-- Loop helpers: seam/ping-pong tools.
-- State machine authoring:
-  - states
-  - transitions
-  - parameters
-  - transition conditions/duration
-- Runtime bridge export (state machine metadata + sample code).
+### Export
+- Spine JSON (4.1 / 4.2), SKEL binary, ATLAS, PNG
+- Preview: WebM, GIF, PNG sequence (batch)
+- Slot visual export: blend mode + two-color (twoColor JSON rows)
 
-### 5. Save/load and export
+### Import
+- PNG / JPG / WebP / PSD (via ag-psd)
+- Humanoid Auto-Rig (TensorFlow.js + MediaPipe)
 
-- Project save/load (JSON, embedded assets/metadata).
-- Spine export pipeline (`json/skel/atlas/png`) with `4.1/4.2` presets.
-- Preview export workflows (WebM/GIF/PNG sequence batch).
-- Export-time diagnostics and compatibility warnings.
-- Slot visual setup parity now includes:
-  - slot blend mode (`normal`/`additive`/`multiply`/`screen`) authoring + export
-  - dark color (two-color setup) authoring + save/load + export
-  - slot color key export supporting `twoColor` rows in Spine JSON when dark tint is used
+---
 
-## High Priority Gaps (Spine Parity)
+## ❌ 缺少（Missing — 高優先）
 
-1. Slot rendering parity
-- Add validation that slot visual channels are runtime-equivalent.
-- Harden binary `.skel` slot visual timeline parity (especially `twoColor` animation path).
+| 功能 | 說明 |
+|---|---|
+| **Spine Import (round-trip)** | 無法讀入 .json/.skel/.atlas；無法做往返測試 |
+| **Physics Constraints** | Spine 4.0+ 布料/彈性物理，完全未實作 |
+| **Audio Track** | Timeline 上無音訊波形 / lip-sync 工具 |
+| **Multi-page Atlas** | 目前只能輸出單頁 texture |
+| **Atlas 進階打包** | 無 trim / padding / rotation / bleed 控制 |
+| **Sequence 完整流程** | 資料結構存在，但 timeline 控制不完整 |
 
-2. Spine import and round-trip
-- Add import pipeline for Spine data (`.json/.skel/.atlas`) into editor scene.
-- Preserve skins/attachments/constraints/events/state mapping during import.
-- Add round-trip tests (import -> edit -> export).
+---
 
-3. Skin system parity depth
-- Expand skin workflow beyond slot-attachment mapping to include bones/constraints skin behavior parity where needed.
-- Strengthen linked mesh and per-skin attachment edge-case handling.
+## ⚠️ 已實作但有問題（Broken / Incomplete）
 
-4. Sequence workflow parity
-- Sequence metadata exists, but sequence-focused animation authoring/timeline controls are still limited.
-- Add explicit sequence playback behavior tooling and validation.
+| 問題 | 詳細 | 優先 |
+|---|---|---|
+| Clipping Path + Mesh 組合 | 裁切遮罩與 FFD 同時作用時世界座標轉換有 edge case | 高 |
+| SKEL binary export | 大量頂點 deform 時 offset buffer 計算有已知問題 | 高 |
+| State Machine 模擬 | 只能 export JSON，工具內無法模擬/預覽執行 | 中 |
+| Auto-key 漏 key | Mode 切換時偶爾沒有正確寫入當前 pose | 中 |
+| Constraint 排序 | UI 排序 ≠ runtime resolve 順序（DEVELOPMENT_VERIFICATION_GUIDE 有記錄） | 中 |
+| Path Constraint mix 插值 | Animate 播放時 mix 軌道插值偶有不連續 | 低 |
 
-5. Export robustness (path/deform/clip edge cases)
-- Improve deterministic coverage for path+clip+deform combinations.
-- Reduce skipped path export cases by stronger pre-export authoring guards.
-- Harden binary `.skel` compatibility checks for deform-heavy assets (currently marked experimental in status text).
+---
 
-## Medium Priority Gaps
+## 中低優先（Medium / Low Priority）
 
-1. Production motion features
-- Add Spine-like physics/secondary motion authoring workflow.
-- Add optional spring/inertia helpers for rapid iteration.
+- Physics / 次要動態（彈簧、慣性）
+- 進階 atlas 打包（多頁、旋轉、trim）
+- 音訊輔助時機工具
+- `app.js` 模組化分割
+- 大型 rig（1000+ bone）的 UI 效能
 
-2. Asset pipeline quality
-- Improve atlas packing beyond current basic single-page strategy:
-  - multi-page output
-  - optional rotation
-  - trim/padding/bleed controls
-- Add attachment relink/repath tools for moved assets.
-
-3. Audio workflow
-- Add audio waveform-assisted timing workflow.
-- Add lip-sync/event timing aids tied to timeline.
-
-4. Maintainability and scale
-- Break up monolithic `app.js` into domain modules.
-- Expand deterministic fixture-based tests for export/import compatibility.
-
-## Lower Priority UX Improvements
-
-- Richer multi-selection and filter tools for large rigs.
-- Bone visibility/selectability lock layers.
-- Additional discoverability for advanced commands/hotkeys.
+---
 
 ## Compatibility Notes
 
-- Closest target format is Spine 4.1/4.2 style data, but editor behavior still has custom assumptions.
-- Runtime parity should still be validated per project, especially for:
-  - slot visual channels (blend/two-color across JSON and binary runtime paths)
-  - clip + deform combinations
-  - path constraints generated from contour data
-  - layered animation blending assumptions
+- 目標格式：Spine 4.1 / 4.2
+- 下列組合仍需按專案驗證：
+  - slot 視覺通道（blend mode / two-color 在 JSON 與 binary path 的差異）
+  - clip + deform 組合
+  - 由 contour 產生的 path constraint
+  - 分層動畫混合假設
+
+---
 
 ## Reference Docs
 
@@ -142,4 +114,4 @@ Status note: synced to current code behavior as of `2026-02-27`.
 - Transform constraints: https://esotericsoftware.com/spine-transform-constraints
 - Path constraints: https://esotericsoftware.com/spine-path-constraints
 - JSON format: https://esotericsoftware.com/spine-json-format
-- API inherit modes: https://esotericsoftware.com/spine-api-reference
+- Inherit modes: https://esotericsoftware.com/spine-api-reference

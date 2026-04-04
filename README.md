@@ -1,153 +1,129 @@
 # Web Spine-like Mesh Deformer
 
-以 `WebGL + HTML + JavaScript` 實作的 2D 骨架/網格動畫編輯器原型，工作流接近 Spine 2D：
-可做骨架、Slot、Mesh、權重、約束、時間軸動畫、狀態機與 Spine 資料匯出。
-
-## 專案介紹
-
-這個專案的目標是提供一套「瀏覽器內即可使用」的 Spine-like 製作流程：
-
-1. 匯入圖片或 PSD 建立素材。
-2. 建骨架、綁 Slot 與調整 Mesh。
-3. 設定 IK / Transform / Path 約束。
-4. 在 Timeline 製作動畫、做混合與分層。
-5. 匯出 Spine 相容資料（JSON / SKEL / ATLAS / PNG）。
-
-適合用途：
-- 原型驗證與技術研究
-- 小型 2D 角色動畫製作
-- Spine 匯出流程測試與工具鏈整合
+以 `WebGL + HTML + JavaScript` 實作的 2D 骨架/網格動畫編輯器，工作流接近 Spine 2D。
+支援骨架、Slot、Mesh、權重、三種約束（IK/Transform/Path）、時間軸動畫、狀態機與 Spine 資料匯出。
 
 ## 快速開始
 
-### 1. 啟動本地靜態伺服器
-
-在專案目錄執行：
-
 ```bash
 python -m http.server 5173
+# 開啟 http://localhost:5173
 ```
 
-### 2. 開啟編輯器
+檔案操作（上方工具列）：`New` · `Import Image/PSD` · `Save` · `Load` · `Export Spine` · `Export...`
 
-瀏覽器進入：
+---
 
-```text
-http://localhost:5173
-```
+## 工作區說明
 
-### 3. 基本檔案操作
+頂端有四個工作區 tab，點擊後自動切換到對應模式：
 
-上方工具列：
-- `New`：新專案
-- `Import Image/PSD`：匯入素材
-- `Save` / `Load`：儲存與讀取專案 JSON
-- `Export Spine` 或 `Export...`：輸出 Spine/預覽檔案
+| 工作區 | 用途 | 左側可用工具 |
+|---|---|---|
+| **Rig** | 骨架建置、IK、約束、蒙皮 | Bones · Rig · IK · Constraint · Path · Skin · Tools |
+| **Mesh** | 網格輪廓、頂點編輯、權重 | Mesh · Base Transform |
+| **Object** | 整體物件平移/縮放/旋轉 | Object · Tools |
+| **Animate** | 時間軸動畫、圖層、狀態機 | Bones · IK · Constraint · Path · Skin · Tools · Base Transform |
 
-## 使用說明
+頂端工具列右側會顯示目前所在工作區的名稱標籤（如 `Rig — Edit`、`Animate — Pose`）。
 
-### 工作區與模式
+---
 
-- System Mode：
-  - `Setup`：建模/綁骨/調整
-  - `Animate`：時間軸與動畫製作
-- Target：
-  - `Skeleton`：骨架編輯
-  - `Mesh`：頂點/網格編輯
-  - `Object`：整組骨架物件操作
-- Workspace Tabs：
-  - `Slot Build`
-  - `Rig`
-  - `Object`
-  - `Animate`
+## 功能對照表（Spine 2D 視角）
 
-### 建議工作流
+### ✅ 已實作
 
-1. 匯入圖片（File -> Import Image/PSD）。
-2. 到 `Setup` 先建立 Mesh、骨架與基本綁定。
-3. 在 `Bone / Slot Tree` 整理層級與 Slot。
-4. 進入 `Rig / IK / Constraint / Path / Skin` 微調結構。
-5. 切到 `Animate` 製作 key 與動畫狀態機。
-6. 匯出 Spine 或預覽影片/GIF/批次輸出。
+**骨架系統**
+- 多層骨骼階層（拖放重排、rename、delete）
+- 全 5 種繼承模式：`normal` / `onlyTranslation` / `noRotationOrReflection` / `noScale` / `noScaleOrReflection`
+- 全通道：position (x/y)、rotation、length、scaleX/Y、shearX/Y
 
-## 功能操作說明
+**Slot / Attachment**
+- Slot 建立、刪除、z-order 管理
+- Alpha、Color、Dark Color（兩色 tint）
+- 4 種 Blend Mode：normal / additive / multiply / screen
+- 6 種 Attachment 類型：Image、Mesh、Weighted Mesh、Clipping Path、Bounding Box、Point
 
-### Setup（左側 Setup）
+**網格 / FFD**
+- 頂點編輯、Proportional Edit、Mirror Edit
+- 自動三角化、Grid Fill、Auto Foreground Mesh
+- Weighted binding（多骨權重）；Auto Weight（single/multi bone）
+- 權重 Heatmap 視覺化
 
-- `Rebuild Mesh`：重建網格。
-- `Add Bone` / `Delete Bone`：快速骨架操作。
-- `Auto Weight (Single Bone)`：
-  - 會切到單骨權重策略（hard）。
-  - 若 slot 原本沒骨，會以權重最重骨作為 slot 主 bone。
-- `Auto Weight (Multi Bone)`：
-  - 會切到多骨權重策略（soft）。
-  - 若 slot 原本沒骨，會先自動建立一根以 slot 中心為基準的新 bone，再做 multi-bone 綁定。
-- `Edit Weights (Vertex)`：進入權重/頂點細修流程。
-- `Humanoid Auto Rig / Bind` 區：
-  - `humanoid bone`：以姿態估計自動建立人形骨架。
-  - `Pose Source / Min Score / Smoothing / Fallback`：自動建骨參數。
-  - `Bind Slot -> Selected Bone(s)`：快速綁定所選骨架。
+**約束（Constraints）**
+- IK：1-bone / 2-bone；mix / softness / compress / stretch / uniform
+- Transform Constraint：rotate/translate/scale/shear mix 與 offset
+- Path Constraint：Bezier path；position/spacing/rotation mix
 
-### Rig / Bone Tree
+**動畫 / Timeline**
+- 全軌道類型：bone / slot / constraint / deform / drawOrder / event
+- 插值：linear / stepped / bezier（含控制把手）
+- Auto-key、Onion Skin、Loop helper（seam / ping-pong）
+- Animation Layers（含骨骼遮罩混合）
+- 狀態機（State / Transition / Parameter / Condition）+ export bridge code
 
-- 右側 `Bone / Slot Tree`：
-  - `+ Bone` 新增骨頭
-  - `Delete Bone`（含子選單：移到 staging 或連 Slot 一起刪）
-  - `Only Active Slot` / `Hide Scope` / `Bind Selected Staging`
-- 支援樹狀拖放、Slot 重排、未綁定 staging 管理。
+**Skins**
+- 建立、刪除、apply、capture
 
-### IK / Transform / Path / Skin
+**匯出**
+- Spine JSON（4.1 / 4.2）、SKEL binary、ATLAS、PNG
+- 預覽：WebM、GIF、PNG 序列
+- Export 前驗證與 auto-fix
 
-- IK：
-  - 1-bone / 2-bone
-  - 目標骨與混合參數
-- Transform Constraint：
-  - 多骨約束清單、offset 與 mix
-- Path Constraint：
-  - Drawn Path 或 Slot path
-  - Path 跟隨與旋轉/位移混合
-- Skin：
-  - 建立、套用、快照捕捉
+**其他**
+- Undo / Redo、Autosave + 啟動復原
+- PSD 匯入（ag-psd）
+- Humanoid Auto-Rig（TensorFlow.js + MediaPipe pose detection）
+- Command Palette（Ctrl/Cmd+K）
 
-### Animation / Timeline / State Machine
+### ❌ 缺少（尚未實作）
 
-- 多動畫管理、加減 key、插值（linear/stepped/bezier）。
-- 追蹤骨頭變形、slot、約束、事件、draw order。
-- 支援 Layer 與骨頭遮罩混合。
-- 內建 State Machine（state/transition/parameter/condition）。
+- **Spine Import（round-trip）** — 無法讀入 .json/.skel/.atlas
+- **Physics Constraints** — Spine 4.0+ 的布料/彈性物理
+- **Audio Track** — 音訊波形 / lip-sync 工具
+- **Multi-page Atlas** — 目前只支援單頁
+- **Atlas 進階選項** — 無 trim/padding/rotation 控制
 
-## 匯出與相容性
+### ⚠️ 已知問題
 
-- Spine 匯出：
-  - `.json`
-  - `.skel`
-  - `.atlas`
-  - `.png`
-- Spine 相容版本：
-  - `4.2`
-  - `4.1`
-- 預覽輸出：
-  - WebM
-  - GIF
-  - PNG 序列（含批次）
+- Clipping Path + Mesh 同時作用時，世界座標轉換有 edge case
+- SKEL binary export：大量頂點 deform 時 offset buffer 有已知問題
+- State Machine 只能 export JSON，無法在工具內模擬執行
+- Auto-key 在 mode 切換時偶有漏 key
+- Constraint 排序：UI 排序與 runtime resolve 順序可能不一致
+- Path Constraint mix 插值在 Animate 播放時偶有不連續
 
-## 常用快捷鍵（節錄）
+---
 
-- 視圖：`+` / `-` / `0`
-- 骨架：`G` / `T` / `R`、`C`、`P`、`Shift+A`
-- 時間軸：`I` / `K`、`Space`、`,` / `.`
-- 網格：`L`/`U` 邊連結、`Del/X` 刪點
+## 建議工作流
 
-## 已知限制
+1. `Import Image/PSD` 匯入素材
+2. 切到 **Mesh** 工作區建立網格輪廓
+3. 切到 **Rig** 建立骨架、設定 IK / Constraint / Skin
+4. 右側 `Bone / Slot Tree` 整理層級與 Slot
+5. 切到 **Object** 微調整體姿態（可選）
+6. 切到 **Animate** 製作 key、分層動畫、狀態機
+7. `Export Spine` 輸出到遊戲引擎
 
-- 目前仍以單檔 `app.js` 為主，模組化程度有限。
-- 尚未提供完整 Spine 專案反向匯入（json/skel/atlas -> 編輯場景）。
-- 物理約束與進階骨肉效果尚未完整。
-- Atlas 打包目前以基本流程為主（進階多頁/旋轉/trim 待補）。
-- PSD 匯入依賴 `ag-psd` 載入可用性。
+---
+
+## 常用快捷鍵
+
+| 分類 | 按鍵 |
+|---|---|
+| 視圖 zoom | `+` / `-` / `0` |
+| 骨架操作 | `G` (move head) · `T` (move tail) · `R` (rotate) · `C` (connect) · `P` (pick parent) |
+| 新增骨骼 | `Shift+A` |
+| 動畫 key | `I` (insert key) · `K` (delete key) · `Space` (play) |
+| 時間軸移動 | `,` / `.` (prev/next frame) |
+| 網格編輯 | `V` (select/add mode toggle) · `L`/`U` (link/unlink edge) · `Del`/`X` (delete vertex) |
+| 頂點調整 | `O` (proportional) · `H` (mirror) · `P` (pin) · `M` (relax) |
+| 全域 | `Ctrl+Z` / `Ctrl+Y` (undo/redo) · `Ctrl+K` (command palette) |
+
+---
 
 ## 開發文件
 
 - 功能差距追蹤：`SPINE_FEATURE_GAP.md`
 - 驗證流程：`DEVELOPMENT_VERIFICATION_GUIDE.md`
-- PR 模板：`.github/PULL_REQUEST_TEMPLATE.md`
+- Pose Runtime 設定：`POSE_RUNTIME_SETUP.md`

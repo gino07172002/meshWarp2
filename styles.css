@@ -253,6 +253,24 @@ body {
   background: rgba(10, 17, 22, 0.6);
 }
 
+.workspace-mode-label {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 4px;
+  background: rgba(232, 160, 32, 0.15);
+  border: 1px solid rgba(232, 160, 32, 0.45);
+  color: #f0c060;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  min-width: 0;
+  text-align: center;
+}
+.workspace-mode-label:empty {
+  display: none;
+}
+
 .menu-mode-bar label {
   font-size: 11px;
 }
@@ -410,20 +428,118 @@ body {
   min-width: 130px;
 }
 
+/* ---- Workspace Switcher (topbar) ---- */
+/* Layout: [Rig][Mesh][Object]  [Edit▼/Animate▼] */
+
+.workspace-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 12px;
+  margin-right: 4px;
+}
+
+/* Type buttons */
+.ws-type-group {
+  display: flex;
+  gap: 1px;
+  background: rgba(10, 18, 26, 0.7);
+  border: 1px solid rgba(60, 90, 108, 0.6);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.ws-type-btn {
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #8aacbc;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.ws-type-btn:hover {
+  background: rgba(40, 70, 90, 0.7);
+  color: #c8dfe8;
+}
+.ws-type-btn.active {
+  background: rgba(74, 184, 232, 0.18);
+  border-color: rgba(74, 184, 232, 0.5);
+  color: #c0e8ff;
+  font-weight: 600;
+}
+
+/* Mode dropdown */
+.ws-mode-wrap {
+  position: relative;
+}
+
+.ws-mode-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 4px 28px 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 5px;
+  cursor: pointer;
+  outline: none;
+  min-width: 100px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+/* Edit mode: cool blue */
+.ws-mode-select[data-mode="edit"] {
+  border: 1px solid rgba(74, 184, 232, 0.55);
+  background-color: rgba(16, 36, 52, 0.9);
+  color: #88d0f0;
+}
+.ws-mode-select[data-mode="edit"]:hover,
+.ws-mode-select[data-mode="edit"]:focus {
+  border-color: #4ab8e8;
+  background-color: rgba(20, 50, 72, 0.95);
+  color: #c0e8ff;
+}
+
+/* Animate mode: warm amber */
+.ws-mode-select[data-mode="animate"] {
+  border: 1px solid rgba(232, 160, 32, 0.65);
+  background-color: rgba(36, 22, 6, 0.95);
+  color: #f0c060;
+}
+.ws-mode-select[data-mode="animate"]:hover,
+.ws-mode-select[data-mode="animate"]:focus {
+  border-color: #f0a820;
+  background-color: rgba(50, 30, 6, 0.98);
+  color: #ffe090;
+}
+
+/* ---- Global Animate-mode tint ---- */
+.app[data-workspace="animate"] .left-tools {
+  border-right-color: rgba(160, 100, 20, 0.35);
+}
+.app[data-workspace="animate"] header.topbar {
+  background: linear-gradient(180deg, #1e1a0e, #131008);
+  border-bottom-color: rgba(160, 100, 20, 0.4);
+}
+
+/* Legacy sidebar workspace-tabs (AnimateSubTabs etc.) */
 .workspace-tabs {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   margin: 6px 0 8px;
 }
-
 .workspace-tab-btn {
   width: 100%;
   min-width: 0;
   padding: 5px 6px;
   font-size: 11px;
 }
-
 .workspace-tab-btn.active {
   border-color: var(--accent);
   background: rgba(63, 208, 162, 0.14);
@@ -1133,33 +1249,38 @@ button:hover {
 .tree-tools {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   margin: 0 0 8px;
 }
 
 .tree-tools button {
+  flex: 1 1 auto;
   width: auto;
-  min-width: 88px;
+  min-width: 0;
   font-size: 11px;
-  padding: 5px 8px;
+  padding: 4px 6px;
+  white-space: nowrap;
 }
 
 .tree-split-wrap {
+  flex: 1 1 auto;
   position: relative;
   display: inline-flex;
   align-items: stretch;
 }
 
 .tree-split-wrap>#boneTreeDeleteBoneBtn {
+  flex: 1 1 auto;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   border-right: none;
 }
 
 .tree-split-wrap>.split-caret-btn {
-  min-width: 26px;
-  width: 26px;
-  padding: 5px 0;
+  flex: 0 0 auto;
+  min-width: 22px;
+  width: 22px;
+  padding: 4px 0;
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
@@ -1292,7 +1413,11 @@ button:hover {
 }
 
 .bone-tree .tree-unassigned-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin: 6px 0 2px;
+  padding: 4px 6px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.2px;
@@ -1303,6 +1428,22 @@ button:hover {
 
 .bone-tree .tree-unassigned-title {
   pointer-events: none;
+}
+
+.tree-unassigned-bind-btn {
+  width: auto;
+  min-width: 0;
+  padding: 3px 6px;
+  font-size: 10px;
+  line-height: 1;
+  background: rgba(63, 208, 162, 0.25);
+  border-color: rgba(63, 208, 162, 0.45);
+  color: #ddfff4;
+  margin-left: 8px;
+}
+
+.tree-unassigned-bind-btn:hover {
+  background: rgba(63, 208, 162, 0.45);
 }
 
 .bone-tree .tree-slot.active-slot {
@@ -1427,6 +1568,95 @@ button:hover {
   margin-right: 4px;
   font-size: 11px;
   line-height: 1;
+}
+
+/* --- Attachment tree rows --- */
+.bone-tree .tree-attachment {
+  display: flex;
+  align-items: center;
+  color: #8db8c8;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  gap: 4px;
+}
+
+.bone-tree .tree-attachment:hover {
+  background: rgba(125, 211, 252, 0.08);
+}
+
+.bone-tree .tree-attachment.active-attachment {
+  background: rgba(100, 220, 180, 0.16);
+  border: 1px solid rgba(100, 220, 180, 0.45);
+}
+
+.bone-tree .tree-attachment .att-active-dot {
+  width: 8px;
+  min-width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(100, 220, 180, 0.5);
+  background: transparent;
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+
+.bone-tree .tree-attachment.active-attachment .att-active-dot {
+  background: #64dcb4;
+  border-color: #64dcb4;
+  box-shadow: 0 0 4px rgba(100, 220, 180, 0.5);
+}
+
+.bone-tree .tree-attachment .att-type-badge {
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(80, 140, 160, 0.25);
+  color: #8db8c8;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.bone-tree .tree-attachment .att-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.bone-tree .tree-slot-prefix {
+  font-size: 10px;
+  color: #7a9da8;
+  margin-right: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.bone-tree .tree-slot-att-toggle {
+  width: auto;
+  min-width: 18px;
+  height: 16px;
+  min-height: 16px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 9px;
+  line-height: 1;
+  color: #8db8c8;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+/* --- Attachment properties group --- */
+#attachmentPropsGroup {
+  border-color: rgba(100, 220, 180, 0.3);
+}
+
+#attachmentPropsGroup h3 {
+  color: #8edbc2;
 }
 
 .timeline-controls {
