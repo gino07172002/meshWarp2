@@ -1,4 +1,5 @@
 node_modules/
+.worktrees/
 backup/
 stateMachineBridge.json
 stateMachineBridgeSamples.txt
