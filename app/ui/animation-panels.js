@@ -61,6 +61,20 @@ els.animName.addEventListener("input", () => {
   anim.name = els.animName.value.trim() || "Anim";
   refreshAnimationUI();
 });
+if (els.animActionBtn) {
+  els.animActionBtn.addEventListener("click", () => {
+    const action = els.animActionSelect ? String(els.animActionSelect.value || "new") : "new";
+    if (action === "duplicate") {
+      if (els.duplicateAnimBtn) els.duplicateAnimBtn.click();
+      return;
+    }
+    if (action === "delete") {
+      if (els.deleteAnimBtn) els.deleteAnimBtn.click();
+      return;
+    }
+    if (els.addAnimBtn) els.addAnimBtn.click();
+  });
+}
 els.addAnimBtn.addEventListener("click", () => {
   const idx = state.anim.animations.length + 1;
   const a = createAnimation(`Anim ${idx}`);
@@ -554,6 +568,16 @@ if (els.loopPingPongBtn) {
     if (!applyLoopPingPongOnSelectedTrack()) {
       setStatus("Loop PingPong failed: need at least 2 keys on selected track.");
     }
+  });
+}
+if (els.timelineLoopToolBtn) {
+  els.timelineLoopToolBtn.addEventListener("click", () => {
+    const action = els.timelineLoopToolSelect ? String(els.timelineLoopToolSelect.value || "seam") : "seam";
+    if (action === "pingpong") {
+      if (els.loopPingPongBtn) els.loopPingPongBtn.click();
+      return;
+    }
+    if (els.loopMakeSeamBtn) els.loopMakeSeamBtn.click();
   });
 }
 if (els.drawOrderToggleBtn) {

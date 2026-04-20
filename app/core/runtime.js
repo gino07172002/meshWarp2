@@ -16,7 +16,6 @@ const els = {
   workspaceTabSlot: document.getElementById("workspaceTabSlot"),
   workspaceTabRig: document.getElementById("workspaceTabRig"),
   workspaceTabObject: document.getElementById("workspaceTabObject"),
-  workspaceTabAnimate: null, // removed; mode switching via wsModeSelect
   wsModeSelect: document.getElementById("wsModeSelect"),
   animateSubTabs: document.getElementById("animateSubTabs"),
   animSubTabTimeline: document.getElementById("animSubTabTimeline"),
@@ -25,7 +24,6 @@ const els = {
   editModeWrap: document.getElementById("editModeWrap"),
   boneModeWrap: document.getElementById("boneModeWrap"),
   slotSelectWrap: document.getElementById("slotSelectWrap"),
-  slotQuickWrap: document.getElementById("slotQuickWrap"),
   slotQuickAddBtn: document.getElementById("slotQuickAddBtn"),
   slotQuickDupBtn: document.getElementById("slotQuickDupBtn"),
   slotQuickDeleteBtn: document.getElementById("slotQuickDeleteBtn"),
@@ -103,7 +101,6 @@ const els = {
   setupAutoWeightMultiBtn: document.getElementById("setupAutoWeightMultiBtn"),
   setupEditWeightsBtn: document.getElementById("setupEditWeightsBtn"),
   setupAutoWeightSelectionSummary: document.getElementById("setupAutoWeightSelectionSummary"),
-  baseImageTransformEnabled: document.getElementById("baseImageTransformEnabled"),
   baseImageTx: document.getElementById("baseImageTx"),
   baseImageTy: document.getElementById("baseImageTy"),
   baseImageScale: document.getElementById("baseImageScale"),
@@ -111,7 +108,6 @@ const els = {
   baseImageTransformResetBtn: document.getElementById("baseImageTransformResetBtn"),
   baseImageTransformHint: document.getElementById("baseImageTransformHint"),
   systemMode: document.getElementById("systemMode"),
-  systemModeWrap: document.getElementById("systemModeWrap"),
   editMode: document.getElementById("editMode"),
   boneSelect: document.getElementById("boneSelect"),
   addBoneBtn: document.getElementById("addBoneBtn"),
@@ -243,6 +239,8 @@ const els = {
   animRangeEnd: document.getElementById("animRangeEnd"),
   animSelect: document.getElementById("animSelect"),
   animName: document.getElementById("animName"),
+  animActionSelect: document.getElementById("animActionSelect"),
+  animActionBtn: document.getElementById("animActionBtn"),
   animLoop: document.getElementById("animLoop"),
   animSnap: document.getElementById("animSnap"),
   animFps: document.getElementById("animFps"),
@@ -356,6 +354,8 @@ const els = {
   autoKeyBtn: document.getElementById("autoKeyBtn"),
   addSpecialKeySelect: document.getElementById("addSpecialKeySelect"),
   addSpecialKeyBtn: document.getElementById("addSpecialKeyBtn"),
+  timelineLoopToolSelect: document.getElementById("timelineLoopToolSelect"),
+  timelineLoopToolBtn: document.getElementById("timelineLoopToolBtn"),
   loopMakeSeamBtn: document.getElementById("loopMakeSeamBtn"),
   loopPingPongBtn: document.getElementById("loopPingPongBtn"),
   drawOrderToggleBtn: document.getElementById("drawOrderToggleBtn"),
@@ -403,6 +403,7 @@ const els = {
   boneTree: document.getElementById("boneTree"),
   slotName: document.getElementById("slotName"),
   slotAttachment: document.getElementById("slotAttachment"),
+  slotAttachmentVisible: document.getElementById("slotAttachmentVisible"),
   slotAttachmentName: document.getElementById("slotAttachmentName"),
   slotPlaceholderName: document.getElementById("slotPlaceholderName"),
   slotAttachmentPlaceholderName: document.getElementById("slotAttachmentPlaceholderName"),
@@ -661,6 +662,18 @@ const state = {
     lastFocus: null,
   },
   view: { scale: 1, cx: 0, cy: 0, fitScale: 1, initialized: false, lastW: 0, lastH: 0, panMode: false },
+  renderPerf: {
+    maxPixelRatio: hasGL ? 1.5 : 2,
+    needsResize: true,
+    stageCssWidth: 0,
+    stageCssHeight: 0,
+    stagePixelRatio: 1,
+    backdropSig: "",
+  },
+  renderLoop: {
+    rafId: 0,
+    requested: false,
+  },
   baseImageTransform: {
     enabled: false,
     tx: 0,
@@ -703,6 +716,7 @@ const state = {
     ctx: null,
     enabled: false,
   },
+  glTextureCache: hasGL ? new WeakMap() : null,
   export: {
     spineCompat: "4.2",
   },
@@ -1204,6 +1218,19 @@ function drawCanvasTransformGizmos(ctx, poseWorld = null) {
 
 function setStatus(text) {
   els.status.textContent = text;
+  if (typeof requestRender === "function") requestRender("status");
+}
+
+function getRenderLoopState() {
+  return state.renderLoop || (state.renderLoop = { rafId: 0, requested: false });
+}
+
+function requestRender(reason = "") {
+  const loop = getRenderLoopState();
+  loop.requested = true;
+  if (loop.rafId) return;
+  if (typeof render !== "function") return;
+  loop.rafId = requestAnimationFrame(render);
 }
 
 function triggerButtonAction(btn) {
@@ -1411,15 +1438,6 @@ async function runCommandPaletteSelected() {
     console.warn(err);
     setStatus("Command failed. Check console.");
   }
-}
-
-function moveCommandPaletteSelection(dir) {
-  const items = Array.isArray(state.commandPalette.filtered) ? state.commandPalette.filtered : [];
-  if (items.length <= 0) return;
-  const base = state.commandPalette.selectedIndex | 0;
-  const next = math.clamp(base + dir, 0, items.length - 1);
-  state.commandPalette.selectedIndex = next;
-  renderCommandPalette();
 }
 
 function sanitizeVertexFalloff(v) {
@@ -2404,15 +2422,6 @@ function matrixAngle(m) {
   return Math.atan2(m[2], m[0]);
 }
 
-function createDefaultBones(w, h) {
-  const len = Math.max(24, Math.round(w * 0.22));
-  return [
-    { name: "root", parent: -1, inherit: "normal", tx: w * 0.2, ty: h * 0.55, rot: 0, length: len, sx: 1, sy: 1, shx: 0, shy: 0, connected: true, poseLenEditable: false },
-    { name: "bone_1", parent: 0, inherit: "normal", tx: len, ty: 0, rot: 0, length: len, sx: 1, sy: 1, shx: 0, shy: 0, connected: true, poseLenEditable: false },
-    { name: "bone_2", parent: 1, inherit: "normal", tx: len, ty: 0, rot: 0, length: len, sx: 1, sy: 1, shx: 0, shy: 0, connected: true, poseLenEditable: false },
-  ];
-}
-
 const POSE_AUTO_RIG_RUNTIME_CANDIDATES = [
   {
     key: "mediapipe-local",
@@ -2656,7 +2665,7 @@ function getPoseAutoRigInputSource(sourceModeRaw = null) {
     };
   }
   if (!allowSlot) return null;
-  const slot = getActiveSlot() || state.slots.find((s) => s && s.canvas);
+  const slot = getActiveSlot() || state.slots.find((s) => !!getSlotCanvas(s));
   if (!slot || !(getActiveAttachment(slot) || {}).canvas) return null;
   const rect = (getActiveAttachment(slot) || {}).rect || { x: 0, y: 0, w: (getActiveAttachment(slot) || {}).canvas.width, h: (getActiveAttachment(slot) || {}).canvas.height };
   const rw = Math.max(1, Number(rect.w) || (getActiveAttachment(slot) || {}).canvas.width || 1);
@@ -3215,4 +3224,3 @@ function normalizeRigRuntimeForEdit(m) {
   syncBindPose(m);
   return true;
 }
-

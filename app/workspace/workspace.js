@@ -187,9 +187,16 @@ function clearActiveSlotSelection(options = null) {
 }
 
 function addSlotEntry(entry, activate = true) {
+  const entryCanvas =
+    entry && entry.canvas
+      ? entry.canvas
+      : entry && Array.isArray(entry.attachments)
+        ? ((entry.attachments.find((a) => a && a.canvas) || {}).canvas || null)
+        : null;
+  if (!entryCanvas) return;
   const hasProjectSize = state.imageWidth > 0 && state.imageHeight > 0;
-  const docW = Number.isFinite(entry.docWidth) ? entry.docWidth : entry.canvas.width;
-  const docH = Number.isFinite(entry.docHeight) ? entry.docHeight : entry.canvas.height;
+  const docW = Number.isFinite(entry.docWidth) ? entry.docWidth : entryCanvas.width;
+  const docH = Number.isFinite(entry.docHeight) ? entry.docHeight : entryCanvas.height;
   const targetW = hasProjectSize ? state.imageWidth : docW;
   const targetH = hasProjectSize ? state.imageHeight : docH;
   const sx = docW > 0 ? targetW / docW : 1;
@@ -201,7 +208,7 @@ function addSlotEntry(entry, activate = true) {
     w: Math.max(1, srcRect.w * sx),
     h: Math.max(1, srcRect.h * sy),
   };
-  const canvas = normalizeSlotCanvas(entry.canvas, Math.max(1, rect.w), Math.max(1, rect.h));
+  const canvas = normalizeSlotCanvas(entryCanvas, Math.max(1, rect.w), Math.max(1, rect.h));
   const defaultBone = -1;
   const slot = {
     id: entry.id || makeSlotId(),
@@ -216,7 +223,6 @@ function addSlotEntry(entry, activate = true) {
         : String(entry.attachmentName || "main"),
     editorVisible:
       entry && Object.prototype.hasOwnProperty.call(entry, "editorVisible") ? entry.editorVisible !== false : entry.visible !== false,
-    canvas,
     bone: Number.isFinite(entry.bone) ? entry.bone : defaultBone,
     visible: entry.visible !== false,
     alpha: Number.isFinite(entry.alpha) ? math.clamp(entry.alpha, 0, 1) : 1,
@@ -325,12 +331,15 @@ function addSlotEntry(entry, activate = true) {
         fillManualEdges: [],
       },
   };
-  if (state.mesh) {
-    slot.attachments[0].meshData = createSlotMeshData(rect, targetW, targetH, state.mesh.cols, state.mesh.rows);
-    rebuildSlotWeights(slot, state.mesh);
-  }
   ensureSlotAttachments(slot);
   ensureSlotAttachmentState(slot);
+  if (state.mesh) {
+    const activeAtt = getActiveAttachment(slot);
+    if (activeAtt && !activeAtt.meshData) {
+      activeAtt.meshData = createSlotMeshData(rect, targetW, targetH, state.mesh.cols, state.mesh.rows);
+    }
+    rebuildSlotWeights(slot, state.mesh);
+  }
   ensureSlotClipState(slot);
   ensureSlotVisualState(slot);
   state.slots.push(slot);
@@ -345,7 +354,7 @@ function buildEmptySlotEntryForQuickAdd() {
     Math.round(
       Number(state.imageWidth) ||
       Number(source && source.docWidth) ||
-      Number(source && source.canvas && source.canvas.width) ||
+      Number(getSlotCanvas(source) && getSlotCanvas(source).width) ||
       512
     )
   );
@@ -354,7 +363,7 @@ function buildEmptySlotEntryForQuickAdd() {
     Math.round(
       Number(state.imageHeight) ||
       Number(source && source.docHeight) ||
-      Number(source && source.canvas && source.canvas.height) ||
+      Number(getSlotCanvas(source) && getSlotCanvas(source).height) ||
       512
     )
   );
@@ -516,12 +525,69 @@ function restoreSlotMeshDataFromPayload(src, boneCount = 0) {
   return meshData;
 }
 
+function isCanonicalAttachmentWeightMode(mode) {
+  return mode === "single" || mode === "weighted" || mode === "free";
+}
+
+function clearLegacySlotMeshState(slot) {
+  if (!slot || typeof slot !== "object") return;
+  slot.meshData = null;
+  slot.meshContour = null;
+  slot.useWeights = undefined;
+  slot.weightBindMode = null;
+  slot.weightMode = null;
+  slot.influenceBones = [];
+}
+
+function promoteLegacySlotMeshState(slot, options = {}) {
+  if (!slot || typeof slot !== "object") return null;
+  const att = getActiveAttachment(slot);
+  if (!att) return null;
+  const overwriteAttachment = !!(options && options.overwriteAttachment);
+  const clearLegacy = options && Object.prototype.hasOwnProperty.call(options, "clearLegacy")
+    ? options.clearLegacy !== false
+    : true;
+  const legacyMode = isCanonicalAttachmentWeightMode(slot.weightMode) ? String(slot.weightMode) : null;
+  const legacyInfluences = Array.isArray(slot.influenceBones)
+    ? slot.influenceBones.filter((v) => Number.isFinite(v)).map((v) => Number(v))
+    : [];
+  if (slot.meshData && (overwriteAttachment || !att.meshData)) {
+    att.meshData = cloneSlotMeshData(slot.meshData);
+  }
+  if (
+    slot.meshContour &&
+    Array.isArray(slot.meshContour.points) &&
+    (overwriteAttachment || !(att.meshContour && Array.isArray(att.meshContour.points) && att.meshContour.points.length > 0))
+  ) {
+    att.meshContour = cloneSlotContourData(slot.meshContour);
+  }
+  if (overwriteAttachment || att.useWeights == null) {
+    if (Object.prototype.hasOwnProperty.call(slot, "useWeights")) att.useWeights = slot.useWeights === true;
+    else if (legacyMode) att.useWeights = legacyMode !== "free";
+  }
+  if (overwriteAttachment || !att.weightBindMode) {
+    att.weightBindMode =
+      slot.weightBindMode ||
+      (legacyMode === "weighted" ? "auto" : legacyMode === "single" ? "single" : legacyMode === "free" ? "none" : "none");
+  }
+  if (overwriteAttachment || !isCanonicalAttachmentWeightMode(att.weightMode)) {
+    if (legacyMode) att.weightMode = legacyMode;
+  }
+  if (legacyInfluences.length > 0 && (overwriteAttachment || !Array.isArray(att.influenceBones) || att.influenceBones.length <= 0)) {
+    att.influenceBones = legacyInfluences.slice();
+  }
+  if (clearLegacy) clearLegacySlotMeshState(slot);
+  return att;
+}
+
 function duplicateActiveSlotQuick() {
   const source = getActiveSlot();
   if (!source) return null;
   const sourceWeightMode = getSlotWeightMode(source);
+  const sourceAtt = getActiveAttachment(source);
   ensureSlotAttachmentState(source);
-  const rect = source.rect || { x: 0, y: 0, w: source.canvas ? source.canvas.width : 1, h: source.canvas ? source.canvas.height : 1 };
+  const sourceCanvas = getSlotCanvas(source);
+  const rect = source.rect || { x: 0, y: 0, w: sourceCanvas ? sourceCanvas.width : 1, h: sourceCanvas ? sourceCanvas.height : 1 };
   const canvasMap = new Map();
   const getClonedCanvas = (cv) => {
     if (!cv) return null;
@@ -530,7 +596,7 @@ function duplicateActiveSlotQuick() {
     canvasMap.set(cv, copied);
     return copied;
   };
-  const sourceCanvasClone = getClonedCanvas(source.canvas) || makeCanvas(Math.max(1, Number(rect.w) || 1), Math.max(1, Number(rect.h) || 1));
+  const sourceCanvasClone = getClonedCanvas(sourceCanvas) || makeCanvas(Math.max(1, Number(rect.w) || 1), Math.max(1, Number(rect.h) || 1));
   const entry = {
     name: makeUniqueSlotName(`${source.name || "slot"}_copy`),
     attachmentName: String(source.attachmentName || "main"),
@@ -542,7 +608,6 @@ function duplicateActiveSlotQuick() {
           : String(source.activeAttachment)
         : String(source.attachmentName || "main"),
     editorVisible: isSlotEditorVisible(source),
-    canvas: sourceCanvasClone,
     bone: sourceWeightMode === "weighted" ? Number(source.bone) : -1,
     visible: source.visible !== false,
     alpha: Number(source.alpha),
@@ -565,22 +630,22 @@ function duplicateActiveSlotQuick() {
     },
     docWidth: Number(source.docWidth) || Math.max(1, Number(state.imageWidth) || sourceCanvasClone.width),
     docHeight: Number(source.docHeight) || Math.max(1, Number(state.imageHeight) || sourceCanvasClone.height),
-    useWeights: sourceWeightMode !== "free",
-    weightBindMode: sourceWeightMode === "weighted" ? "auto" : sourceWeightMode === "single" ? "single" : "none",
-    weightMode: sourceWeightMode,
+    useWeights: !!(sourceAtt && sourceAtt.useWeights),
+    weightBindMode: sourceAtt && sourceAtt.weightBindMode ? String(sourceAtt.weightBindMode) : sourceWeightMode === "weighted" ? "auto" : sourceWeightMode === "single" ? "single" : "none",
+    weightMode: sourceAtt && sourceAtt.weightMode ? String(sourceAtt.weightMode) : sourceWeightMode,
     influenceBones:
       sourceWeightMode === "weighted"
-        ? Array.isArray(source.influenceBones)
-          ? source.influenceBones.filter((v) => Number.isFinite(v))
+        ? Array.isArray(sourceAtt && sourceAtt.influenceBones)
+          ? sourceAtt.influenceBones.filter((v) => Number.isFinite(v))
           : []
         : [],
-    clipEnabled: !!source.clipEnabled,
-    clipSource: source.clipSource === "contour" ? "contour" : "fill",
+    clipEnabled: !!(sourceAtt && sourceAtt.clipEnabled),
+    clipSource: sourceAtt && sourceAtt.clipSource === "contour" ? "contour" : "fill",
     clipEndSlotId:
-      Object.prototype.hasOwnProperty.call(source, "clipEndSlotId")
-        ? source.clipEndSlotId == null
+      sourceAtt && Object.prototype.hasOwnProperty.call(sourceAtt, "clipEndSlotId")
+        ? sourceAtt.clipEndSlotId == null
           ? null
-          : String(source.clipEndSlotId)
+          : String(sourceAtt.clipEndSlotId)
         : null,
     attachments: ensureSlotAttachments(source).map((a) => ({
       name: String(a && a.name ? a.name : "").trim(),
@@ -597,21 +662,37 @@ function duplicateActiveSlotQuick() {
           ? {
             enabled: !!a.sequence.enabled,
             count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
-            start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
-            digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
-          }
+              start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
+              digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
+            }
           : { enabled: false, count: 1, start: 0, digits: 2 },
+      useWeights: a && a.useWeights === true,
+      weightBindMode: a && a.weightBindMode ? String(a.weightBindMode) : "none",
+      weightMode: a && a.weightMode ? String(a.weightMode) : "free",
+      influenceBones: Array.isArray(a && a.influenceBones) ? a.influenceBones.filter((v) => Number.isFinite(v)) : [],
+      clipEnabled: !!(a && a.clipEnabled),
+      clipSource: a && a.clipSource === "contour" ? "contour" : "fill",
+      clipEndSlotId:
+        a && Object.prototype.hasOwnProperty.call(a, "clipEndSlotId")
+          ? a.clipEndSlotId == null
+            ? null
+            : String(a.clipEndSlotId)
+          : null,
+      rect: a && a.rect ? JSON.parse(JSON.stringify(a.rect)) : null,
+      baseImageTransform: normalizeBaseImageTransform(a && a.baseImageTransform),
+      meshData: a && a.meshData ? cloneSlotMeshData(a.meshData) : null,
+      meshContour: a && a.meshContour ? cloneSlotContourData(a.meshContour) : null,
     })),
   };
   addSlotEntry(entry, true);
   const dst = getActiveSlot();
   if (!dst) return null;
-  dst.meshContour = cloneSlotContourData(source.meshContour);
-  if (source.meshData) {
-    dst.meshData = cloneSlotMeshData(source.meshData);
-  } else if (state.mesh) {
-    ensureSlotMeshData(dst, state.mesh);
-    rebuildSlotWeights(dst, state.mesh);
+  if (state.mesh) {
+    const dstAtt = getActiveAttachment(dst);
+    if (!(dstAtt && dstAtt.meshData)) {
+      ensureSlotMeshData(dst, state.mesh);
+      rebuildSlotWeights(dst, state.mesh);
+    }
   }
   ensureSlotClipState(dst);
   ensureSlotVisualState(dst);
@@ -706,7 +787,8 @@ function deleteActiveSlotQuick() {
   if (removedId) {
     for (const s of state.slots) {
       if (!s) continue;
-      if (s.clipEndSlotId && String(s.clipEndSlotId) === removedId) s.clipEndSlotId = null;
+      const att = getActiveAttachment(s);
+      if (att && att.clipEndSlotId && String(att.clipEndSlotId) === removedId) att.clipEndSlotId = null;
     }
   }
   clearTimelineKeySelection();
@@ -1228,26 +1310,28 @@ function normalizeSlotAttachmentRecord(slot, a, fallbackName, fallbackPlaceholde
           digits: Math.max(1, Math.round(Number(rec.sequence.digits) || 2)),
         }
         : { enabled: false, count: 1, start: 0, digits: 2 },
-    // Migrate mesh UI data from legacy slot
-    meshData: rec.meshData || (slot && (getActiveAttachment(slot) || {}).meshData ? JSON.parse(JSON.stringify((getActiveAttachment(slot) || {}).meshData)) : null),
-    meshContour: rec.meshContour || (slot && (getActiveAttachment(slot) || {}).meshContour ? JSON.parse(JSON.stringify((getActiveAttachment(slot) || {}).meshContour)) : {
-        points: [], sourcePoints: [], authorContourPoints: [],
-        closed: false, triangles: [], fillPoints: [], fillTriangles: [],
-        manualEdges: [], fillManualEdges: []
-    }),
-    baseImageTransform: rec.baseImageTransform || (slot && (getActiveAttachment(slot) || {}).baseImageTransform ? JSON.parse(JSON.stringify((getActiveAttachment(slot) || {}).baseImageTransform)) : { enabled: false, tx: 0, ty: 0, rot: 0, scale: 1 }),
-    useWeights: rec.useWeights !== undefined ? rec.useWeights : (slot && (getActiveAttachment(slot) || {}).useWeights !== undefined ? (getActiveAttachment(slot) || {}).useWeights : false),
-    weightBindMode: rec.weightBindMode || (slot && (getActiveAttachment(slot) || {}).weightBindMode ? (getActiveAttachment(slot) || {}).weightBindMode : "none"),
-    weightMode: rec.weightMode || (slot && (getActiveAttachment(slot) || {}).weightMode ? (getActiveAttachment(slot) || {}).weightMode : "free"),
-    influenceBones: rec.influenceBones || (slot && (getActiveAttachment(slot) || {}).influenceBones ? [...(getActiveAttachment(slot) || {}).influenceBones] : []),
-    clipEnabled: !!rec.clipEnabled || !!(slot && (getActiveAttachment(slot) || {}).clipEnabled),
-    clipSource: rec.clipSource || (slot && (getActiveAttachment(slot) || {}).clipSource ? (getActiveAttachment(slot) || {}).clipSource : "fill"),
-    clipEndSlotId: rec.clipEndSlotId || (slot && (getActiveAttachment(slot) || {}).clipEndSlotId ? (getActiveAttachment(slot) || {}).clipEndSlotId : null),
-    rect: rec.rect || (slot && (getActiveAttachment(slot) || {}).rect ? JSON.parse(JSON.stringify((getActiveAttachment(slot) || {}).rect)) : null)
+    // Migrate mesh UI data from legacy slot root when attachment payload is missing.
+    meshData: rec.meshData ? cloneSlotMeshData(rec.meshData) : slot && slot.meshData ? cloneSlotMeshData(slot.meshData) : null,
+    meshContour: rec.meshContour ? cloneSlotContourData(rec.meshContour) : slot && slot.meshContour ? cloneSlotContourData(slot.meshContour) : {
+      points: [], sourcePoints: [], authorContourPoints: [],
+      closed: false, triangles: [], fillPoints: [], fillTriangles: [],
+      manualEdges: [], fillManualEdges: []
+    },
+    baseImageTransform: normalizeBaseImageTransform(rec.baseImageTransform || (slot && slot.baseImageTransform)),
+    useWeights: rec.useWeights !== undefined ? rec.useWeights : (slot && slot.useWeights !== undefined ? slot.useWeights : false),
+    weightBindMode: rec.weightBindMode || (slot && slot.weightBindMode ? slot.weightBindMode : "none"),
+    weightMode: rec.weightMode || (slot && slot.weightMode ? slot.weightMode : "free"),
+    influenceBones: Array.isArray(rec.influenceBones)
+      ? rec.influenceBones.filter((v) => Number.isFinite(v))
+      : Array.isArray(slot && slot.influenceBones)
+        ? slot.influenceBones.filter((v) => Number.isFinite(v))
+        : [],
+    clipEnabled: !!rec.clipEnabled || !!(slot && slot.clipEnabled),
+    clipSource: rec.clipSource || (slot && slot.clipSource ? slot.clipSource : "fill"),
+    clipEndSlotId: rec.clipEndSlotId || (slot && slot.clipEndSlotId ? slot.clipEndSlotId : null),
+    rect: rec.rect || (slot && slot.rect ? JSON.parse(JSON.stringify(slot.rect)) : null)
   };
-  if ((out.type === "region" || out.type === "mesh" || out.type === "linkedmesh") && !out.canvas) {
-    out.canvas = slot && (getActiveAttachment(slot) || {}).canvas ? (getActiveAttachment(slot) || {}).canvas : null;
-  }
+  if ((out.type === "region" || out.type === "mesh" || out.type === "linkedmesh") && !out.canvas) out.canvas = slot ? getSlotCanvas(slot) : null;
   return out;
 }
 
@@ -1255,8 +1339,9 @@ function ensureSlotAttachments(slot) {
   if (!slot) return [];
   const base = String(slot.attachmentName || "main").trim() || "main";
   const basePh = String(slot.placeholderName || base || "main").trim() || "main";
+  const slotCanvas = getSlotCanvas(slot);
   if (!Array.isArray(slot.attachments) || slot.attachments.length === 0) {
-    slot.attachments = [normalizeSlotAttachmentRecord(slot, { name: String(slot.attachmentName || "main"), placeholder: basePh, canvas: (getActiveAttachment(slot) || {}).canvas }, base, basePh, (getActiveAttachment(slot) || {}).canvas)];
+    slot.attachments = [normalizeSlotAttachmentRecord(slot, { name: String(slot.attachmentName || "main"), placeholder: basePh, canvas: slotCanvas }, base, basePh, slotCanvas)];
   }
   const out = [];
   const used = new Set();
@@ -1273,13 +1358,13 @@ function ensureSlotAttachments(slot) {
       name = next;
     }
     used.add(name);
-    const rec = normalizeSlotAttachmentRecord(slot, a, name, basePh, (getActiveAttachment(slot) || {}).canvas);
+    const rec = normalizeSlotAttachmentRecord(slot, a, name, basePh, slotCanvas);
     rec.name = name;
     if ((rec.type === "region" || rec.type === "mesh" || rec.type === "linkedmesh") && !rec.canvas) continue;
     out.push(rec);
   }
-  if (out.length === 0 && (getActiveAttachment(slot) || {}).canvas) {
-    out.push(normalizeSlotAttachmentRecord(slot, { name: base, placeholder: basePh, canvas: (getActiveAttachment(slot) || {}).canvas }, base, basePh, (getActiveAttachment(slot) || {}).canvas));
+  if (out.length === 0 && slotCanvas) {
+    out.push(normalizeSlotAttachmentRecord(slot, { name: base, placeholder: basePh, canvas: slotCanvas }, base, basePh, slotCanvas));
   }
   slot.attachments = out;
   if (!slot.attachments.some((a) => a.name === slot.attachmentName)) {
@@ -1288,9 +1373,11 @@ function ensureSlotAttachments(slot) {
   if (slot.activeAttachment != null && !slot.attachments.some((a) => a.name === String(slot.activeAttachment))) {
     slot.activeAttachment = slot.attachmentName || (slot.attachments[0] ? slot.attachments[0].name : null);
   }
+  promoteLegacySlotMeshState(slot, { clearLegacy: true, overwriteAttachment: false });
   const active = slot.activeAttachment != null ? String(slot.activeAttachment) : null;
   const activeEntry = active ? slot.attachments.find((a) => a.name === active) : null;
   if (activeEntry) { const syncAtt = getActiveAttachment(slot); if (syncAtt) syncAtt.canvas = activeEntry.canvas; }
+  if (Object.prototype.hasOwnProperty.call(slot, "canvas")) delete slot["canvas"];
   return slot.attachments;
 }
 
@@ -1372,7 +1459,9 @@ function getSlotClipPointsLocal(slot) {
 function addContourSlotFromActiveSlot(sourceSlot) {
   if (!sourceSlot) return null;
   const sourceWeightMode = getSlotWeightMode(sourceSlot);
-  const rectSrc = sourceSlot.rect || { x: 0, y: 0, w: sourceSlot.canvas.width, h: sourceSlot.canvas.height };
+  const sourceAtt = getActiveAttachment(sourceSlot);
+  const sourceCanvas = getSlotCanvas(sourceSlot);
+  const rectSrc = sourceSlot.rect || { x: 0, y: 0, w: sourceCanvas ? sourceCanvas.width : 1, h: sourceCanvas ? sourceCanvas.height : 1 };
   const rect = {
     x: Number(rectSrc.x) || 0,
     y: Number(rectSrc.y) || 0,
@@ -1394,7 +1483,6 @@ function addContourSlotFromActiveSlot(sourceSlot) {
       sourceSlot && Object.prototype.hasOwnProperty.call(sourceSlot, "editorVisible")
         ? sourceSlot.editorVisible !== false
         : sourceSlot.visible !== false,
-    canvas: sourceSlot.canvas,
     bone: sourceWeightMode === "weighted" ? (Number.isFinite(sourceSlot.bone) ? sourceSlot.bone : -1) : -1,
     visible: sourceSlot.visible !== false,
     alpha: Number.isFinite(sourceSlot.alpha) ? math.clamp(sourceSlot.alpha, 0, 1) : 1,
@@ -1420,7 +1508,7 @@ function addContourSlotFromActiveSlot(sourceSlot) {
         .map((a) => ({
           name: String(a && a.name ? a.name : "").trim(),
           placeholder: String(a && a.placeholder ? a.placeholder : sourceSlot.placeholderName || sourceSlot.attachmentName || "main").trim(),
-          canvas: a && a.canvas ? a.canvas : sourceSlot.canvas,
+          canvas: a && a.canvas ? a.canvas : sourceCanvas,
           type: normalizeAttachmentType(a && a.type),
           linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
           pointX: Number(a && a.pointX) || 0,
@@ -1442,7 +1530,7 @@ function addContourSlotFromActiveSlot(sourceSlot) {
         {
           name: String(sourceSlot.attachmentName || "main"),
           placeholder: String(sourceSlot.placeholderName || sourceSlot.attachmentName || "main"),
-          canvas: sourceSlot.canvas,
+          canvas: sourceCanvas,
           type: "region",
           linkedParent: "",
           pointX: 0,
@@ -1453,21 +1541,21 @@ function addContourSlotFromActiveSlot(sourceSlot) {
         },
       ],
     useWeights: sourceWeightMode !== "free",
-    weightBindMode: sourceWeightMode === "weighted" ? "auto" : sourceWeightMode === "single" ? "single" : "none",
-    weightMode: sourceWeightMode,
+    weightBindMode: sourceAtt && sourceAtt.weightBindMode ? String(sourceAtt.weightBindMode) : sourceWeightMode === "weighted" ? "auto" : sourceWeightMode === "single" ? "single" : "none",
+    weightMode: sourceAtt && sourceAtt.weightMode ? String(sourceAtt.weightMode) : sourceWeightMode,
     influenceBones:
       sourceWeightMode === "weighted"
-        ? Array.isArray(sourceSlot.influenceBones)
-          ? sourceSlot.influenceBones.filter((v) => Number.isFinite(v))
+        ? Array.isArray(sourceAtt && sourceAtt.influenceBones)
+          ? sourceAtt.influenceBones.filter((v) => Number.isFinite(v))
           : []
         : [],
-    clipEnabled: !!sourceSlot.clipEnabled,
-    clipSource: sourceSlot && sourceSlot.clipSource === "contour" ? "contour" : "fill",
+    clipEnabled: !!(sourceAtt && sourceAtt.clipEnabled),
+    clipSource: sourceAtt && sourceAtt.clipSource === "contour" ? "contour" : "fill",
     clipEndSlotId:
-      sourceSlot && Object.prototype.hasOwnProperty.call(sourceSlot, "clipEndSlotId")
-        ? sourceSlot.clipEndSlotId == null
+      sourceAtt && Object.prototype.hasOwnProperty.call(sourceAtt, "clipEndSlotId")
+        ? sourceAtt.clipEndSlotId == null
           ? null
-          : String(sourceSlot.clipEndSlotId)
+          : String(sourceAtt.clipEndSlotId)
         : null,
     meshContour: {
       points: [],
@@ -1481,12 +1569,15 @@ function addContourSlotFromActiveSlot(sourceSlot) {
       fillManualEdges: [],
     },
   };
-  if (state.mesh) {
-    slot.attachments[0].meshData = createSlotMeshData(rect, slot.docWidth || rect.w, slot.docHeight || rect.h, state.mesh.cols, state.mesh.rows);
-    rebuildSlotWeights(slot, state.mesh);
-  }
   ensureSlotAttachments(slot);
   ensureSlotAttachmentState(slot);
+  if (state.mesh) {
+    const activeAtt = getActiveAttachment(slot);
+    if (activeAtt && !activeAtt.meshData) {
+      activeAtt.meshData = createSlotMeshData(rect, slot.docWidth || rect.w, slot.docHeight || rect.h, state.mesh.cols, state.mesh.rows);
+    }
+    rebuildSlotWeights(slot, state.mesh);
+  }
   ensureSlotClipState(slot);
   ensureSlotVisualState(slot);
   state.slots.push(slot);
@@ -1495,4 +1586,3 @@ function addContourSlotFromActiveSlot(sourceSlot) {
   setActiveSlot(state.slots.length - 1);
   return slot;
 }
-

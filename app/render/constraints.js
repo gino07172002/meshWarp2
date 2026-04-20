@@ -6,14 +6,6 @@
 // Applied each frame during pose evaluation.
 // Order: Path → Transform → IK (matches Spine runtime order).
 // ============================================================
-function applyPathConstraintsToBones(m, bones) {
-  if (!m || !bones || bones.length === 0) return;
-  const list = ensurePathConstraints(m);
-  if (list.length === 0) return;
-  const ordered = [...list].sort((a, b) => getConstraintOrder(a, 0) - getConstraintOrder(b, 0));
-  for (const c of ordered) applySinglePathConstraintToBones(m, bones, c);
-}
-
 function refreshPathUI() {
   const m = state.mesh;
   if (!els.pathSelect) return;
@@ -613,21 +605,6 @@ function solveTwoBoneIK(bones, parentIndex, childIndex, target, mix = 1, bendPos
   child.rot = lerpAngle(Number(child.rot) || 0, desiredChildLocal, math.clamp(mix, 0, 1));
 }
 
-function solveTwoBoneHeadTarget(bones, parentIndex, childIndex, target, mix = 1) {
-  if (!bones || parentIndex < 0 || childIndex < 0 || parentIndex >= bones.length || childIndex >= bones.length) return;
-  const parent = bones[parentIndex];
-  const child = bones[childIndex];
-  if (!parent || !child) return;
-  if (Number(child.parent) !== parentIndex) return;
-  normalizeBoneChannels(parent);
-  const world = computeWorld(bones);
-  const head = transformPoint(world[parentIndex], 0, 0);
-  const ppWorld = parent.parent >= 0 ? world[parent.parent] : createIdentity();
-  const desiredWorld = Math.atan2(target.y - head.y, target.x - head.x);
-  const desiredParentLocal = desiredWorld - matrixAngle(ppWorld) - (Number(parent.shx) || 0);
-  parent.rot = lerpAngle(Number(parent.rot) || 0, desiredParentLocal, math.clamp(mix, 0, 1));
-}
-
 function headTargetToTailTarget(bones, childIndex, headTarget) {
   if (!bones || childIndex < 0 || childIndex >= bones.length || !headTarget) return headTarget;
   const child = bones[childIndex];
@@ -732,14 +709,6 @@ function applySingleTransformConstraintToBones(m, bones, c) {
   }
 }
 
-function applyTransformConstraintsToBones(m, bones) {
-  if (!m || !bones || bones.length === 0) return;
-  const list = ensureTransformConstraints(m);
-  if (list.length === 0) return;
-  const ordered = [...list].sort((a, b) => getConstraintOrder(a, 0) - getConstraintOrder(b, 0));
-  for (const c of ordered) applySingleTransformConstraintToBones(m, bones, c);
-}
-
 function applySingleIKConstraintToBones(bones, ik) {
   if (!bones || !ik || ik.enabled === false) return;
   const tp = getIKSolveTargetWorld(bones, ik);
@@ -809,14 +778,6 @@ function applySingleIKConstraintToBones(bones, ik) {
     }
     solveOneBoneIK(bones, bi, tp, mix);
   }
-}
-
-function applyIKConstraintsToBones(m, bones) {
-  if (!m || !bones || bones.length === 0) return;
-  const list = ensureIKConstraints(m);
-  if (list.length === 0) return;
-  const ordered = [...list].sort((a, b) => getConstraintOrder(a, 0) - getConstraintOrder(b, 0));
-  for (const ik of ordered) applySingleIKConstraintToBones(bones, ik);
 }
 
 function findEnabledIKForBone(m, boneIndex) {
@@ -1356,6 +1317,88 @@ function slotMeshLocalToScreen(slot, point, poseWorld = null) {
   return localToScreen(w.x, w.y);
 }
 
+function getSlotMeshPreviewGridInfo(slot, contour) {
+  const att = getActiveAttachment(slot);
+  const meshData = att && att.meshData;
+  if (!meshData) return null;
+  const cols = Math.floor(Number(meshData.cols));
+  const rows = Math.floor(Number(meshData.rows));
+  const points = contour && Array.isArray(contour.fillPoints) ? contour.fillPoints : null;
+  if (!Number.isFinite(cols) || !Number.isFinite(rows) || cols < 1 || rows < 1) return null;
+  if (!Array.isArray(points) || points.length !== (cols + 1) * (rows + 1)) return null;
+  if (!(contour && contour.fillFromMeshData && !contour.dirty)) return null;
+  return { cols, rows, points };
+}
+
+function drawSlotMeshPreviewGrid(ctx, slot, gridInfo, poseWorld) {
+  if (!ctx || !slot || !gridInfo) return false;
+  const { cols, rows, points } = gridInfo;
+  const idxAt = (x, y) => y * (cols + 1) + x;
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(63, 208, 162, 0.72)";
+  ctx.lineWidth = 1.15;
+
+  for (let y = 0; y <= rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const a = points[idxAt(x, y)];
+      const b = points[idxAt(x + 1, y)];
+      if (!a || !b) continue;
+      const sa = slotMeshLocalToScreen(slot, a, poseWorld);
+      const sb = slotMeshLocalToScreen(slot, b, poseWorld);
+      ctx.beginPath();
+      ctx.moveTo(sa.x, sa.y);
+      ctx.lineTo(sb.x, sb.y);
+      ctx.stroke();
+    }
+  }
+
+  for (let x = 0; x <= cols; x += 1) {
+    for (let y = 0; y < rows; y += 1) {
+      const a = points[idxAt(x, y)];
+      const b = points[idxAt(x, y + 1)];
+      if (!a || !b) continue;
+      const sa = slotMeshLocalToScreen(slot, a, poseWorld);
+      const sb = slotMeshLocalToScreen(slot, b, poseWorld);
+      ctx.beginPath();
+      ctx.moveTo(sa.x, sa.y);
+      ctx.lineTo(sb.x, sb.y);
+      ctx.stroke();
+    }
+  }
+
+  ctx.strokeStyle = "rgba(63, 208, 162, 0.24)";
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const i0 = idxAt(x, y);
+      const i1 = idxAt(x + 1, y);
+      const i2 = idxAt(x, y + 1);
+      const i3 = idxAt(x + 1, y + 1);
+      const a = points[i0];
+      const b = points[i1];
+      const c = points[i2];
+      const d = points[i3];
+      if (!a || !b || !c || !d) continue;
+      const p0 = slotMeshLocalToScreen(slot, a, poseWorld);
+      const p1 = slotMeshLocalToScreen(slot, b, poseWorld);
+      const p2 = slotMeshLocalToScreen(slot, c, poseWorld);
+      const p3 = slotMeshLocalToScreen(slot, d, poseWorld);
+      ctx.beginPath();
+      if (((x + y) & 1) === 0) {
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(p3.x, p3.y);
+      } else {
+        ctx.moveTo(p2.x, p2.y);
+        ctx.lineTo(p1.x, p1.y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+  return true;
+}
+
 function screenToSlotMeshLocal(slot, mx, my, poseWorld = null) {
   const w = screenToLocal(mx, my);
   return worldToSlotMeshLocal(slot, w, poseWorld);
@@ -1512,24 +1555,50 @@ async function loadFileSlots(file) {
   ];
 }
 
-function resize() {
+function getCanvasRenderPixelRatio() {
+  const raw = Math.max(1, Number(window.devicePixelRatio) || 1);
+  const cap = Math.max(1, Number(state.renderPerf && state.renderPerf.maxPixelRatio) || raw);
+  return Math.min(raw, cap);
+}
+
+function markStageResizeDirty() {
+  if (!state.renderPerf) return;
+  state.renderPerf.needsResize = true;
+  state.renderPerf.backdropSig = "";
+  if (typeof requestRender === "function") requestRender("resize");
+}
+
+function resize(force = false) {
+  const perf = state.renderPerf || (state.renderPerf = {
+    maxPixelRatio: hasGL ? 1.5 : 2,
+    needsResize: true,
+    stageCssWidth: 0,
+    stageCssHeight: 0,
+    stagePixelRatio: 1,
+    backdropSig: "",
+  });
+  const dpr = getCanvasRenderPixelRatio();
+  if (!force && !perf.needsResize && perf.stagePixelRatio === dpr) return false;
   const rect = els.stage.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  const w = Math.max(1, Math.floor(rect.width * dpr));
-  const h = Math.max(1, Math.floor(rect.height * dpr));
+  const cssW = Math.max(1, Number(rect.width) || 1);
+  const cssH = Math.max(1, Number(rect.height) || 1);
+  const w = Math.max(1, Math.floor(cssW * dpr));
+  const h = Math.max(1, Math.floor(cssH * dpr));
   const prevW = Math.max(1, Number(els.glCanvas.width) || 1);
   const prevH = Math.max(1, Number(els.glCanvas.height) || 1);
+  const canvasSizeChanged = els.glCanvas.width !== w || els.glCanvas.height !== h;
 
-  if (els.glCanvas.width !== w || els.glCanvas.height !== h) {
+  if (canvasSizeChanged) {
     els.backdropCanvas.width = w;
     els.backdropCanvas.height = h;
     els.glCanvas.width = w;
     els.glCanvas.height = h;
     els.overlay.width = w;
     els.overlay.height = h;
+    perf.backdropSig = "";
   }
 
-  if (hasGL) {
+  if (hasGL && (canvasSizeChanged || force || perf.needsResize)) {
     gl.viewport(0, 0, w, h);
   }
 
@@ -1548,7 +1617,12 @@ function resize() {
   }
   state.view.lastW = w;
   state.view.lastH = h;
+  perf.needsResize = false;
+  perf.stageCssWidth = cssW;
+  perf.stageCssHeight = cssH;
+  perf.stagePixelRatio = dpr;
   refreshViewZoomUI();
+  return canvasSizeChanged;
 }
 
 function refreshViewZoomUI() {
@@ -1990,11 +2064,28 @@ function drawRulerOverlayFromBackdrop(ctx) {
   ctx.drawImage(src, 0, 0, ruler, h, 0, 0, ruler, h);
 }
 
+function getBackdropRenderSignature() {
+  const w = Math.max(1, Number(els.backdropCanvas && els.backdropCanvas.width) || 1);
+  const h = Math.max(1, Number(els.backdropCanvas && els.backdropCanvas.height) || 1);
+  return [
+    w,
+    h,
+    Number(state.imageWidth) || 0,
+    Number(state.imageHeight) || 0,
+    (Number(state.view.cx) || 0).toFixed(2),
+    (Number(state.view.cy) || 0).toFixed(2),
+    (Number(state.view.scale) || 0).toFixed(4),
+  ].join("|");
+}
+
 function drawBackdrop() {
   if (!backdropCtx || !els.backdropCanvas) return;
+  const sig = getBackdropRenderSignature();
+  if (state.renderPerf && state.renderPerf.backdropSig === sig) return;
   const ctx = backdropCtx;
   ctx.clearRect(0, 0, els.backdropCanvas.width, els.backdropCanvas.height);
   drawBackdropGridAndRuler(ctx, { drawGrid: true, drawRuler: true });
+  if (state.renderPerf) state.renderPerf.backdropSig = sig;
 }
 
 function updateDeformation(offsetsOverride = null) {
@@ -2752,7 +2843,9 @@ function drawOverlay() {
         Array.isArray(contour.fillTriangles) && contour.fillTriangles.length >= 3 ? contour.fillTriangles : contour.triangles;
       const triPts =
         Array.isArray(contour.fillPoints) && contour.fillPoints.length >= 3 ? contour.fillPoints : contour.points;
-      if (Array.isArray(triIdx) && triIdx.length >= 3) {
+      const previewGrid = getSlotMeshPreviewGridInfo(slot, contour);
+      const drewGridPreview = drawSlotMeshPreviewGrid(ctx, slot, previewGrid, slotPoseWorld);
+      if (!drewGridPreview && Array.isArray(triIdx) && triIdx.length >= 3) {
         ctx.strokeStyle = "rgba(63, 208, 162, 0.65)";
         ctx.lineWidth = 1.2;
         for (let t = 0; t + 2 < triIdx.length; t += 3) {
@@ -3006,11 +3099,6 @@ function drawMeshOnContext(ctx, drawCanvas = state.sourceCanvas, alpha = 1, tint
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
-}
-
-function drawMesh2D(drawCanvas = state.sourceCanvas, alpha = 1, tint = null, screen = null, indices = null, uvs = null, blendMode = "normal") {
-  if (!stage2dCtx) return;
-  drawMeshOnContext(stage2dCtx, drawCanvas, alpha, tint, screen, indices, uvs, blendMode);
 }
 
 function getSlotClipPolygonScreen(slot, poseWorld) {

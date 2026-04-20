@@ -13,12 +13,24 @@ function getPrimarySelectedBoneIndex() {
 
 function getActiveAttachment(slot) {
   if (!slot || !Array.isArray(slot.attachments) || slot.attachments.length === 0) return null;
-  const activeName = slot.activeAttachment;
-  if (activeName) {
-    const found = slot.attachments.find((a) => a.name === activeName);
-    if (found) return found;
-  }
-  return slot.attachments[0];
+  if (slot.activeAttachment == null) return null;
+  const activeName = String(slot.activeAttachment).trim();
+  if (!activeName) return null;
+  const found = slot.attachments.find((a) => a.name === activeName);
+  return found || null;
+}
+
+function getSlotCanvas(slot, options = {}) {
+  if (!slot) return null;
+  const allowAnyAttachment =
+    options && Object.prototype.hasOwnProperty.call(options, "allowAnyAttachment")
+      ? options.allowAnyAttachment !== false
+      : true;
+  const active = getActiveAttachment(slot);
+  if (active && active.canvas) return active.canvas;
+  if (!allowAnyAttachment || !Array.isArray(slot.attachments)) return null;
+  const fallback = slot.attachments.find((a) => a && a.canvas);
+  return fallback ? fallback.canvas : null;
 }
 
 function getSlotDisplayNameByIndex(index) {
@@ -401,14 +413,16 @@ function syncSlotContourFromMeshData(slot, force = false) {
   ) {
     return false;
   }
-  contour.fillPoints = [];
-  for (let i = 0; i < vCount; i += 1) {
-    contour.fillPoints.push({
+  const normalizedGrid = normalizeGridMeshPreviewData(sm);
+  contour.fillPoints = normalizedGrid
+    ? normalizedGrid.points
+    : Array.from({ length: vCount }, (_, i) => ({
       x: Number(sm.positions[i * 2]) || 0,
       y: Number(sm.positions[i * 2 + 1]) || 0,
-    });
-  }
-  contour.fillTriangles = Array.from(sm.indices || []);
+    }));
+  contour.fillTriangles = normalizedGrid
+    ? normalizedGrid.triangles
+    : Array.from(sm.indices || []);
   contour.fillManualEdges = [];
   contour.triangles = [];
   contour.fillFromMeshData = true;
@@ -429,6 +443,82 @@ function syncSlotContourFromMeshData(slot, force = false) {
     }
   }
   return true;
+}
+
+function buildGridTrianglesFromCells(cols, rows) {
+  const out = [];
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const i0 = y * (cols + 1) + x;
+      const i1 = i0 + 1;
+      const i2 = i0 + (cols + 1);
+      const i3 = i2 + 1;
+      if (((x + y) & 1) === 0) out.push(i0, i2, i3, i0, i3, i1);
+      else out.push(i0, i2, i1, i1, i2, i3);
+    }
+  }
+  return out;
+}
+
+function normalizeGridAxisValues(values, expectedCount) {
+  if (!Array.isArray(values) || values.length <= 0 || expectedCount <= 0) return null;
+  const sorted = values
+    .map((v) => Number(v))
+    .filter((v) => Number.isFinite(v))
+    .sort((a, b) => a - b);
+  if (sorted.length <= 0) return null;
+  const span = Math.max(1e-6, sorted[sorted.length - 1] - sorted[0]);
+  const eps = Math.max(1e-6, span / Math.max(1, expectedCount * 200));
+  const out = [];
+  for (const v of sorted) {
+    const last = out[out.length - 1];
+    if (last == null || Math.abs(v - last) > eps) out.push(v);
+  }
+  return out.length === expectedCount ? out : null;
+}
+
+function normalizeGridMeshPreviewData(meshData) {
+  if (!meshData || !meshData.positions) return null;
+  const cols = Math.floor(Number(meshData.cols));
+  const rows = Math.floor(Number(meshData.rows));
+  if (!Number.isFinite(cols) || !Number.isFinite(rows) || cols < 1 || rows < 1) return null;
+  const vCount = Math.floor((Number(meshData.positions.length) || 0) / 2);
+  if (vCount !== (cols + 1) * (rows + 1)) return null;
+  const raw = [];
+  const xs = [];
+  const ys = [];
+  for (let i = 0; i < vCount; i += 1) {
+    const x = Number(meshData.positions[i * 2]) || 0;
+    const y = Number(meshData.positions[i * 2 + 1]) || 0;
+    raw.push({ x, y });
+    xs.push(x);
+    ys.push(y);
+  }
+  const xAxis = normalizeGridAxisValues(xs, cols + 1);
+  const yAxis = normalizeGridAxisValues(ys, rows + 1);
+  if (!xAxis || !yAxis) return null;
+  const xStep = cols > 0 ? Math.max(1e-6, (xAxis[xAxis.length - 1] - xAxis[0]) / cols) : 1;
+  const yStep = rows > 0 ? Math.max(1e-6, (yAxis[yAxis.length - 1] - yAxis[0]) / rows) : 1;
+  const xTol = Math.max(1e-4, xStep * 0.25);
+  const yTol = Math.max(1e-4, yStep * 0.25);
+  const grid = new Array(vCount);
+  for (const p of raw) {
+    let xi = Math.round((p.x - xAxis[0]) / xStep);
+    let yi = Math.round((p.y - yAxis[0]) / yStep);
+    xi = math.clamp(xi, 0, cols);
+    yi = math.clamp(yi, 0, rows);
+    if (Math.abs(p.x - xAxis[xi]) > xTol || Math.abs(p.y - yAxis[yi]) > yTol) return null;
+    const idx = yi * (cols + 1) + xi;
+    if (grid[idx]) return null;
+    grid[idx] = { x: p.x, y: p.y };
+  }
+  if (grid.some((p) => !p)) return null;
+  return {
+    cols,
+    rows,
+    points: grid,
+    triangles: buildGridTrianglesFromCells(cols, rows),
+  };
 }
 
 function cloneSlotMeshPoints(points) {
@@ -884,69 +974,6 @@ function extractLargestBoundaryLoopFromTriangles(points, triangles) {
   return best.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }));
 }
 
-function snapContourPointsToUniformGrid(poly, minX, minY, stepX, stepY, cols, rows) {
-  const src = Array.isArray(poly) ? poly : [];
-  if (src.length < 3) return [];
-  const candidates = [];
-  // Expand one ring around bbox grid so nearest contour approximation can fall slightly outside.
-  for (let iy = -1; iy <= rows + 1; iy += 1) {
-    for (let ix = -1; ix <= cols + 1; ix += 1) {
-      candidates.push({
-        x: minX + ix * stepX,
-        y: minY + iy * stepY,
-      });
-    }
-  }
-  const used = new Set();
-  const picked = [];
-  for (let i = 0; i < src.length; i += 1) {
-    const p = src[i];
-    if (!p) continue;
-    const px = Number(p.x) || 0;
-    const py = Number(p.y) || 0;
-    let best = -1;
-    let bestD2 = Infinity;
-    for (let ci = 0; ci < candidates.length; ci += 1) {
-      if (used.has(ci)) continue;
-      const c = candidates[ci];
-      const dx = c.x - px;
-      const dy = c.y - py;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < bestD2) {
-        bestD2 = d2;
-        best = ci;
-      }
-    }
-    if (best < 0) {
-      // Fallback when candidates are exhausted.
-      for (let ci = 0; ci < candidates.length; ci += 1) {
-        const c = candidates[ci];
-        const dx = c.x - px;
-        const dy = c.y - py;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < bestD2) {
-          bestD2 = d2;
-          best = ci;
-        }
-      }
-    }
-    if (best < 0) continue;
-    used.add(best);
-    const cp = candidates[best];
-    picked.push({ x: cp.x, y: cp.y });
-  }
-  // Remove duplicate points caused by close original contour points snapping to same grid node.
-  const out = [];
-  const seen = new Set();
-  for (const p of picked) {
-    const k = makePointKey(p.x, p.y);
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(p);
-  }
-  return out;
-}
-
 function buildUniformGridFillForContour(contour, colsHint, rowsHint, includeContourPoints = true) {
   if (!contour || !contour.closed || contour.points.length < 3) return { points: [], triangles: [] };
   const poly = contour.points;
@@ -1081,13 +1108,6 @@ function buildUniformGridFillForContour(contour, colsHint, rowsHint, includeCont
     }
   }
   return { points: pts, triangles: filtered, contourPoints };
-}
-
-function getSlotMeshDensityHints() {
-  return {
-    cols: math.clamp(Number(els.gridX && els.gridX.value) || 24, 2, 120),
-    rows: math.clamp(Number(els.gridY && els.gridY.value) || 24, 2, 120),
-  };
 }
 
 function getCanvasAlphaMask(canvas, alphaThreshold = 8) {
@@ -1649,6 +1669,21 @@ function resetSlotMeshToGrid(slot) {
   const r = gridAtt.rect || { x: 0, y: 0, w: state.imageWidth || 64, h: state.imageHeight || 64 };
   gridAtt.meshData = createSlotMeshData(r, state.imageWidth || r.w, state.imageHeight || r.h, m.cols, m.rows);
   rebuildSlotWeights(slot, m);
+  const contour = ensureSlotContour(slot);
+  contour.points = [
+    { x: Number(r.x) || 0, y: Number(r.y) || 0 },
+    { x: (Number(r.x) || 0) + (Number(r.w) || 0), y: Number(r.y) || 0 },
+    { x: (Number(r.x) || 0) + (Number(r.w) || 0), y: (Number(r.y) || 0) + (Number(r.h) || 0) },
+    { x: Number(r.x) || 0, y: (Number(r.y) || 0) + (Number(r.h) || 0) },
+  ];
+  contour.closed = true;
+  contour.manualEdges = [];
+  contour.contourEdges = [[0, 1], [1, 2], [2, 3], [3, 0]];
+  contour.triangles = [];
+  contour.fillPoints = [];
+  contour.fillTriangles = [];
+  contour.fillManualEdges = [];
+  syncSlotContourSourcePoints(contour);
   syncSlotContourFromMeshData(slot, true);
   return true;
 }
@@ -1878,33 +1913,6 @@ function getRenderableSlots() {
   return getRenderableSlotItems().map((it) => it.slot);
 }
 
-function ensureDefaultSlotBone() {
-  const m = state.mesh;
-  if (!m) return -1;
-  if (m.rigBones.length > 0) return 0;
-  const len = Math.max(24, Math.round((state.imageWidth || 256) * 0.22));
-  m.rigBones.push({
-    name: "slot_root",
-    parent: -1,
-    inherit: "normal",
-    tx: (state.imageWidth || 256) * 0.5,
-    ty: (state.imageHeight || 256) * 0.5,
-    rot: -Math.PI * 0.5,
-    length: len,
-    sx: 1,
-    sy: 1,
-    shx: 0,
-    shy: 0,
-    connected: true,
-    poseLenEditable: false,
-  });
-  state.selectedBone = 0;
-  syncPoseFromRig(m);
-  syncBindPose(m);
-  refreshWeightsForBoneCount();
-  return 0;
-}
-
 function createTempBoneForSlot(slot, label = "slot_bone") {
   const m = state.mesh;
   if (!m) return -1;
@@ -1941,11 +1949,12 @@ function ensureSlotsHaveBoneBinding() {
   const isValidBone = (bi) => Number.isFinite(bi) && bi >= 0 && bi < m.rigBones.length;
   for (const s of state.slots) {
     if (!s) continue;
+    const att = getActiveAttachment(s);
     ensureSlotClipState(s);
     const mode = getSlotWeightMode(s);
     if (mode === "free") {
       s.bone = -1;
-      s.influenceBones = [];
+      if (att) att.influenceBones = [];
       rebuildSlotWeights(s, m);
       continue;
     }
@@ -1954,9 +1963,9 @@ function ensureSlotsHaveBoneBinding() {
       s.bone = -1;
       if (mode === "single") {
         setSlotSingleBoneWeight(s, m, -1);
-        s.influenceBones = [];
+        if (att) att.influenceBones = [];
       } else {
-        s.influenceBones = [];
+        if (att) att.influenceBones = [];
         rebuildSlotWeights(s, m);
       }
       continue;
@@ -1965,13 +1974,13 @@ function ensureSlotsHaveBoneBinding() {
       setSlotSingleBoneWeight(s, m, Number(s.bone));
       continue;
     }
-    if (!Array.isArray(s.influenceBones) || s.influenceBones.length === 0) {
-      s.influenceBones = [Number(s.bone)];
+    if (!att) continue;
+    if (!Array.isArray(att.influenceBones) || att.influenceBones.length === 0) {
+      att.influenceBones = [Number(s.bone)];
     } else {
-      s.influenceBones = s.influenceBones.filter((v) => isValidBone(Number(v)));
-      if (s.influenceBones.length <= 0) s.influenceBones = [Number(s.bone)];
+      att.influenceBones = att.influenceBones.filter((v) => isValidBone(Number(v)));
+      if (att.influenceBones.length <= 0) att.influenceBones = [Number(s.bone)];
     }
     if (!hasCompatibleSlotWeights(s, m)) rebuildSlotWeights(s, m);
   }
 }
-

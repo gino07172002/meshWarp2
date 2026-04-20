@@ -405,7 +405,6 @@ function applySkinSetToSlots(skin) {
     if (!att || !att.canvas) continue;
     if (s.activeAttachment !== next) changed = true;
     s.activeAttachment = next;
-    s.canvas = att.canvas;
   }
   if (changed) {
     refreshSlotUI();
@@ -1212,6 +1211,7 @@ function setAnimTime(value, durationOverride = null) {
   els.animTime.value = state.anim.time.toFixed(getTimelineTimeDigits());
   syncTimelineZoomUI();
   renderTimelineTracks();
+  if (typeof requestRender === "function") requestRender("anim-time");
 }
 
 function getTimelineDisplayDuration(anim) {
@@ -1555,6 +1555,20 @@ function getTimelineTrackDisplayLabel(track) {
   return `${boneName}.${t.label}`;
 }
 
+function refreshTimelineContextualTools() {
+  const drawOrderSelected = state.anim.selectedTrack === DRAWORDER_TRACK_ID;
+  if (els.drawOrderToggleBtn) {
+    els.drawOrderToggleBtn.classList.toggle("hidden", !drawOrderSelected);
+    els.drawOrderToggleBtn.textContent = state.anim.drawOrderEditorOpen ? "Hide Draw Order" : "Draw Order";
+  }
+  if (!drawOrderSelected && state.anim.drawOrderEditorOpen) {
+    state.anim.drawOrderEditorOpen = false;
+  }
+  if (els.drawOrderEditor) {
+    els.drawOrderEditor.classList.toggle("collapsed", !drawOrderSelected || !state.anim.drawOrderEditorOpen);
+  }
+}
+
 function refreshTrackSelect() {
   if (!els.trackSelect) return;
   const tracks = getAvailableTimelineTracks();
@@ -1563,6 +1577,7 @@ function refreshTrackSelect() {
     els.trackSelect.value = "";
     els.trackSelect.placeholder = "No tracks available";
     els.trackSelect.title = "No tracks available";
+    refreshTimelineContextualTools();
     return;
   }
   let selected = tracks.find((t) => t.id === state.anim.selectedTrack) || null;
@@ -1574,6 +1589,7 @@ function refreshTrackSelect() {
   els.trackSelect.value = label;
   els.trackSelect.placeholder = "Select a track in timeline";
   els.trackSelect.title = label ? `Selected Track: ${label}` : "Select a track in the timeline below";
+  refreshTimelineContextualTools();
 }
 
 function setSelectedTimelineTrack(trackId, options = {}) {
@@ -2006,9 +2022,7 @@ function refreshDrawOrderUI() {
     els.drawOrderList.selectedIndex = 0;
   }
   refreshDrawOrderEditorButtonState();
-  if (els.drawOrderEditor) {
-    els.drawOrderEditor.classList.toggle("collapsed", !state.anim.drawOrderEditorOpen);
-  }
+  refreshTimelineContextualTools();
 }
 
 function refreshDrawOrderEditorButtonState() {

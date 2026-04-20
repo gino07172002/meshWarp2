@@ -116,7 +116,17 @@ function drawOnionSkins2D(ctx, slots) {
   return drawn;
 }
 
+function shouldKeepRenderLoopAlive() {
+  return !!(
+    state.drag ||
+    (state.anim && (state.anim.playing || (state.anim.mix && state.anim.mix.active)))
+  );
+}
+
 function render(ts = 0) {
+  const loop = getRenderLoopState();
+  loop.rafId = 0;
+  loop.requested = false;
   updateAnimationPlayback(ts);
   if (ts - (Number(state.history.lastCaptureTs) || 0) > 220) {
     pushUndoCheckpoint(false);
@@ -147,24 +157,26 @@ function render(ts = 0) {
     applyGLBlendMode("normal");
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    if (state.mesh && state.texture) {
+    if (state.mesh) {
       gl.useProgram(program);
       bindGeometry();
       gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+      gl.activeTexture(gl.TEXTURE0);
       gl.uniform2f(loc.uResolution, els.glCanvas.width, els.glCanvas.height);
       const poseWorld = getSolvedPoseWorld(state.mesh);
       for (const slot of slots) {
-        if (!slot || !(getActiveAttachment(slot) || {}).canvas || !hasRenderableAttachment(slot)) continue;
+        const attachmentCanvas = (getActiveAttachment(slot) || {}).canvas;
+        if (!slot || !attachmentCanvas || !hasRenderableAttachment(slot)) continue;
+        const texture = ensureGLTextureForCanvas(attachmentCanvas);
+        if (!texture) continue;
         ensureSlotVisualState(slot);
         const geom = buildSlotGeometry(slot, poseWorld);
         if (!geom.interleaved) continue;
         gl.bufferData(gl.ARRAY_BUFFER, geom.interleaved, gl.DYNAMIC_DRAW);
         const drawIndices = geom.indices || state.mesh.indices;
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, drawIndices, gl.DYNAMIC_DRAW);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, state.texture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, (getActiveAttachment(slot) || {}).canvas);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
         applyGLBlendMode(slot.blend);
         gl.uniform1f(loc.uAlpha, math.clamp(Number(slot.alpha) || 1, 0, 1));
         if (loc.uTint) {
@@ -190,7 +202,7 @@ function render(ts = 0) {
     }
     if (!ctx) {
       drawOverlay();
-      requestAnimationFrame(render);
+      if (shouldKeepRenderLoopAlive()) requestRender("keepalive");
       return;
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -202,7 +214,7 @@ function render(ts = 0) {
   }
 
   drawOverlay();
-  requestAnimationFrame(render);
+  if (shouldKeepRenderLoopAlive()) requestRender("keepalive");
 }
 
 function pickVertex(mx, my) {
@@ -412,16 +424,6 @@ function canEditLengthInCurrentMode(bones, boneIndex) {
   return !!(b && b.poseLenEditable !== false);
 }
 
-function getRootBonePivotLocal(bones, world = null) {
-  if (!Array.isArray(bones) || bones.length === 0) return null;
-  const rootIndex = bones.findIndex((bone) => Number(bone && bone.parent) < 0);
-  if (rootIndex < 0) return null;
-  const w = Array.isArray(world) ? world : getEditAwareWorld(bones);
-  if (!Array.isArray(w) || !w[rootIndex]) return null;
-  const root = transformPoint(w[rootIndex], 0, 0);
-  return { x: root.x, y: root.y };
-}
-
 function rotatePointAroundPivot(point, pivot, delta) {
   const px = Number(point && point.x) || 0;
   const py = Number(point && point.y) || 0;
@@ -434,18 +436,6 @@ function rotatePointAroundPivot(point, pivot, delta) {
   return {
     x: ox + dx * c - dy * s,
     y: oy + dx * s + dy * c,
-  };
-}
-
-function scalePointAroundPivot(point, pivot, factor) {
-  const px = Number(point && point.x) || 0;
-  const py = Number(point && point.y) || 0;
-  const ox = Number(pivot && pivot.x) || 0;
-  const oy = Number(pivot && pivot.y) || 0;
-  const s = Number.isFinite(factor) ? factor : 1;
-  return {
-    x: ox + (px - ox) * s,
-    y: oy + (py - oy) * s,
   };
 }
 

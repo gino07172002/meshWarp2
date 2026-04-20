@@ -511,16 +511,6 @@ async function handleProjectLoadInputChange(e) {
         dst.tx = Number.isFinite(src.tx) ? src.tx : 0;
         dst.ty = Number.isFinite(src.ty) ? src.ty : 0;
         dst.rot = Number.isFinite(src.rot) ? src.rot : 0;
-        dst.useWeights = src.useWeights === true;
-        dst.weightBindMode = src.weightBindMode || (dst.useWeights ? "single" : "none");
-        dst.weightMode =
-          src.weightMode ||
-          (dst.weightBindMode === "auto" ? "weighted" : dst.useWeights ? "single" : "free");
-        dst.influenceBones = Array.isArray(src.influenceBones)
-          ? src.influenceBones.filter((v) => Number.isFinite(v))
-          : [];
-        // propagate weight fields to the active attachment (auto-weight reads/writes att.* not slot.*)
-        { const _dstAtt = getActiveAttachment(dst); if (_dstAtt) { _dstAtt.useWeights = dst.useWeights; _dstAtt.weightBindMode = dst.weightBindMode; _dstAtt.weightMode = dst.weightMode; _dstAtt.influenceBones = dst.influenceBones.slice(); } }
         dst.clipEnabled = !!src.clipEnabled;
         dst.clipSource = src && src.clipSource === "contour" ? "contour" : "fill";
         dst.clipEndSlotId =
@@ -567,12 +557,18 @@ async function handleProjectLoadInputChange(e) {
                 .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
               : [],
           };
-          dst.meshContour = restoredContour;
           const dstAttContour = getActiveAttachment(dst);
-          if (dstAttContour) dstAttContour.meshContour = JSON.parse(JSON.stringify(restoredContour));
-          if (restoredContour.closed &&
+          if (dstAttContour && !(dstAttContour.meshContour && Array.isArray(dstAttContour.meshContour.points) && dstAttContour.meshContour.points.length > 0)) {
+            dstAttContour.meshContour = cloneSlotContourData(restoredContour);
+          }
+          if (
+            dstAttContour &&
+            !src.meshData &&
+            !(dstAttContour.meshData && dstAttContour.meshData.positions && dstAttContour.meshData.positions.length > 0) &&
+            restoredContour.closed &&
             ((restoredContour.fillPoints && restoredContour.fillPoints.length >= 3) ||
-              (restoredContour.points && restoredContour.points.length >= 3))) {
+              (restoredContour.points && restoredContour.points.length >= 3))
+          ) {
             applyContourMeshToSlot(dst);
           }
         } else {
@@ -582,15 +578,14 @@ async function handleProjectLoadInputChange(e) {
         dst.docHeight = Number.isFinite(src.docHeight) ? src.docHeight : state.imageHeight;
         if (state.mesh) {
           const restoredMeshData = restoreSlotMeshDataFromPayload(src.meshData, state.mesh.rigBones.length);
+          const dstAttMesh = getActiveAttachment(dst);
           if (restoredMeshData) {
-            dst.meshData = restoredMeshData;
-            // propagate to active attachment so att.meshData.weights is available for rendering
-            const _dstAtt2 = getActiveAttachment(dst);
-            if (_dstAtt2) _dstAtt2.meshData = restoredMeshData;
+            if (dstAttMesh && !dstAttMesh.meshData) dstAttMesh.meshData = restoredMeshData;
           } else {
             ensureSlotMeshData(dst, state.mesh);
           }
         }
+        promoteLegacySlotMeshState(dst, { clearLegacy: true, overwriteAttachment: false });
         ensureSlotVisualState(dst);
       }
       if (Number.isFinite(data.activeSlot)) {
@@ -691,5 +686,3 @@ async function handleProjectLoadInputChange(e) {
     e.target.value = "";
   }
 }
-
-

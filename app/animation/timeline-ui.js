@@ -742,6 +742,7 @@ function updatePlaybackButtons() {
     els.playBtn.textContent = playing ? "Pause" : "Play";
   }
   refreshAutoKeyUI();
+  if (typeof requestRender === "function") requestRender("playback-ui");
 }
 
 function deleteSelectedOrCurrentKeyframe() {

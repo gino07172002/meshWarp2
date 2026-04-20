@@ -65,8 +65,9 @@ function buildProjectPayload() {
     ensureSlotAttachmentState(s);
     ensureSlotAttachments(s);
     let imageIndex = -1;
-    if (s && s.canvas) {
-      imageIndex = registerCanvas(s.canvas);
+    const slotCanvas = getSlotCanvas(s);
+    if (slotCanvas) {
+      imageIndex = registerCanvas(slotCanvas);
     }
     const attachmentRecordsWithPlaceholder = ensureSlotAttachments(s).map((a) => ({
       name: a.name,
@@ -104,15 +105,6 @@ function buildProjectPayload() {
     }));
     // auto-weight stores weight data on the attachment object; prefer att.* over slot.* for serialization
     const sAtt = getActiveAttachment(s);
-    const hasAttachmentPayload =
-      Array.isArray(attachmentRecordsWithPlaceholder) &&
-      attachmentRecordsWithPlaceholder.some((a) =>
-        !!(
-          a &&
-          ((a.meshData && Array.isArray(a.meshData.positions) && a.meshData.positions.length > 0) ||
-            (a.meshContour && Array.isArray(a.meshContour.points) && a.meshContour.points.length > 0))
-        )
-      );
     return {
       id: s.id || makeSlotId(),
       name: s.name,
@@ -140,51 +132,20 @@ function buildProjectPayload() {
       ty: Number.isFinite(s.ty) ? s.ty : 0,
       rot: Number.isFinite(s.rot) ? s.rot : 0,
       baseImageTransform: normalizeBaseImageTransform(s && s.baseImageTransform),
-      useWeights: (sAtt && sAtt.useWeights != null ? sAtt.useWeights : s.useWeights) === true,
-      weightBindMode: (sAtt && sAtt.weightBindMode) || s.weightBindMode || ((sAtt ? sAtt.useWeights : s.useWeights) ? "single" : "none"),
-      weightMode: (sAtt && sAtt.weightMode) || getSlotWeightMode(s),
-      influenceBones: Array.isArray(sAtt && sAtt.influenceBones ? sAtt.influenceBones : s.influenceBones) ? (sAtt && sAtt.influenceBones ? sAtt.influenceBones : s.influenceBones) : [],
-        clipEnabled: !!(sAtt && sAtt.clipEnabled),
-        clipSource: sAtt && sAtt.clipSource === "contour" ? "contour" : "fill",
-        clipEndSlotId: sAtt && sAtt.clipEndSlotId ? String(sAtt.clipEndSlotId) : null,
+      useWeights: !!(sAtt && sAtt.useWeights),
+      weightBindMode: (sAtt && sAtt.weightBindMode) || "none",
+      weightMode: sAtt ? getSlotWeightMode(s, sAtt) : "free",
+      influenceBones: Array.isArray(sAtt && sAtt.influenceBones) ? sAtt.influenceBones.filter((v) => Number.isFinite(v)) : [],
+      clipEnabled: !!(sAtt && sAtt.clipEnabled),
+      clipSource: sAtt && sAtt.clipSource === "contour" ? "contour" : "fill",
+      clipEndSlotId: sAtt && sAtt.clipEndSlotId ? String(sAtt.clipEndSlotId) : null,
       rect: s.rect || null,
       docWidth: s.docWidth || state.imageWidth,
       docHeight: s.docHeight || state.imageHeight,
       imageIndex,
       attachments: attachmentRecordsWithPlaceholder,
-      meshData: hasAttachmentPayload ? null : serializeSlotMeshData((sAtt && sAtt.meshData) ? sAtt.meshData : s.meshData),
-      meshContour:
-        !hasAttachmentPayload &&
-        (sAtt && sAtt.meshContour && Array.isArray(sAtt.meshContour.points) ? sAtt.meshContour : s.meshContour) &&
-          Array.isArray((sAtt && sAtt.meshContour && Array.isArray(sAtt.meshContour.points) ? sAtt.meshContour : s.meshContour).points)
-          ? {
-            points: (sAtt && sAtt.meshContour && Array.isArray(sAtt.meshContour.points) ? sAtt.meshContour : s.meshContour).points.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 })),
-            sourcePoints: Array.isArray((sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).sourcePoints)
-              ? (sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).sourcePoints.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
-              : [],
-            authorContourPoints: Array.isArray((sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).authorContourPoints)
-              ? (sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).authorContourPoints.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
-              : [],
-            closed: !!(sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).closed,
-            triangles: Array.isArray((sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).triangles) ? (sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).triangles.map((v) => Number(v) || 0) : [],
-            fillPoints: Array.isArray((sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).fillPoints)
-              ? (sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).fillPoints.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }))
-              : [],
-            fillTriangles: Array.isArray((sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).fillTriangles)
-              ? (sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).fillTriangles.map((v) => Number(v) || 0)
-              : [],
-            manualEdges: Array.isArray((sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).manualEdges)
-              ? (sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).manualEdges
-                .filter((e) => Array.isArray(e) && e.length >= 2)
-                .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
-              : [],
-            fillManualEdges: Array.isArray((sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).fillManualEdges)
-              ? (sAtt && sAtt.meshContour ? sAtt.meshContour : s.meshContour).fillManualEdges
-                .filter((e) => Array.isArray(e) && e.length >= 2)
-                .map((e) => [Number(e[0]) || 0, Number(e[1]) || 0])
-              : [],
-          }
-          : null,
+      meshData: null,
+      meshContour: null,
     };
   });
 
@@ -1490,9 +1451,9 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
     return 2 * (c + r);
   }
 
-  function canUseMeshAttachment(slot, sm, boneCount) {
+  function canUseMeshAttachment(slot, sm, boneCount, attachment = null) {
     if (!slot || !sm) return false;
-    const mode = getSlotWeightMode(slot);
+    const mode = getSlotWeightMode(slot, attachment);
     if (mode === "weighted") return true;
     if (mode === "single" && boneCount > 0 && sm.weights && sm.weights.length === (sm.positions.length / 2) * boneCount) {
       return true;
@@ -1644,9 +1605,14 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
     return out;
   }
 
-  function buildMeshAttachment(slot, si, boneCount, boneIndexOffset = 0, canvasOverride = null) {
-    ensureSlotMeshData(slot, m);
-    const sm = (getActiveAttachment(slot) || {}).meshData;
+  function buildMeshAttachment(slot, si, boneCount, boneIndexOffset = 0, canvasOverride = null, attachment = null) {
+    const attState = attachment || getActiveAttachment(slot);
+    if (!attState) return null;
+    if (!attState.meshData) {
+      const attName = attState.name ? String(attState.name) : null;
+      if (!attachment || (attName && attName === getSlotCurrentAttachmentName(slot))) ensureSlotMeshData(slot, m);
+    }
+    const sm = attState.meshData;
     if (!sm) return null;
     const slotTm = getSlotTransformMatrix(slot, setupWorld);
     const vCount = sm.positions.length / 2;
@@ -1689,8 +1655,8 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
       triangles: Array.from(sm.indices || [], (v) => Number(v) || 0),
       vertices,
       hull: getBoundaryHullCount(sm.cols, sm.rows),
-      width: round4((canvasOverride || (getActiveAttachment(slot) || {}).canvas)?.width || ((getActiveAttachment(slot) || {}).rect?.w || 0)),
-      height: round4((canvasOverride || (getActiveAttachment(slot) || {}).canvas)?.height || ((getActiveAttachment(slot) || {}).rect?.h || 0)),
+      width: round4((canvasOverride || attState.canvas)?.width || (attState.rect?.w || 0)),
+      height: round4((canvasOverride || attState.canvas)?.height || (attState.rect?.h || 0)),
     };
     slotInfoByName.set(si.name, { slot, si, sm, meshAttachment: att });
     return att;
@@ -1705,7 +1671,8 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
     const s = si.slot;
     const bIdx = Number.isFinite(s.bone) && s.bone >= 0 && s.bone < bones.length ? s.bone : 0;
     const b = bones[bIdx] || bones[0];
-    const rect = s.rect || { x: 0, y: 0, w: s.canvas ? s.canvas.width : 0, h: s.canvas ? s.canvas.height : 0 };
+    const slotCanvas = getSlotCanvas(s);
+    const rect = s.rect || { x: 0, y: 0, w: slotCanvas ? slotCanvas.width : 0, h: slotCanvas ? slotCanvas.height : 0 };
     const slotOut = {
       name: si.name,
       bone: boneNames[bIdx] || boneNames[0],
@@ -1770,11 +1737,10 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
 
     if (!skinDefault[si.name]) skinDefault[si.name] = {};
     ensureSlotMeshData(s, m);
-    const sm = s.meshData;
-    const useMesh = canUseMeshAttachment(s, sm, m.rigBones.length);
     for (const ae of si.attachments) {
-      const canvas = ae && ae.canvas ? ae.canvas : s.canvas;
+      const canvas = ae && ae.canvas ? ae.canvas : slotCanvas;
       const aeType = normalizeAttachmentType(ae && ae.type);
+      const useMesh = canUseMeshAttachment(s, ae && ae.meshData ? ae.meshData : null, m.rigBones.length, ae);
       let att = null;
       if (aeType === "point") {
         att = buildPointAttachmentFromMeta(ae);
@@ -1796,7 +1762,7 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
           };
         }
       } else if ((aeType === "mesh" || aeType === "region") && useMesh) {
-        att = buildMeshAttachment(s, si, m.rigBones.length, 1, canvas);
+        att = buildMeshAttachment(s, si, m.rigBones.length, 1, canvas, ae);
       }
       if (!att && (aeType === "region" || aeType === "mesh" || aeType === "linkedmesh")) {
         if (!canvas) continue;
@@ -2649,9 +2615,6 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
         if (!si) continue;
         const slotName = si.name;
         const s = si.slot;
-        const sm = s && s.meshData ? s.meshData : null;
-        if (!sm) continue;
-        const expectedLen = sm.positions.length;
         const setupAttachmentName = si.setupAttachmentName || null;
         const attachmentRows = [...(slotAttachmentRowsBySlot.get(slotIdx) || [])].sort(
           (aa, bb) => (Number(aa.time) || 0) - (Number(bb.time) || 0)
@@ -2668,11 +2631,15 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
         const sorted = [...list].sort((a, b) => (Number(a.time) || 0) - (Number(b.time) || 0));
         const rowsByAttachment = new Map();
         for (const key of sorted) {
-          const arr = Array.isArray(key.value) ? key.value : null;
-          if (!arr || arr.length !== expectedLen) continue;
           const keyTime = round4(Number(key.time) || 0);
           const attName = resolveAttachmentAtTime(keyTime);
           if (!attName) continue;
+          const arr = Array.isArray(key.value) ? key.value : null;
+          const slotAtt = getSlotAttachmentEntry(s, attName);
+          const sm = slotAtt && slotAtt.meshData ? slotAtt.meshData : null;
+          if (!arr || !sm) continue;
+          const expectedLen = sm.positions.length;
+          if (arr.length !== expectedLen) continue;
           const att = skinDefault[slotName] && skinDefault[slotName][attName] ? skinDefault[slotName][attName] : null;
           if (!att || att.type !== "mesh") continue;
           const base = sm.baseOffsets || new Float32Array(expectedLen);
@@ -3633,4 +3600,3 @@ async function exportSpineData() {
     setStatus(`Export warning: ${validation.warnings[0]}`);
   }
 }
-

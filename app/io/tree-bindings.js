@@ -18,11 +18,10 @@ els.fileInput.addEventListener("change", async (e) => {
         added += 1;
         if (wasEmpty) {
           const first = state.slots[state.activeSlot];
-          state.sourceCanvas = first.canvas;
-          state.imageWidth = Number.isFinite(first.docWidth) ? first.docWidth : first.canvas.width;
-          state.imageHeight = Number.isFinite(first.docHeight) ? first.docHeight : first.canvas.height;
-          updateTexture();
-          rebuildMesh();
+          if (first) {
+            syncSourceCanvasToActiveAttachment(first);
+            rebuildMesh();
+          }
         }
       }
     }
@@ -889,13 +888,44 @@ if (els.slotAttachment) {
       s.activeAttachment = v;
       const att = getSlotAttachmentEntry(s, v);
       if (att && att.canvas) {
-        s.canvas = att.canvas;
         if (att.placeholder) s.placeholderName = String(att.placeholder);
         // Keep setup attachment stable; selection here is for editing/preview.
         if (!getSlotAttachmentEntry(s, s.attachmentName)) {
           s.attachmentName = att.name;
         }
       }
+    }
+    ensureSlotAttachmentState(s);
+    syncSourceCanvasToActiveAttachment(s);
+    markDirtyBySlotProp(state.activeSlot, "attachment");
+    refreshSlotUI();
+    renderBoneTree();
+  });
+}
+if (els.slotAttachmentVisible) {
+  els.slotAttachmentVisible.addEventListener("change", () => {
+    const s = getActiveSlot();
+    if (!s) return;
+    const list = ensureSlotAttachments(s);
+    if (!Array.isArray(list) || list.length <= 0) {
+      refreshSlotUI();
+      return;
+    }
+    const currentName = getSlotCurrentAttachmentName(s);
+    if (els.slotAttachmentVisible.checked) {
+      const requested = String((els.slotAttachment && els.slotAttachment.value) || "").trim();
+      const restoreName =
+        requested && requested !== "__none__" && getSlotAttachmentEntry(s, requested)
+          ? requested
+          : s.editorHiddenAttachmentName && getSlotAttachmentEntry(s, s.editorHiddenAttachmentName)
+            ? String(s.editorHiddenAttachmentName)
+            : getSlotAttachmentEntry(s, s.attachmentName)
+              ? String(s.attachmentName)
+              : String(list[0].name);
+      s.activeAttachment = restoreName;
+    } else {
+      if (currentName) s.editorHiddenAttachmentName = currentName;
+      s.activeAttachment = null;
     }
     ensureSlotAttachmentState(s);
     syncSourceCanvasToActiveAttachment(s);
@@ -1020,15 +1050,15 @@ function addAttachmentToActiveSlot() {
   if (!s) return false;
   const base = getSlotCurrentAttachmentName(s) || s.attachmentName || "attachment";
   const name = makeUniqueAttachmentName(s, base);
-  const srcCanvas = s.canvas || (ensureSlotAttachments(s)[0] && ensureSlotAttachments(s)[0].canvas);
+  const srcCanvas = getSlotCanvas(s);
   const cloned = cloneCanvas(srcCanvas);
   if (!cloned) return false;
   ensureSlotAttachments(s).push(
     normalizeSlotAttachmentRecord(s, { name, placeholder: String(s.placeholderName || s.attachmentName || "main"), canvas: cloned }, name, String(s.placeholderName || s.attachmentName || "main"), cloned)
   );
   s.activeAttachment = name;
-  s.canvas = cloned;
   ensureSlotAttachmentState(s);
+  syncSourceCanvasToActiveAttachment(s);
   refreshSlotUI();
   renderBoneTree();
   if (els.slotAttachmentName) {
@@ -1102,7 +1132,6 @@ function deleteActiveAttachmentInSlot() {
   const next = list[Math.max(0, Math.min(idx, list.length - 1))];
   s.activeAttachment = next ? next.name : null;
   if (s.attachmentName === current) s.attachmentName = next ? next.name : "main";
-  if (next && next.canvas) s.canvas = next.canvas;
   if (s.id) {
     for (const skin of ensureSkinSets()) {
       if (!skin || !skin.slotAttachments || typeof skin.slotAttachments !== "object") continue;
@@ -1123,6 +1152,7 @@ function deleteActiveAttachmentInSlot() {
       normalizeTrackKeys(anim, trackId);
     }
   }
+  syncSourceCanvasToActiveAttachment(s);
   refreshSlotUI();
   renderTimelineTracks();
   setStatus(`Attachment deleted: ${current}`);
@@ -1169,7 +1199,7 @@ if (els.slotAttachmentLoadBtn && els.slotAttachmentFileInput) {
       const att = getSlotAttachmentEntry(s, current);
       if (!att) return;
       att.canvas = cv;
-      if (s.activeAttachment === current) s.canvas = cv;
+      syncSourceCanvasToActiveAttachment(s);
       refreshSlotUI();
       setStatus(`Attachment image updated: ${current}`);
     } catch (err) {
@@ -1267,12 +1297,14 @@ if (els.slotInfluenceBones) {
   els.slotInfluenceBones.addEventListener("change", () => {
     const s = getActiveSlot();
     if (!s || !state.mesh) return;
+    const att = getActiveAttachment(s);
+    if (!att) return;
     const mode = getSlotWeightMode(s);
     if (mode !== "weighted") return;
     const selected = Array.from(els.slotInfluenceBones.selectedOptions)
       .map((o) => Number(o.value))
       .filter((v) => Number.isFinite(v));
-    s.influenceBones = selected.length > 0 ? [...new Set(selected)] : getSlotInfluenceBones(s, state.mesh);
+    att.influenceBones = selected.length > 0 ? [...new Set(selected)] : getSlotInfluenceBones(s, state.mesh, att);
     rebuildSlotWeights(s, state.mesh);
   });
 }
@@ -1322,7 +1354,7 @@ if (els.slotOrderDown) {
 if (els.fileNewBtn) {
   els.fileNewBtn.addEventListener("click", () => {
     state.sourceCanvas = null;
-    state.texture = null;
+    resetGLTextureCache();
     state.imageWidth = 0;
     state.imageHeight = 0;
     state.slots = [];
@@ -1396,4 +1428,3 @@ if (els.fileNewBtn) {
     setStatus("New project created.");
   });
 }
-

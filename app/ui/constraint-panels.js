@@ -620,24 +620,9 @@ if (els.slotMeshResetBtn) {
   els.slotMeshResetBtn.addEventListener("click", () => {
     const slot = getActiveSlot();
     if (!slot) return;
-    markSlotContourDirty(slot, true);
-    const c = ensureSlotContour(slot);
-    const source = getSlotContourSourcePoints(c);
-    if (Array.isArray(source) && source.length >= 3) {
-      c.points = source.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 }));
-      c.closed = true;
-      c.manualEdges = [];
-      c.triangles = applyManualEdgesToTriangles(c.points, triangulatePolygon(c.points), c.manualEdges);
-      c.fillPoints = [];
-      c.fillTriangles = [];
-      c.fillManualEdges = [];
-      clearSlotMeshSelection();
-      setStatus("Slot mesh preview reset to source contour.");
-      return;
-    }
     if (resetSlotMeshToGrid(slot)) {
       clearSlotMeshSelection();
-      setStatus("Slot mesh reset to grid.");
+      setStatus("Slot mesh reset to square grid.");
     }
   });
 }
@@ -978,4 +963,3 @@ els.boneHeadX.addEventListener("input", applyHeadTipFromInputs);
 els.boneHeadY.addEventListener("input", applyHeadTipFromInputs);
 els.boneTipX.addEventListener("input", applyHeadTipFromInputs);
 els.boneTipY.addEventListener("input", applyHeadTipFromInputs);
-

@@ -725,9 +725,9 @@ function setSlotSingleBoneWeight(slot, m, boneIndex) {
   att.influenceBones = boneIndex >= 0 ? [boneIndex] : [];
 }
 
-function getSlotWeightMode(slot) {
+function getSlotWeightMode(slot, attachment = null) {
   if (!slot) return "single";
-  const att = getActiveAttachment(slot);
+  const att = attachment || getActiveAttachment(slot);
   if (!att) return "single";
   if (att.weightMode === "single" || att.weightMode === "weighted" || att.weightMode === "free") {
     return att.weightMode;
@@ -793,12 +793,13 @@ function syncWeightOverlayToBoneSelection() {
 function applyActiveSlotWeightMode(modeRaw, options = {}) {
   const s = getActiveSlot();
   if (!s || !state.mesh) return false;
+  const att = getActiveAttachment(s);
+  if (!att) return false;
   const mode = modeRaw === "weighted" || modeRaw === "free" ? modeRaw : "single";
   const focusWeighted = !!(options && options.focusWeighted);
   const boneCount = Array.isArray(state.mesh.rigBones) ? state.mesh.rigBones.length : 0;
   const isValidBone = (bi) => Number.isFinite(bi) && bi >= 0 && bi < boneCount;
-  s.weightMode = mode;
-  if (s.weightMode === "weighted") {
+  if (mode === "weighted") {
     const fallback = isValidBone(Number(s.bone))
       ? Number(s.bone)
       : Number.isFinite(getPrimarySelectedBoneIndex())
@@ -807,15 +808,16 @@ function applyActiveSlotWeightMode(modeRaw, options = {}) {
           ? 0
           : -1;
     if (isValidBone(fallback)) s.bone = fallback;
-    s.useWeights = true;
-    s.weightBindMode = "auto";
-    const weightedInfluences = Array.isArray(s.influenceBones)
-      ? s.influenceBones.filter((v) => isValidBone(Number(v))).map((v) => Number(v))
+    att.useWeights = true;
+    att.weightBindMode = "auto";
+    att.weightMode = "weighted";
+    const weightedInfluences = Array.isArray(att.influenceBones)
+      ? att.influenceBones.filter((v) => isValidBone(Number(v))).map((v) => Number(v))
       : [];
     if (isValidBone(Number(s.bone)) && !weightedInfluences.includes(Number(s.bone))) {
       weightedInfluences.unshift(Number(s.bone));
     }
-    s.influenceBones = weightedInfluences.length > 0 ? [...new Set(weightedInfluences)] : getSlotInfluenceBones(s, state.mesh);
+    att.influenceBones = weightedInfluences.length > 0 ? [...new Set(weightedInfluences)] : getSlotInfluenceBones(s, state.mesh, att);
     if (!isValidBone(Number(s.bone))) ensureSlotsHaveBoneBinding();
     if (focusWeighted) {
       switchToVertexWeightEditing();
@@ -823,8 +825,8 @@ function applyActiveSlotWeightMode(modeRaw, options = {}) {
     } else {
       setStatus("Attachment mode switched to Weighted Attachment (Mesh).");
     }
-  } else if (s.weightMode === "single") {
-    const weighted = getSlotInfluenceBones(s, state.mesh);
+  } else if (mode === "single") {
+    const weighted = getSlotInfluenceBones(s, state.mesh, att);
     const fallback = isValidBone(Number(s.bone))
       ? Number(s.bone)
       : weighted.length > 0 && isValidBone(Number(weighted[0]))
@@ -835,16 +837,18 @@ function applyActiveSlotWeightMode(modeRaw, options = {}) {
             ? 0
             : -1;
     s.bone = isValidBone(fallback) ? fallback : -1;
-    s.useWeights = true;
-    s.weightBindMode = "single";
-    s.influenceBones = isValidBone(Number(s.bone)) ? [Number(s.bone)] : [];
+    att.useWeights = true;
+    att.weightBindMode = "single";
+    att.weightMode = "single";
+    att.influenceBones = isValidBone(Number(s.bone)) ? [Number(s.bone)] : [];
     ensureSlotsHaveBoneBinding();
     setStatus("Attachment mode switched to Single Bone Attachment.");
   } else {
-    s.useWeights = false;
-    s.weightBindMode = "none";
+    att.useWeights = false;
+    att.weightBindMode = "none";
+    att.weightMode = "free";
     s.bone = -1;
-    s.influenceBones = [];
+    att.influenceBones = [];
     setStatus("Attachment mode switched to Free (No Bone).");
   }
   rebuildSlotWeights(s, state.mesh);
@@ -853,11 +857,12 @@ function applyActiveSlotWeightMode(modeRaw, options = {}) {
   return true;
 }
 
-function getSlotInfluenceBones(slot, m) {
+function getSlotInfluenceBones(slot, m, attachment = null) {
   if (!slot || !m) return [];
   const boneCount = m.rigBones.length;
-  if (Array.isArray((getActiveAttachment(slot) || {}).influenceBones) && (getActiveAttachment(slot) || {}).influenceBones.length > 0) {
-    const filtered = (getActiveAttachment(slot) || {}).influenceBones.filter((i) => Number.isFinite(i) && i >= 0 && i < boneCount);
+  const att = attachment || getActiveAttachment(slot);
+  if (Array.isArray(att && att.influenceBones) && att.influenceBones.length > 0) {
+    const filtered = att.influenceBones.filter((i) => Number.isFinite(i) && i >= 0 && i < boneCount);
     if (filtered.length > 0) return [...new Set(filtered)];
   }
   const b = Number(slot.bone);
@@ -978,7 +983,11 @@ function createSlotMeshData(rect, docW, docH, baseCols, baseRows) {
       const i1 = i0 + 1;
       const i2 = i0 + (cols + 1);
       const i3 = i2 + 1;
-      index.push(i0, i2, i1, i1, i2, i3);
+      if (((x + y) & 1) === 0) {
+        index.push(i0, i2, i3, i0, i3, i1);
+      } else {
+        index.push(i0, i2, i1, i1, i2, i3);
+      }
     }
   }
   return {
@@ -1022,7 +1031,11 @@ function createMesh(cols, rows, w, h) {
       const i1 = i0 + 1;
       const i2 = i0 + (cols + 1);
       const i3 = i2 + 1;
-      index.push(i0, i2, i1, i1, i2, i3);
+      if (((x + y) & 1) === 0) {
+        index.push(i0, i2, i3, i0, i3, i1);
+      } else {
+        index.push(i0, i2, i1, i1, i2, i3);
+      }
     }
   }
 
@@ -1092,7 +1105,8 @@ function rebuildMesh() {
   updatePlaybackButtons();
   for (const s of state.slots) {
     if (!s) continue;
-    s.meshData = null;
+    const att = getActiveAttachment(s);
+    if (att) att.meshData = null;
     ensureSlotMeshData(s, state.mesh);
   }
   rebuildSlotTriangleIndices();
@@ -2009,7 +2023,8 @@ function deleteSlotsByIndices(indices) {
     if (removedId) {
       for (const s of state.slots) {
         if (!s) continue;
-        if (s.clipEndSlotId && String(s.clipEndSlotId) === removedId) s.clipEndSlotId = null;
+        const att = getActiveAttachment(s);
+        if (att && att.clipEndSlotId && String(att.clipEndSlotId) === removedId) att.clipEndSlotId = null;
       }
     }
     if (Number.isFinite(nextActive)) {
@@ -2752,17 +2767,68 @@ function drawObjectModeTargetsOverlay(ctx, m, bones, world) {
   }
 }
 
-function updateTexture() {
-  if (!state.sourceCanvas) return;
-  if (!hasGL) return;
-  if (!state.texture) state.texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, state.texture);
+function getGLTextureCache() {
+  if (!hasGL) return null;
+  if (!state.glTextureCache || typeof state.glTextureCache.get !== "function") {
+    state.glTextureCache = new WeakMap();
+  }
+  return state.glTextureCache;
+}
+
+function createGLTextureEntry(canvas) {
+  if (!hasGL || !canvas) return null;
+  const texture = gl.createTexture();
+  if (!texture) return null;
+  gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, state.sourceCanvas);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+  return {
+    texture,
+    width: Math.max(1, Number(canvas.width) || 1),
+    height: Math.max(1, Number(canvas.height) || 1),
+  };
+}
+
+function ensureGLTextureForCanvas(canvas) {
+  if (!hasGL || !canvas) return null;
+  const cache = getGLTextureCache();
+  if (!cache) return null;
+  const width = Math.max(1, Number(canvas.width) || 1);
+  const height = Math.max(1, Number(canvas.height) || 1);
+  let entry = cache.get(canvas);
+  if (!entry) {
+    entry = createGLTextureEntry(canvas);
+    if (!entry) return null;
+    cache.set(canvas, entry);
+    return entry.texture;
+  }
+  if (entry.width !== width || entry.height !== height) {
+    gl.bindTexture(gl.TEXTURE_2D, entry.texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    entry.width = width;
+    entry.height = height;
+  }
+  return entry.texture;
+}
+
+function resetGLTextureCache() {
+  if (!hasGL) {
+    state.texture = null;
+    return;
+  }
+  state.glTextureCache = new WeakMap();
+  state.texture = null;
+}
+
+function updateTexture() {
+  if (!state.sourceCanvas) return;
+  if (!hasGL) return;
+  state.texture = ensureGLTextureForCanvas(state.sourceCanvas);
+  if (typeof requestRender === "function") requestRender("texture");
 }
 
 function makeCanvas(w, h) {
@@ -2902,6 +2968,11 @@ function refreshSlotUI() {
     const current = s ? getSlotCurrentAttachmentName(s) : null;
     els.slotAttachment.value = current ? current : "__none__";
     els.slotAttachment.disabled = !s;
+  }
+  if (els.slotAttachmentVisible) {
+    const attachmentCount = s ? ensureSlotAttachments(s).length : 0;
+    els.slotAttachmentVisible.checked = !!(s && getSlotCurrentAttachmentName(s));
+    els.slotAttachmentVisible.disabled = !s || attachmentCount <= 0;
   }
   if (els.slotAttachmentAddBtn) els.slotAttachmentAddBtn.disabled = !s;
   if (els.slotAttachmentDeleteBtn) {
@@ -3637,4 +3708,3 @@ function setupLeftToolTabs() {
   bind(els.leftTabTools, "tools");
   bind(els.leftTabSlotMesh, "slotmesh");
 }
-

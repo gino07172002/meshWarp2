@@ -1,3 +1,7 @@
+node_modules/
+backup/
+stateMachineBridge.json
+stateMachineBridgeSamples.txt
 vendor/mediapipe/
 vendor/pose-runtime/
 .tmp_pose_vendor/

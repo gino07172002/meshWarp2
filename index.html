@@ -94,7 +94,6 @@
             </select>
           </div>
         </div>
-        <!-- workspaceTabAnimate kept as null ref; mode switching via wsModeSelect -->
         <span id="workspaceModeLabel" class="workspace-mode-label" title="Current workspace"></span>
         <div class="topbar-left">
           <button id="fileNewBtn">New</button>
@@ -513,6 +512,12 @@
             <span>Active Attachment</span>
             <select id="slotAttachment"></select>
           </label>
+          <div class="field">
+            <label class="slot-inline-check">
+              <input id="slotAttachmentVisible" type="checkbox" checked />
+              <span>Visible</span>
+            </label>
+          </div>
           <label class="field">
             <span>Attachment Name</span>
             <input id="slotAttachmentName" type="text" value="" />
@@ -1195,32 +1200,49 @@
       </div>
       <div class="field anim-toolbar">
         <select id="animSelect" title="Animation"></select>
-        <button id="addAnimBtn">+Anim</button>
-        <button id="deleteAnimBtn">-Anim</button>
-        <button id="duplicateAnimBtn">Dup</button>
         <input id="animName" type="text" value="Anim 1" placeholder="Name" title="Animation Name" />
+        <select id="animActionSelect" title="Animation Actions">
+          <option value="new" selected>New Anim</option>
+          <option value="duplicate">Duplicate</option>
+          <option value="delete">Delete</option>
+        </select>
+        <button id="animActionBtn" type="button">Anim</button>
         <input id="animTime" type="number" min="0" step="0.1" value="0" title="Time" />
         <input id="animDuration" type="number" min="0.1" step="0.1" value="5" title="Duration" />
-        <label class="mini-flag">Start <input id="animRangeStart" type="number" min="0" step="0.1" value="0" title="Animation Start Time" /></label>
-        <label class="mini-flag">End <input id="animRangeEnd" type="number" min="0.1" step="0.1" value="5" title="Animation End Time" /></label>
         <label class="mini-flag"><input id="animLoop" type="checkbox" checked />Loop</label>
-        <label class="mini-flag"><input id="animSnap" type="checkbox" />Snap</label>
-        <label class="mini-flag">FPS <input id="animFps" type="number" min="1" step="1" value="30" /></label>
-        <label class="mini-flag">Step <input id="animTimeStep" type="number" min="0.1" step="0.1"
-            value="0.1" /></label>
+        <button id="playBtn">Play</button>
+        <button id="stopBtn">Stop</button>
         <button id="timelineZoomOutBtn" type="button" title="Zoom out timeline">-</button>
         <button id="timelineZoomResetBtn" type="button" title="Reset timeline zoom">100%</button>
         <button id="timelineZoomInBtn" type="button" title="Zoom in timeline">+</button>
         <button id="timelineCollapseBtn" type="button" title="Minimize timeline">Min</button>
+        <div class="toolbar-hidden-actions" aria-hidden="true">
+          <button id="addAnimBtn" type="button" tabindex="-1">+Anim</button>
+          <button id="deleteAnimBtn" type="button" tabindex="-1">-Anim</button>
+          <button id="duplicateAnimBtn" type="button" tabindex="-1">Dup</button>
+          <button id="loopMakeSeamBtn" type="button" tabindex="-1">Loop Seam</button>
+          <button id="loopPingPongBtn" type="button" tabindex="-1">Loop PingPong</button>
+          <button id="deleteKeyBtn" type="button" tabindex="-1">Del Key</button>
+          <button id="cutKeyBtn" type="button" tabindex="-1">Cut</button>
+          <button id="copyKeyBtn" type="button" tabindex="-1">Copy</button>
+          <button id="pasteKeyBtn" type="button" tabindex="-1">Paste</button>
+        </div>
       </div>
-      <div class="field timeline-meta timeline-meta-tight">
-        <input id="trackSelect" type="text" value="" readonly title="Selected Track" placeholder="Select a track in timeline" />
-        <input id="keyInfo" type="text" value="(none)" readonly title="Current Key" />
-        <input id="timelineFilter" type="text" value="" placeholder="Filter tracks" title="Filter tracks" />
-        <label class="mini-flag"><input id="timelineOnlyKeyed" type="checkbox" />Only Keyed</label>
-        <button id="timelineClearSoloMuteBtn" type="button" title="Clear all solo/mute">Clear S/M</button>
-      </div>
-      <div class="field timeline-actions">
+      <div class="field timeline-workbar">
+        <div class="timeline-trackbar">
+          <input id="trackSelect" type="text" value="" readonly title="Selected Track" placeholder="Select a track in timeline" />
+          <input id="keyInfo" type="text" value="(none)" readonly title="Current Key" />
+          <input id="timelineFilter" type="text" value="" placeholder="Filter tracks" title="Filter tracks" />
+          <label class="mini-flag"><input id="timelineOnlyKeyed" type="checkbox" />Only Keyed</label>
+          <button id="timelineClearSoloMuteBtn" type="button" title="Clear all solo/mute">Clear S/M</button>
+          <label class="mini-flag">Start <input id="animRangeStart" type="number" min="0" step="0.1" value="0" title="Animation Start Time" /></label>
+          <label class="mini-flag">End <input id="animRangeEnd" type="number" min="0.1" step="0.1" value="5" title="Animation End Time" /></label>
+          <label class="mini-flag"><input id="animSnap" type="checkbox" />Snap</label>
+          <label class="mini-flag">FPS <input id="animFps" type="number" min="1" step="1" value="30" /></label>
+          <label class="mini-flag">Step <input id="animTimeStep" type="number" min="0.1" step="0.1"
+              value="0.1" /></label>
+        </div>
+        <div class="timeline-editbar">
         <button id="autoKeyBtn" title="Auto Key">● Rec</button>
         <button id="addKeyBtn">+Key</button>
         <select id="addSpecialKeySelect" title="Special Keys">
@@ -1231,25 +1253,24 @@
           <option value="clipEnd">ClipEnd Key</option>
           <option value="drawOrder">DrawOrder Key</option>
         </select>
-        <button id="addSpecialKeyBtn">+Special Key</button>
-        <button id="loopMakeSeamBtn" type="button">Loop Seam</button>
-        <button id="loopPingPongBtn" type="button">Loop PingPong</button>
-        <button id="drawOrderToggleBtn" type="button">DrawOrder Edit</button>
-        <button id="deleteKeyBtn">Del Key</button>
-        <button id="cutKeyBtn">Cut</button>
-        <button id="copyKeyBtn">Copy</button>
-        <button id="pasteKeyBtn">Paste</button>
-        <button id="playBtn">Play</button>
-        <button id="stopBtn">Stop</button>
-        <select id="animMixTo" title="Mix To Animation"></select>
-        <input id="animMixDur" type="number" min="0.01" step="0.01" value="0.2" title="Mix Duration (s)" />
-        <button id="animMixBtn" type="button">Mix To</button>
-        <input id="animMixInfo" type="text" value="State: idle" readonly title="Mix State" />
+        <button id="addSpecialKeyBtn">Add...</button>
+        <select id="timelineLoopToolSelect" title="Loop Tools">
+          <option value="seam" selected>Loop Seam</option>
+          <option value="pingpong">Loop PingPong</option>
+        </select>
+        <button id="timelineLoopToolBtn" type="button">Loop Tools</button>
+        <button id="drawOrderToggleBtn" type="button" class="contextual-tool hidden">Draw Order</button>
         <label class="mini-flag"><input id="onionEnabled" type="checkbox" />Onion</label>
-        <label class="mini-flag">Prev <input id="onionPrev" type="number" min="0" max="12" step="1" value="2" /></label>
-        <label class="mini-flag">Next <input id="onionNext" type="number" min="0" max="12" step="1" value="2" /></label>
-        <label class="mini-flag">A <input id="onionAlpha" type="number" min="0.01" max="1" step="0.01"
-            value="0.22" /></label>
+        <details class="toolbar-popover">
+          <summary>Onion Opt</summary>
+          <div class="toolbar-popover-body">
+            <label class="mini-flag">Prev <input id="onionPrev" type="number" min="0" max="12" step="1" value="2" /></label>
+            <label class="mini-flag">Next <input id="onionNext" type="number" min="0" max="12" step="1" value="2" /></label>
+            <label class="mini-flag">A <input id="onionAlpha" type="number" min="0.01" max="1" step="0.01"
+                value="0.22" /></label>
+          </div>
+        </details>
+        </div>
       </div>
       <div id="drawOrderEditor" class="field draworder-editor collapsed">
         <div class="draworder-head">Draw Order Editor</div>
@@ -1346,6 +1367,13 @@
     <section id="stateDock" class="state-dock">
       <div class="timeline-head">State Machine</div>
       <p class="muted">State and transition tools are isolated from timeline editing.</p>
+      <div class="field timeline-layerbar">
+        <span class="mini-label">Mix</span>
+        <select id="animMixTo" title="Mix To Animation"></select>
+        <input id="animMixDur" type="number" min="0.01" step="0.01" value="0.2" title="Mix Duration (s)" />
+        <button id="animMixBtn" type="button">Mix To</button>
+        <input id="animMixInfo" type="text" value="State: idle" readonly title="Mix State" />
+      </div>
       <div class="field timeline-layerbar">
         <span class="mini-label">State Machine</span>
         <label class="mini-flag"><input id="smEnabled" type="checkbox" checked />On</label>

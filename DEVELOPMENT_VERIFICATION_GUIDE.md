@@ -36,7 +36,7 @@
 ## 2. 最小驗證閉環（必跑）
 
 1. 靜態/語法檢查  
-   - 例如：`node --check app.js`
+   - 例如：`Get-ChildItem app -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }`
 2. 主流程手測（針對本次需求）
 3. 回歸手測（至少覆蓋相鄰功能）
 4. 存檔/讀檔一致性  

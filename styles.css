@@ -527,13 +527,6 @@ body {
   border-bottom-color: rgba(160, 100, 20, 0.4);
 }
 
-/* Legacy sidebar workspace-tabs (AnimateSubTabs etc.) */
-.workspace-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-  margin: 6px 0 8px;
-}
 .workspace-tab-btn {
   width: 100%;
   min-width: 0;
@@ -1705,6 +1698,38 @@ button:hover {
   align-items: center;
 }
 
+.timeline-workbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.timeline-trackbar,
+.timeline-editbar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+}
+
+.timeline-trackbar {
+  flex: 0 0 auto;
+}
+
+.timeline-editbar {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+}
+
 .anim-toolbar {
   display: flex;
   flex-direction: row;
@@ -1720,6 +1745,13 @@ button:hover {
 
 .anim-toolbar>* {
   flex: 0 0 auto;
+}
+
+.timeline-trackbar > *,
+.timeline-editbar > * {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  max-width: none;
 }
 
 .anim-toolbar #timelineCollapseBtn {
@@ -1754,12 +1786,24 @@ button:hover {
   width: auto;
 }
 
+.toolbar-hidden-actions {
+  display: none !important;
+}
+
 .anim-toolbar #animSelect {
   width: 120px;
 }
 
 .anim-toolbar #animName {
   width: 150px;
+}
+
+.anim-toolbar #animActionSelect {
+  width: 102px;
+}
+
+.anim-toolbar #animActionBtn {
+  min-width: 44px;
 }
 
 .anim-toolbar #animTime,
@@ -1790,6 +1834,104 @@ button:hover {
 .timeline-meta #trackSelect[readonly] {
   cursor: default;
   color: #d7e6ee;
+}
+
+.timeline-workbar #trackSelect[readonly],
+.timeline-workbar #keyInfo[readonly] {
+  cursor: default;
+  color: #d7e6ee;
+}
+
+.timeline-workbar #trackSelect {
+  width: 270px;
+}
+
+.timeline-workbar #keyInfo {
+  width: min(360px, 26vw);
+}
+
+.timeline-workbar #timelineFilter {
+  width: 160px;
+}
+
+.timeline-workbar #timelineClearSoloMuteBtn,
+.timeline-workbar #addSpecialKeyBtn,
+.timeline-workbar #timelineLoopToolBtn {
+  min-width: 0;
+}
+
+.timeline-workbar #animRangeStart,
+.timeline-workbar #animRangeEnd {
+  width: 58px;
+}
+
+.timeline-workbar #animFps {
+  width: 48px;
+}
+
+.timeline-workbar #animTimeStep {
+  width: 56px;
+}
+
+.timeline-editbar #addSpecialKeySelect {
+  width: 112px;
+}
+
+.timeline-editbar #timelineLoopToolSelect {
+  width: 120px;
+}
+
+.timeline-editbar #timelineLoopToolBtn {
+  min-width: 72px;
+}
+
+.contextual-tool.hidden {
+  display: none !important;
+}
+
+.toolbar-popover {
+  position: relative;
+  flex: 0 0 auto !important;
+}
+
+.toolbar-popover summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 10px;
+  min-height: 22px;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 27, 35, 0.92);
+  color: var(--text);
+}
+
+.toolbar-popover summary::-webkit-details-marker {
+  display: none;
+}
+
+.toolbar-popover[open] summary {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+.toolbar-popover-body {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 4px;
+  min-width: 112px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(9, 16, 21, 0.96);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+
+.toolbar-popover-body input[type="number"] {
+  width: 54px;
 }
 
 .timeline-actions {
@@ -2082,8 +2224,8 @@ button:hover {
 .timeline-main {
   display: flex;
   gap: 8px;
-  min-height: 0;
-  flex: 1;
+  min-height: 120px;
+  flex: 1 1 auto;
 }
 
 .curve-side {
@@ -2224,8 +2366,8 @@ button:hover {
   border-radius: 10px;
   background: rgba(8, 14, 18, 0.8);
   padding: 6px;
-  min-height: 90px;
-  flex: 1;
+  min-height: 140px;
+  flex: 1 1 auto;
   overflow: auto;
 }
 
@@ -2771,6 +2913,26 @@ button:hover {
 
   .timeline-meta-tight {
     grid-template-columns: 1fr 1fr 120px auto 74px;
+  }
+
+  .timeline-workbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .timeline-trackbar,
+  .timeline-editbar {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .timeline-workbar #trackSelect,
+  .timeline-workbar #keyInfo,
+  .timeline-workbar #timelineFilter {
+    width: auto;
+    max-width: none;
   }
 
   .timeline-main {

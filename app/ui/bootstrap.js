@@ -157,6 +157,12 @@ els.overlay.addEventListener("pointerleave", () => {
 els.overlay.addEventListener("contextmenu", (ev) => {
   ev.preventDefault();
 });
+els.overlay.addEventListener("mousedown", (ev) => {
+  if (ev.button === 1) ev.preventDefault();
+});
+els.overlay.addEventListener("auxclick", (ev) => {
+  if (ev.button === 1) ev.preventDefault();
+});
 els.overlay.addEventListener("dragstart", (ev) => {
   ev.preventDefault();
 });
@@ -188,18 +194,40 @@ els.overlay.addEventListener(
   },
   { passive: false }
 );
-window.addEventListener("resize", resize);
 window.addEventListener("resize", () => {
+  markStageResizeDirty();
+  resize();
   if (state.boneTreeMenuOpen) closeBoneTreeContextMenu();
   closeBoneDeleteQuickMenu();
 });
+if (typeof ResizeObserver !== "undefined" && els.stage) {
+  const stageResizeObserver = new ResizeObserver(() => {
+    markStageResizeDirty();
+  });
+  stageResizeObserver.observe(els.stage);
+}
+const requestRenderFromUI = () => {
+  if (typeof requestRender === "function") requestRender("ui");
+};
+for (const evt of ["click", "change", "input", "keydown", "keyup"]) {
+  document.addEventListener(evt, requestRenderFromUI, true);
+}
+if (els.overlay) {
+  for (const evt of ["pointerdown", "pointermove", "pointerup", "pointercancel", "pointerleave", "wheel"]) {
+    els.overlay.addEventListener(evt, requestRenderFromUI, { passive: evt === "wheel" ? false : true });
+  }
+}
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) requestRenderFromUI();
+});
+markStageResizeDirty();
 
 setupLeftToolTabs();
 setupWorkspaceTabs();
 setupAnimateSubTabs();
 mountAnimateAuxPanelsInLeftTools();
 setupApplicationMenuBar();
-render();
+requestRender("bootstrap");
 state.editMode =
   els.editMode && (els.editMode.value === "skeleton" || els.editMode.value === "mesh")
     ? els.editMode.value
@@ -260,4 +288,3 @@ void (async () => {
   state.autosave.ready = true;
   startAutosaveLoop();
 })();
-

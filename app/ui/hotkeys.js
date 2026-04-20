@@ -16,6 +16,13 @@ window.addEventListener("keyup", (ev) => {
 window.addEventListener("blur", () => {
   state.anim.timelineScaleHeld = false;
 });
+
+function isMiddleMousePanEvent(ev) {
+  if (!ev) return false;
+  const buttons = Number(ev.buttons) || 0;
+  return ev.button === 1 || (buttons & 4) === 4;
+}
+
 if (els.timelineZoomOutBtn) {
   els.timelineZoomOutBtn.addEventListener("click", () => {
     zoomTimelineBy(1 / 1.25);
@@ -690,7 +697,8 @@ window.addEventListener("keydown", async (ev) => {
 
 els.overlay.addEventListener("pointerdown", (ev) => {
   const panMode = !!(state.view && state.view.panMode);
-  if (!state.mesh && !isBaseImageEditTabActive() && !panMode) return;
+  const middlePan = isMiddleMousePanEvent(ev);
+  if (!state.mesh && !isBaseImageEditTabActive() && !panMode && !middlePan) return;
 
   const rect = els.overlay.getBoundingClientRect();
   const dpr = els.overlay.width / rect.width;
@@ -698,8 +706,9 @@ els.overlay.addEventListener("pointerdown", (ev) => {
   const my = (ev.clientY - rect.top) * dpr;
   const local = screenToLocal(mx, my);
 
-  if (panMode) {
-    if (ev.button !== 0) return;
+  if (panMode || middlePan) {
+    if (!middlePan && ev.button !== 0) return;
+    ev.preventDefault();
     state.drag = {
       type: "view_pan",
       pointerId: ev.pointerId,
@@ -1242,8 +1251,11 @@ els.overlay.addEventListener("pointerdown", (ev) => {
 });
 
 els.overlay.addEventListener("pointermove", (ev) => {
+  const panMode = !!(state.view && state.view.panMode);
+  const middlePan = isMiddleMousePanEvent(ev);
   const allowNoMesh =
     isBaseImageEditTabActive() ||
+    middlePan ||
     (state.drag &&
       (String(state.drag.type || "").startsWith("base_transform_") || state.drag.type === "view_pan"));
   if (!state.mesh && !allowNoMesh) return;
@@ -1299,9 +1311,26 @@ els.overlay.addEventListener("pointermove", (ev) => {
     state.objectScaleHoverRoot = -1;
     if (els.overlay) els.overlay.style.cursor = "";
   }
+  if (!state.drag && middlePan) {
+    ev.preventDefault();
+    state.drag = {
+      type: "view_pan",
+      pointerId: ev.pointerId,
+      prevX: mx,
+      prevY: my,
+    };
+    if (els.stage) els.stage.classList.add("dragging-pan");
+    try {
+      els.overlay.setPointerCapture(ev.pointerId);
+    } catch {
+      // ignore
+    }
+    return;
+  }
   if (!state.drag) return;
 
   if (state.drag.type === "view_pan") {
+    if (!panMode && !middlePan && ev.pointerId === state.drag.pointerId) return;
     const dx = mx - (Number(state.drag.prevX) || mx);
     const dy = my - (Number(state.drag.prevY) || my);
     state.view.cx += dx;
@@ -1770,4 +1799,3 @@ els.overlay.addEventListener("pointermove", (ev) => {
     updateBoneUI();
   }
 });
-

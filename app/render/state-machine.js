@@ -67,12 +67,6 @@ function installStateMachineBridgeApi() {
   window.animBridge = api;
 }
 
-function getStateParamCurrentValue(param) {
-  if (!param) return 0;
-  if (param.type === "bool") return param.value === true;
-  return Number(param.value);
-}
-
 function evaluateStateTransitionCondition(cond, sm) {
   if (!cond || !sm) return false;
   const param = getStateParamById(sm, cond.paramId);
@@ -275,5 +269,4 @@ function clearAutosaveSnapshot() {
     // ignore
   }
 }
-
 
