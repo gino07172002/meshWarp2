@@ -1288,18 +1288,10 @@ function updateBoneSelectors() {
 }
 
 function refreshBoneTreeFilterUI() {
-  bindBoneTreeHumanoidBoneButton();
   const deleteInfo = getSelectedBoneDeleteInfo();
   const canDeleteBone = deleteInfo.canDelete;
   if (els.boneTreeAddBoneBtn) {
     els.boneTreeAddBoneBtn.disabled = !state.mesh || state.boneMode !== "edit";
-  }
-  if (els.boneTreeHumanoidBoneBtn) {
-    const ready = !!state.mesh && state.boneMode === "edit";
-    els.boneTreeHumanoidBoneBtn.disabled = false;
-    els.boneTreeHumanoidBoneBtn.title = ready
-      ? "Auto-generate humanoid parent-child rig"
-      : "Need mesh + Skeleton/Edit mode";
   }
   if (els.boneTreeDeleteBoneBtn) {
     els.boneTreeDeleteBoneBtn.disabled = !canDeleteBone;
@@ -1381,16 +1373,25 @@ function refreshBoneDeleteQuickMenuUI() {
   }
 }
 
-function isBoneTreeInlineRename(kind, index) {
+function isBoneTreeInlineRename(kind, index, attachmentName) {
   const rename = state.boneTreeInlineRename || { kind: "", index: -1 };
-  return rename.kind === kind && Number(rename.index) === Number(index);
+  if (rename.kind !== kind) return false;
+  if (kind === "attachment") {
+    return Number(rename.index) === Number(index) && rename.attachmentName === attachmentName;
+  }
+  return Number(rename.index) === Number(index);
 }
 
-function focusBoneTreeInlineRenameInput(kind, index) {
+function focusBoneTreeInlineRenameInput(kind, index, attachmentName) {
   if (!els.boneTree) return;
   const idx = Number(index);
   if (!Number.isFinite(idx)) return;
-  const selector = `input.tree-rename-input[data-rename-kind="${kind}"][data-rename-index="${idx}"]`;
+  let selector;
+  if (kind === "attachment") {
+    selector = `input.tree-rename-input[data-rename-kind="attachment"][data-rename-index="${idx}"][data-rename-att="${CSS.escape(String(attachmentName || ""))}"]`;
+  } else {
+    selector = `input.tree-rename-input[data-rename-kind="${kind}"][data-rename-index="${idx}"]`;
+  }
   const input = els.boneTree.querySelector(selector);
   if (!(input instanceof HTMLInputElement)) return;
   input.focus();
@@ -1398,11 +1399,11 @@ function focusBoneTreeInlineRenameInput(kind, index) {
 }
 
 function clearBoneTreeInlineRename(skipRender = false) {
-  state.boneTreeInlineRename = { kind: "", index: -1 };
+  state.boneTreeInlineRename = { kind: "", index: -1, attachmentName: "" };
   if (!skipRender) renderBoneTree();
 }
 
-function commitBoneTreeInlineRename(kind, index, nextRaw) {
+function commitBoneTreeInlineRename(kind, index, nextRaw, attachmentName) {
   const idx = Number(index);
   if (!Number.isFinite(idx) || idx < 0) {
     clearBoneTreeInlineRename();
@@ -1411,7 +1412,7 @@ function commitBoneTreeInlineRename(kind, index, nextRaw) {
   const next = String(nextRaw || "").trim();
   if (!next) {
     setStatus("Name cannot be empty.");
-    requestAnimationFrame(() => focusBoneTreeInlineRenameInput(kind, idx));
+    requestAnimationFrame(() => focusBoneTreeInlineRenameInput(kind, idx, attachmentName));
     return false;
   }
 
@@ -1455,11 +1456,65 @@ function commitBoneTreeInlineRename(kind, index, nextRaw) {
     return true;
   }
 
+  if (kind === "attachment") {
+    if (idx >= state.slots.length || !state.slots[idx]) {
+      clearBoneTreeInlineRename();
+      return false;
+    }
+    const slot = state.slots[idx];
+    const currentAttName = String(attachmentName || "");
+    const att = getSlotAttachmentEntry(slot, currentAttName);
+    if (!att) {
+      clearBoneTreeInlineRename();
+      return false;
+    }
+    if (next === currentAttName) {
+      clearBoneTreeInlineRename();
+      return false;
+    }
+    const used = new Set(ensureSlotAttachments(slot).map((a) => a.name).filter((n) => n !== currentAttName));
+    let finalName = next;
+    if (used.has(finalName)) {
+      let i = 2;
+      let cand = `${finalName}_${i}`;
+      while (used.has(cand)) { i += 1; cand = `${finalName}_${i}`; }
+      finalName = cand;
+    }
+    att.name = finalName;
+    if (slot.attachmentName === currentAttName) slot.attachmentName = finalName;
+    if (slot.activeAttachment === currentAttName) slot.activeAttachment = finalName;
+    if (slot.id) {
+      for (const skin of ensureSkinSets()) {
+        if (!skin || !skin.slotAttachments) continue;
+        if (skin.slotAttachments[slot.id] === currentAttName) skin.slotAttachments[slot.id] = finalName;
+      }
+    }
+    const anim = getCurrentAnimation();
+    if (anim && anim.tracks) {
+      for (const trackId of Object.keys(anim.tracks)) {
+        const p = parseTrackId(trackId);
+        if (!p || p.type !== "slot" || p.prop !== "attachment" || p.slotIndex !== idx) continue;
+        const keys = getTrackKeys(anim, trackId);
+        for (const k of keys) {
+          if (k && typeof k.value === "string" && k.value === currentAttName) k.value = finalName;
+        }
+        normalizeTrackKeys(anim, trackId);
+      }
+    }
+    clearBoneTreeInlineRename(true);
+    refreshSlotUI();
+    renderBoneTree();
+    renderTimelineTracks();
+    pushUndoCheckpoint(true);
+    setStatus(`Attachment renamed: ${currentAttName} -> ${finalName}`);
+    return true;
+  }
+
   clearBoneTreeInlineRename();
   return false;
 }
 
-function startBoneTreeInlineRename(kind, index) {
+function startBoneTreeInlineRename(kind, index, attachmentName) {
   const idx = Number(index);
   if (!Number.isFinite(idx) || idx < 0) return false;
   if (kind === "slot") {
@@ -1475,12 +1530,19 @@ function startBoneTreeInlineRename(kind, index) {
       updateBoneUI();
     }
     setRightPropsFocus("bone");
+  } else if (kind === "attachment") {
+    if (idx >= state.slots.length || !state.slots[idx]) return false;
+    const slot = state.slots[idx];
+    if (!getSlotAttachmentEntry(slot, String(attachmentName || ""))) return false;
+    if (state.activeSlot !== idx) setActiveSlot(idx);
+    slot.activeAttachment = String(attachmentName);
+    setRightPropsFocus("attachment");
   } else {
     return false;
   }
-  state.boneTreeInlineRename = { kind, index: idx };
+  state.boneTreeInlineRename = { kind, index: idx, attachmentName: String(attachmentName || "") };
   renderBoneTree();
-  requestAnimationFrame(() => focusBoneTreeInlineRenameInput(kind, idx));
+  requestAnimationFrame(() => focusBoneTreeInlineRenameInput(kind, idx, attachmentName));
   return true;
 }
 
@@ -1529,19 +1591,20 @@ function renderBoneTree() {
     return Number(slotIndex) === Number(state.activeSlot);
   };
 
-  const makeRenameInput = (kind, index, currentValue) => {
+  const makeRenameInput = (kind, index, currentValue, attachmentName) => {
     const input = document.createElement("input");
     input.type = "text";
     input.className = "tree-rename-input";
     input.dataset.renameKind = kind;
     input.dataset.renameIndex = String(index);
+    if (kind === "attachment") input.dataset.renameAtt = String(attachmentName || "");
     input.value = String(currentValue || "");
     input.autocomplete = "off";
     input.spellcheck = false;
     input.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
         ev.preventDefault();
-        commitBoneTreeInlineRename(kind, index, input.value);
+        commitBoneTreeInlineRename(kind, index, input.value, attachmentName);
         return;
       }
       if (ev.key === "Escape") {
@@ -1550,7 +1613,7 @@ function renderBoneTree() {
       }
     });
     input.addEventListener("blur", () => {
-      commitBoneTreeInlineRename(kind, index, input.value);
+      commitBoneTreeInlineRename(kind, index, input.value, attachmentName);
     });
     return input;
   };
@@ -1624,14 +1687,19 @@ function renderBoneTree() {
         const slotAttachments = ensureSlotAttachments(s);
         const currentAttName = getSlotCurrentAttachmentName(s);
         const attDepthPx = depth * 14 + 32;
-        for (const att of slotAttachments) {
+        const typeMap = { region: "R", mesh: "M", linkedmesh: "LM", boundingbox: "BB", clipping: "CL", point: "PT" };
+        for (let ai = 0; ai < slotAttachments.length; ai += 1) {
+          const att = slotAttachments[ai];
           const isActive = att.name === currentAttName;
+          const isRenaming = isBoneTreeInlineRename("attachment", si, att.name);
           const attRow = document.createElement("div");
           attRow.className = `tree-item tree-attachment${isActive ? " active-attachment" : ""}`;
           attRow.style.marginLeft = `${attDepthPx}px`;
           attRow.dataset.slotIndex = String(si);
           attRow.dataset.attachmentName = att.name;
-          attRow.title = `Attachment: ${att.name} (${normalizeAttachmentType(att.type)})${isActive ? " — ACTIVE" : ""}. Click to set active.`;
+          attRow.dataset.attachmentIndex = String(ai);
+          attRow.draggable = true;
+          attRow.title = `Attachment: ${att.name} (${normalizeAttachmentType(att.type)})${isActive ? " — ACTIVE" : ""}. Drag to reorder. Double-click to rename.`;
 
           const dot = document.createElement("span");
           dot.className = "att-active-dot";
@@ -1639,14 +1707,18 @@ function renderBoneTree() {
 
           const typeBadge = document.createElement("span");
           typeBadge.className = "att-type-badge";
-          const typeMap = { region: "R", mesh: "M", linkedmesh: "LM", boundingbox: "BB", clipping: "CL", point: "PT" };
           typeBadge.textContent = typeMap[normalizeAttachmentType(att.type)] || "R";
           attRow.appendChild(typeBadge);
 
-          const attName = document.createElement("span");
-          attName.className = "att-name";
-          attName.textContent = att.name;
-          attRow.appendChild(attName);
+          if (isRenaming) {
+            const input = makeRenameInput("attachment", si, att.name, att.name);
+            attRow.appendChild(input);
+          } else {
+            const attNameSpan = document.createElement("span");
+            attNameSpan.className = "att-name";
+            attNameSpan.textContent = att.name;
+            attRow.appendChild(attNameSpan);
+          }
 
           els.boneTree.appendChild(attRow);
         }
@@ -1825,16 +1897,6 @@ function updateBoneUI() {
     els.boneHeadY.value = "0";
     els.boneTipX.value = "0";
     els.boneTipY.value = "0";
-    if (els.boneWorkHidden) {
-      els.boneWorkHidden.checked = false;
-      els.boneWorkHidden.disabled = true;
-    }
-    if (els.boneAnimHidden) {
-      els.boneAnimHidden.checked = false;
-      els.boneAnimHidden.disabled = true;
-    }
-    if (els.boneAnimHideSetKeyBtn) els.boneAnimHideSetKeyBtn.disabled = true;
-    if (els.boneAnimHideDelKeyBtn) els.boneAnimHideDelKeyBtn.disabled = true;
     refreshIKUI();
     refreshAnimationLayerUI();
     refreshTrackSelect();
@@ -1853,17 +1915,6 @@ function updateBoneUI() {
   if (els.boneInherit) els.boneInherit.value = normalizeBoneInheritValue(b.inherit);
   if (!els.addBoneParent.value) {
     els.addBoneParent.value = String(i);
-  }
-  if (els.boneWorkHidden) {
-    const rigBone = m.rigBones[i];
-    normalizeBoneChannels(rigBone);
-    els.boneWorkHidden.checked = !!(rigBone && rigBone.workHidden && isRootBone);
-    els.boneWorkHidden.disabled = !isRootBone;
-  }
-  if (els.boneAnimHidden) {
-    normalizeBoneChannels(b);
-    els.boneAnimHidden.checked = !!(b.animHidden && isRootBone);
-    els.boneAnimHidden.disabled = state.boneMode !== "pose" || !isRootBone;
   }
   els.boneConnect.value = b.connected ? "true" : "false";
   els.bonePoseLen.value = b.poseLenEditable === false ? "false" : "true";
@@ -1903,8 +1954,6 @@ function updateBoneUI() {
   if (els.boneScaleY) els.boneScaleY.disabled = false;
   if (els.boneShearX) els.boneShearX.disabled = false;
   if (els.boneShearY) els.boneShearY.disabled = false;
-  if (els.boneAnimHideSetKeyBtn) els.boneAnimHideSetKeyBtn.disabled = !poseMode;
-  if (els.boneAnimHideDelKeyBtn) els.boneAnimHideDelKeyBtn.disabled = !poseMode;
   refreshIKUI();
   refreshAnimationLayerUI();
   refreshTrackSelect();
@@ -2874,78 +2923,20 @@ function getCanvasAlphaBounds(canvas) {
   return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
 }
 
-function refreshSlotUI() {
-  const activeSlot = getActiveSlot();
-  if (els.slotQuickAddBtn) {
-    els.slotQuickAddBtn.disabled = !state.mesh && state.slots.length === 0 && !state.sourceCanvas;
-  }
-  if (els.slotQuickDupBtn) {
-    els.slotQuickDupBtn.disabled = !activeSlot;
-  }
-  if (els.slotQuickDeleteBtn) {
-    els.slotQuickDeleteBtn.disabled = !activeSlot;
-  }
-  refreshBoneTreeContextMenuUI();
-  if (els.slotSelect) {
-    els.slotSelect.innerHTML = "";
-    const none = document.createElement("option");
-    none.value = "-1";
-    none.textContent = "(none)";
-    els.slotSelect.appendChild(none);
-    for (let i = 0; i < state.slots.length; i += 1) {
-      const s = state.slots[i];
-      const opt = document.createElement("option");
-      opt.value = String(i);
-      opt.textContent = `${i}: ${s.name}`;
-      els.slotSelect.appendChild(opt);
+function refreshAttachmentPanel(s) {
+  const activeAttachmentEntry = s ? getSlotAttachmentEntry(s, getSlotCurrentAttachmentName(s)) : null;
+  const activeAttachmentState = s ? getActiveAttachment(s) : null;
+
+  /* --- CSS type-gating: set att-type-* class on #attachmentPropsGroup --- */
+  const attGroup = document.getElementById("attachmentPropsGroup");
+  if (attGroup) {
+    const t = activeAttachmentEntry ? normalizeAttachmentType(activeAttachmentEntry.type) : "region";
+    for (const c of [...attGroup.classList]) {
+      if (c.startsWith("att-type-")) attGroup.classList.remove(c);
     }
-    if (state.activeSlot >= 0 && state.activeSlot < state.slots.length) {
-      els.slotSelect.value = String(state.activeSlot);
-    } else {
-      els.slotSelect.value = "-1";
-    }
+    attGroup.classList.add(`att-type-${t}`);
   }
-  if (els.slotViewMode) {
-    els.slotViewMode.value = state.slotViewMode;
-  }
-  if (els.slotMeshGridReplaceContour) {
-    els.slotMeshGridReplaceContour.checked = !!state.slotMesh.gridReplaceContour;
-  }
-  if (els.slotBone) {
-    els.slotBone.innerHTML = "";
-    const none = document.createElement("option");
-    none.value = "-1";
-    none.textContent = "-1: Unbound";
-    els.slotBone.appendChild(none);
-    if (state.mesh && state.mesh.rigBones) {
-      for (let i = 0; i < state.mesh.rigBones.length; i += 1) {
-        const b = state.mesh.rigBones[i];
-        const opt = document.createElement("option");
-        opt.value = String(i);
-        opt.textContent = `${i}: ${b.name}`;
-        els.slotBone.appendChild(opt);
-      }
-    }
-  }
-  if (els.slotInfluenceBones) {
-    els.slotInfluenceBones.innerHTML = "";
-    if (state.mesh && state.mesh.rigBones) {
-      for (let i = 0; i < state.mesh.rigBones.length; i += 1) {
-        const b = state.mesh.rigBones[i];
-        const opt = document.createElement("option");
-        opt.value = String(i);
-        opt.textContent = `${i}: ${b.name}`;
-        els.slotInfluenceBones.appendChild(opt);
-      }
-    }
-  }
-  const s = activeSlot;
-  if (s) {
-    ensureSlotAttachmentState(s);
-    ensureSlotAttachments(s);
-    ensureSlotVisualState(s);
-  }
-  if (els.slotName) els.slotName.value = s ? s.name : "";
+
   if (els.slotAttachment) {
     els.slotAttachment.innerHTML = "";
     const none = document.createElement("option");
@@ -2975,50 +2966,21 @@ function refreshSlotUI() {
     els.slotAttachmentVisible.disabled = !s || attachmentCount <= 0;
   }
   if (els.slotAttachmentAddBtn) els.slotAttachmentAddBtn.disabled = !s;
+  if (els.slotAttachmentDuplicateBtn) els.slotAttachmentDuplicateBtn.disabled = !s || !getSlotCurrentAttachmentName(s);
   if (els.slotAttachmentDeleteBtn) {
     const canDelete = !!(s && ensureSlotAttachments(s).length > 1 && getSlotCurrentAttachmentName(s));
     els.slotAttachmentDeleteBtn.disabled = !canDelete;
   }
-  if (els.slotAttachmentRenameBtn) els.slotAttachmentRenameBtn.disabled = !s || !getSlotCurrentAttachmentName(s);
   if (els.slotAttachmentLoadBtn) els.slotAttachmentLoadBtn.disabled = !s || !getSlotCurrentAttachmentName(s);
   if (els.slotAttachmentName) {
     const name = s ? getSlotCurrentAttachmentName(s) || "" : "";
     els.slotAttachmentName.value = name;
     els.slotAttachmentName.disabled = !s || !name;
   }
-  if (els.slotPlaceholderName) {
-    const ph = s ? String(s.placeholderName || s.attachmentName || "main") : "";
-    els.slotPlaceholderName.value = ph;
-    els.slotPlaceholderName.disabled = !s;
-  }
-  if (els.slotAttachmentPlaceholderName) {
-    const aph = s ? getSlotCurrentAttachmentPlaceholder(s) : "";
-    els.slotAttachmentPlaceholderName.value = aph;
-    els.slotAttachmentPlaceholderName.disabled = !s || !getSlotCurrentAttachmentName(s);
-  }
-  const activeAttachmentEntry = s ? getSlotAttachmentEntry(s, getSlotCurrentAttachmentName(s)) : null;
-  const activeAttachmentState = s ? getActiveAttachment(s) : null;
   if (els.slotAttachmentType) {
     const t = activeAttachmentEntry ? normalizeAttachmentType(activeAttachmentEntry.type) : "region";
     els.slotAttachmentType.value = t;
     els.slotAttachmentType.disabled = !activeAttachmentEntry;
-    const isVisual = t === "region" || t === "mesh" || t === "linkedmesh";
-    const isBBox = t === "boundingbox";
-    const isClip = t === "clipping";
-    const lpWrap = document.getElementById("slotAttachmentLinkedParentWrap");
-    if (lpWrap) lpWrap.style.display = t === "linkedmesh" ? "" : "none";
-    const bbWrap = document.getElementById("slotAttachmentBBoxWrap");
-    if (bbWrap) bbWrap.style.display = isBBox ? "" : "none";
-    const imgWrap = document.getElementById("slotImageFieldsWrap");
-    if (imgWrap) imgWrap.style.display = isVisual ? "" : "none";
-    const clipWrap = document.getElementById("slotClipWrap");
-    if (clipWrap) clipWrap.style.display = isClip ? "" : "none";
-    const visWrap = document.getElementById("slotVisualFieldsWrap");
-    if (visWrap) visWrap.style.display = isVisual ? "" : "none";
-    const skinWrap = document.getElementById("slotSkinningWrap");
-    if (skinWrap) skinWrap.style.display = isVisual ? "" : "none";
-    const txWrap = document.getElementById("slotTransformWrap");
-    if (txWrap) txWrap.style.display = isVisual ? "" : "none";
   }
   if (els.slotAttachmentLinkedParent) {
     els.slotAttachmentLinkedParent.innerHTML = "";
@@ -3027,15 +2989,48 @@ function refreshSlotUI() {
     none.textContent = "(none)";
     els.slotAttachmentLinkedParent.appendChild(none);
     if (s && activeAttachmentEntry) {
-      for (const a of ensureSlotAttachments(s)) {
-        if (!a || a.name === activeAttachmentEntry.name) continue;
-        if (normalizeAttachmentType(a.type) !== "mesh" && normalizeAttachmentType(a.type) !== "region") continue;
-        const opt = document.createElement("option");
-        opt.value = String(a.name);
-        opt.textContent = String(a.name);
-        els.slotAttachmentLinkedParent.appendChild(opt);
+      /* Enumerate ALL slots' mesh/region attachments as candidates.
+         Value format: "slotId::attachmentName" for unambiguous cross-slot reference. */
+      let currentGroup = null;
+      for (const candidateSlot of state.slots || []) {
+        if (!candidateSlot) continue;
+        const isSameSlot = candidateSlot === s;
+        const groupLabel = isSameSlot ? `${candidateSlot.name} (this slot)` : candidateSlot.name;
+        let groupEl = null;
+        for (const a of ensureSlotAttachments(candidateSlot)) {
+          if (!a) continue;
+          if (isSameSlot && a.name === activeAttachmentEntry.name) continue;
+          const t = normalizeAttachmentType(a.type);
+          if (t !== "mesh" && t !== "region") continue;
+          if (!groupEl) {
+            groupEl = document.createElement("optgroup");
+            groupEl.label = groupLabel;
+            els.slotAttachmentLinkedParent.appendChild(groupEl);
+          }
+          const opt = document.createElement("option");
+          const val = `${candidateSlot.id}::${a.name}`;
+          opt.value = val;
+          opt.textContent = `${a.name} [${t}]`;
+          groupEl.appendChild(opt);
+        }
       }
-      els.slotAttachmentLinkedParent.value = activeAttachmentEntry.linkedParent ? String(activeAttachmentEntry.linkedParent) : "";
+      /* Resolve current value — support both "slotId::name" and legacy plain name */
+      const raw = activeAttachmentEntry.linkedParent ? String(activeAttachmentEntry.linkedParent) : "";
+      const hasExact = raw && [...els.slotAttachmentLinkedParent.options].some((o) => o.value === raw);
+      if (hasExact) {
+        els.slotAttachmentLinkedParent.value = raw;
+      } else if (raw && raw.indexOf("::") === -1) {
+        /* Legacy plain name: find first matching option across all slots */
+        const match = [...els.slotAttachmentLinkedParent.options].find((o) => o.value.endsWith(`::${raw}`));
+        if (match) {
+          els.slotAttachmentLinkedParent.value = match.value;
+          activeAttachmentEntry.linkedParent = match.value;
+        } else {
+          els.slotAttachmentLinkedParent.value = "";
+        }
+      } else {
+        els.slotAttachmentLinkedParent.value = "";
+      }
     } else {
       els.slotAttachmentLinkedParent.value = "";
     }
@@ -3044,65 +3039,59 @@ function refreshSlotUI() {
   }
   if (els.slotAttachmentPointX) {
     els.slotAttachmentPointX.value = String(activeAttachmentEntry ? Number(activeAttachmentEntry.pointX) || 0 : 0);
-    const can = !!(activeAttachmentEntry && normalizeAttachmentType(activeAttachmentEntry.type) === "point");
-    els.slotAttachmentPointX.disabled = !can;
+    els.slotAttachmentPointX.disabled = !(activeAttachmentEntry && normalizeAttachmentType(activeAttachmentEntry.type) === "point");
   }
   if (els.slotAttachmentPointY) {
     els.slotAttachmentPointY.value = String(activeAttachmentEntry ? Number(activeAttachmentEntry.pointY) || 0 : 0);
-    const can = !!(activeAttachmentEntry && normalizeAttachmentType(activeAttachmentEntry.type) === "point");
-    els.slotAttachmentPointY.disabled = !can;
+    els.slotAttachmentPointY.disabled = !(activeAttachmentEntry && normalizeAttachmentType(activeAttachmentEntry.type) === "point");
   }
   if (els.slotAttachmentPointRot) {
     els.slotAttachmentPointRot.value = String(activeAttachmentEntry ? Number(activeAttachmentEntry.pointRot) || 0 : 0);
-    const can = !!(activeAttachmentEntry && normalizeAttachmentType(activeAttachmentEntry.type) === "point");
-    els.slotAttachmentPointRot.disabled = !can;
+    els.slotAttachmentPointRot.disabled = !(activeAttachmentEntry && normalizeAttachmentType(activeAttachmentEntry.type) === "point");
   }
   if (els.slotAttachmentBBoxSource) {
     els.slotAttachmentBBoxSource.value = activeAttachmentEntry && activeAttachmentEntry.bboxSource === "contour" ? "contour" : "fill";
-    const can = !!(activeAttachmentEntry && normalizeAttachmentType(activeAttachmentEntry.type) === "boundingbox");
-    els.slotAttachmentBBoxSource.disabled = !can;
+    els.slotAttachmentBBoxSource.disabled = !(activeAttachmentEntry && normalizeAttachmentType(activeAttachmentEntry.type) === "boundingbox");
   }
+  const isSeqCapable = !!(activeAttachmentEntry && (
+    normalizeAttachmentType(activeAttachmentEntry.type) === "region" ||
+    normalizeAttachmentType(activeAttachmentEntry.type) === "mesh" ||
+    normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh"
+  ));
   if (els.slotAttachmentSequenceEnabled) {
     const seq = activeAttachmentEntry && activeAttachmentEntry.sequence ? activeAttachmentEntry.sequence : { enabled: false };
     els.slotAttachmentSequenceEnabled.checked = !!seq.enabled;
-    const can = !!(activeAttachmentEntry && (normalizeAttachmentType(activeAttachmentEntry.type) === "region" || normalizeAttachmentType(activeAttachmentEntry.type) === "mesh" || normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh"));
-    els.slotAttachmentSequenceEnabled.disabled = !can;
+    els.slotAttachmentSequenceEnabled.disabled = !isSeqCapable;
   }
   if (els.slotAttachmentSequenceCount) {
     const seq = activeAttachmentEntry && activeAttachmentEntry.sequence ? activeAttachmentEntry.sequence : { count: 1 };
     els.slotAttachmentSequenceCount.value = String(Math.max(1, Math.round(Number(seq.count) || 1)));
-    const can = !!(activeAttachmentEntry && (normalizeAttachmentType(activeAttachmentEntry.type) === "region" || normalizeAttachmentType(activeAttachmentEntry.type) === "mesh" || normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh"));
-    els.slotAttachmentSequenceCount.disabled = !can;
+    els.slotAttachmentSequenceCount.disabled = !isSeqCapable;
   }
   if (els.slotAttachmentSequenceStart) {
     const seq = activeAttachmentEntry && activeAttachmentEntry.sequence ? activeAttachmentEntry.sequence : { start: 0 };
     els.slotAttachmentSequenceStart.value = String(Math.max(0, Math.round(Number(seq.start) || 0)));
-    const can = !!(activeAttachmentEntry && (normalizeAttachmentType(activeAttachmentEntry.type) === "region" || normalizeAttachmentType(activeAttachmentEntry.type) === "mesh" || normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh"));
-    els.slotAttachmentSequenceStart.disabled = !can;
+    els.slotAttachmentSequenceStart.disabled = !isSeqCapable;
   }
   if (els.slotAttachmentSequenceDigits) {
     const seq = activeAttachmentEntry && activeAttachmentEntry.sequence ? activeAttachmentEntry.sequence : { digits: 2 };
     els.slotAttachmentSequenceDigits.value = String(Math.max(1, Math.round(Number(seq.digits) || 2)));
-    const can = !!(activeAttachmentEntry && (normalizeAttachmentType(activeAttachmentEntry.type) === "region" || normalizeAttachmentType(activeAttachmentEntry.type) === "mesh" || normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh"));
-    els.slotAttachmentSequenceDigits.disabled = !can;
+    els.slotAttachmentSequenceDigits.disabled = !isSeqCapable;
   }
   if (els.slotAttachmentSequenceSetupIndex) {
     const seq = activeAttachmentEntry && activeAttachmentEntry.sequence ? activeAttachmentEntry.sequence : { setupIndex: 0 };
     els.slotAttachmentSequenceSetupIndex.value = String(Math.max(0, Math.round(Number(seq.setupIndex) || 0)));
-    const can = !!(activeAttachmentEntry && (normalizeAttachmentType(activeAttachmentEntry.type) === "region" || normalizeAttachmentType(activeAttachmentEntry.type) === "mesh" || normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh"));
-    els.slotAttachmentSequenceSetupIndex.disabled = !can;
+    els.slotAttachmentSequenceSetupIndex.disabled = !isSeqCapable;
   }
   if (els.slotAttachmentSequenceMode) {
     const seq = activeAttachmentEntry && activeAttachmentEntry.sequence ? activeAttachmentEntry.sequence : { mode: 0 };
     els.slotAttachmentSequenceMode.value = String(Number(seq.mode) || 0);
-    const can = !!(activeAttachmentEntry && (normalizeAttachmentType(activeAttachmentEntry.type) === "region" || normalizeAttachmentType(activeAttachmentEntry.type) === "mesh" || normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh"));
-    els.slotAttachmentSequenceMode.disabled = !can;
+    els.slotAttachmentSequenceMode.disabled = !isSeqCapable;
   }
   if (els.slotAttachmentSequencePath) {
     const seq = activeAttachmentEntry && activeAttachmentEntry.sequence ? activeAttachmentEntry.sequence : { path: "" };
     els.slotAttachmentSequencePath.value = String(seq.path || "");
-    const can = !!(activeAttachmentEntry && (normalizeAttachmentType(activeAttachmentEntry.type) === "region" || normalizeAttachmentType(activeAttachmentEntry.type) === "mesh" || normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh"));
-    els.slotAttachmentSequencePath.disabled = !can;
+    els.slotAttachmentSequencePath.disabled = !isSeqCapable;
   }
   if (els.slotClipEnabled) {
     els.slotClipEnabled.checked = !!(activeAttachmentState && activeAttachmentState.clipEnabled);
@@ -3141,7 +3130,39 @@ function refreshSlotUI() {
   if (els.slotClipComboSetKeyBtn) els.slotClipComboSetKeyBtn.disabled = !s || state.activeSlot < 0;
   if (els.slotClipEndSetKeyBtn) els.slotClipEndSetKeyBtn.disabled = !s || state.activeSlot < 0;
   if (els.slotClipEndDelKeyBtn) els.slotClipEndDelKeyBtn.disabled = !s || state.activeSlot < 0;
-  if (els.slotBone) els.slotBone.value = String(s && state.mesh ? getSlotTreeBoneIndex(s, state.mesh) : -1);
+}
+
+function refreshSlotPanel(s) {
+  if (els.slotBone) {
+    els.slotBone.innerHTML = "";
+    const none = document.createElement("option");
+    none.value = "-1";
+    none.textContent = "-1: Unbound";
+    els.slotBone.appendChild(none);
+    if (state.mesh && state.mesh.rigBones) {
+      for (let i = 0; i < state.mesh.rigBones.length; i += 1) {
+        const b = state.mesh.rigBones[i];
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = `${i}: ${b.name}`;
+        els.slotBone.appendChild(opt);
+      }
+    }
+    els.slotBone.value = String(s && state.mesh ? getSlotTreeBoneIndex(s, state.mesh) : -1);
+  }
+  if (els.slotInfluenceBones) {
+    els.slotInfluenceBones.innerHTML = "";
+    if (state.mesh && state.mesh.rigBones) {
+      for (let i = 0; i < state.mesh.rigBones.length; i += 1) {
+        const b = state.mesh.rigBones[i];
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = `${i}: ${b.name}`;
+        els.slotInfluenceBones.appendChild(opt);
+      }
+    }
+  }
+  if (els.slotName) els.slotName.value = s ? s.name : "";
   if (els.slotVisible) els.slotVisible.checked = !!(s ? isSlotEditorVisible(s) : true);
   if (els.slotAlpha) els.slotAlpha.value = String(s ? math.clamp(Number(s.alpha) || 1, 0, 1) : 1);
   if (els.slotColor) {
@@ -3202,6 +3223,44 @@ function refreshSlotUI() {
   if (els.slotTx) els.slotTx.value = String(Math.round(s ? Number(s.tx) || 0 : 0));
   if (els.slotTy) els.slotTy.value = String(Math.round(s ? Number(s.ty) || 0 : 0));
   if (els.slotRot) els.slotRot.value = String(Math.round(math.radToDeg(s ? Number(s.rot) || 0 : 0)));
+}
+
+function refreshSlotUI() {
+  const activeSlot = getActiveSlot();
+  refreshBoneTreeContextMenuUI();
+  if (els.slotSelect) {
+    els.slotSelect.innerHTML = "";
+    const none = document.createElement("option");
+    none.value = "-1";
+    none.textContent = "(none)";
+    els.slotSelect.appendChild(none);
+    for (let i = 0; i < state.slots.length; i += 1) {
+      const s = state.slots[i];
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = `${i}: ${s.name}`;
+      els.slotSelect.appendChild(opt);
+    }
+    if (state.activeSlot >= 0 && state.activeSlot < state.slots.length) {
+      els.slotSelect.value = String(state.activeSlot);
+    } else {
+      els.slotSelect.value = "-1";
+    }
+  }
+  if (els.slotViewMode) {
+    els.slotViewMode.value = state.slotViewMode;
+  }
+  if (els.slotMeshGridReplaceContour) {
+    els.slotMeshGridReplaceContour.checked = !!state.slotMesh.gridReplaceContour;
+  }
+  const s = activeSlot;
+  if (s) {
+    ensureSlotAttachmentState(s);
+    ensureSlotAttachments(s);
+    ensureSlotVisualState(s);
+  }
+  refreshSlotPanel(s);
+  refreshAttachmentPanel(s);
   refreshBaseImageTransformUI();
   refreshSlotMeshContourReferenceHint();
   refreshSkinUI();
@@ -3497,8 +3556,6 @@ function updateWorkspaceUI() {
     els.appRoot.classList.toggle("page-anim", page === "anim");
     els.appRoot.classList.toggle("timeline-minimized", timelineMinimized);
   }
-  if (els.editModeWrap) setVisible(els.editModeWrap, true);
-  if (els.boneModeWrap) setVisible(els.boneModeWrap, true);
   if (els.slotSelectWrap) setVisible(els.slotSelectWrap, false);
   if (els.slotViewWrap) setVisible(els.slotViewWrap, true);
   if (els.editMode) els.editMode.value = state.editMode;
@@ -3641,6 +3698,7 @@ function updateWorkspaceUI() {
   }
   refreshBaseImageTransformUI();
   refreshVertexDeformUI();
+  refreshWebGLSupportUI();
   refreshSlotMeshToolModeUI();
   refreshCanvasInteractionAffordance();
   refreshSetupQuickActions();

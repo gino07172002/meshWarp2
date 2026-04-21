@@ -32,11 +32,97 @@ if (els.fileExportSpineBtn) {
   });
 }
 
+function upgradeLegacyProject(payload) {
+  const data = payload && typeof payload === "object" ? payload : {};
+  const version = Number(data.projectVersion ?? data.version ?? 1);
+  if (!Array.isArray(data.slots)) {
+    data.projectVersion = 2;
+    return data;
+  }
+  if (version >= 2) {
+    data.projectVersion = 2;
+    return data;
+  }
+
+  data.slots = data.slots.map((slot, slotIndex) => {
+    const src = slot && typeof slot === "object" ? slot : {};
+    const baseAttachmentName = String(src.attachmentName || "main").trim() || "main";
+    const basePlaceholder = String(src.placeholderName || baseAttachmentName || "main").trim() || "main";
+    const legacyType = src.meshData ? ATTACHMENT_TYPES.MESH : ATTACHMENT_TYPES.REGION;
+    const attachments = Array.isArray(src.attachments) && src.attachments.length > 0
+      ? src.attachments.map((att, attIndex) => {
+          const rec = att && typeof att === "object" ? { ...att } : {};
+          rec.name = String(rec.name || (attIndex === 0 ? baseAttachmentName : `attachment_${slotIndex}_${attIndex + 1}`)).trim() || `attachment_${slotIndex}_${attIndex + 1}`;
+          rec.placeholder = String(rec.placeholder || basePlaceholder).trim() || basePlaceholder;
+          rec.type = normalizeAttachmentType(rec.type || (rec.meshData ? ATTACHMENT_TYPES.MESH : legacyType));
+          return rec;
+        })
+      : [
+          {
+            name: baseAttachmentName,
+            placeholder: basePlaceholder,
+            type: legacyType,
+          },
+        ];
+
+    const activeName = String(src.activeAttachment || src.attachmentName || attachments[0].name || baseAttachmentName).trim() || attachments[0].name;
+    const activeIndex = Math.max(0, attachments.findIndex((att) => att && att.name === activeName));
+    const target = attachments[activeIndex] || attachments[0];
+    if (target) {
+      if (src.meshData && !target.meshData) target.meshData = src.meshData;
+      if (src.meshContour && !target.meshContour) target.meshContour = src.meshContour;
+      if (Object.prototype.hasOwnProperty.call(src, "useWeights") && !Object.prototype.hasOwnProperty.call(target, "useWeights")) {
+        target.useWeights = src.useWeights;
+      }
+      if (src.weightBindMode && !target.weightBindMode) target.weightBindMode = src.weightBindMode;
+      if (src.weightMode && !target.weightMode) target.weightMode = src.weightMode;
+      if (Array.isArray(src.influenceBones) && (!Array.isArray(target.influenceBones) || target.influenceBones.length <= 0)) {
+        target.influenceBones = src.influenceBones.slice();
+      }
+      if (Object.prototype.hasOwnProperty.call(src, "clipEnabled") && !Object.prototype.hasOwnProperty.call(target, "clipEnabled")) {
+        target.clipEnabled = src.clipEnabled;
+      }
+      if (src.clipSource && !target.clipSource) target.clipSource = src.clipSource;
+      if (Object.prototype.hasOwnProperty.call(src, "clipEndSlotId") && !Object.prototype.hasOwnProperty.call(target, "clipEndSlotId")) {
+        target.clipEndSlotId = src.clipEndSlotId;
+      }
+      if (target.meshData && normalizeAttachmentType(target.type) === ATTACHMENT_TYPES.REGION) {
+        target.type = ATTACHMENT_TYPES.MESH;
+      }
+    }
+
+    const {
+      meshData,
+      meshContour,
+      useWeights,
+      weightBindMode,
+      weightMode,
+      influenceBones,
+      clipEnabled,
+      clipSource,
+      clipEndSlotId,
+      version: legacyVersion,
+      ...rest
+    } = src;
+
+    return {
+      ...rest,
+      attachmentName: baseAttachmentName,
+      placeholderName: basePlaceholder,
+      activeAttachment: target ? target.name : activeName,
+      attachments,
+    };
+  });
+
+  data.projectVersion = 2;
+  return data;
+}
+
 async function handleProjectLoadInputChange(e) {
   const f = e.target.files?.[0];
   if (!f) return;
   try {
-    const data = JSON.parse(await f.text());
+    const data = upgradeLegacyProject(JSON.parse(await f.text()));
     if (Number.isFinite(Number(data.gridX))) els.gridX.value = String(math.clamp(Number(data.gridX), 2, 120));
     if (Number.isFinite(Number(data.gridY))) els.gridY.value = String(math.clamp(Number(data.gridY), 2, 120));
     state.slotMesh.gridReplaceContour = !!(data && data.slotMeshGridReplaceContour);
@@ -95,7 +181,7 @@ async function handleProjectLoadInputChange(e) {
                       return {
                         name: String(a && a.name ? a.name : "").trim(),
                         placeholder: String(a && a.placeholder ? a.placeholder : src && src.placeholderName ? src.placeholderName : src && src.attachmentName ? src.attachmentName : "main").trim(),
-                        canvas: ac,
+                        canvas: isVisualAttachment({ type: a && a.type }) ? ac : null,
                         type: normalizeAttachmentType(a && a.type),
                         linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
                         pointX: Number(a && a.pointX) || 0,
@@ -137,7 +223,7 @@ async function handleProjectLoadInputChange(e) {
                             : null,
                       };
                     })
-                    .filter((a) => a.name.length > 0 && !!a.canvas)
+                    .filter((a) => a.name.length > 0 && (a.canvas || !isVisualAttachment(a)))
                   : undefined,
               activeAttachment:
                 src && Object.prototype.hasOwnProperty.call(src, "activeAttachment")

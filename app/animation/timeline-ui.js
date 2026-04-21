@@ -612,7 +612,10 @@ function collectChangedTracksAtCurrentTime() {
           }
         }
       }
-      if (changed) out.push(getVertexTrackId(si));
+      if (changed) {
+        const slot = state.slots[si];
+        out.push(getVertexTrackId(si, slot ? getSlotCurrentAttachmentName(slot) || slot.attachmentName || "main" : null));
+      }
       const slot = state.slots[si];
       const current = slot && (getActiveAttachment(slot) || {}).meshData ? (getActiveAttachment(slot) || {}).meshData.offsets : null;
       if (current && current.length === saved.length) current.set(saved);

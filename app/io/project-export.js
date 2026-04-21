@@ -132,25 +132,16 @@ function buildProjectPayload() {
       ty: Number.isFinite(s.ty) ? s.ty : 0,
       rot: Number.isFinite(s.rot) ? s.rot : 0,
       baseImageTransform: normalizeBaseImageTransform(s && s.baseImageTransform),
-      useWeights: !!(sAtt && sAtt.useWeights),
-      weightBindMode: (sAtt && sAtt.weightBindMode) || "none",
-      weightMode: sAtt ? getSlotWeightMode(s, sAtt) : "free",
-      influenceBones: Array.isArray(sAtt && sAtt.influenceBones) ? sAtt.influenceBones.filter((v) => Number.isFinite(v)) : [],
-      clipEnabled: !!(sAtt && sAtt.clipEnabled),
-      clipSource: sAtt && sAtt.clipSource === "contour" ? "contour" : "fill",
-      clipEndSlotId: sAtt && sAtt.clipEndSlotId ? String(sAtt.clipEndSlotId) : null,
       rect: s.rect || null,
       docWidth: s.docWidth || state.imageWidth,
       docHeight: s.docHeight || state.imageHeight,
       imageIndex,
       attachments: attachmentRecordsWithPlaceholder,
-      meshData: null,
-      meshContour: null,
     };
   });
 
   return {
-    version: 2,
+    projectVersion: 2,
     export: {
       spineCompat: getSpineCompatPreset(state.export && state.export.spineCompat).id,
     },
@@ -1678,9 +1669,10 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
       bone: boneNames[bIdx] || boneNames[0],
     };
     ensureSlotClipState(s);
-    if (s.clipEnabled || clipTrackUsageBySlot.has(si.index) || clipEndTrackUsageBySlot.has(si.index)) {
+    const clipAttachment = getActiveAttachment(s);
+    if ((clipAttachment && clipAttachment.clipEnabled) || clipTrackUsageBySlot.has(si.index) || clipEndTrackUsageBySlot.has(si.index)) {
       const clipSlotName = makeUniqueName(`${si.name}_clip`, slotUsed, `${si.name}_clip`);
-      const setupEndId = s.clipEndSlotId ? String(s.clipEndSlotId) : "";
+      const setupEndId = clipAttachment && clipAttachment.clipEndSlotId ? String(clipAttachment.clipEndSlotId) : "";
       const endIds = new Set([setupEndId]);
       const trackEndIds = clipEndValuesBySlot.get(si.index);
       if (trackEndIds) {
@@ -2348,7 +2340,7 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
         const endRows = [...(slotClipEndRowsBySlot.get(si) || [])].sort((aa, bb) => (Number(aa.time) || 0) - (Number(bb.time) || 0));
         if (clipRows.length <= 0 && endRows.length <= 0) continue;
         const setupSlot = slotInfos[si] ? slotInfos[si].slot : null;
-        const setupClipEnabled = !!(setupSlot && setupSlot.clipEnabled);
+        const setupClipEnabled = !!(setupSlot && getActiveAttachment(setupSlot) && getActiveAttachment(setupSlot).clipEnabled);
         const setupEndId = clipRef.setupEndId != null ? String(clipRef.setupEndId) : "";
         const sampleStepped = (rows, t, fallback, valueKey) => {
           let out = fallback;
@@ -3101,8 +3093,8 @@ function collectAutosaveWeightDebug() {
       rootWeightMode: slot && slot.weightMode ? String(slot.weightMode) : null,
       rootInfluenceBones: Array.isArray(slot && slot.influenceBones) ? slot.influenceBones.slice() : [],
       rootWeightCount:
-        slot && slot.meshData && Array.isArray(slot.meshData.weights)
-          ? slot.meshData.weights.length
+        slot && readSlotMeshData(slot) && Array.isArray(readSlotMeshData(slot).weights)
+          ? readSlotMeshData(slot).weights.length
           : 0,
       attachments: attachments.map((att) => ({
         name: att && att.name ? String(att.name) : "",
@@ -3414,17 +3406,18 @@ function applyDiagnosticsSafeFixes() {
         fixed += 1;
       }
     }
-    if (s.clipEnabled && s.clipEndSlotId) {
-      const id = String(s.clipEndSlotId);
+    const activeAttachment = getActiveAttachment(s);
+    if (activeAttachment && activeAttachment.clipEnabled && activeAttachment.clipEndSlotId) {
+      const id = String(activeAttachment.clipEndSlotId);
       if (!slotIdSet.has(id) || (s.id && String(s.id) === id)) {
-        s.clipEndSlotId = null;
+        activeAttachment.clipEndSlotId = null;
         fixed += 1;
       }
     }
-    if (s.clipEnabled && s.clipSource === "contour") {
+    if (activeAttachment && activeAttachment.clipEnabled && activeAttachment.clipSource === "contour") {
       const c = ensureSlotContour(s);
       if (!c.closed || !Array.isArray(c.points) || c.points.length < 3) {
-        s.clipSource = "fill";
+        activeAttachment.clipSource = "fill";
         fixed += 1;
       }
     }

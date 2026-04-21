@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Web Spine-like Mesh Deformer</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=20260421-2" />
 </head>
 
 <body>
@@ -62,6 +62,8 @@
             <button type="button" role="menuitem" data-menu-action="tools.resetpose"><span>Reset Pose</span></button>
             <button type="button" role="menuitem" data-menu-action="tools.resetvertex"><span>Reset
                 Vertex</span></button>
+            <hr />
+            <button type="button" role="menuitem" data-menu-action="tools.webglsupport"><span>Check WebGL Support</span></button>
           </div>
         </div>
         <div class="menu-root" data-menu-root>
@@ -440,6 +442,10 @@
           <button id="treeCtxSlotDupBtn" type="button" role="menuitem">Duplicate Slot</button>
           <button id="treeCtxSlotRenameBtn" type="button" role="menuitem">Rename Slot</button>
           <button id="treeCtxSlotDeleteBtn" type="button" role="menuitem">Delete Slot</button>
+          <button id="treeCtxAttachmentAddBtn" type="button" role="menuitem">+ Attachment</button>
+          <button id="treeCtxAttachmentDupBtn" type="button" role="menuitem">Duplicate Attachment</button>
+          <button id="treeCtxAttachmentChangeTypeBtn" type="button" role="menuitem">Change Attachment Type</button>
+          <button id="treeCtxAttachmentDeleteBtn" type="button" role="menuitem">Delete Attachment</button>
           <button id="treeCtxBoneDeleteBtn" type="button" role="menuitem">Delete Bone (Slots -> Staging)</button>
           <button id="treeCtxBoneDeleteWithSlotsBtn" type="button" role="menuitem">Delete Bone + Delete Slots</button>
           <button id="treeCtxSlotLoadImageBtn" type="button" role="menuitem">Load Image</button>
@@ -456,7 +462,7 @@
             <span>Name</span>
             <input id="slotName" type="text" value="" />
           </label>
-          <div id="slotVisualFieldsWrap">
+          <div id="slotVisualFieldsWrap" data-att-type="region mesh linkedmesh">
             <label class="field">
               <span>Bone</span>
               <select id="slotBone"></select>
@@ -512,6 +518,10 @@
             <span>Active Attachment</span>
             <select id="slotAttachment"></select>
           </label>
+          <div class="field two-col">
+            <button id="slotAttachmentAddBtn" type="button">Add</button>
+            <button id="slotAttachmentDuplicateBtn" type="button">Duplicate</button>
+          </div>
           <div class="field">
             <label class="slot-inline-check">
               <input id="slotAttachmentVisible" type="checkbox" checked />
@@ -531,16 +541,18 @@
                 <option value="linkedmesh">Linked Mesh</option>
                 <option value="boundingbox">Bounding Box</option>
                 <option value="clipping">Clipping</option>
+                <option value="point">Point</option>
               </select>
             </label>
+            <button id="slotAttachmentDeleteBtn" type="button">Delete</button>
           </div>
-          <div id="slotAttachmentLinkedParentWrap" class="field" style="display:none">
+          <div id="slotAttachmentLinkedParentWrap" class="field" data-att-type="linkedmesh">
             <label>
               <span>Linked Parent</span>
               <select id="slotAttachmentLinkedParent"></select>
             </label>
           </div>
-          <div id="slotAttachmentBBoxWrap" class="field" style="display:none">
+          <div id="slotAttachmentBBoxWrap" class="field" data-att-type="boundingbox">
             <label>
               <span>BBox Source</span>
               <select id="slotAttachmentBBoxSource">
@@ -549,7 +561,21 @@
               </select>
             </label>
           </div>
-          <div id="slotSkinningWrap">
+          <div id="slotAttachmentPointWrap" class="field three-col" data-att-type="point">
+            <label>
+              <span>Point X</span>
+              <input id="slotAttachmentPointX" type="number" step="0.1" value="0" />
+            </label>
+            <label>
+              <span>Point Y</span>
+              <input id="slotAttachmentPointY" type="number" step="0.1" value="0" />
+            </label>
+            <label>
+              <span>Rotation</span>
+              <input id="slotAttachmentPointRot" type="number" step="0.1" value="0" />
+            </label>
+          </div>
+          <div id="slotSkinningWrap" data-att-type="region mesh linkedmesh">
             <div class="field">
               <span>Skinning</span>
               <div id="slotWeightQuickBar" class="slot-weight-quick">
@@ -577,7 +603,7 @@
               </label>
             </div>
           </div>
-          <div id="slotImageFieldsWrap">
+          <div id="slotImageFieldsWrap" data-att-type="region mesh linkedmesh">
             <details id="slotAttachmentSequenceWrap" class="slot-subgroup">
               <summary>Sequence (Spine 4.x)</summary>
               <div class="field two-col">
@@ -628,7 +654,7 @@
               <input id="slotAttachmentFileInput" type="file" accept="image/*" hidden />
             </div>
           </div>
-          <section id="slotClipWrap" class="slot-subgroup" style="display:none">
+          <section id="slotClipWrap" class="slot-subgroup" data-att-type="clipping">
             <div class="slot-subhead">Clipping</div>
             <label class="slot-inline-check">
               <input id="slotClipEnabled" type="checkbox" />
@@ -664,7 +690,7 @@
             </div>
           </section>
 
-          <div id="slotTransformWrap">
+          <div id="slotTransformWrap" data-att-type="region mesh linkedmesh">
             <div class="field two-col">
               <label>
                 <span>Slot X</span>
@@ -1480,26 +1506,107 @@
     </section>
   </div>
 
-  <script src="app/core/runtime.js"></script>
-  <script src="app/core/bones.js"></script>
-  <script src="app/workspace/workspace.js"></script>
-  <script src="app/workspace/slots.js"></script>
-  <script src="app/workspace/constraint-model.js"></script>
-  <script src="app/render/constraints.js"></script>
-  <script src="app/render/canvas.js"></script>
-  <script src="app/render/state-machine.js"></script>
-  <script src="app/animation/model.js"></script>
-  <script src="app/animation/timeline-ui.js"></script>
-  <script src="app/animation/runtime.js"></script>
-  <script src="app/io/tree-bindings.js"></script>
-  <script src="app/io/project-export.js"></script>
-  <script src="app/io/project-actions.js"></script>
-  <script src="app/ui/editor-panels.js"></script>
-  <script src="app/ui/constraint-panels.js"></script>
-  <script src="app/ui/animation-panels.js"></script>
-  <script src="app/ui/timeline-pointer.js"></script>
-  <script src="app/ui/hotkeys.js"></script>
-  <script src="app/ui/bootstrap.js"></script>
+  <div id="webglSupportDialogWrap" class="webgl-support-dialog-wrap collapsed" aria-hidden="true">
+    <div id="webglSupportDialogBackdrop" class="webgl-support-dialog-backdrop"></div>
+    <section id="webglSupportDialogPanel" class="webgl-support-dialog-panel" role="dialog" aria-modal="true"
+      aria-label="WebGL Support Diagnostics">
+      <div class="webgl-support-dialog-head">
+        <strong>WebGL Support Diagnostics</strong>
+        <button id="webglSupportCloseBtn" type="button">Close</button>
+      </div>
+      <div class="field two-col">
+        <button id="webglSupportCheckBtn" type="button">Run Check</button>
+        <button id="webglSupportCopyBtn" type="button" disabled>Copy Report</button>
+      </div>
+      <section class="webgl-support-assessment" aria-label="WebGL support assessment">
+        <div class="webgl-support-assessment-head">
+          <span class="webgl-support-assessment-label">Support Verdict</span>
+          <span id="webglSupportVerdict" class="webgl-support-verdict webgl-support-verdict-neutral">Not checked</span>
+        </div>
+        <p id="webglSupportSummary" class="muted">No WebGL support report yet.</p>
+        <div class="webgl-support-findings-grid">
+          <section>
+            <h4>Critical blockers</h4>
+            <ul id="webglSupportBlockers" class="webgl-support-findings muted">
+              <li>Run the check to inspect blocking issues for this browser.</li>
+            </ul>
+          </section>
+          <section>
+            <h4>Warnings / degraded experience</h4>
+            <ul id="webglSupportWarnings" class="webgl-support-findings muted">
+              <li>Run the check to inspect weaker WebGL configurations.</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+      <pre id="webglSupportReport" class="webgl-support-report muted">Run the check to inspect browser WebGL support.</pre>
+    </section>
+  </div>
+
+  <!-- Attachment Type Picker Dialog -->
+  <div id="attTypePickerWrap" class="att-type-picker-wrap collapsed" aria-hidden="true">
+    <div id="attTypePickerBackdrop" class="att-type-picker-backdrop"></div>
+    <section id="attTypePickerPanel" class="att-type-picker-panel" role="dialog" aria-modal="true"
+      aria-label="Choose Attachment Type">
+      <div class="att-type-picker-head">
+        <strong id="attTypePickerTitle">Choose Attachment Type</strong>
+        <button id="attTypePickerCloseBtn" type="button" aria-label="Cancel">✕</button>
+      </div>
+      <div id="attTypePickerGrid" class="att-type-picker-grid">
+        <button class="att-type-picker-btn" data-type="region" type="button">
+          <span class="att-type-picker-icon">▣</span>
+          <span class="att-type-picker-label">Region</span>
+          <span class="att-type-picker-desc">Static image attachment</span>
+        </button>
+        <button class="att-type-picker-btn" data-type="mesh" type="button">
+          <span class="att-type-picker-icon">⬡</span>
+          <span class="att-type-picker-label">Mesh</span>
+          <span class="att-type-picker-desc">Deformable mesh with bone weights</span>
+        </button>
+        <button class="att-type-picker-btn" data-type="linkedmesh" type="button">
+          <span class="att-type-picker-icon">⬡⃝</span>
+          <span class="att-type-picker-label">Linked Mesh</span>
+          <span class="att-type-picker-desc">Shares vertices from a parent mesh</span>
+        </button>
+        <button class="att-type-picker-btn" data-type="boundingbox" type="button">
+          <span class="att-type-picker-icon">⬜</span>
+          <span class="att-type-picker-label">Bounding Box</span>
+          <span class="att-type-picker-desc">Polygon for hit-testing / physics</span>
+        </button>
+        <button class="att-type-picker-btn" data-type="clipping" type="button">
+          <span class="att-type-picker-icon">✂</span>
+          <span class="att-type-picker-label">Clipping</span>
+          <span class="att-type-picker-desc">Clips slots below in draw order</span>
+        </button>
+        <button class="att-type-picker-btn" data-type="point" type="button">
+          <span class="att-type-picker-icon">⊕</span>
+          <span class="att-type-picker-label">Point</span>
+          <span class="att-type-picker-desc">Named position and rotation anchor</span>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <script src="app/core/runtime.js?v=20260421-2"></script>
+  <script src="app/core/bones.js?v=20260421-2"></script>
+  <script src="app/workspace/workspace.js?v=20260420-2"></script>
+  <script src="app/workspace/slots.js?v=20260420-2"></script>
+  <script src="app/workspace/constraint-model.js?v=20260420-2"></script>
+  <script src="app/render/constraints.js?v=20260420-2"></script>
+  <script src="app/render/canvas.js?v=20260420-2"></script>
+  <script src="app/render/state-machine.js?v=20260420-2"></script>
+  <script src="app/animation/model.js?v=20260420-2"></script>
+  <script src="app/animation/timeline-ui.js?v=20260420-2"></script>
+  <script src="app/animation/runtime.js?v=20260420-2"></script>
+  <script src="app/io/tree-bindings.js?v=20260420-2"></script>
+  <script src="app/io/project-export.js?v=20260420-2"></script>
+  <script src="app/io/project-actions.js?v=20260420-2"></script>
+  <script src="app/ui/editor-panels.js?v=20260421-2"></script>
+  <script src="app/ui/constraint-panels.js?v=20260420-2"></script>
+  <script src="app/ui/animation-panels.js?v=20260420-2"></script>
+  <script src="app/ui/timeline-pointer.js?v=20260420-2"></script>
+  <script src="app/ui/hotkeys.js?v=20260420-2"></script>
+  <script src="app/ui/bootstrap.js?v=20260420-2"></script>
 </body>
 
 </html>

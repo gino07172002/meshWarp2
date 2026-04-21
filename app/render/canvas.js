@@ -5,6 +5,15 @@
 // renderSlots2DWithClipping: main per-frame draw pass.
 // Uses 2D canvas; WebGL used for texture composition only.
 // ============================================================
+function buildRenderableAttachmentGeometry(slot, poseWorld) {
+  if (!slot) return null;
+  const activeAttachment = getActiveAttachment(slot);
+  const activeType = normalizeAttachmentType(activeAttachment && activeAttachment.type);
+  if (activeType === ATTACHMENT_TYPES.REGION) return buildRegionAttachmentGeometry(slot, poseWorld);
+  if (activeType === ATTACHMENT_TYPES.MESH || activeType === ATTACHMENT_TYPES.LINKED_MESH) return buildSlotGeometry(slot, poseWorld);
+  return null;
+}
+
 function renderSlots2DWithClipping(ctx, slots, poseWorld, options = null) {
   if (!ctx) return;
   const opts = options && typeof options === "object" ? options : {};
@@ -15,27 +24,37 @@ function renderSlots2DWithClipping(ctx, slots, poseWorld, options = null) {
     if (!slot) continue;
     ensureSlotClipState(slot);
     ensureSlotVisualState(slot);
-    if ((getActiveAttachment(slot) || {}).clipEnabled) {
+    const activeAttachment = getActiveAttachment(slot);
+    const activeType = normalizeAttachmentType(activeAttachment && activeAttachment.type);
+    if (activeAttachment && activeAttachment.clipEnabled) {
       const poly = getSlotClipPolygonScreen(slot, poseWorld);
       activeClip = poly.length >= 3
         ? {
           points: poly,
-          endSlotId: (getActiveAttachment(slot) || {}).clipEndSlotId ? String((getActiveAttachment(slot) || {}).clipEndSlotId) : null,
+          endSlotId: activeAttachment.clipEndSlotId ? String(activeAttachment.clipEndSlotId) : null,
         }
         : null;
       continue;
     }
-    if (!(getActiveAttachment(slot) || {}).canvas || !hasRenderableAttachment(slot)) {
+    if (!activeAttachment || activeType === ATTACHMENT_TYPES.BOUNDING_BOX || activeType === ATTACHMENT_TYPES.POINT) {
       if (activeClip && activeClip.endSlotId && slot.id && String(slot.id) === activeClip.endSlotId) activeClip = null;
       continue;
     }
-    const geom = buildSlotGeometry(slot, poseWorld);
+    if (!activeAttachment.canvas || !hasRenderableAttachment(slot)) {
+      if (activeClip && activeClip.endSlotId && slot.id && String(slot.id) === activeClip.endSlotId) activeClip = null;
+      continue;
+    }
+    const geom = buildRenderableAttachmentGeometry(slot, poseWorld);
+    if (!geom || !geom.screen || !geom.indices || geom.indices.length <= 0) {
+      if (activeClip && activeClip.endSlotId && slot.id && String(slot.id) === activeClip.endSlotId) activeClip = null;
+      continue;
+    }
     if (activeClip && activeClip.points && activeClip.points.length >= 3) {
       ctx.save();
       if (drawClipPath2D(ctx, activeClip.points)) ctx.clip();
       drawMeshOnContext(
         ctx,
-        (getActiveAttachment(slot) || {}).canvas,
+        activeAttachment.canvas,
         (Number(slot.alpha) || 1) * alphaMul,
         {
           r: (Number(slot.r) || 1) * (tintMul ? Number(tintMul.r) || 1 : 1),
@@ -51,7 +70,7 @@ function renderSlots2DWithClipping(ctx, slots, poseWorld, options = null) {
     } else {
       drawMeshOnContext(
         ctx,
-        (getActiveAttachment(slot) || {}).canvas,
+        activeAttachment.canvas,
         (Number(slot.alpha) || 1) * alphaMul,
         {
           r: (Number(slot.r) || 1) * (tintMul ? Number(tintMul.r) || 1 : 1),
@@ -139,7 +158,10 @@ function render(ts = 0) {
   drawBackdrop();
 
   const slots = getRenderableSlots();
-  const hasClipSlot = slots.some((s) => s && s.clipEnabled);
+  const hasClipSlot = slots.some((s) => {
+    const att = getActiveAttachment(s);
+    return !!(s && att && att.clipEnabled);
+  });
   const wantsOnion = shouldRenderOnionSkin();
   const hasBaseReference = shouldRenderBaseImageReference() && state.slots.length === 0;
 
@@ -166,13 +188,14 @@ function render(ts = 0) {
       gl.uniform2f(loc.uResolution, els.glCanvas.width, els.glCanvas.height);
       const poseWorld = getSolvedPoseWorld(state.mesh);
       for (const slot of slots) {
-        const attachmentCanvas = (getActiveAttachment(slot) || {}).canvas;
+        const activeAttachment = getActiveAttachment(slot);
+        const attachmentCanvas = (activeAttachment || {}).canvas;
         if (!slot || !attachmentCanvas || !hasRenderableAttachment(slot)) continue;
         const texture = ensureGLTextureForCanvas(attachmentCanvas);
         if (!texture) continue;
         ensureSlotVisualState(slot);
-        const geom = buildSlotGeometry(slot, poseWorld);
-        if (!geom.interleaved) continue;
+        const geom = buildRenderableAttachmentGeometry(slot, poseWorld);
+        if (!geom || !geom.interleaved || !geom.indices || geom.indices.length <= 0) continue;
         gl.bufferData(gl.ARRAY_BUFFER, geom.interleaved, gl.DYNAMIC_DRAW);
         const drawIndices = geom.indices || state.mesh.indices;
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, drawIndices, gl.DYNAMIC_DRAW);

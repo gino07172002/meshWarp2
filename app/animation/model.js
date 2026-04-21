@@ -201,8 +201,11 @@ function getPathTrackId(pathIndex, prop) {
   return `pth:${pathIndex}:${prop}`;
 }
 
-function getVertexTrackId(slotIndex) {
-  return `deform:${slotIndex}`;
+function getVertexTrackId(slotIndex, attachmentName = null) {
+  const si = Number(slotIndex);
+  const safeAttachment = attachmentName == null ? "" : String(attachmentName).trim();
+  if (safeAttachment) return `slot:${si}:attachment:${safeAttachment}:deform`;
+  return `deform:${si}`;
 }
 
 function getLayerTrackId(layerId, prop) {
@@ -234,7 +237,8 @@ function migrateLegacyVertexTracksInAnimation(anim) {
       keepLegacy.push(k);
       continue;
     }
-    const trackId = getVertexTrackId(si);
+    const slot = state.slots[si];
+    const trackId = getVertexTrackId(si, slot ? getSlotCurrentAttachmentName(slot) || slot.attachmentName || "main" : null);
     if (!anim.tracks[trackId]) anim.tracks[trackId] = [];
     anim.tracks[trackId].push({
       id: k && k.id ? String(k.id) : `k_${Math.random().toString(36).slice(2, 10)}`,
@@ -566,7 +570,8 @@ function markDirtyBySlotProp(slotIndex, prop) {
 function markDirtyVertexTrack(slotIndex = state.activeSlot) {
   const si = Number(slotIndex);
   if (state.slots.length > 0 && Number.isFinite(si) && si >= 0 && si < state.slots.length) {
-    markDirtyTrack(getVertexTrackId(si));
+    const slot = state.slots[si];
+    markDirtyTrack(getVertexTrackId(si, slot ? getSlotCurrentAttachmentName(slot) || slot.attachmentName || "main" : null));
     return;
   }
   markDirtyTrack(VERTEX_TRACK_ID);
@@ -589,6 +594,12 @@ function getIKIndexByRef(m, ikRef) {
 
 function parseTrackId(trackId) {
   const p = String(trackId || "").split(":");
+  if (p.length === 5 && p[0] === "slot" && p[2] === "attachment" && p[4] === "deform") {
+    const slotIndex = Number(p[1]);
+    const attachmentName = String(p[3] || "");
+    if (!Number.isFinite(slotIndex) || !attachmentName) return null;
+    return { type: "mesh", prop: "deform", slotIndex, attachmentName };
+  }
   if (p.length === 2 && p[0] === "deform") {
     const slotIndex = Number(p[1]);
     if (Number.isFinite(slotIndex)) return { type: "mesh", prop: "deform", slotIndex };
@@ -792,17 +803,18 @@ function getTrackValue(m, parsed) {
   if (parsed.type === "slot") {
     const s = state.slots[parsed.slotIndex];
     if (!s) return null;
+    const activeAttachment = getActiveAttachment(s);
     if (parsed.prop === "attachment") {
       return getSlotCurrentAttachmentName(s);
     }
     if (parsed.prop === "clip") {
-      return !!s.clipEnabled;
+      return !!(activeAttachment && activeAttachment.clipEnabled);
     }
     if (parsed.prop === "clipSource") {
-      return s.clipSource === "contour" ? "contour" : "fill";
+      return activeAttachment && activeAttachment.clipSource === "contour" ? "contour" : "fill";
     }
     if (parsed.prop === "clipEnd") {
-      return s.clipEndSlotId ? String(s.clipEndSlotId) : "";
+      return activeAttachment && activeAttachment.clipEndSlotId ? String(activeAttachment.clipEndSlotId) : "";
     }
     if (parsed.prop === "color") {
       return {
@@ -892,6 +904,8 @@ function setTrackValue(m, parsed, value) {
   }
   if (parsed.type === "mesh" && Array.isArray(value)) {
     const si = Number.isFinite(parsed.slotIndex) ? Number(parsed.slotIndex) : state.activeSlot;
+    const slot = Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : null;
+    if (slot && parsed.attachmentName && getSlotCurrentAttachmentName(slot) !== parsed.attachmentName) return;
     let offsets = null;
     if (state.slots.length > 0 && Number.isFinite(si) && si >= 0 && si < state.slots.length) {
       offsets = getModelSlotOffsets(m, si);
@@ -954,6 +968,7 @@ function setTrackValue(m, parsed, value) {
   if (parsed.type === "slot") {
     const s = state.slots[parsed.slotIndex];
     if (!s) return;
+    const activeAttachment = getActiveAttachment(s);
     if (parsed.prop === "attachment") {
       if (value == null || value === false || value === "") {
         s.activeAttachment = null;
@@ -966,18 +981,21 @@ function setTrackValue(m, parsed, value) {
       return;
     }
     if (parsed.prop === "clip") {
-      s.clipEnabled = value === true || Number(value) > 0;
+      if (!activeAttachment) return;
+      activeAttachment.clipEnabled = value === true || Number(value) > 0;
       ensureSlotClipState(s);
       return;
     }
     if (parsed.prop === "clipSource") {
-      s.clipSource = String(value || "") === "contour" ? "contour" : "fill";
+      if (!activeAttachment) return;
+      activeAttachment.clipSource = String(value || "") === "contour" ? "contour" : "fill";
       ensureSlotClipState(s);
       return;
     }
     if (parsed.prop === "clipEnd") {
-      if (value == null || value === false || value === "") s.clipEndSlotId = null;
-      else s.clipEndSlotId = String(value);
+      if (!activeAttachment) return;
+      if (value == null || value === false || value === "") activeAttachment.clipEndSlotId = null;
+      else activeAttachment.clipEndSlotId = String(value);
       ensureSlotClipState(s);
       return;
     }
@@ -1231,10 +1249,11 @@ function getTimelineBoneGroupKeyForSlotIndex(slotIndex) {
 function buildTimelineSlotTrackChildren(slot, slotIndex) {
   const si = Number(slotIndex);
   const name = slot && slot.name ? slot.name : `slot_${si}`;
+  const activeAttachmentName = slot ? getSlotCurrentAttachmentName(slot) || slot.attachmentName || "main" : "main";
   return [
     { id: `slot:${si}:attachment`, kind: "track", slotIndex: si, prop: "attachment", label: `${name}.Attachment` },
     { id: `slot:${si}:color`, kind: "track", slotIndex: si, prop: "color", label: `${name}.Color/Alpha` },
-    { id: getVertexTrackId(si), kind: "track", slotIndex: si, prop: "deform", label: `${name}.Deform` },
+    { id: getVertexTrackId(si, activeAttachmentName), kind: "track", slotIndex: si, prop: "deform", label: `${name}.${activeAttachmentName}.Deform` },
     { id: `slot:${si}:clip`, kind: "track", slotIndex: si, prop: "clip", label: `${name}.Clip` },
     { id: `slot:${si}:clipSource`, kind: "track", slotIndex: si, prop: "clipSource", label: `${name}.Clip Source` },
     { id: `slot:${si}:clipEnd`, kind: "track", slotIndex: si, prop: "clipEnd", label: `${name}.Clip End` },

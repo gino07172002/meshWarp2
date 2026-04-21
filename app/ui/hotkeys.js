@@ -175,12 +175,6 @@ if (els.playBtn) {
     updatePlaybackButtons();
   });
 }
-if (els.pauseBtn) {
-  els.pauseBtn.addEventListener("click", () => {
-    state.anim.playing = false;
-    updatePlaybackButtons();
-  });
-}
 els.stopBtn.addEventListener("click", () => {
   state.anim.playing = false;
   state.anim.lastTs = 0;
@@ -205,6 +199,26 @@ function isEditableHotkeyTarget(target) {
   const nonTextTypes = new Set(["button", "checkbox", "radio", "range", "color", "file", "image", "submit", "reset"]);
   if (nonTextTypes.has(t)) return false;
   return !input.readOnly;
+}
+
+function cycleActiveAttachment(step) {
+  const slot = getActiveSlot();
+  if (!slot) return false;
+  const attachments = ensureSlotAttachments(slot);
+  if (!Array.isArray(attachments) || attachments.length <= 1) return false;
+  const current = getSlotCurrentAttachmentName(slot);
+  const currentIndex = Math.max(0, attachments.findIndex((att) => att && att.name === current));
+  const nextIndex = (currentIndex + step + attachments.length) % attachments.length;
+  const next = attachments[nextIndex];
+  if (!next) return false;
+  slot.activeAttachment = next.name;
+  ensureSlotAttachmentState(slot);
+  syncSourceCanvasToActiveAttachment(slot);
+  refreshSlotUI();
+  renderBoneTree();
+  renderTimelineTracks();
+  setStatus(`Active attachment: ${next.name}`);
+  return true;
 }
 
 window.addEventListener("keydown", async (ev) => {
@@ -252,6 +266,35 @@ window.addEventListener("keydown", async (ev) => {
     return;
   }
   const hotkey = String(ev.key || "").toLowerCase();
+  if (!ev.ctrlKey && !ev.metaKey && !ev.altKey && state.slots.length > 0 && state.editMode !== "mesh") {
+    if (hotkey === "a" && ev.shiftKey) {
+      const slot = getActiveSlot();
+      const current = slot ? getSlotCurrentAttachmentName(slot) : null;
+      if (slot && current) {
+        const created = duplicateAttachment(slot, current);
+        if (created) setStatus(`Attachment duplicated: ${created.name}`);
+      }
+      ev.preventDefault();
+      return;
+    }
+    if (hotkey === "a") {
+      addAttachmentToActiveSlot();
+      ev.preventDefault();
+      return;
+    }
+    if (ev.key === "Tab") {
+      if (cycleActiveAttachment(ev.shiftKey ? -1 : 1)) {
+        ev.preventDefault();
+        return;
+      }
+    }
+    if ((ev.key === "Delete" || ev.key === "Backspace") && state.rightPropsFocus === "attachment") {
+      if (deleteActiveAttachmentInSlot()) {
+        ev.preventDefault();
+        return;
+      }
+    }
+  }
   if (state.editMode === "mesh") {
     if (hotkey === "h" && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
       state.vertexDeform.mirror = !state.vertexDeform.mirror;
@@ -934,6 +977,58 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     return;
   }
 
+  {
+    const attGizmoHit = pickAttachmentGizmoHandle(mx, my, poseWorldForGizmo);
+    if (attGizmoHit) {
+      const slot = getActiveSlot();
+      const slotIndex = Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1;
+      const att = slot ? getActiveAttachment(slot) : null;
+      if (slot && att) {
+        if (attGizmoHit.kind === "point_move") {
+          state.drag = {
+            type: "att_gizmo_point_move",
+            pointerId: ev.pointerId,
+            slotIndex,
+            startLocal: { x: local.x, y: local.y },
+            startX: Number(att.pointX) || 0,
+            startY: Number(att.pointY) || 0,
+          };
+          els.overlay.setPointerCapture(ev.pointerId);
+          return;
+        }
+        if (attGizmoHit.kind === "point_rotate") {
+          const tm = getSlotTransformMatrix(slot, poseWorldForGizmo);
+          const px = Number(att.pointX) || 0;
+          const py = Number(att.pointY) || 0;
+          const wCenter = transformPoint(tm, px, py);
+          state.drag = {
+            type: "att_gizmo_point_rotate",
+            pointerId: ev.pointerId,
+            slotIndex,
+            pivotLocal: { x: wCenter.x, y: wCenter.y },
+            startRot: Number(att.pointRot) || 0,
+            startAngle: Math.atan2(local.y - wCenter.y, local.x - wCenter.x),
+          };
+          els.overlay.setPointerCapture(ev.pointerId);
+          return;
+        }
+        if (attGizmoHit.kind === "vertex") {
+          const contour = ensureSlotContour(slot);
+          state.drag = {
+            type: "att_gizmo_vertex",
+            pointerId: ev.pointerId,
+            slotIndex,
+            pointIndex: attGizmoHit.pointIndex,
+            startSlotLocal: screenToSlotMeshLocal(slot, mx, my, poseWorldForGizmo),
+            origPt: { ...contour.points[attGizmoHit.pointIndex] },
+          };
+          els.overlay.setPointerCapture(ev.pointerId);
+          return;
+        }
+      }
+    }
+  }
+
   if (state.addBoneArmed && state.editMode === "skeleton" && state.boneMode === "edit") {
     const parent = Number(els.addBoneParent.value);
     const connected = els.addBoneConnect.value === "true";
@@ -1541,6 +1636,57 @@ els.overlay.addEventListener("pointermove", (ev) => {
   if (state.drag.type === "slot_mesh_marquee") {
     state.drag.curX = mx;
     state.drag.curY = my;
+    return;
+  }
+
+  if (state.drag.type === "att_gizmo_point_move") {
+    const si = Number(state.drag.slotIndex);
+    const slot = Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : null;
+    if (!slot) return;
+    const att = getActiveAttachment(slot);
+    if (!att) return;
+    const poseWorld = getSolvedPoseWorld(state.mesh);
+    const tm = getSlotTransformMatrix(slot, poseWorld);
+    const inv = invert(tm);
+    const wLocal = transformPoint(inv, local.x, local.y);
+    const startW = transformPoint(inv,
+      (Number(state.drag.startLocal && state.drag.startLocal.x) || local.x),
+      (Number(state.drag.startLocal && state.drag.startLocal.y) || local.y));
+    att.pointX = (Number(state.drag.startX) || 0) + (wLocal.x - startW.x);
+    att.pointY = (Number(state.drag.startY) || 0) + (wLocal.y - startW.y);
+    if (si === state.activeSlot) refreshAttachmentPanel(slot);
+    return;
+  }
+
+  if (state.drag.type === "att_gizmo_point_rotate") {
+    const si = Number(state.drag.slotIndex);
+    const slot = Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : null;
+    if (!slot) return;
+    const att = getActiveAttachment(slot);
+    if (!att) return;
+    const pivot = state.drag.pivotLocal || local;
+    const angle = Math.atan2(local.y - (Number(pivot.y) || 0), local.x - (Number(pivot.x) || 0));
+    att.pointRot = (Number(state.drag.startRot) || 0) + shortestAngleDelta(Number(state.drag.startAngle) || 0, angle) * (180 / Math.PI);
+    if (si === state.activeSlot) refreshAttachmentPanel(slot);
+    return;
+  }
+
+  if (state.drag.type === "att_gizmo_vertex") {
+    const si = Number(state.drag.slotIndex);
+    const slot = Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : null;
+    if (!slot) return;
+    const poseWorld = getSolvedPoseWorld(state.mesh);
+    const contour = ensureSlotContour(slot);
+    const i = Number(state.drag.pointIndex);
+    if (!Number.isFinite(i) || i < 0 || i >= contour.points.length) return;
+    const slotLocal = screenToSlotMeshLocal(slot, mx, my, poseWorld);
+    const startSL = state.drag.startSlotLocal || slotLocal;
+    const orig = state.drag.origPt || { x: 0, y: 0 };
+    contour.points[i] = {
+      x: (Number(orig.x) || 0) + (slotLocal.x - startSL.x),
+      y: (Number(orig.y) || 0) + (slotLocal.y - startSL.y),
+    };
+    markSlotContourDirty(slot, false);
     return;
   }
 

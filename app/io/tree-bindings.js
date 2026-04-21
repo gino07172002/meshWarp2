@@ -256,6 +256,15 @@ if (els.boneTree) {
 
   els.boneTree.addEventListener("dblclick", (ev) => {
     if (ev.target.closest(".tree-rename-input")) return;
+    const attachmentItem = ev.target.closest(".tree-item.tree-attachment[data-attachment-name]");
+    if (attachmentItem) {
+      const si = Number(attachmentItem.dataset.slotIndex);
+      const attName = attachmentItem.dataset.attachmentName;
+      if (Number.isFinite(si) && si >= 0 && si < state.slots.length && attName) {
+        startBoneTreeInlineRename("attachment", si, attName);
+      }
+      return;
+    }
     const slotItem = ev.target.closest(".tree-item[data-slot-index]");
     if (slotItem) {
       const si = Number(slotItem.dataset.slotIndex);
@@ -274,24 +283,37 @@ if (els.boneTree) {
   els.boneTree.addEventListener("contextmenu", (ev) => {
     ev.preventDefault();
     state.boneTreeMenuContextKind = "";
-    const slotItem = ev.target.closest(".tree-item[data-slot-index]");
-    if (slotItem) {
-      const si = Number(slotItem.dataset.slotIndex);
-      if (Number.isFinite(si) && si >= 0 && si < state.slots.length) {
+    const attachmentItem = ev.target.closest(".tree-item.tree-attachment[data-attachment-name]");
+    if (attachmentItem) {
+      const si = Number(attachmentItem.dataset.slotIndex);
+      const attName = attachmentItem.dataset.attachmentName;
+      if (Number.isFinite(si) && si >= 0 && si < state.slots.length && attName) {
         setActiveSlot(si);
-        setRightPropsFocus("slot");
-        state.boneTreeMenuContextKind = "slot";
+        state.slots[si].activeAttachment = attName;
+        setRightPropsFocus("attachment");
+        refreshSlotUI();
+        state.boneTreeMenuContextKind = "attachment";
       }
     } else {
-      const boneItem = ev.target.closest(".tree-item[data-bone-index]");
-      if (boneItem && state.mesh) {
-        const bi = Number(boneItem.dataset.boneIndex);
-        if (Number.isFinite(bi) && bi >= 0) {
-          state.selectedBone = bi;
-          state.selectedBonesForWeight = [bi];
-          setRightPropsFocus("bone");
-          updateBoneUI();
-          state.boneTreeMenuContextKind = "bone";
+      const slotItem = ev.target.closest(".tree-item[data-slot-index]");
+      if (slotItem) {
+        const si = Number(slotItem.dataset.slotIndex);
+        if (Number.isFinite(si) && si >= 0 && si < state.slots.length) {
+          setActiveSlot(si);
+          setRightPropsFocus("slot");
+          state.boneTreeMenuContextKind = "slot";
+        }
+      } else {
+        const boneItem = ev.target.closest(".tree-item[data-bone-index]");
+        if (boneItem && state.mesh) {
+          const bi = Number(boneItem.dataset.boneIndex);
+          if (Number.isFinite(bi) && bi >= 0) {
+            state.selectedBone = bi;
+            state.selectedBonesForWeight = [bi];
+            setRightPropsFocus("bone");
+            updateBoneUI();
+            state.boneTreeMenuContextKind = "bone";
+          }
         }
       }
     }
@@ -301,6 +323,24 @@ if (els.boneTree) {
   els.boneTree.addEventListener("dragstart", (ev) => {
     state.treeSlotLastClickIndex = -1;
     state.treeSlotLastClickTs = 0;
+    /* --- Attachment drag takes priority over slot drag --- */
+    const attachmentItem = ev.target.closest(".tree-item.tree-attachment[data-attachment-name]");
+    if (attachmentItem) {
+      const si = Number(attachmentItem.dataset.slotIndex);
+      const attName = attachmentItem.dataset.attachmentName;
+      if (!Number.isFinite(si) || si < 0 || si >= state.slots.length || !attName) {
+        ev.preventDefault();
+        return;
+      }
+      state.treeAttachmentDrag = { slotIndex: si, attachmentName: attName };
+      attachmentItem.classList.add("dragging");
+      if (ev.dataTransfer) {
+        ev.dataTransfer.effectAllowed = "move";
+        ev.dataTransfer.setData("text/plain", `att:${si}:${attName}`);
+      }
+      return;
+    }
+
     const slotItem = ev.target.closest(".tree-item[data-slot-index]");
     if (!slotItem) {
       ev.preventDefault();
@@ -320,6 +360,25 @@ if (els.boneTree) {
   });
 
   els.boneTree.addEventListener("dragover", (ev) => {
+    /* --- Attachment reorder --- */
+    if (state.treeAttachmentDrag) {
+      const attItem = ev.target.closest(".tree-item.tree-attachment[data-attachment-name]");
+      if (attItem) {
+        const tsi = Number(attItem.dataset.slotIndex);
+        if (Number.isFinite(tsi) && tsi >= 0 && tsi < state.slots.length) {
+          ev.preventDefault();
+          if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
+          const rect = attItem.getBoundingClientRect();
+          const placeAfter = ev.clientY >= rect.top + rect.height * 0.5;
+          for (const row of els.boneTree.querySelectorAll(".tree-item.tree-attachment")) {
+            row.classList.remove("att-drop-before", "att-drop-after");
+          }
+          attItem.classList.add(placeAfter ? "att-drop-after" : "att-drop-before");
+        }
+      }
+      return;
+    }
+
     if (!state.treeSlotDrag) return;
     const slotItem = ev.target.closest(".tree-item[data-slot-index]");
     if (slotItem) {
@@ -353,6 +412,73 @@ if (els.boneTree) {
   });
 
   els.boneTree.addEventListener("drop", (ev) => {
+    /* --- Attachment drop: reorder within slot or move to another slot --- */
+    if (state.treeAttachmentDrag) {
+      for (const row of els.boneTree.querySelectorAll(".tree-item.tree-attachment")) {
+        row.classList.remove("att-drop-before", "att-drop-after", "dragging");
+      }
+      const { slotIndex: srcSi, attachmentName: srcAttName } = state.treeAttachmentDrag;
+      state.treeAttachmentDrag = null;
+      const attItem = ev.target.closest(".tree-item.tree-attachment[data-attachment-name]");
+      if (!attItem) return;
+      ev.preventDefault();
+      const tsi = Number(attItem.dataset.slotIndex);
+      const tAttName = attItem.dataset.attachmentName;
+      if (!Number.isFinite(tsi) || tsi < 0 || tsi >= state.slots.length) return;
+      const srcSlot = state.slots[srcSi];
+      const tgtSlot = state.slots[tsi];
+      if (!srcSlot || !tgtSlot) return;
+      const rect = attItem.getBoundingClientRect();
+      const placeAfter = ev.clientY >= rect.top + rect.height * 0.5;
+
+      if (srcSi === tsi) {
+        /* Same slot: reorder */
+        const list = ensureSlotAttachments(srcSlot);
+        const fromIdx = list.findIndex((a) => a.name === srcAttName);
+        let toIdx = list.findIndex((a) => a.name === tAttName);
+        if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+        if (placeAfter) toIdx = toIdx + (fromIdx < toIdx ? 0 : 1);
+        else toIdx = toIdx - (fromIdx > toIdx ? 0 : 1);
+        const [moved] = list.splice(fromIdx, 1);
+        list.splice(Math.max(0, Math.min(toIdx, list.length)), 0, moved);
+        pushUndoCheckpoint(true);
+        setStatus(`Attachment "${srcAttName}" reordered.`);
+      } else {
+        /* Cross-slot move */
+        const srcList = ensureSlotAttachments(srcSlot);
+        const tgtList = ensureSlotAttachments(tgtSlot);
+        const fromIdx = srcList.findIndex((a) => a.name === srcAttName);
+        if (fromIdx < 0) return;
+        const [moved] = srcList.splice(fromIdx, 1);
+        /* Ensure unique name in target slot */
+        const usedNames = new Set(tgtList.map((a) => a.name));
+        if (usedNames.has(moved.name)) {
+          let i = 2;
+          let cand = `${moved.name}_${i}`;
+          while (usedNames.has(cand)) { i += 1; cand = `${moved.name}_${i}`; }
+          moved.name = cand;
+        }
+        let toIdx = tgtList.findIndex((a) => a.name === tAttName);
+        if (toIdx < 0) toIdx = tgtList.length;
+        else if (placeAfter) toIdx += 1;
+        tgtList.splice(toIdx, 0, moved);
+        /* Fix source slot active attachment if it was the moved one */
+        if (srcSlot.activeAttachment === srcAttName) {
+          const nextAtt = srcList[Math.max(0, fromIdx - 1)];
+          srcSlot.activeAttachment = nextAtt ? nextAtt.name : (srcList[0] ? srcList[0].name : null);
+          if (srcSlot.attachmentName === srcAttName) srcSlot.attachmentName = srcSlot.activeAttachment || "main";
+        }
+        /* Activate moved attachment in target */
+        tgtSlot.activeAttachment = moved.name;
+        setActiveSlot(tsi);
+        pushUndoCheckpoint(true);
+        setStatus(`Attachment "${moved.name}" moved to slot "${tgtSlot.name}".`);
+      }
+      refreshSlotUI();
+      renderBoneTree();
+      return;
+    }
+
     if (!state.treeSlotDrag) return;
     const slotItem = ev.target.closest(".tree-item[data-slot-index]");
     clearBoneTreeDropIndicators();
@@ -422,7 +548,11 @@ if (els.boneTree) {
     for (const row of els.boneTree.querySelectorAll(".tree-item.tree-slot.dragging")) {
       row.classList.remove("dragging");
     }
+    for (const row of els.boneTree.querySelectorAll(".tree-item.tree-attachment")) {
+      row.classList.remove("dragging", "att-drop-before", "att-drop-after");
+    }
     state.treeSlotDrag = null;
+    state.treeAttachmentDrag = null;
   });
 }
 
@@ -857,7 +987,6 @@ function applyActiveSlotAttachmentMetaFromUI() {
   if (!current) return false;
   const att = getSlotAttachmentEntry(s, current);
   if (!att) return false;
-  att.type = normalizeAttachmentType(els.slotAttachmentType ? els.slotAttachmentType.value : att.type);
   att.linkedParent = String(els.slotAttachmentLinkedParent ? els.slotAttachmentLinkedParent.value || "" : att.linkedParent || "");
   att.pointX = Number(els.slotAttachmentPointX ? els.slotAttachmentPointX.value : att.pointX) || 0;
   att.pointY = Number(els.slotAttachmentPointY ? els.slotAttachmentPointY.value : att.pointY) || 0;
@@ -934,42 +1063,6 @@ if (els.slotAttachmentVisible) {
     renderBoneTree();
   });
 }
-if (els.slotPlaceholderName) {
-  const applySlotPlaceholder = () => {
-    const s = getActiveSlot();
-    if (!s) return;
-    const raw = String((els.slotPlaceholderName && els.slotPlaceholderName.value) || "").trim();
-    const ph = raw || "main";
-    s.placeholderName = ph;
-    refreshSlotUI();
-  };
-  els.slotPlaceholderName.addEventListener("change", applySlotPlaceholder);
-  els.slotPlaceholderName.addEventListener("keydown", (ev) => {
-    if (ev.key !== "Enter") return;
-    ev.preventDefault();
-    applySlotPlaceholder();
-  });
-}
-if (els.slotAttachmentPlaceholderName) {
-  const applyAttachmentPlaceholder = () => {
-    const s = getActiveSlot();
-    if (!s) return;
-    const current = getSlotCurrentAttachmentName(s);
-    if (!current) return;
-    const att = getSlotAttachmentEntry(s, current);
-    if (!att) return;
-    const raw = String((els.slotAttachmentPlaceholderName && els.slotAttachmentPlaceholderName.value) || "").trim();
-    att.placeholder = raw || "main";
-    if (s.activeAttachment === current) s.placeholderName = String(att.placeholder);
-    refreshSlotUI();
-  };
-  els.slotAttachmentPlaceholderName.addEventListener("change", applyAttachmentPlaceholder);
-  els.slotAttachmentPlaceholderName.addEventListener("keydown", (ev) => {
-    if (ev.key !== "Enter") return;
-    ev.preventDefault();
-    applyAttachmentPlaceholder();
-  });
-}
 if (els.slotAttachmentName) {
   const applyName = () => {
     if (!getActiveSlot()) return;
@@ -983,7 +1076,14 @@ if (els.slotAttachmentName) {
   });
 }
 if (els.slotAttachmentType) {
-  els.slotAttachmentType.addEventListener("change", applyActiveSlotAttachmentMetaFromUI);
+  els.slotAttachmentType.addEventListener("change", () => {
+    const s = getActiveSlot();
+    const current = s ? getSlotCurrentAttachmentName(s) : null;
+    if (!s || !current) return;
+    const nextType = normalizeAttachmentType(els.slotAttachmentType.value);
+    const converted = convertAttachmentType(s, current, nextType);
+    if (!converted) refreshSlotUI();
+  });
 }
 if (els.slotAttachmentLinkedParent) {
   els.slotAttachmentLinkedParent.addEventListener("change", applyActiveSlotAttachmentMetaFromUI);
@@ -1045,27 +1145,276 @@ function makeUniqueAttachmentName(slot, base = "attachment") {
   return next;
 }
 
-function addAttachmentToActiveSlot() {
-  const s = getActiveSlot();
-  if (!s) return false;
-  const base = getSlotCurrentAttachmentName(s) || s.attachmentName || "attachment";
-  const name = makeUniqueAttachmentName(s, base);
-  const srcCanvas = getSlotCanvas(s);
-  const cloned = cloneCanvas(srcCanvas);
-  if (!cloned) return false;
-  ensureSlotAttachments(s).push(
-    normalizeSlotAttachmentRecord(s, { name, placeholder: String(s.placeholderName || s.attachmentName || "main"), canvas: cloned }, name, String(s.placeholderName || s.attachmentName || "main"), cloned)
+function listAttachmentTypes() {
+  return [
+    ATTACHMENT_TYPES.REGION,
+    ATTACHMENT_TYPES.MESH,
+    ATTACHMENT_TYPES.LINKED_MESH,
+    ATTACHMENT_TYPES.BOUNDING_BOX,
+    ATTACHMENT_TYPES.CLIPPING,
+    ATTACHMENT_TYPES.POINT,
+  ];
+}
+
+/* openAttachmentTypePicker — async popup, returns Promise<string|null>.
+   Replaces the old synchronous window.prompt approach. */
+function openAttachmentTypePicker(initialType = ATTACHMENT_TYPES.REGION, title = "Choose Attachment Type") {
+  return new Promise((resolve) => {
+    const wrap = els.attTypePickerWrap;
+    const grid = els.attTypePickerGrid;
+    const titleEl = els.attTypePickerTitle;
+    const closeBtn = els.attTypePickerCloseBtn;
+    const backdrop = els.attTypePickerBackdrop;
+    if (!wrap || !grid) { resolve(null); return; }
+
+    if (titleEl) titleEl.textContent = title;
+
+    /* Highlight initial selection */
+    const normalised = normalizeAttachmentType(initialType);
+    for (const btn of grid.querySelectorAll(".att-type-picker-btn")) {
+      btn.classList.toggle("selected", btn.dataset.type === normalised);
+    }
+
+    wrap.classList.remove("collapsed");
+    wrap.setAttribute("aria-hidden", "false");
+
+    const cleanup = () => {
+      wrap.classList.add("collapsed");
+      wrap.setAttribute("aria-hidden", "true");
+      grid.removeEventListener("click", onGridClick);
+      closeBtn && closeBtn.removeEventListener("click", onClose);
+      backdrop && backdrop.removeEventListener("click", onClose);
+      document.removeEventListener("keydown", onKey);
+    };
+
+    const onGridClick = (ev) => {
+      const btn = ev.target.closest(".att-type-picker-btn[data-type]");
+      if (!btn) return;
+      cleanup();
+      resolve(normalizeAttachmentType(btn.dataset.type));
+    };
+
+    const onClose = () => { cleanup(); resolve(null); };
+    const onKey = (ev) => { if (ev.key === "Escape") { ev.preventDefault(); onClose(); } };
+
+    grid.addEventListener("click", onGridClick);
+    closeBtn && closeBtn.addEventListener("click", onClose);
+    backdrop && backdrop.addEventListener("click", onClose);
+    document.addEventListener("keydown", onKey);
+  });
+}
+
+/* Legacy sync shim — kept for any remaining call sites;
+   callers should migrate to openAttachmentTypePicker() */
+function openAttachmentTypeDialog(initialType = ATTACHMENT_TYPES.REGION) {
+  const fallback = normalizeAttachmentType(initialType);
+  const raw = window.prompt(
+    `Attachment type (${listAttachmentTypes().join(", ")})`,
+    fallback
   );
-  s.activeAttachment = name;
+  if (raw == null) return null;
+  const nextType = normalizeAttachmentType(raw);
+  if (!listAttachmentTypes().includes(nextType)) {
+    setStatus(`Unknown attachment type: ${raw}`);
+    return null;
+  }
+  return nextType;
+}
+
+function buildDefaultAttachmentContour(slot) {
+  const rect = slot && slot.rect
+    ? slot.rect
+    : { x: 0, y: 0, w: Math.max(1, Number(state.imageWidth) || 64), h: Math.max(1, Number(state.imageHeight) || 64) };
+  const x = Number(rect.x) || 0;
+  const y = Number(rect.y) || 0;
+  const w = Math.max(1, Number(rect.w) || 1);
+  const h = Math.max(1, Number(rect.h) || 1);
+  const points = [
+    { x, y },
+    { x: x + w, y },
+    { x: x + w, y: y + h },
+    { x, y: y + h },
+  ];
+  return {
+    points: points.map((p) => ({ ...p })),
+    sourcePoints: points.map((p) => ({ ...p })),
+    authorContourPoints: points.map((p) => ({ ...p })),
+    closed: true,
+    triangles: [],
+    fillPoints: [],
+    fillTriangles: [],
+    manualEdges: [],
+    fillManualEdges: [],
+    contourEdges: [[0, 1], [1, 2], [2, 3], [3, 0]],
+  };
+}
+
+function getAttachmentSeedData(slot, type, sourceAttachment = null) {
+  const attType = normalizeAttachmentType(type);
+  const current = sourceAttachment || getActiveAttachment(slot);
+  const rect = slot && slot.rect ? JSON.parse(JSON.stringify(slot.rect)) : null;
+  const sourceCanvas = current && current.canvas ? current.canvas : getSlotCanvas(slot);
+  const sourceContour = current && current.meshContour ? cloneSlotContourData(current.meshContour) : buildDefaultAttachmentContour(slot);
+  const pointCenter = rect
+    ? {
+        x: (Number(rect.x) || 0) + (Number(rect.w) || 0) * 0.5,
+        y: (Number(rect.y) || 0) + (Number(rect.h) || 0) * 0.5,
+      }
+    : { x: 0, y: 0 };
+  const data = {
+    type: attType,
+    canvas: isVisualAttachment({ type: attType }) ? cloneCanvas(sourceCanvas) || sourceCanvas || null : null,
+    rect,
+    baseImageTransform: normalizeBaseImageTransform(current && current.baseImageTransform),
+    meshData: current && current.meshData ? cloneSlotMeshData(current.meshData) : null,
+    meshContour: attachmentHasMesh({ type: attType }) ? sourceContour : null,
+    linkedParent: current && current.linkedParent ? String(current.linkedParent) : "",
+    bboxSource: current && current.bboxSource === "contour" ? "contour" : "fill",
+    pointX: current && Number.isFinite(Number(current.pointX)) ? Number(current.pointX) : pointCenter.x,
+    pointY: current && Number.isFinite(Number(current.pointY)) ? Number(current.pointY) : pointCenter.y,
+    pointRot: current && Number.isFinite(Number(current.pointRot)) ? Number(current.pointRot) : 0,
+    useWeights: current ? current.useWeights === true : false,
+    weightBindMode: current && current.weightBindMode ? String(current.weightBindMode) : "none",
+    weightMode: current && current.weightMode ? String(current.weightMode) : "free",
+    influenceBones: Array.isArray(current && current.influenceBones) ? current.influenceBones.filter((v) => Number.isFinite(v)) : [],
+    clipEnabled: attType === ATTACHMENT_TYPES.CLIPPING,
+    clipSource: current && current.clipSource === "contour" ? "contour" : "fill",
+    clipEndSlotId: current && current.clipEndSlotId ? String(current.clipEndSlotId) : null,
+    sequence: current && current.sequence ? { ...current.sequence } : { enabled: false, count: 1, start: 0, digits: 2 },
+  };
+  if (attType === ATTACHMENT_TYPES.LINKED_MESH && !data.linkedParent) {
+    const fallbackParent = ensureSlotAttachments(slot).find((att) => att && att.name !== (current && current.name) && isVisualAttachment(att));
+    data.linkedParent = fallbackParent ? String(fallbackParent.name) : "";
+  }
+  if (attType === ATTACHMENT_TYPES.BOUNDING_BOX) {
+    data.canvas = null;
+    data.meshData = null;
+    data.clipEnabled = false;
+    data.clipEndSlotId = null;
+  }
+  if (attType === ATTACHMENT_TYPES.CLIPPING) {
+    data.canvas = null;
+    data.meshData = null;
+  }
+  if (attType === ATTACHMENT_TYPES.POINT) {
+    data.canvas = null;
+    data.meshData = null;
+    data.meshContour = null;
+    data.clipEnabled = false;
+    data.clipEndSlotId = null;
+  }
+  return data;
+}
+
+function clearAttachmentAnimationTracks(slotIndex, attachmentName) {
+  const anim = getCurrentAnimation();
+  if (!anim || !anim.tracks) return;
+  const deformTrackId = getVertexTrackId(slotIndex, attachmentName);
+  if (anim.tracks[deformTrackId]) delete anim.tracks[deformTrackId];
+}
+
+function addAttachmentOfType(slot, type, opts = {}) {
+  const s = slot || getActiveSlot();
+  if (!s) return null;
+  const attType = normalizeAttachmentType(type);
+  const base = String(opts.baseName || getSlotCurrentAttachmentName(s) || s.attachmentName || attType || "attachment");
+  const name = makeUniqueAttachmentName(s, base);
+  const seed = getAttachmentSeedData(s, attType, opts.sourceAttachment || null);
+  const placeholder = String(opts.placeholder || s.placeholderName || s.attachmentName || "main");
+  const record = normalizeSlotAttachmentRecord(
+    s,
+    {
+      ...seed,
+      name,
+      placeholder,
+      linkedParent: opts.linkedParent != null ? String(opts.linkedParent) : seed.linkedParent,
+    },
+    name,
+    placeholder,
+    seed.canvas
+  );
+  ensureSlotAttachments(s).push(record);
+  s.activeAttachment = record.name;
   ensureSlotAttachmentState(s);
+  if (state.mesh && (attType === ATTACHMENT_TYPES.MESH || attType === ATTACHMENT_TYPES.LINKED_MESH)) {
+    ensureSlotMeshData(s, state.mesh);
+    rebuildSlotWeights(s, state.mesh);
+  }
   syncSourceCanvasToActiveAttachment(s);
   refreshSlotUI();
   renderBoneTree();
+  renderTimelineTracks();
+  return record;
+}
+
+function duplicateAttachment(slot, name) {
+  const s = slot || getActiveSlot();
+  if (!s) return null;
+  const source = getSlotAttachmentEntry(s, name || getSlotCurrentAttachmentName(s));
+  if (!source) return null;
+  return addAttachmentOfType(s, source.type, {
+    baseName: `${source.name}_copy`,
+    placeholder: source.placeholder,
+    sourceAttachment: source,
+    linkedParent: source.linkedParent || "",
+  });
+}
+
+function convertAttachmentType(slot, name, nextType) {
+  const s = slot || getActiveSlot();
+  if (!s) return null;
+  const current = getSlotAttachmentEntry(s, name || getSlotCurrentAttachmentName(s));
+  if (!current) return null;
+  const targetType = normalizeAttachmentType(nextType);
+  if (targetType === normalizeAttachmentType(current.type)) return current;
+  const idx = ensureSlotAttachments(s).findIndex((att) => att && att.name === current.name);
+  if (idx < 0) return null;
+  const dataLoss =
+    isDeformableAttachment(current) &&
+    !isDeformableAttachment({ type: targetType }) &&
+    current.meshData;
+  if (dataLoss && !window.confirm(`Switch "${current.name}" to ${targetType}? Mesh deformation data may stop applying.`)) {
+    refreshSlotUI();
+    return current;
+  }
+  const replacement = normalizeSlotAttachmentRecord(
+    s,
+    {
+      ...getAttachmentSeedData(s, targetType, current),
+      name: current.name,
+      placeholder: current.placeholder,
+    },
+    current.name,
+    current.placeholder,
+    current.canvas || getSlotCanvas(s)
+  );
+  ensureSlotAttachments(s)[idx] = replacement;
+  if (!isDeformableAttachment(replacement)) clearAttachmentAnimationTracks(state.activeSlot, replacement.name);
+  s.activeAttachment = replacement.name;
+  ensureSlotAttachmentState(s);
+  if (state.mesh && (targetType === ATTACHMENT_TYPES.MESH || targetType === ATTACHMENT_TYPES.LINKED_MESH)) {
+    ensureSlotMeshData(s, state.mesh);
+    rebuildSlotWeights(s, state.mesh);
+  }
+  syncSourceCanvasToActiveAttachment(s);
+  refreshSlotUI();
+  renderBoneTree();
+  renderTimelineTracks();
+  return replacement;
+}
+
+async function addAttachmentToActiveSlot() {
+  const s = getActiveSlot();
+  if (!s) return false;
+  const pickedType = await openAttachmentTypePicker(ATTACHMENT_TYPES.REGION, "Add Attachment");
+  if (!pickedType) return false;
+  const created = addAttachmentOfType(s, pickedType);
+  if (!created) return false;
   if (els.slotAttachmentName) {
     els.slotAttachmentName.focus();
     els.slotAttachmentName.select();
   }
-  setStatus(`Attachment added: ${name}`);
+  setStatus(`Attachment added: ${created.name} (${pickedType})`);
   return true;
 }
 
@@ -1108,6 +1457,15 @@ function renameActiveAttachmentInSlot() {
         if (k && typeof k.value === "string" && k.value === current) k.value = nextName;
       }
       normalizeTrackKeys(anim, trackId);
+    }
+    const oldDeformTrackId = getVertexTrackId(state.activeSlot, current);
+    const newDeformTrackId = getVertexTrackId(state.activeSlot, nextName);
+    if (anim.tracks[oldDeformTrackId]) {
+      anim.tracks[newDeformTrackId] = Array.isArray(anim.tracks[oldDeformTrackId])
+        ? anim.tracks[oldDeformTrackId].map((key) => ({ ...key }))
+        : [];
+      delete anim.tracks[oldDeformTrackId];
+      normalizeTrackKeys(anim, newDeformTrackId);
     }
   }
   refreshSlotUI();
@@ -1152,6 +1510,7 @@ function deleteActiveAttachmentInSlot() {
       normalizeTrackKeys(anim, trackId);
     }
   }
+  clearAttachmentAnimationTracks(state.activeSlot, current);
   syncSourceCanvasToActiveAttachment(s);
   refreshSlotUI();
   renderTimelineTracks();
@@ -1164,9 +1523,14 @@ if (els.slotAttachmentAddBtn) {
     addAttachmentToActiveSlot();
   });
 }
-if (els.slotAttachmentRenameBtn) {
-  els.slotAttachmentRenameBtn.addEventListener("click", () => {
-    renameActiveAttachmentInSlot();
+if (els.slotAttachmentDuplicateBtn) {
+  els.slotAttachmentDuplicateBtn.addEventListener("click", () => {
+    const s = getActiveSlot();
+    const current = s ? getSlotCurrentAttachmentName(s) : null;
+    if (!s || !current) return;
+    const created = duplicateAttachment(s, current);
+    if (!created) return;
+    setStatus(`Attachment duplicated: ${created.name}`);
   });
 }
 if (els.slotAttachmentDeleteBtn) {
@@ -1174,6 +1538,7 @@ if (els.slotAttachmentDeleteBtn) {
     deleteActiveAttachmentInSlot();
   });
 }
+
 if (els.slotAttachmentLoadBtn && els.slotAttachmentFileInput) {
   els.slotAttachmentLoadBtn.addEventListener("click", () => {
     if (!getActiveSlot()) return;

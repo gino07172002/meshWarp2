@@ -1,8 +1,8 @@
-# WebGL Support Diagnostics In Tools Panel
+# WebGL Support Diagnostics Dialog
 
 ## Goal
 
-Add a detailed WebGL support checker inside the left `Tools` panel so the app can explain why one browser works and another does not.
+Add a detailed WebGL support checker that opens in an in-page dialog so the app can explain why one browser works and another does not without occupying permanent sidebar space.
 
 The feature should help compare browsers such as Firefox and Edge without requiring DevTools or code edits.
 
@@ -11,7 +11,7 @@ The feature should help compare browsers such as Firefox and Edge without requir
 In scope:
 
 - Add a `Check WebGL Support` action to the existing `Tools` panel.
-- Show a detailed report directly inside the `Tools` panel.
+- Show a detailed report inside a dedicated modal dialog.
 - Include a `Copy Report` action for easy sharing.
 - Probe `webgl2`, `webgl`, and `experimental-webgl` support independently.
 - Report success, failure, exception message, renderer/version info, capabilities, and selected extensions.
@@ -25,19 +25,19 @@ Out of scope:
 
 ## Approaches Considered
 
-### 1. Inline text report in `Tools` panel
+### 1. Dedicated in-page dialog
 
-Add a small diagnostics block with buttons and a scrollable report area inside the existing `Tools` panel.
+Open a modal dialog with buttons and a scrollable report area when the user runs the WebGL diagnostics command.
 
 Pros:
 
-- Fastest way to compare browsers.
-- Matches the requested location.
-- Lowest risk to existing diagnostics flow.
+- Keeps the sidebar clean.
+- Matches the "open, inspect, close" workflow.
+- Avoids popup blockers because it stays in-page.
 
 Cons:
 
-- Adds more content to the left panel.
+- Slightly more UI behavior than an inline panel.
 
 ### 2. Reuse the existing project diagnostics UI
 
@@ -53,38 +53,28 @@ Cons:
 - Harder to present detailed capability data cleanly.
 - Does not match the requested location as well.
 
-### 3. Modal or separate dock
-
-Open a dedicated panel with detailed WebGL information.
-
-Pros:
-
-- Plenty of room for rich data.
-
-Cons:
-
-- Heavier UI change than needed.
-- Slower for repeated browser comparisons.
-
 ## Recommendation
 
 Use approach 1.
 
-It is the clearest fit for the request, keeps the feature local to the `Tools` panel, and avoids mixing browser/runtime support diagnostics with project content diagnostics.
+It fits the request best because the report is temporary by nature, keeps the left sidebar focused on editing tools, and still provides enough space for a detailed browser comparison report.
 
 ## UX Design
 
-Inside the existing `Tools` section, add a new `WebGL Support` subsection with:
+Add a `WebGL Support Diagnostics` dialog with:
 
-- `Check WebGL Support` button
+- `Run Check` button
 - `Copy Report` button
+- `Close` button
 - a summary line
 - a scrollable report area using preformatted text
 
 Behavior:
 
-- Clicking `Check WebGL Support` runs a fresh probe and replaces the current report.
+- Clicking the top menu item `Tools > Check WebGL Support` opens the dialog and immediately runs a fresh probe.
+- Clicking `Run Check` inside the dialog reruns the probe and replaces the current report.
 - Clicking `Copy Report` copies the latest report text to the clipboard.
+- Clicking the backdrop, pressing `Escape`, or using `Close` dismisses the dialog.
 - If no report exists yet, `Copy Report` stays disabled.
 - The summary line should quickly state the best detected context, for example:
   - `WebGL2 available`
@@ -166,28 +156,26 @@ Suggested additions:
 ## File Placement
 
 - `index.html`
-  - add the `WebGL Support` subsection in the `Tools` panel
+  - add the WebGL support dialog markup and trigger entry in the top `Tools` menu
 - `styles.css`
-  - add compact styling for the report block
+  - add dialog/backdrop/report styling
 - `app/core/runtime.js`
-  - add WebGL probe helpers and state bucket
-- `app/core/bones.js`
-  - extend panel refresh logic for tool panel visibility/state sync
+  - add WebGL probe helpers, dialog open/close helpers, and state bucket
 - `app/ui/editor-panels.js`
-  - bind the new buttons and clipboard action
+  - bind dialog buttons, backdrop close behavior, and clipboard action
 
-If panel refresh logic fits better in another current UI file after inspection, follow the existing pattern there instead of forcing it.
+If dialog lifecycle logic fits better in another current UI file after inspection, follow the existing pattern there instead of forcing it.
 
 ## Data Flow
 
-1. User opens the `Tools` tab.
-2. User clicks `Check WebGL Support`.
+1. User chooses `Tools > Check WebGL Support`.
+2. UI opens the dialog and triggers a WebGL support probe.
 3. UI handler calls the runtime probe helper.
 4. Probe helper gathers raw browser WebGL support data on a temporary canvas.
 5. Formatter produces summary plus detailed report text.
 6. State is updated.
-7. UI refresh renders the latest summary and report.
-8. User can click `Copy Report` to copy the rendered text.
+7. Dialog UI refresh renders the latest summary and report.
+8. User can click `Copy Report` to copy the rendered text, then close the dialog.
 
 ## Error Handling
 
@@ -202,13 +190,14 @@ If panel refresh logic fits better in another current UI file after inspection, 
 
 - Confirm new DOM nodes exist and are wired through `els`.
 - Run syntax checks on touched files.
-- Add a lightweight static check so the new `Tools` panel controls cannot silently disappear in future cleanup.
+- Add a lightweight static check so the dialog controls and top menu trigger cannot silently disappear in future cleanup.
 
 ### Functional verification
 
-- Load the page and open the `Tools` tab.
-- Run the WebGL support check and confirm the report renders.
+- Load the page and trigger `Tools > Check WebGL Support`.
+- Confirm the dialog opens and the report renders.
 - Confirm `Copy Report` copies the latest report.
+- Confirm the dialog closes via backdrop, close button, and `Escape`.
 - Confirm the feature still works when the active app render path is 2D fallback.
 
 ## Risks

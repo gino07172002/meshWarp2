@@ -32,6 +32,17 @@ function clearDrag(ev) {
     pushUndoCheckpoint(true);
     return;
   }
+  if (drag.type === "att_gizmo_point_move" || drag.type === "att_gizmo_point_rotate") {
+    const si = Number(drag.slotIndex);
+    const slot = Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : getActiveSlot();
+    if (slot) refreshAttachmentPanel(slot);
+    pushUndoCheckpoint(true);
+    return;
+  }
+  if (drag.type === "att_gizmo_vertex") {
+    pushUndoCheckpoint(true);
+    return;
+  }
   if (drag.type === "path_point" || drag.type === "path_handle") {
     pushUndoCheckpoint(true);
     return;

@@ -28,6 +28,15 @@ function getCurrentWsMode() {
   return sysMode === "animate" ? "animate" : "edit";
 }
 
+const ATTACHMENT_TYPES = Object.freeze({
+  REGION: "region",
+  MESH: "mesh",
+  LINKED_MESH: "linkedmesh",
+  BOUNDING_BOX: "boundingbox",
+  CLIPPING: "clipping",
+  POINT: "point",
+});
+
 /**
  * Apply a (type, mode) combination.
  * type: "rig" | "mesh" | "object"
@@ -209,6 +218,8 @@ function addSlotEntry(entry, activate = true) {
     h: Math.max(1, srcRect.h * sy),
   };
   const canvas = normalizeSlotCanvas(entryCanvas, Math.max(1, rect.w), Math.max(1, rect.h));
+  const defaultAttachmentType =
+    entry && entry.defaultAttachmentType ? normalizeAttachmentType(entry.defaultAttachmentType) : ATTACHMENT_TYPES.REGION;
   const defaultBone = -1;
   const slot = {
     id: entry.id || makeSlotId(),
@@ -241,8 +252,36 @@ function addSlotEntry(entry, activate = true) {
     rect,
     docWidth: targetW,
     docHeight: targetH,
-    _indices: null,
-    meshData: null,
+    __legacyAttachmentState:
+      entry &&
+      (
+        entry.meshData ||
+        entry.meshContour ||
+        Object.prototype.hasOwnProperty.call(entry, "useWeights") ||
+        entry.weightBindMode ||
+        entry.weightMode ||
+        (Array.isArray(entry.influenceBones) && entry.influenceBones.length > 0) ||
+        Object.prototype.hasOwnProperty.call(entry, "clipEnabled") ||
+        entry.clipSource ||
+        Object.prototype.hasOwnProperty.call(entry, "clipEndSlotId")
+      )
+        ? {
+          meshData: entry.meshData ? cloneSlotMeshData(entry.meshData) : null,
+          meshContour: entry.meshContour ? cloneSlotContourData(entry.meshContour) : null,
+          useWeights: entry.useWeights === true,
+          weightBindMode: entry.weightBindMode ? String(entry.weightBindMode) : "none",
+          weightMode: entry.weightMode ? String(entry.weightMode) : "free",
+          influenceBones: Array.isArray(entry.influenceBones) ? entry.influenceBones.filter((v) => Number.isFinite(v)) : [],
+          clipEnabled: !!entry.clipEnabled,
+          clipSource: entry && entry.clipSource === "contour" ? "contour" : "fill",
+          clipEndSlotId:
+            entry && Object.prototype.hasOwnProperty.call(entry, "clipEndSlotId")
+              ? entry.clipEndSlotId == null
+                ? null
+                : String(entry.clipEndSlotId)
+              : null,
+        }
+        : null,
     attachments: Array.isArray(entry.attachments)
       ? entry.attachments
         .map((a) => ({
@@ -288,48 +327,25 @@ function addSlotEntry(entry, activate = true) {
           meshData: a && a.meshData ? cloneSlotMeshData(a.meshData) : null,
           meshContour: a && a.meshContour ? JSON.parse(JSON.stringify(a.meshContour)) : null,
         }))
-        .filter((a) => a.name.length > 0 && (a.canvas || a.type === "point" || a.type === "boundingbox"))
+        .filter((a) => a.name.length > 0 && (a.canvas || !isVisualAttachment(a)))
       : [
         {
           name: String(entry.attachmentName || "main"),
           placeholder: String(entry.placeholderName || entry.attachmentName || "main"),
           canvas,
-          type: "region",
+          type: defaultAttachmentType,
           linkedParent: "",
           pointX: 0,
           pointY: 0,
           pointRot: 0,
           bboxSource: "fill",
           sequence: { enabled: false, count: 1, start: 0, digits: 2 },
+          useWeights: entry && entry.useWeights === true,
+          weightBindMode: entry && entry.weightBindMode ? String(entry.weightBindMode) : "none",
+          weightMode: entry && entry.weightMode ? String(entry.weightMode) : "free",
+          influenceBones: Array.isArray(entry && entry.influenceBones) ? entry.influenceBones.filter((v) => Number.isFinite(v)) : [],
         },
       ],
-    useWeights: entry.useWeights === true,
-    weightBindMode: entry.weightBindMode || (entry.useWeights ? "single" : "none"),
-    weightMode:
-      entry.weightMode ||
-      (entry.weightBindMode === "auto" ? "weighted" : entry.useWeights === false ? "free" : "single"),
-    influenceBones: Array.isArray(entry.influenceBones) ? entry.influenceBones.filter((v) => Number.isFinite(v)) : [],
-    clipEnabled: !!entry.clipEnabled,
-    clipSource: entry && entry.clipSource === "contour" ? "contour" : "fill",
-    clipEndSlotId:
-      entry && Object.prototype.hasOwnProperty.call(entry, "clipEndSlotId")
-        ? entry.clipEndSlotId == null
-          ? null
-          : String(entry.clipEndSlotId)
-        : null,
-    meshContour: entry.meshContour
-      ? JSON.parse(JSON.stringify(entry.meshContour))
-      : {
-        points: [],
-        sourcePoints: [],
-        authorContourPoints: [],
-        closed: false,
-        triangles: [],
-        fillPoints: [],
-        fillTriangles: [],
-        manualEdges: [],
-        fillManualEdges: [],
-      },
   };
   ensureSlotAttachments(slot);
   ensureSlotAttachmentState(slot);
@@ -531,43 +547,40 @@ function isCanonicalAttachmentWeightMode(mode) {
 
 function clearLegacySlotMeshState(slot) {
   if (!slot || typeof slot !== "object") return;
-  slot.meshData = null;
-  slot.meshContour = null;
-  slot.useWeights = undefined;
-  slot.weightBindMode = null;
-  slot.weightMode = null;
-  slot.influenceBones = [];
+  delete slot.__legacyAttachmentState;
 }
 
 function promoteLegacySlotMeshState(slot, options = {}) {
   if (!slot || typeof slot !== "object") return null;
   const att = getActiveAttachment(slot);
   if (!att) return null;
+  const legacy = getLegacySlotAttachmentState(slot);
+  if (!legacy) return att;
   const overwriteAttachment = !!(options && options.overwriteAttachment);
   const clearLegacy = options && Object.prototype.hasOwnProperty.call(options, "clearLegacy")
     ? options.clearLegacy !== false
     : true;
-  const legacyMode = isCanonicalAttachmentWeightMode(slot.weightMode) ? String(slot.weightMode) : null;
-  const legacyInfluences = Array.isArray(slot.influenceBones)
-    ? slot.influenceBones.filter((v) => Number.isFinite(v)).map((v) => Number(v))
+  const legacyMode = isCanonicalAttachmentWeightMode(legacy.weightMode) ? String(legacy.weightMode) : null;
+  const legacyInfluences = Array.isArray(legacy.influenceBones)
+    ? legacy.influenceBones.filter((v) => Number.isFinite(v)).map((v) => Number(v))
     : [];
-  if (slot.meshData && (overwriteAttachment || !att.meshData)) {
-    att.meshData = cloneSlotMeshData(slot.meshData);
+  if (legacy.meshData && (overwriteAttachment || !att.meshData)) {
+    att.meshData = cloneSlotMeshData(legacy.meshData);
   }
   if (
-    slot.meshContour &&
-    Array.isArray(slot.meshContour.points) &&
+    legacy.meshContour &&
+    Array.isArray(legacy.meshContour.points) &&
     (overwriteAttachment || !(att.meshContour && Array.isArray(att.meshContour.points) && att.meshContour.points.length > 0))
   ) {
-    att.meshContour = cloneSlotContourData(slot.meshContour);
+    att.meshContour = cloneSlotContourData(legacy.meshContour);
   }
   if (overwriteAttachment || att.useWeights == null) {
-    if (Object.prototype.hasOwnProperty.call(slot, "useWeights")) att.useWeights = slot.useWeights === true;
+    if (Object.prototype.hasOwnProperty.call(legacy, "useWeights")) att.useWeights = legacy.useWeights === true;
     else if (legacyMode) att.useWeights = legacyMode !== "free";
   }
   if (overwriteAttachment || !att.weightBindMode) {
     att.weightBindMode =
-      slot.weightBindMode ||
+      legacy.weightBindMode ||
       (legacyMode === "weighted" ? "auto" : legacyMode === "single" ? "single" : legacyMode === "free" ? "none" : "none");
   }
   if (overwriteAttachment || !isCanonicalAttachmentWeightMode(att.weightMode)) {
@@ -716,7 +729,7 @@ function remapTrackIdAfterSlotRemoved(trackId, removedSlotIndex) {
   if (parsed.type === "mesh" && Number.isFinite(parsed.slotIndex)) {
     const si = Number(parsed.slotIndex);
     if (si === removedSlotIndex) return null;
-    return getVertexTrackId(si > removedSlotIndex ? si - 1 : si);
+    return getVertexTrackId(si > removedSlotIndex ? si - 1 : si, parsed.attachmentName || null);
   }
   return trackId;
 }
@@ -962,6 +975,7 @@ function refreshBoneTreeContextMenuUI() {
   const active = getActiveSlot();
   const isBoneCtx = state.boneTreeMenuContextKind === "bone";
   const isSlotCtx = state.boneTreeMenuContextKind === "slot";
+  const isAttachmentCtx = state.boneTreeMenuContextKind === "attachment";
   const deleteInfo = getSelectedBoneDeleteInfo();
   const boundCount = deleteInfo.slotIndices.length;
   const canDeleteBone = isBoneCtx && deleteInfo.canDelete;
@@ -980,6 +994,22 @@ function refreshBoneTreeContextMenuUI() {
   if (els.treeCtxSlotDeleteBtn) {
     els.treeCtxSlotDeleteBtn.disabled = !active;
     els.treeCtxSlotDeleteBtn.hidden = !isSlotCtx;
+  }
+  if (els.treeCtxAttachmentAddBtn) {
+    els.treeCtxAttachmentAddBtn.disabled = !active;
+    els.treeCtxAttachmentAddBtn.hidden = !isAttachmentCtx;
+  }
+  if (els.treeCtxAttachmentDupBtn) {
+    els.treeCtxAttachmentDupBtn.disabled = !active || !getSlotCurrentAttachmentName(active);
+    els.treeCtxAttachmentDupBtn.hidden = !isAttachmentCtx;
+  }
+  if (els.treeCtxAttachmentChangeTypeBtn) {
+    els.treeCtxAttachmentChangeTypeBtn.disabled = !active || !getSlotCurrentAttachmentName(active);
+    els.treeCtxAttachmentChangeTypeBtn.hidden = !isAttachmentCtx;
+  }
+  if (els.treeCtxAttachmentDeleteBtn) {
+    els.treeCtxAttachmentDeleteBtn.disabled = !active || ensureSlotAttachments(active).length <= 1 || !getSlotCurrentAttachmentName(active);
+    els.treeCtxAttachmentDeleteBtn.hidden = !isAttachmentCtx;
   }
   if (els.treeCtxSlotLoadImageBtn) {
     els.treeCtxSlotLoadImageBtn.disabled = !active;
@@ -1278,16 +1308,57 @@ function ensureSlotAttachmentState(slot) {
 
 function normalizeAttachmentType(type) {
   const t = String(type || "").toLowerCase();
-  if (t === "mesh") return "mesh";
-  if (t === "linkedmesh") return "linkedmesh";
-  if (t === "boundingbox") return "boundingbox";
-  if (t === "clipping") return "clipping";
-  if (t === "point") return "point";
-  return "region";
+  if (t === ATTACHMENT_TYPES.MESH) return ATTACHMENT_TYPES.MESH;
+  if (t === ATTACHMENT_TYPES.LINKED_MESH) return ATTACHMENT_TYPES.LINKED_MESH;
+  if (t === ATTACHMENT_TYPES.BOUNDING_BOX) return ATTACHMENT_TYPES.BOUNDING_BOX;
+  if (t === ATTACHMENT_TYPES.CLIPPING) return ATTACHMENT_TYPES.CLIPPING;
+  if (t === ATTACHMENT_TYPES.POINT) return ATTACHMENT_TYPES.POINT;
+  return ATTACHMENT_TYPES.REGION;
+}
+
+function isDeformableAttachment(att) {
+  const type = normalizeAttachmentType(att && att.type);
+  return type === ATTACHMENT_TYPES.MESH || type === ATTACHMENT_TYPES.LINKED_MESH;
+}
+
+function isVisualAttachment(att) {
+  const type = normalizeAttachmentType(att && att.type);
+  return type === ATTACHMENT_TYPES.REGION || type === ATTACHMENT_TYPES.MESH || type === ATTACHMENT_TYPES.LINKED_MESH;
+}
+
+function attachmentHasMesh(att) {
+  const type = normalizeAttachmentType(att && att.type);
+  return (
+    type === ATTACHMENT_TYPES.MESH ||
+    type === ATTACHMENT_TYPES.LINKED_MESH ||
+    type === ATTACHMENT_TYPES.BOUNDING_BOX ||
+    type === ATTACHMENT_TYPES.CLIPPING
+  );
+}
+
+function getLegacySlotAttachmentState(slot) {
+  return slot && slot.__legacyAttachmentState && typeof slot.__legacyAttachmentState === "object"
+    ? slot.__legacyAttachmentState
+    : null;
+}
+
+function readSlotMeshData(slot) {
+  const active = getActiveAttachment(slot);
+  if (active && active.meshData) return active.meshData;
+  const legacy = getLegacySlotAttachmentState(slot);
+  return legacy && legacy.meshData ? legacy.meshData : null;
+}
+
+function readSlotMeshContour(slot) {
+  const active = getActiveAttachment(slot);
+  if (active && active.meshContour) return active.meshContour;
+  const legacy = getLegacySlotAttachmentState(slot);
+  return legacy && legacy.meshContour ? legacy.meshContour : null;
 }
 
 function normalizeSlotAttachmentRecord(slot, a, fallbackName, fallbackPlaceholder, fallbackCanvas) {
   const rec = a && typeof a === "object" ? a : {};
+  const legacy = getLegacySlotAttachmentState(slot);
   const name = String(rec.name || fallbackName || "att").trim() || String(fallbackName || "att");
   const placeholder = String(rec.placeholder || fallbackPlaceholder || "main").trim() || "main";
   const type = normalizeAttachmentType(rec.type);
@@ -1310,28 +1381,47 @@ function normalizeSlotAttachmentRecord(slot, a, fallbackName, fallbackPlaceholde
           digits: Math.max(1, Math.round(Number(rec.sequence.digits) || 2)),
         }
         : { enabled: false, count: 1, start: 0, digits: 2 },
-    // Migrate mesh UI data from legacy slot root when attachment payload is missing.
-    meshData: rec.meshData ? cloneSlotMeshData(rec.meshData) : slot && slot.meshData ? cloneSlotMeshData(slot.meshData) : null,
-    meshContour: rec.meshContour ? cloneSlotContourData(rec.meshContour) : slot && slot.meshContour ? cloneSlotContourData(slot.meshContour) : {
+    meshData: rec.meshData ? cloneSlotMeshData(rec.meshData) : legacy && legacy.meshData ? cloneSlotMeshData(legacy.meshData) : null,
+    meshContour: rec.meshContour ? cloneSlotContourData(rec.meshContour) : legacy && legacy.meshContour ? cloneSlotContourData(legacy.meshContour) : {
       points: [], sourcePoints: [], authorContourPoints: [],
       closed: false, triangles: [], fillPoints: [], fillTriangles: [],
       manualEdges: [], fillManualEdges: []
     },
     baseImageTransform: normalizeBaseImageTransform(rec.baseImageTransform || (slot && slot.baseImageTransform)),
-    useWeights: rec.useWeights !== undefined ? rec.useWeights : (slot && slot.useWeights !== undefined ? slot.useWeights : false),
-    weightBindMode: rec.weightBindMode || (slot && slot.weightBindMode ? slot.weightBindMode : "none"),
-    weightMode: rec.weightMode || (slot && slot.weightMode ? slot.weightMode : "free"),
+    useWeights: rec.useWeights !== undefined ? rec.useWeights : legacy ? legacy.useWeights === true : false,
+    weightBindMode: rec.weightBindMode || (legacy && legacy.weightBindMode ? legacy.weightBindMode : "none"),
+    weightMode: rec.weightMode || (legacy && legacy.weightMode ? legacy.weightMode : "free"),
     influenceBones: Array.isArray(rec.influenceBones)
       ? rec.influenceBones.filter((v) => Number.isFinite(v))
-      : Array.isArray(slot && slot.influenceBones)
-        ? slot.influenceBones.filter((v) => Number.isFinite(v))
+      : Array.isArray(legacy && legacy.influenceBones)
+        ? legacy.influenceBones.filter((v) => Number.isFinite(v))
         : [],
-    clipEnabled: !!rec.clipEnabled || !!(slot && slot.clipEnabled),
-    clipSource: rec.clipSource || (slot && slot.clipSource ? slot.clipSource : "fill"),
-    clipEndSlotId: rec.clipEndSlotId || (slot && slot.clipEndSlotId ? slot.clipEndSlotId : null),
+    clipEnabled: !!rec.clipEnabled || !!(legacy && legacy.clipEnabled),
+    clipSource: rec.clipSource || (legacy && legacy.clipSource ? legacy.clipSource : "fill"),
+    clipEndSlotId: rec.clipEndSlotId || (legacy && legacy.clipEndSlotId ? legacy.clipEndSlotId : null),
     rect: rec.rect || (slot && slot.rect ? JSON.parse(JSON.stringify(slot.rect)) : null)
   };
-  if ((out.type === "region" || out.type === "mesh" || out.type === "linkedmesh") && !out.canvas) out.canvas = slot ? getSlotCanvas(slot) : null;
+  if (isVisualAttachment(out) && !out.canvas) out.canvas = slot ? getSlotCanvas(slot) : null;
+  if (!attachmentHasMesh(out)) {
+    out.meshData = null;
+    if (type === ATTACHMENT_TYPES.REGION || type === ATTACHMENT_TYPES.POINT) out.meshContour = null;
+  }
+  if (type === ATTACHMENT_TYPES.BOUNDING_BOX) {
+    out.canvas = null;
+    out.meshData = null;
+    out.clipEnabled = false;
+    out.clipEndSlotId = null;
+  }
+  if (type === ATTACHMENT_TYPES.CLIPPING) {
+    out.canvas = null;
+    out.meshData = null;
+  }
+  if (type === ATTACHMENT_TYPES.POINT) {
+    out.canvas = null;
+    out.meshContour = null;
+    out.clipEnabled = false;
+    out.clipEndSlotId = null;
+  }
   return out;
 }
 
@@ -1360,7 +1450,7 @@ function ensureSlotAttachments(slot) {
     used.add(name);
     const rec = normalizeSlotAttachmentRecord(slot, a, name, basePh, slotCanvas);
     rec.name = name;
-    if ((rec.type === "region" || rec.type === "mesh" || rec.type === "linkedmesh") && !rec.canvas) continue;
+    if (isVisualAttachment(rec) && !rec.canvas) continue;
     out.push(rec);
   }
   if (out.length === 0 && slotCanvas) {
@@ -1525,7 +1615,7 @@ function addContourSlotFromActiveSlot(sourceSlot) {
               }
               : { enabled: false, count: 1, start: 0, digits: 2 },
         }))
-        .filter((a) => a.name.length > 0 && (a.canvas || a.type === "point" || a.type === "boundingbox"))
+        .filter((a) => a.name.length > 0 && (a.canvas || !isVisualAttachment(a)))
       : [
         {
           name: String(sourceSlot.attachmentName || "main"),

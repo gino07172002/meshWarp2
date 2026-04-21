@@ -33,6 +33,37 @@ function getSlotCanvas(slot, options = {}) {
   return fallback ? fallback.canvas : null;
 }
 
+function resolveLinkedMeshSource(slot, attachment) {
+  const att = attachment && typeof attachment === "object" ? attachment : null;
+  const raw = att && att.linkedParent != null ? String(att.linkedParent).trim() : "";
+  if (!slot || !raw) return null;
+
+  /* New format: "slotId::attachmentName" — unambiguous cross-slot reference */
+  const sepIdx = raw.indexOf("::");
+  if (sepIdx >= 0) {
+    const targetSlotId = raw.slice(0, sepIdx);
+    const targetAttName = raw.slice(sepIdx + 2);
+    const targetSlot = (state.slots || []).find((sl) => sl && String(sl.id) === targetSlotId);
+    if (targetSlot) {
+      const targetAtt = getSlotAttachmentEntry(targetSlot, targetAttName);
+      if (targetAtt && targetAtt !== att) return { slot: targetSlot, attachment: targetAtt };
+    }
+    return null;
+  }
+
+  /* Legacy plain name — search same slot first, then all slots */
+  const local = getSlotAttachmentEntry(slot, raw);
+  if (local && local !== att && local.meshData) return { slot, attachment: local };
+  for (const candidateSlot of state.slots || []) {
+    if (!candidateSlot) continue;
+    const candidateAtt = getSlotAttachmentEntry(candidateSlot, raw);
+    if (candidateAtt && candidateAtt !== att && candidateAtt.meshData) {
+      return { slot: candidateSlot, attachment: candidateAtt };
+    }
+  }
+  return null;
+}
+
 function getSlotDisplayNameByIndex(index) {
   const si = Number(index);
   const slot = Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : null;
@@ -1716,7 +1747,39 @@ function pickSlotContourPoint(slot, mx, my, radius = 10, poseWorld = null) {
 function ensureSlotMeshData(slot, m) {
   if (!slot || !m) return;
   const att = getActiveAttachment(slot);
-  if (!att) return; // slot has no attachment — nothing to initialize
+  if (!att) return;
+  const type = normalizeAttachmentType(att.type);
+  if (type !== ATTACHMENT_TYPES.MESH && type !== ATTACHMENT_TYPES.LINKED_MESH) return null;
+  if (type === ATTACHMENT_TYPES.LINKED_MESH) {
+    const source = resolveLinkedMeshSource(slot, att);
+    const sourceMesh = source && source.attachment ? source.attachment.meshData : null;
+    if (!sourceMesh) return null;
+    const pointCount = sourceMesh.positions ? sourceMesh.positions.length : 0;
+    const nextOffsets =
+      att.meshData && att.meshData.offsets && att.meshData.offsets.length === pointCount
+        ? new Float32Array(att.meshData.offsets)
+        : new Float32Array(pointCount);
+    const nextBaseOffsets =
+      att.meshData && att.meshData.baseOffsets && att.meshData.baseOffsets.length === pointCount
+        ? new Float32Array(att.meshData.baseOffsets)
+        : new Float32Array(pointCount);
+    att.meshData = {
+      cols: Number(sourceMesh.cols) || 0,
+      rows: Number(sourceMesh.rows) || 0,
+      positions: new Float32Array(sourceMesh.positions),
+      uvs: new Float32Array(sourceMesh.uvs),
+      offsets: nextOffsets,
+      baseOffsets: nextBaseOffsets,
+      weights: sourceMesh.weights ? new Float32Array(sourceMesh.weights) : new Float32Array(0),
+      indices: sourceMesh.indices ? new Uint16Array(sourceMesh.indices) : new Uint16Array(0),
+      deformedLocal: new Float32Array(pointCount),
+      deformedScreen: new Float32Array(pointCount),
+      interleaved: new Float32Array((pointCount / 2) * 4),
+    };
+    if ((!att.meshContour || !Array.isArray(att.meshContour.points) || att.meshContour.points.length <= 0) && source.attachment.meshContour) {
+      att.meshContour = cloneSlotContourData(source.attachment.meshContour);
+    }
+  }
   if (!att.meshData) {
     const r = att.rect || { x: 0, y: 0, w: state.imageWidth || 64, h: state.imageHeight || 64 };
     att.meshData = createSlotMeshData(r, state.imageWidth || r.w, state.imageHeight || r.h, m.cols, m.rows);

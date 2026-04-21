@@ -1414,6 +1414,50 @@ function rebuildSlotTriangleIndices() {
   }
 }
 
+function buildRegionAttachmentGeometry(slot, poseWorld) {
+  const att = getActiveAttachment(slot);
+  if (!slot || !att || !att.canvas) return { interleaved: null, screen: null, indices: null, uvs: null };
+  const rect =
+    att.rect && Number.isFinite(att.rect.w) && Number.isFinite(att.rect.h)
+      ? att.rect
+      : slot.rect && Number.isFinite(slot.rect.w) && Number.isFinite(slot.rect.h)
+        ? slot.rect
+        : {
+          x: 0,
+          y: 0,
+          w: Math.max(1, Number(att.canvas.width) || 1),
+          h: Math.max(1, Number(att.canvas.height) || 1),
+        };
+  const rw = Math.max(1, Number(rect.w) || Number(att.canvas.width) || 1);
+  const rh = Math.max(1, Number(rect.h) || Number(att.canvas.height) || 1);
+  const x0 = Number(rect.x) || 0;
+  const y0 = Number(rect.y) || 0;
+  const corners = [
+    { x: x0, y: y0 },
+    { x: x0 + rw, y: y0 },
+    { x: x0 + rw, y: y0 + rh },
+    { x: x0, y: y0 + rh },
+  ];
+  const tm = getSlotTransformMatrix(slot, Array.isArray(poseWorld) ? poseWorld : []);
+  const screen = new Float32Array(8);
+  const interleaved = new Float32Array(16);
+  const uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
+  const indices = new Uint16Array([0, 1, 2, 0, 2, 3]);
+
+  for (let i = 0; i < corners.length; i += 1) {
+    const worldPoint = transformPoint(tm, corners[i].x, corners[i].y);
+    const screenPoint = localToScreen(worldPoint.x, worldPoint.y);
+    screen[i * 2] = screenPoint.x;
+    screen[i * 2 + 1] = screenPoint.y;
+    interleaved[i * 4] = screenPoint.x;
+    interleaved[i * 4 + 1] = screenPoint.y;
+    interleaved[i * 4 + 2] = uvs[i * 2];
+    interleaved[i * 4 + 3] = uvs[i * 2 + 1];
+  }
+
+  return { interleaved, screen, indices, uvs };
+}
+
 function buildSlotGeometry(slot, poseWorld) {
   const m = state.mesh;
   if (!m) return { interleaved: null, screen: null };
@@ -1461,6 +1505,39 @@ function buildSlotGeometry(slot, poseWorld) {
   return { interleaved: sm.interleaved, screen: sm.deformedScreen, indices: sm.indices, uvs: sm.uvs };
 }
 
+function buildImportedAttachmentDefaults() {
+  const m = state.mesh;
+  const bones = m && Array.isArray(m.rigBones) ? m.rigBones : [];
+  const boneCount = bones.length;
+  const selectedBones =
+    boneCount > 0 && typeof getSelectedBonesForWeight === "function"
+      ? getSelectedBonesForWeight(m).filter((bi) => Number.isFinite(bi) && bi >= 0 && bi < boneCount)
+      : [];
+  const primaryCandidate =
+    boneCount > 0 && typeof getPrimarySelectedBoneIndex === "function" ? Number(getPrimarySelectedBoneIndex()) : -1;
+  const primaryBone =
+    Number.isFinite(primaryCandidate) && primaryCandidate >= 0 && primaryCandidate < boneCount
+      ? primaryCandidate
+      : boneCount > 0
+        ? 0
+        : -1;
+  const influenceBones =
+    boneCount > 1
+      ? (selectedBones.length > 1 ? selectedBones : bones.map((_, index) => index))
+      : primaryBone >= 0
+        ? [primaryBone]
+        : [];
+  const weighted = influenceBones.length > 1;
+  return {
+    bone: primaryBone,
+    useWeights: true,
+    weightBindMode: weighted ? "auto" : "single",
+    weightMode: weighted ? "weighted" : "single",
+    influenceBones,
+    defaultAttachmentType: ATTACHMENT_TYPES.MESH,
+  };
+}
+
 function collectPsdLayerSlots(children, out, docW, docH, prefix = "") {
   if (!Array.isArray(children)) return;
   for (const layer of children) {
@@ -1481,11 +1558,7 @@ function collectPsdLayerSlots(children, out, docW, docH, prefix = "") {
       out.push({
         name: fullName,
         canvas: cropped,
-        bone: -1,
-        useWeights: true,
-        weightBindMode: "single",
-        weightMode: "single",
-        influenceBones: [],
+        ...buildImportedAttachmentDefaults(),
         docWidth: docW,
         docHeight: docH,
         rect: { x: lx + b.x, y: ly + b.y, w: b.w, h: b.h },
@@ -1521,11 +1594,7 @@ async function loadFileSlots(file) {
       {
         name: file.name.replace(/\.psd$/i, ""),
         canvas: src,
-        bone: -1,
-        useWeights: true,
-        weightBindMode: "single",
-        weightMode: "single",
-        influenceBones: [],
+        ...buildImportedAttachmentDefaults(),
         docWidth: src.width,
         docHeight: src.height,
         rect: { x: 0, y: 0, w: src.width, h: src.height },
@@ -1543,11 +1612,7 @@ async function loadFileSlots(file) {
     {
       name: base,
       canvas: c,
-      bone: -1,
-      useWeights: true,
-      weightBindMode: "single",
-      weightMode: "single",
-      influenceBones: [],
+      ...buildImportedAttachmentDefaults(),
       docWidth: c.width,
       docHeight: c.height,
       rect: { x: 0, y: 0, w: c.width, h: c.height },
@@ -2333,7 +2398,8 @@ function drawOverlay() {
 
   const poseWorldForClip = getSolvedPoseWorld(m);
   for (const s of state.slots || []) {
-    if (!s || !s.clipEnabled || !isSlotEditorVisible(s)) continue;
+    const att = getActiveAttachment(s);
+    if (!s || !att || !att.clipEnabled || !isSlotEditorVisible(s)) continue;
     const poly = getSlotClipPolygonScreen(s, poseWorldForClip);
     if (poly.length < 3) continue;
     ctx.save();
@@ -2346,8 +2412,8 @@ function drawOverlay() {
     ctx.font = "12px Segoe UI, sans-serif";
     const p0 = poly[0];
     const endName =
-      s.clipEndSlotId && state.slots.find((x) => x && x.id && String(x.id) === String(s.clipEndSlotId))
-        ? state.slots.find((x) => x && x.id && String(x.id) === String(s.clipEndSlotId)).name
+      att.clipEndSlotId && state.slots.find((x) => x && x.id && String(x.id) === String(att.clipEndSlotId))
+        ? state.slots.find((x) => x && x.id && String(x.id) === String(att.clipEndSlotId)).name
         : "end";
     ctx.fillText(`CLIP ${s.name || ""} -> ${endName}`, p0.x + 8, p0.y - 8);
     ctx.restore();
@@ -3003,7 +3069,200 @@ function drawOverlay() {
   }
 
   const poseWorld = state.mesh ? getSolvedPoseWorld(state.mesh) : [];
+  drawGhostAttachments(ctx, poseWorld);
+  drawAttachmentGizmos(ctx, poseWorld);
   drawCanvasTransformGizmos(ctx, poseWorld);
+}
+
+function drawGhostAttachments(ctx, poseWorld) {
+  const slot = getActiveSlot();
+  if (!slot || !Array.isArray(slot.attachments) || slot.attachments.length <= 1) return;
+  const activeName = slot.activeAttachment ? String(slot.activeAttachment) : null;
+  const tm = getSlotTransformMatrix(slot, poseWorld);
+
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.setLineDash([5, 4]);
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = "rgba(200, 200, 255, 0.85)";
+
+  for (const att of slot.attachments) {
+    if (!att || att.name === activeName) continue;
+    const attType = normalizeAttachmentType(att.type);
+
+    if (attType === "point") {
+      const px = Number(att.pointX) || 0;
+      const py = Number(att.pointY) || 0;
+      const w = transformPoint(tm, px, py);
+      const s = localToScreen(w.x, w.y);
+      const R = 6;
+      ctx.beginPath();
+      ctx.moveTo(s.x - R, s.y);
+      ctx.lineTo(s.x + R, s.y);
+      ctx.moveTo(s.x, s.y - R);
+      ctx.lineTo(s.x, s.y + R);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, R, 0, Math.PI * 2);
+      ctx.stroke();
+      continue;
+    }
+
+    if (attType === "boundingbox" || attType === "clipping") {
+      const mc = att.meshContour;
+      const pts = mc && Array.isArray(mc.points) ? mc.points : [];
+      if (pts.length >= 2) {
+        ctx.beginPath();
+        for (let i = 0; i < pts.length; i += 1) {
+          const w2 = transformPoint(tm, Number(pts[i].x) || 0, Number(pts[i].y) || 0);
+          const s = localToScreen(w2.x, w2.y);
+          if (i === 0) ctx.moveTo(s.x, s.y);
+          else ctx.lineTo(s.x, s.y);
+        }
+        if (mc.closed) ctx.closePath();
+        ctx.stroke();
+      }
+      continue;
+    }
+
+    if ((attType === "region" || attType === "mesh" || attType === "linkedmesh") && att.canvas) {
+      const cw = Number(att.canvas.width) || 0;
+      const ch = Number(att.canvas.height) || 0;
+      if (cw > 0 && ch > 0) {
+        const corners = [
+          { x: -cw / 2, y: -ch / 2 }, { x: cw / 2, y: -ch / 2 },
+          { x: cw / 2, y: ch / 2 }, { x: -cw / 2, y: ch / 2 },
+        ];
+        ctx.beginPath();
+        for (let i = 0; i < corners.length; i += 1) {
+          const w2 = transformPoint(tm, corners[i].x, corners[i].y);
+          const s = localToScreen(w2.x, w2.y);
+          if (i === 0) ctx.moveTo(s.x, s.y);
+          else ctx.lineTo(s.x, s.y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
+  }
+
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawAttachmentGizmos(ctx, poseWorld) {
+  const slot = getActiveSlot();
+  if (!slot) return;
+  const att = getActiveAttachment(slot);
+  if (!att) return;
+  const attType = normalizeAttachmentType(att.type);
+  const HANDLE_R = 5;
+
+  if (attType === "point") {
+    const px = Number(att.pointX) || 0;
+    const py = Number(att.pointY) || 0;
+    const rot = Number(att.pointRot) || 0;
+    const tm = getSlotTransformMatrix(slot, poseWorld);
+    const wCenter = transformPoint(tm, px, py);
+    const sc = localToScreen(wCenter.x, wCenter.y);
+    const rotRad = rot * (Math.PI / 180);
+    const lineLen = 22;
+    const wTip = transformPoint(tm, px + Math.cos(rotRad) * lineLen, py + Math.sin(rotRad) * lineLen);
+    const stip = localToScreen(wTip.x, wTip.y);
+
+    ctx.save();
+    ctx.strokeStyle = "rgba(255, 220, 80, 0.95)";
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([5, 3]);
+    ctx.beginPath();
+    ctx.moveTo(sc.x, sc.y);
+    ctx.lineTo(stip.x, stip.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "#ffd840";
+    ctx.strokeStyle = "#fff3a0";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(sc.x, sc.y, HANDLE_R + 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#fff0a0";
+    ctx.strokeStyle = "#ffd840";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(stip.x, stip.y, HANDLE_R - 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (attType === "boundingbox" || attType === "clipping") {
+    const contour = ensureSlotContour(slot);
+    const pts = Array.isArray(contour.points) ? contour.points : [];
+    if (pts.length === 0) return;
+    const drag = state.drag;
+    const draggingIdx = drag && drag.type === "att_gizmo_vertex" ? drag.pointIndex : -1;
+
+    ctx.save();
+    for (let i = 0; i < pts.length; i += 1) {
+      const s = slotMeshLocalToScreen(slot, pts[i], poseWorld);
+      const isDragging = i === draggingIdx;
+      ctx.fillStyle = isDragging ? "#ffe46e" : attType === "boundingbox" ? "#88ffcc" : "#ff88cc";
+      ctx.strokeStyle = isDragging ? "#fff0b0" : "#ffffff";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.rect(s.x - HANDLE_R, s.y - HANDLE_R, HANDLE_R * 2, HANDLE_R * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function pickAttachmentGizmoHandle(mx, my, poseWorld) {
+  const slot = getActiveSlot();
+  if (!slot) return null;
+  const att = getActiveAttachment(slot);
+  if (!att) return null;
+  const attType = normalizeAttachmentType(att.type);
+  const HIT_R = 7;
+
+  if (attType === "point") {
+    const px = Number(att.pointX) || 0;
+    const py = Number(att.pointY) || 0;
+    const rot = Number(att.pointRot) || 0;
+    const tm = getSlotTransformMatrix(slot, poseWorld);
+    const wCenter = transformPoint(tm, px, py);
+    const sc = localToScreen(wCenter.x, wCenter.y);
+    const rotRad = rot * (Math.PI / 180);
+    const lineLen = 22;
+    const wTip = transformPoint(tm, px + Math.cos(rotRad) * lineLen, py + Math.sin(rotRad) * lineLen);
+    const stip = localToScreen(wTip.x, wTip.y);
+
+    const dTip = Math.hypot(mx - stip.x, my - stip.y);
+    if (dTip <= HIT_R) return { kind: "point_rotate" };
+    const dCenter = Math.hypot(mx - sc.x, my - sc.y);
+    if (dCenter <= HIT_R + 1) return { kind: "point_move" };
+    return null;
+  }
+
+  if (attType === "boundingbox" || attType === "clipping") {
+    const contour = ensureSlotContour(slot);
+    const pts = Array.isArray(contour.points) ? contour.points : [];
+    for (let i = 0; i < pts.length; i += 1) {
+      const s = slotMeshLocalToScreen(slot, pts[i], poseWorld);
+      if (Math.abs(mx - s.x) <= HIT_R && Math.abs(my - s.y) <= HIT_R) {
+        return { kind: "vertex", pointIndex: i };
+      }
+    }
+    return null;
+  }
+
+  return null;
 }
 
 function drawMeshOnContext(ctx, drawCanvas = state.sourceCanvas, alpha = 1, tint = null, screen = null, indices = null, uvs = null, blendMode = "normal") {

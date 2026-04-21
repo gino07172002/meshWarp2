@@ -52,7 +52,6 @@ if (els.setupDeleteBoneBtn) {
   });
 }
 bindSetupHumanoidBoneButton();
-bindBoneTreeHumanoidBoneButton();
 if (els.setupBindBoneBtn) {
   els.setupBindBoneBtn.addEventListener("click", () => {
     if (els.slotBindBoneBtn) els.slotBindBoneBtn.click();
@@ -282,17 +281,6 @@ if (els.activeSkinApplyBtn) {
     applySelectedSkinSetWithStatus();
   });
 }
-if (els.slotQuickAddBtn) {
-  els.slotQuickAddBtn.addEventListener("click", () => {
-    const slot = addEmptySlotQuick();
-    if (!slot) {
-      setStatus("Import image/PSD first, then add slot.");
-      return;
-    }
-    pushUndoCheckpoint(true);
-    setStatus(`Empty slot added: ${slot.name}`);
-  });
-}
 if (els.treeCtxSlotAddBtn) {
   els.treeCtxSlotAddBtn.addEventListener("click", () => {
     const slot = addEmptySlotQuick();
@@ -304,17 +292,6 @@ if (els.treeCtxSlotAddBtn) {
     pushUndoCheckpoint(true);
     setStatus(`Empty slot added: ${slot.name}`);
     closeBoneTreeContextMenu();
-  });
-}
-if (els.slotQuickDupBtn) {
-  els.slotQuickDupBtn.addEventListener("click", () => {
-    const slot = duplicateActiveSlotQuick();
-    if (!slot) {
-      setStatus("No active slot to duplicate.");
-      return;
-    }
-    pushUndoCheckpoint(true);
-    setStatus(`Slot duplicated: ${slot.name}`);
   });
 }
 if (els.treeCtxSlotDupBtn) {
@@ -342,17 +319,6 @@ if (els.treeCtxSlotRenameBtn) {
     closeBoneTreeContextMenu();
   });
 }
-if (els.slotQuickDeleteBtn) {
-  els.slotQuickDeleteBtn.addEventListener("click", () => {
-    const removed = deleteActiveSlotQuick();
-    if (!removed) {
-      setStatus("No active slot to delete.");
-      return;
-    }
-    pushUndoCheckpoint(true);
-    setStatus(`Slot deleted: ${removed.name || "slot"}`);
-  });
-}
 if (els.treeCtxSlotDeleteBtn) {
   els.treeCtxSlotDeleteBtn.addEventListener("click", () => {
     const removed = deleteActiveSlotQuick();
@@ -363,6 +329,49 @@ if (els.treeCtxSlotDeleteBtn) {
     }
     pushUndoCheckpoint(true);
     setStatus(`Slot deleted: ${removed.name || "slot"}`);
+    closeBoneTreeContextMenu();
+  });
+}
+if (els.treeCtxAttachmentAddBtn) {
+  els.treeCtxAttachmentAddBtn.addEventListener("click", () => {
+    addAttachmentToActiveSlot();
+    closeBoneTreeContextMenu();
+  });
+}
+if (els.treeCtxAttachmentDupBtn) {
+  els.treeCtxAttachmentDupBtn.addEventListener("click", () => {
+    const slot = getActiveSlot();
+    const current = slot ? getSlotCurrentAttachmentName(slot) : null;
+    if (!slot || !current) {
+      setStatus("Select an attachment first.");
+      closeBoneTreeContextMenu();
+      return;
+    }
+    const created = duplicateAttachment(slot, current);
+    if (created) setStatus(`Attachment duplicated: ${created.name}`);
+    closeBoneTreeContextMenu();
+  });
+}
+if (els.treeCtxAttachmentChangeTypeBtn) {
+  els.treeCtxAttachmentChangeTypeBtn.addEventListener("click", async () => {
+    const slot = getActiveSlot();
+    const current = slot ? getSlotCurrentAttachmentName(slot) : null;
+    if (!slot || !current) {
+      setStatus("Select an attachment first.");
+      closeBoneTreeContextMenu();
+      return;
+    }
+    closeBoneTreeContextMenu();
+    const currentType = getActiveAttachment(slot) ? getActiveAttachment(slot).type : ATTACHMENT_TYPES.REGION;
+    const nextType = await openAttachmentTypePicker(currentType, "Change Attachment Type");
+    if (nextType && nextType !== normalizeAttachmentType(currentType)) {
+      convertAttachmentType(slot, current, nextType);
+    }
+  });
+}
+if (els.treeCtxAttachmentDeleteBtn) {
+  els.treeCtxAttachmentDeleteBtn.addEventListener("click", () => {
+    deleteActiveAttachmentInSlot();
     closeBoneTreeContextMenu();
   });
 }
@@ -418,6 +427,26 @@ if (els.treeCtxSlotLoadImageBtn) {
 }
 els.resetPoseBtn.addEventListener("click", resetPose);
 els.resetVertexBtn.addEventListener("click", resetVertexOffsets);
+if (els.webglSupportCheckBtn) {
+  els.webglSupportCheckBtn.addEventListener("click", () => {
+    runWebGLSupportCheck();
+  });
+}
+if (els.webglSupportCopyBtn) {
+  els.webglSupportCopyBtn.addEventListener("click", async () => {
+    await copyWebGLSupportReport();
+  });
+}
+if (els.webglSupportCloseBtn) {
+  els.webglSupportCloseBtn.addEventListener("click", () => {
+    closeWebGLSupportDialog();
+  });
+}
+if (els.webglSupportDialogBackdrop) {
+  els.webglSupportDialogBackdrop.addEventListener("click", () => {
+    closeWebGLSupportDialog();
+  });
+}
 if (els.vertexProportionalToggle) {
   els.vertexProportionalToggle.addEventListener("change", () => {
     state.vertexDeform.proportional = !!els.vertexProportionalToggle.checked;

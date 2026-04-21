@@ -21,12 +21,7 @@ const els = {
   animSubTabTimeline: document.getElementById("animSubTabTimeline"),
   animSubTabLayers: document.getElementById("animSubTabLayers"),
   animSubTabState: document.getElementById("animSubTabState"),
-  editModeWrap: document.getElementById("editModeWrap"),
-  boneModeWrap: document.getElementById("boneModeWrap"),
   slotSelectWrap: document.getElementById("slotSelectWrap"),
-  slotQuickAddBtn: document.getElementById("slotQuickAddBtn"),
-  slotQuickDupBtn: document.getElementById("slotQuickDupBtn"),
-  slotQuickDeleteBtn: document.getElementById("slotQuickDeleteBtn"),
   slotViewWrap: document.getElementById("slotViewWrap"),
   activeSkinWrap: document.getElementById("activeSkinWrap"),
   activeSkinSelect: document.getElementById("activeSkinSelect"),
@@ -45,7 +40,6 @@ const els = {
   workspaceModeLabel: document.getElementById("workspaceModeLabel"),
   objectPanelMoveBtn: document.getElementById("objectPanelMoveBtn"),
   objectPanelRotateBtn: document.getElementById("objectPanelRotateBtn"),
-  workspaceMode: document.getElementById("workspaceMode"),
   leftToolModeHint: document.getElementById("leftToolModeHint"),
   leftToolTabs: document.getElementById("leftToolTabs"),
   leftTabCanvas: document.getElementById("leftTabCanvas"),
@@ -67,13 +61,23 @@ const els = {
   leftPathTools: document.getElementById("leftPathTools"),
   leftSkinTools: document.getElementById("leftSkinTools"),
   leftGeneralTools: document.getElementById("leftGeneralTools"),
+  webglSupportDialogWrap: document.getElementById("webglSupportDialogWrap"),
+  webglSupportDialogBackdrop: document.getElementById("webglSupportDialogBackdrop"),
+  webglSupportDialogPanel: document.getElementById("webglSupportDialogPanel"),
+  webglSupportCloseBtn: document.getElementById("webglSupportCloseBtn"),
+  webglSupportCheckBtn: document.getElementById("webglSupportCheckBtn"),
+  webglSupportCopyBtn: document.getElementById("webglSupportCopyBtn"),
+  webglSupportVerdict: document.getElementById("webglSupportVerdict"),
+  webglSupportSummary: document.getElementById("webglSupportSummary"),
+  webglSupportBlockers: document.getElementById("webglSupportBlockers"),
+  webglSupportWarnings: document.getElementById("webglSupportWarnings"),
+  webglSupportReport: document.getElementById("webglSupportReport"),
   leftTools: document.getElementById("leftTools"),
   rightCol: document.getElementById("rightCol"),
   rightTree: document.getElementById("rightTree"),
   rightProps: document.getElementById("rightProps"),
   boneTreeOnlyActiveSlotBtn: document.getElementById("boneTreeOnlyActiveSlotBtn"),
   boneTreeAddBoneBtn: document.getElementById("boneTreeAddBoneBtn"),
-  boneTreeHumanoidBoneBtn: document.getElementById("boneTreeHumanoidBoneBtn"),
   boneTreeDeleteBoneBtn: document.getElementById("boneTreeDeleteBoneBtn"),
   boneTreeDeleteBoneMenuBtn: document.getElementById("boneTreeDeleteBoneMenuBtn"),
   boneTreeDeleteBoneMenu: document.getElementById("boneTreeDeleteBoneMenu"),
@@ -198,10 +202,6 @@ const els = {
   boneInherit: document.getElementById("boneInherit"),
   boneConnect: document.getElementById("boneConnect"),
   bonePoseLen: document.getElementById("bonePoseLen"),
-  boneWorkHidden: document.getElementById("boneWorkHidden"),
-  boneAnimHidden: document.getElementById("boneAnimHidden"),
-  boneAnimHideSetKeyBtn: document.getElementById("boneAnimHideSetKeyBtn"),
-  boneAnimHideDelKeyBtn: document.getElementById("boneAnimHideDelKeyBtn"),
   boneTx: document.getElementById("boneTx"),
   boneTy: document.getElementById("boneTy"),
   boneRot: document.getElementById("boneRot"),
@@ -370,7 +370,6 @@ const els = {
   copyKeyBtn: document.getElementById("copyKeyBtn"),
   pasteKeyBtn: document.getElementById("pasteKeyBtn"),
   playBtn: document.getElementById("playBtn"),
-  pauseBtn: document.getElementById("pauseBtn"),
   stopBtn: document.getElementById("stopBtn"),
   diagnosticsRunBtn: document.getElementById("diagnosticsRunBtn"),
   diagnosticsAutoFixBtn: document.getElementById("diagnosticsAutoFixBtn"),
@@ -397,16 +396,24 @@ const els = {
   treeCtxSlotDupBtn: document.getElementById("treeCtxSlotDupBtn"),
   treeCtxSlotRenameBtn: document.getElementById("treeCtxSlotRenameBtn"),
   treeCtxSlotDeleteBtn: document.getElementById("treeCtxSlotDeleteBtn"),
+  treeCtxAttachmentAddBtn: document.getElementById("treeCtxAttachmentAddBtn"),
+  treeCtxAttachmentDupBtn: document.getElementById("treeCtxAttachmentDupBtn"),
+  treeCtxAttachmentChangeTypeBtn: document.getElementById("treeCtxAttachmentChangeTypeBtn"),
+  treeCtxAttachmentDeleteBtn: document.getElementById("treeCtxAttachmentDeleteBtn"),
   treeCtxBoneDeleteBtn: document.getElementById("treeCtxBoneDeleteBtn"),
   treeCtxBoneDeleteWithSlotsBtn: document.getElementById("treeCtxBoneDeleteWithSlotsBtn"),
   treeCtxSlotLoadImageBtn: document.getElementById("treeCtxSlotLoadImageBtn"),
+  attTypePickerWrap: document.getElementById("attTypePickerWrap"),
+  attTypePickerBackdrop: document.getElementById("attTypePickerBackdrop"),
+  attTypePickerPanel: document.getElementById("attTypePickerPanel"),
+  attTypePickerCloseBtn: document.getElementById("attTypePickerCloseBtn"),
+  attTypePickerTitle: document.getElementById("attTypePickerTitle"),
+  attTypePickerGrid: document.getElementById("attTypePickerGrid"),
   boneTree: document.getElementById("boneTree"),
   slotName: document.getElementById("slotName"),
   slotAttachment: document.getElementById("slotAttachment"),
   slotAttachmentVisible: document.getElementById("slotAttachmentVisible"),
   slotAttachmentName: document.getElementById("slotAttachmentName"),
-  slotPlaceholderName: document.getElementById("slotPlaceholderName"),
-  slotAttachmentPlaceholderName: document.getElementById("slotAttachmentPlaceholderName"),
   slotAttachmentType: document.getElementById("slotAttachmentType"),
   slotAttachmentLinkedParent: document.getElementById("slotAttachmentLinkedParent"),
   slotAttachmentPointX: document.getElementById("slotAttachmentPointX"),
@@ -421,8 +428,8 @@ const els = {
   slotAttachmentSequenceMode: document.getElementById("slotAttachmentSequenceMode"),
   slotAttachmentSequencePath: document.getElementById("slotAttachmentSequencePath"),
   slotAttachmentAddBtn: document.getElementById("slotAttachmentAddBtn"),
+  slotAttachmentDuplicateBtn: document.getElementById("slotAttachmentDuplicateBtn"),
   slotAttachmentDeleteBtn: document.getElementById("slotAttachmentDeleteBtn"),
-  slotAttachmentRenameBtn: document.getElementById("slotAttachmentRenameBtn"),
   slotAttachmentLoadBtn: document.getElementById("slotAttachmentLoadBtn"),
   slotAttachmentFileInput: document.getElementById("slotAttachmentFileInput"),
   slotClipEnabled: document.getElementById("slotClipEnabled"),
@@ -544,6 +551,7 @@ const state = {
   addBoneArmed: false,
   addBoneDraft: null,
   treeSlotDrag: null,
+  treeAttachmentDrag: null,
   treeSlotLastClickIndex: -1,
   treeSlotLastClickTs: 0,
   treeBoneLastClickIndex: -1,
@@ -555,7 +563,7 @@ const state = {
   boneTreeSlotCollapse: Object.create(null),
   boneTreeChildCollapse: Object.create(null),
   boneTreeAttachmentCollapse: Object.create(null),
-  boneTreeInlineRename: { kind: "", index: -1 },
+  boneTreeInlineRename: { kind: "", index: -1, attachmentName: "" },
   boneTreeMenuOpen: false,
   boneTreeMenuContextKind: "",
   rightPropsFocus: "slot",
@@ -652,6 +660,21 @@ const state = {
   diagnostics: {
     issues: [],
     lastRunAt: 0,
+  },
+  webglSupport: {
+    lastCheckedAt: 0,
+    summary: "No WebGL support report yet.",
+    reportText: "Run the check to inspect browser WebGL support.",
+    analysis: {
+      verdict: "neutral",
+      verdictLabel: "Not checked",
+      summary: "No WebGL support report yet.",
+      blockers: [],
+      warnings: [],
+    },
+    raw: null,
+    open: false,
+    lastFocus: null,
   },
   commandPalette: {
     open: false,
@@ -1221,6 +1244,382 @@ function setStatus(text) {
   if (typeof requestRender === "function") requestRender("status");
 }
 
+function collectWebGLSupportContextInfo(canvas, contextName) {
+  const result = {
+    contextName,
+    ok: false,
+    error: "",
+    version: "",
+    shadingLanguageVersion: "",
+    vendor: "",
+    renderer: "",
+    unmaskedVendor: "",
+    unmaskedRenderer: "",
+    maxTextureSize: "unavailable",
+    maxViewportDims: "unavailable",
+    maxVertexAttribs: "unavailable",
+    maxTextureImageUnits: "unavailable",
+    extensions: [],
+  };
+  try {
+    const ctx = canvas.getContext(contextName, { alpha: true, premultipliedAlpha: false });
+    if (!ctx) {
+      result.error = "Context creation returned null.";
+      return result;
+    }
+    result.ok = true;
+    result.version = String(ctx.getParameter(ctx.VERSION) || "");
+    result.shadingLanguageVersion = String(ctx.getParameter(ctx.SHADING_LANGUAGE_VERSION) || "");
+    result.vendor = String(ctx.getParameter(ctx.VENDOR) || "");
+    result.renderer = String(ctx.getParameter(ctx.RENDERER) || "");
+    result.maxTextureSize = Number(ctx.getParameter(ctx.MAX_TEXTURE_SIZE) || 0);
+    result.maxViewportDims = Array.from(ctx.getParameter(ctx.MAX_VIEWPORT_DIMS) || []).join(" x ");
+    result.maxVertexAttribs = Number(ctx.getParameter(ctx.MAX_VERTEX_ATTRIBS) || 0);
+    result.maxTextureImageUnits = Number(ctx.getParameter(ctx.MAX_TEXTURE_IMAGE_UNITS) || 0);
+    const extNames = [
+      "WEBGL_debug_renderer_info",
+      "OES_element_index_uint",
+      "OES_standard_derivatives",
+      "OES_vertex_array_object",
+      "WEBGL_lose_context",
+    ];
+    result.extensions = extNames.map((name) => ({ name, supported: !!ctx.getExtension(name) }));
+    const dbg = ctx.getExtension("WEBGL_debug_renderer_info");
+    if (dbg) {
+      result.unmaskedVendor = String(ctx.getParameter(dbg.UNMASKED_VENDOR_WEBGL) || "");
+      result.unmaskedRenderer = String(ctx.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || "");
+    }
+    return result;
+  } catch (err) {
+    result.error = err && err.message ? err.message : String(err);
+    return result;
+  }
+}
+
+function collectWebGLSupportReport() {
+  const canvas = document.createElement("canvas");
+  const contexts = ["webgl2", "webgl", "experimental-webgl"].map((name) =>
+    collectWebGLSupportContextInfo(canvas, name)
+  );
+  return {
+    checkedAt: new Date().toISOString(),
+    userAgent: navigator.userAgent || "",
+    platform: navigator.platform || "",
+    bootstrap: {
+      hasGL,
+      isWebGL2,
+      hasVAO,
+    },
+    contexts,
+  };
+}
+
+function summarizeWebGLSupport(report) {
+  const contexts = report && Array.isArray(report.contexts) ? report.contexts : [];
+  const webgl2 = contexts.find((item) => item.contextName === "webgl2" && item.ok);
+  if (webgl2) return "WebGL2 available.";
+  const webgl1 = contexts.find(
+    (item) => (item.contextName === "webgl" || item.contextName === "experimental-webgl") && item.ok
+  );
+  if (webgl1) return "WebGL1 available, WebGL2 unavailable.";
+  return "No WebGL context available.";
+}
+
+function getPrimaryWebGLSupportContext(report) {
+  const contexts = report && Array.isArray(report.contexts) ? report.contexts : [];
+  return (
+    contexts.find((item) => item.contextName === "webgl2" && item.ok) ||
+    contexts.find((item) => (item.contextName === "webgl" || item.contextName === "experimental-webgl") && item.ok) ||
+    null
+  );
+}
+
+function isLikelySoftwareRenderer(entry) {
+  if (!entry || !entry.ok) return false;
+  const rendererText = [
+    entry.unmaskedRenderer,
+    entry.unmaskedVendor,
+    entry.renderer,
+    entry.vendor,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return [
+    "swiftshader",
+    "llvmpipe",
+    "software rasterizer",
+    "softpipe",
+    "lavapipe",
+    "basic render driver",
+  ].some((keyword) => rendererText.includes(keyword));
+}
+
+function getWebGLSupportExtension(entry, name) {
+  return !!(entry && Array.isArray(entry.extensions) && entry.extensions.some((ext) => ext && ext.name === name && ext.supported));
+}
+
+function analyzeWebGLSupportReport(report) {
+  const contexts = report && Array.isArray(report.contexts) ? report.contexts : [];
+  const okContexts = contexts.filter((entry) => entry && entry.ok);
+  const best = getPrimaryWebGLSupportContext(report);
+  const blockers = [];
+  const warnings = [];
+
+  if (!report.bootstrap.hasGL) {
+    if (okContexts.length > 0) {
+      blockers.push(
+        "This browser can create WebGL in the diagnostic probe, but the app did not start with WebGL in this session. The app is currently running on its 2D fallback instead of the WebGL rendering path."
+      );
+    } else {
+      blockers.push(
+        "This browser session could not create any WebGL context for the app, so the WebGL rendering path is blocked here."
+      );
+    }
+  }
+
+  if (okContexts.length <= 0) {
+    warnings.push(
+      "Likely causes: hardware acceleration disabled, GPU/driver blocklist, privacy/security policy, or a remote desktop / virtualization path."
+    );
+  }
+
+  if (best && best.contextName !== "webgl2") {
+    warnings.push("This browser is limited to the older WebGL1 path, so rendering compatibility is lower than a normal WebGL2 session.");
+  }
+
+  if (report.bootstrap.hasGL && !report.bootstrap.hasVAO) {
+    warnings.push("Vertex array objects are unavailable in this session, so the app falls back to a legacy vertex setup path that may be slower.");
+  }
+
+  if (best && isLikelySoftwareRenderer(best)) {
+    const rendererName = best.unmaskedRenderer || best.renderer || "software renderer";
+    warnings.push(`WebGL is running through ${rendererName}, so interaction and larger scenes may feel noticeably slower.`);
+  }
+
+  if (best) {
+    const maxTextureSize = Number(best.maxTextureSize);
+    if (Number.isFinite(maxTextureSize) && maxTextureSize > 0) {
+      if (maxTextureSize < 2048) {
+        warnings.push("MAX_TEXTURE_SIZE is below 2048, so larger source images are likely to fail outright or look heavily downscaled.");
+      } else if (maxTextureSize < 4096) {
+        warnings.push("MAX_TEXTURE_SIZE is below 4096, so larger source images may hit upload limits or reduced quality.");
+      }
+    }
+
+    const maxTextureImageUnits = Number(best.maxTextureImageUnits);
+    if (Number.isFinite(maxTextureImageUnits) && maxTextureImageUnits > 0 && maxTextureImageUnits < 8) {
+      warnings.push("MAX_TEXTURE_IMAGE_UNITS is low, which suggests a weaker GPU path with less headroom for heavier rendering workloads.");
+    }
+
+    if (best.contextName !== "webgl2" && !getWebGLSupportExtension(best, "OES_vertex_array_object")) {
+      warnings.push("WebGL1 is available without OES_vertex_array_object, so this browser is on an older compatibility path that may perform worse.");
+    }
+
+    const hasMaskedDetails = !!(best.renderer || best.vendor);
+    const hasUnmaskedDetails = !!(best.unmaskedRenderer || best.unmaskedVendor);
+    if (!hasMaskedDetails && !hasUnmaskedDetails) {
+      warnings.push("Renderer and vendor details are hidden, so driver-specific root causes will be harder to identify in this browser.");
+    }
+  }
+
+  const verdict = blockers.length > 0 ? "blocked" : warnings.length > 0 ? "degraded" : "supported";
+  const verdictLabel = verdict === "blocked" ? "Blocked" : verdict === "degraded" ? "Degraded" : "Supported";
+  let summary = "";
+  if (verdict === "blocked") {
+    summary = blockers[0];
+  } else if (verdict === "degraded") {
+    summary = warnings[0];
+  } else if (report.bootstrap.isWebGL2) {
+    summary = "This browser is running the app on its normal WebGL2 path with no obvious blocker detected.";
+  } else if (report.bootstrap.hasGL) {
+    summary = "This browser is running the app on a compatible WebGL path with no obvious blocker detected.";
+  } else {
+    summary = summarizeWebGLSupport(report);
+  }
+
+  return {
+    verdict,
+    verdictLabel,
+    summary,
+    blockers,
+    warnings,
+  };
+}
+
+function formatWebGLSupportReport(report, analysis = analyzeWebGLSupportReport(report)) {
+  const lines = [
+    `Checked: ${report.checkedAt}`,
+    `User agent: ${report.userAgent}`,
+    `Platform: ${report.platform}`,
+    `Bootstrap: hasGL=${report.bootstrap.hasGL}, isWebGL2=${report.bootstrap.isWebGL2}, hasVAO=${report.bootstrap.hasVAO}`,
+    "",
+    `Verdict: ${analysis.verdictLabel}`,
+    `Summary: ${analysis.summary}`,
+    "",
+  ];
+  if (analysis.blockers.length > 0) {
+    lines.push("Critical blockers:");
+    for (const item of analysis.blockers) lines.push(`  - ${item}`);
+    lines.push("");
+  }
+  if (analysis.warnings.length > 0) {
+    lines.push("Warnings / degraded experience:");
+    for (const item of analysis.warnings) lines.push(`  - ${item}`);
+    lines.push("");
+  }
+  lines.push("Raw capability report:");
+  lines.push("");
+  for (const entry of report.contexts) {
+    lines.push(`[${entry.contextName}] ${entry.ok ? "OK" : "FAIL"}`);
+    if (entry.error) lines.push(`  Error: ${entry.error}`);
+    if (entry.ok) {
+      lines.push(`  Version: ${entry.version}`);
+      lines.push(`  GLSL: ${entry.shadingLanguageVersion}`);
+      lines.push(`  Vendor: ${entry.vendor}`);
+      lines.push(`  Renderer: ${entry.renderer}`);
+      lines.push(`  Unmasked Vendor: ${entry.unmaskedVendor || "unavailable"}`);
+      lines.push(`  Unmasked Renderer: ${entry.unmaskedRenderer || "unavailable"}`);
+      lines.push(`  MAX_TEXTURE_SIZE: ${entry.maxTextureSize}`);
+      lines.push(`  MAX_VIEWPORT_DIMS: ${entry.maxViewportDims}`);
+      lines.push(`  MAX_VERTEX_ATTRIBS: ${entry.maxVertexAttribs}`);
+      lines.push(`  MAX_TEXTURE_IMAGE_UNITS: ${entry.maxTextureImageUnits}`);
+      lines.push("  Extensions:");
+      for (const ext of entry.extensions) {
+        lines.push(`    - ${ext.name}: ${ext.supported ? "yes" : "no"}`);
+      }
+    }
+    lines.push("");
+  }
+  lines.push(`Conclusion: ${summarizeWebGLSupport(report)}`);
+  return lines.join("\n");
+}
+
+function renderWebGLSupportFindings(listEl, items, emptyText) {
+  if (!listEl) return;
+  listEl.innerHTML = "";
+  listEl.classList.toggle("muted", !items || items.length <= 0);
+  const sourceItems = Array.isArray(items) && items.length > 0 ? items : [emptyText];
+  for (const item of sourceItems) {
+    const li = document.createElement("li");
+    li.textContent = item;
+    listEl.appendChild(li);
+  }
+}
+
+function refreshWebGLSupportUI() {
+  const analysis = state.webglSupport.analysis || {
+    verdict: "neutral",
+    verdictLabel: "Not checked",
+    summary: "No WebGL support report yet.",
+    blockers: [],
+    warnings: [],
+  };
+  if (els.webglSupportVerdict) {
+    els.webglSupportVerdict.textContent = analysis.verdictLabel || "Not checked";
+    els.webglSupportVerdict.className = `webgl-support-verdict webgl-support-verdict-${analysis.verdict || "neutral"}`;
+  }
+  if (els.webglSupportSummary) {
+    els.webglSupportSummary.textContent = analysis.summary || state.webglSupport.summary || "No WebGL support report yet.";
+  }
+  renderWebGLSupportFindings(
+    els.webglSupportBlockers,
+    analysis.blockers,
+    "No critical blocker is highlighted for this browser session."
+  );
+  renderWebGLSupportFindings(
+    els.webglSupportWarnings,
+    analysis.warnings,
+    "No obvious degraded-experience warning is highlighted for this browser session."
+  );
+  if (els.webglSupportReport) {
+    els.webglSupportReport.textContent =
+      state.webglSupport.reportText || "Run the check to inspect browser WebGL support.";
+    els.webglSupportReport.classList.toggle("muted", !state.webglSupport.raw);
+  }
+  if (els.webglSupportCopyBtn) {
+    els.webglSupportCopyBtn.disabled = !state.webglSupport.raw;
+  }
+}
+
+function runWebGLSupportCheck() {
+  try {
+    const report = collectWebGLSupportReport();
+    const analysis = analyzeWebGLSupportReport(report);
+    state.webglSupport.lastCheckedAt = Date.now();
+    state.webglSupport.summary = analysis.summary;
+    state.webglSupport.analysis = analysis;
+    state.webglSupport.reportText = formatWebGLSupportReport(report, analysis);
+    state.webglSupport.raw = report;
+    refreshWebGLSupportUI();
+    setStatus(`WebGL support checked. ${analysis.verdictLabel}. ${analysis.summary}`);
+    return report;
+  } catch (err) {
+    const message = err && err.message ? err.message : String(err);
+    console.warn("WebGL support check failed.", err);
+    state.webglSupport.lastCheckedAt = Date.now();
+    state.webglSupport.summary = "WebGL support check failed.";
+    state.webglSupport.analysis = {
+      verdict: "blocked",
+      verdictLabel: "Blocked",
+      summary: "WebGL support check failed before the browser capabilities could be analyzed.",
+      blockers: [`Diagnostic failure: ${message}`],
+      warnings: [],
+    };
+    state.webglSupport.reportText = `Failed to inspect WebGL support.\nError: ${message}`;
+    state.webglSupport.raw = null;
+    refreshWebGLSupportUI();
+    setStatus("WebGL support check failed. See report for details.");
+    return null;
+  }
+}
+
+async function copyWebGLSupportReport() {
+  if (!state.webglSupport.raw || !state.webglSupport.reportText) {
+    setStatus("Run the WebGL support check first.");
+    return false;
+  }
+  if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+    setStatus("Clipboard API unavailable in this browser.");
+    return false;
+  }
+  try {
+    await navigator.clipboard.writeText(state.webglSupport.reportText);
+    setStatus("WebGL support report copied.");
+    return true;
+  } catch (err) {
+    console.warn("WebGL support report copy failed.", err);
+    setStatus("WebGL support report copy failed.");
+    return false;
+  }
+}
+
+function openWebGLSupportDialog(runCheck = false) {
+  if (!els.webglSupportDialogWrap) return;
+  if (!state.webglSupport.open) {
+    state.webglSupport.lastFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }
+  state.webglSupport.open = true;
+  refreshWebGLSupportUI();
+  els.webglSupportDialogWrap.classList.remove("collapsed");
+  els.webglSupportDialogWrap.setAttribute("aria-hidden", "false");
+  if (runCheck) {
+    runWebGLSupportCheck();
+  } else if (els.webglSupportCheckBtn && typeof els.webglSupportCheckBtn.focus === "function") {
+    els.webglSupportCheckBtn.focus();
+  }
+}
+
+function closeWebGLSupportDialog() {
+  if (!state.webglSupport.open || !els.webglSupportDialogWrap) return;
+  state.webglSupport.open = false;
+  els.webglSupportDialogWrap.classList.add("collapsed");
+  els.webglSupportDialogWrap.setAttribute("aria-hidden", "true");
+  const prevFocus = state.webglSupport.lastFocus;
+  state.webglSupport.lastFocus = null;
+  if (prevFocus && typeof prevFocus.focus === "function") prevFocus.focus();
+}
+
 function getRenderLoopState() {
   return state.renderLoop || (state.renderLoop = { rafId: 0, requested: false });
 }
@@ -1293,7 +1692,6 @@ function buildCommandPaletteItems() {
       },
     },
     { id: "play.play", label: "Playback: Play", group: "Timeline", hotkey: "Space", action: () => triggerButtonAction(els.playBtn) },
-    { id: "play.pause", label: "Playback: Pause", group: "Timeline", hotkey: "", action: () => triggerButtonAction(els.pauseBtn) },
     { id: "play.stop", label: "Playback: Stop", group: "Timeline", hotkey: "", action: () => triggerButtonAction(els.stopBtn) },
     { id: "key.add", label: "Key: Add/Update Key", group: "Timeline", hotkey: "I", action: () => triggerButtonAction(els.addKeyBtn) },
     { id: "key.delete", label: "Key: Delete Selected", group: "Timeline", hotkey: "Delete / K", action: () => triggerButtonAction(els.deleteKeyBtn) },
@@ -1584,6 +1982,9 @@ function setupApplicationMenuBar() {
       case "tools.resetvertex":
         click(els.resetVertexBtn);
         return;
+      case "tools.webglsupport":
+        openWebGLSupportDialog(true);
+        return;
       case "help.quick":
         setStatus("Quick Help: File/Edit/View/Tools menus are available from the top menu bar.");
         return;
@@ -1626,7 +2027,10 @@ function setupApplicationMenuBar() {
     setOpen("");
   });
   window.addEventListener("keydown", (ev) => {
-    if (String(ev.key || "").toLowerCase() === "escape" && openKey) setOpen("");
+    if (String(ev.key || "").toLowerCase() === "escape") {
+      if (openKey) setOpen("");
+      if (state.webglSupport && state.webglSupport.open) closeWebGLSupportDialog();
+    }
   });
 }
 
@@ -3054,12 +3458,6 @@ function bindSetupHumanoidBoneButton() {
   const btn = document.getElementById("setupHumanoidBoneBtn");
   if (!btn) return;
   els.setupHumanoidBoneBtn = btn;
-}
-
-function bindBoneTreeHumanoidBoneButton() {
-  const btn = document.getElementById("boneTreeHumanoidBoneBtn");
-  if (!btn) return;
-  els.boneTreeHumanoidBoneBtn = btn;
 }
 
 function computeWorld(bones) {
