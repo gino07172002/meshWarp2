@@ -47,6 +47,13 @@ if (els.setupEditWeightsBtn) {
     if (els.slotWeightQuickEditBtn) els.slotWeightQuickEditBtn.click();
   });
 }
+if (els.boneCompensationToggle) {
+  els.boneCompensationToggle.checked = !!state.boneCompensation;
+  els.boneCompensationToggle.addEventListener("change", () => {
+    state.boneCompensation = !!els.boneCompensationToggle.checked;
+    setStatus(`Bone compensation ${state.boneCompensation ? "ON" : "OFF"}.`);
+  });
+}
 if (els.setupUpdateBindingsBtn) {
   els.setupUpdateBindingsBtn.addEventListener("click", () => {
     if (typeof applyUpdateBindings !== "function") {

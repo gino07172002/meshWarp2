@@ -1289,7 +1289,9 @@ els.overlay.addEventListener("pointerdown", (ev) => {
       state.selectedBonesForWeight = [targetBone];
       updateBoneUI();
       const forcedType = state.dragTool === "move_head" ? "bone_joint" : "bone_tip";
-      state.drag = { type: forcedType, boneIndex: targetBone, pointerId: ev.pointerId, needsReweight: false };
+      const compSnap = state.mesh && state.boneCompensation && state.boneMode === "edit"
+        ? captureEditBoneSnapshot(getBonesForCurrentMode(state.mesh)) : null;
+      state.drag = { type: forcedType, boneIndex: targetBone, pointerId: ev.pointerId, needsReweight: false, compensationSnapshot: compSnap };
       els.overlay.setPointerCapture(ev.pointerId);
       return;
     }
@@ -1466,7 +1468,9 @@ els.overlay.addEventListener("pointerdown", (ev) => {
       state.selectedBonesForWeight = [hit.boneIndex];
       state.selectedBoneParts = [{ index: hit.boneIndex, type: hitPartType }];
       updateBoneUI();
-      state.drag = { ...hit, pointerId: ev.pointerId, needsReweight: false };
+      const compSnap = state.mesh && state.boneCompensation && state.boneMode === "edit"
+        ? captureEditBoneSnapshot(getBonesForCurrentMode(state.mesh)) : null;
+      state.drag = { ...hit, pointerId: ev.pointerId, needsReweight: false, compensationSnapshot: compSnap };
       els.overlay.setPointerCapture(ev.pointerId);
       return;
     }
@@ -1996,6 +2000,9 @@ els.overlay.addEventListener("pointermove", (ev) => {
         markDirtyByBoneProp(bi, "rotate");
         markDirtyByBoneProp(bi, "scale");
       }
+      if (state.boneCompensation && state.drag.compensationSnapshot && typeof applyBoneCompensationAfterEdit === "function") {
+        applyBoneCompensationAfterEdit(bones, state.drag.compensationSnapshot, state.drag.boneIndex);
+      }
       commitRigEditPreserveCurrentLook(m);
       updateBoneUI();
       return;
@@ -2015,6 +2022,9 @@ els.overlay.addEventListener("pointermove", (ev) => {
         markDirtyByBoneProp(bi, "translate");
         markDirtyByBoneProp(bi, "rotate");
         markDirtyByBoneProp(bi, "scale");
+      }
+      if (state.boneCompensation && state.drag.compensationSnapshot && typeof applyBoneCompensationAfterEdit === "function") {
+        applyBoneCompensationAfterEdit(bones, state.drag.compensationSnapshot, state.drag.boneIndex);
       }
       commitRigEditPreserveCurrentLook(m);
       updateBoneUI();

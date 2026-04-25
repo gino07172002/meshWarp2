@@ -737,6 +737,29 @@ Steps use:
 
 ---
 
+## Bone compensation (Spine equivalent)
+
+### bone-compensation-toggle
+- **summary**: Toggle Setup → Bone Compensation flips state.boneCompensation.
+- **impl**: app/ui/editor-panels.js boneCompensationToggle handler
+- **steps**:
+  1. `set_checked:#boneCompensationToggle=true`
+- **verify**:
+  - `state_path` `state.boneCompensation` == `true`
+
+### bone-compensation-preserves-children
+- **summary**: With Bone Compensation ON, dragging a parent bone in Edit mode preserves descendants' world endpoints (within ~1px).
+- **impl**: app/core/bones.js applyBoneCompensationAfterEdit
+- **prereqs**: 2-bone chain (parent → connected child)
+- **steps**:
+  1. enable Bone Compensation
+  2. record child bone's world tip position (call `getBoneWorldEndpointsFromBones(bones, childIdx).tip`)
+  3. drag parent's tail handle
+  4. record again
+- **verify**:
+  - tip_after.x ≈ tip_before.x (delta < 2px), same for y
+- **manual_only**: true
+
 ## Bone length lock in animate mode
 
 ### bone-length-locked-in-animate-pose

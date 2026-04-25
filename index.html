@@ -237,6 +237,10 @@
             <div class="field setup-update-bindings-row">
               <button id="setupUpdateBindingsBtn" type="button" title="Bake current posed appearance as the new rest pose. Weights stay; bones become the new bind reference. Useful after dragging bones around while painting weights.">Update Bindings</button>
             </div>
+            <label class="slot-inline-check" title="When ON, dragging a bone in Edit mode preserves child bones' world positions (Spine 'Bone compensation'). OFF = children follow parent normally.">
+              <input id="boneCompensationToggle" type="checkbox" />
+              <span>Bone Compensation</span>
+            </label>
             <p class="muted">Update Bindings:把目前畫面的姿勢當成新的 bind pose,權重不變、視覺不變,但骨架歸零後不會再讓 mesh 漂移。</p>
           </div>
         </details>
@@ -1939,10 +1943,10 @@
     </section>
   </div>
 
-  <script src="app/core/runtime.js?v=20260425-22"></script>
+  <script src="app/core/runtime.js?v=20260425-23"></script>
   <script src="app/render/gl-toolkit.js?v=20260425-2"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>
-  <script src="app/core/bones.js?v=20260425-17"></script>
+  <script src="app/core/bones.js?v=20260425-18"></script>
   <script src="app/workspace/workspace.js?v=20260425-1"></script>
   <script src="app/workspace/slots.js?v=20260425-5"></script>
   <script src="app/workspace/constraint-model.js?v=20260420-2"></script>
@@ -1956,12 +1960,12 @@
   <script src="app/io/tree-bindings.js?v=20260425-4"></script>
   <script src="app/io/project-export.js?v=20260425-4"></script>
   <script src="app/io/project-actions.js?v=20260425-2"></script>
-  <script src="app/ui/editor-panels.js?v=20260425-6"></script>
+  <script src="app/ui/editor-panels.js?v=20260425-7"></script>
   <script src="app/ui/constraint-panels.js?v=20260425-3"></script>
   <script src="app/ui/animation-panels.js?v=20260425-1"></script>
   <script src="app/ui/timeline-pointer.js?v=20260420-2"></script>
   <script src="app/ui/dock-layout.js?v=20260425-18"></script>
-  <script src="app/ui/hotkeys.js?v=20260425-6"></script>
+  <script src="app/ui/hotkeys.js?v=20260425-7"></script>
   <script src="app/ui/bootstrap.js?v=20260425-13"></script>
 </body>
 

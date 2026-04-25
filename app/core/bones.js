@@ -283,6 +283,58 @@ function captureEditBoneSnapshot(bones) {
   };
 }
 
+// Spine "Bone compensation": after a parent bone moves, every descendant's
+// world transform stays where it was. We rewrite each affected bone's
+// LOCAL tx/ty/rot/sx/sy in the new parent frame so its world endpoints
+// match the snapshot. Connected bones use head/tail anchoring (existing
+// helper), disconnected bones get explicit local-pose recomputation.
+function applyBoneCompensationAfterEdit(bones, snapshot, draggedIndex) {
+  if (!Array.isArray(bones) || bones.length <= 0) return;
+  if (!snapshot || !Array.isArray(snapshot.world) || snapshot.world.length !== bones.length) return;
+  const di = Number(draggedIndex);
+  if (!Number.isFinite(di) || di < 0 || di >= bones.length) return;
+  // Compute "subtree" of draggedIndex, in BFS order so parents update before
+  // children.
+  const subtree = [];
+  const queue = [di];
+  while (queue.length) {
+    const idx = queue.shift();
+    for (let i = 0; i < bones.length; i += 1) {
+      if (i === di) continue;
+      const b = bones[i];
+      if (!b) continue;
+      if (Number(b.parent) === idx && subtree.indexOf(i) < 0) {
+        subtree.push(i);
+        queue.push(i);
+      }
+    }
+  }
+  // For each descendant: rewrite local from old world.
+  for (const i of subtree) {
+    const oldWorld = snapshot.world[i];
+    const oldLength = Number(snapshot.lengths[i]) || 1;
+    if (!oldWorld) continue;
+    const b = bones[i];
+    if (!b) continue;
+    const parentIndex = Number(b.parent);
+    if (!Number.isFinite(parentIndex) || parentIndex < 0 || parentIndex >= bones.length) continue;
+    // Old world head and tip.
+    const oldHead = transformPoint(oldWorld, 0, 0);
+    const oldTip = transformPoint(oldWorld, oldLength, 0);
+    const parentNew = getBoneWorldEndpointsFromBones(bones, parentIndex);
+    const anchor = b.connected ? parentNew.tip : (function () {
+      // Head is in parent local frame; use the parent's NEW world to remap.
+      const parentNewWorld = computeWorld(bones)[parentIndex];
+      const parentInv = invert(parentNewWorld);
+      const localHead = transformPoint(parentInv, oldHead.x, oldHead.y);
+      // Re-derive a synthetic world-head by transforming the local back; for
+      // setBoneFromWorldEndpoints we just need the world position of head.
+      return { x: oldHead.x, y: oldHead.y };
+    })();
+    setBoneFromWorldEndpoints(bones, i, anchor, oldTip);
+  }
+}
+
 function preserveConnectedChildTipsAfterEdit(bones, snapshot, excludeIndices = null) {
   if (state.boneMode !== "edit") return;
   if (!Array.isArray(bones) || bones.length <= 0) return;

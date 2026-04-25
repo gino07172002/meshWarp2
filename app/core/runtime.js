@@ -542,6 +542,7 @@ const els = {
   weightWeldHint: document.getElementById("weightWeldHint"),
   weightOverlayQuickBtn: document.getElementById("weightOverlayQuickBtn"),
   setupUpdateBindingsBtn: document.getElementById("setupUpdateBindingsBtn"),
+  boneCompensationToggle: document.getElementById("boneCompensationToggle"),
   stage: document.getElementById("stage"),
   backdropCanvas: document.getElementById("backdropCanvas"),
   glCanvas: document.getElementById("glCanvas"),
@@ -982,6 +983,11 @@ const state = {
     feather: 0.5,
     lockedBones: [],
   },
+  // Spine "Bone compensation": when ON, edit-mode bone drag preserves the
+  // world transforms of all descendants so they don't visually move with
+  // the parent. OFF (default) keeps the legacy behaviour where children
+  // inherit parent motion.
+  boneCompensation: false,
   overlayScene: {
     canvas: null,
     ctx: null,
