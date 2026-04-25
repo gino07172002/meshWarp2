@@ -862,6 +862,29 @@ Steps use:
   - `function_returns` `state.mesh.physicsConstraints.length === 1 && state.mesh.physicsConstraints[0].state.reset === true` == `true`
 - **manual_only**: true
 
+## GL base image reference (Phase 3 — reference image stays on GL)
+
+### gl-base-reference-drawn-on-gl
+- **summary**: When a source image is loaded and no slots exist, the base reference is drawn through the WebGL pipeline (textured quad), not via Canvas2D fallback.
+- **impl**: app/render/canvas.js drawBaseImageReferenceGL() called inline in the GL render branch
+- **prereqs**: `state.sourceCanvas` set, `state.imageWidth > 0`, `state.slots.length === 0`, WebGL available
+- **steps**:
+  1. trigger render: `requestRender("test"); await one rAF tick`
+- **verify**:
+  - `function_returns` `state.overlayScene.enabled === false` == `true`  (GL path taken; 2D scene overlay not used)
+  - `function_returns` `drawBaseImageReferenceGL() === true` == `true`  (the helper runs and draws)
+- **manual_only**: true
+
+### gl-base-reference-faded-once-slots-exist
+- **summary**: Once at least one slot exists, the base reference draws at 0.35 alpha (unless on the Canvas tab) — matching the pre-migration 2D behavior.
+- **impl**: app/render/canvas.js drawBaseImageReferenceGL alpha branch
+- **prereqs**: 1 slot present; not in Canvas/Base Image edit tab
+- **steps**:
+  1. (visual only — checked via the alpha uniform sent to the shader)
+- **verify**:
+  - `function_returns` `(function(){ drawBaseImageReferenceGL(); return true; })()` == `true`
+- **manual_only**: true
+
 ## GL stencil clipping (Phase 2 — clip slots stay on GL)
 
 ### gl-stencil-clip-context-has-stencil

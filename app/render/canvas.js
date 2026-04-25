@@ -183,6 +183,63 @@ function endGLStencilClip() {
   _glStencilClip.endSlotId = null;
 }
 
+// Draw the imported reference image as a single textured quad through
+// the main mesh shader (Phase 3 of WebGL migration). Mirrors the affine
+// transform chain that drawBaseImageReference2D uses, but feeds the
+// result as 4 screen-space corners + UVs into the existing VBO/IBO.
+//
+// Returns true if it drew anything. Called inline at the start of the
+// GL slot pass; assumes program/VBO/IBO/uniforms are already bound.
+const _glBaseRef = {
+  verts: new Float32Array(16),  // 4 verts × (pos.xy + uv.xy)
+  idx: new Uint16Array([0, 1, 2, 0, 2, 3]),
+};
+
+function drawBaseImageReferenceGL() {
+  if (!hasGL) return false;
+  if (!shouldRenderBaseImageReference()) return false;
+  const docW = Math.max(1, Number(state.imageWidth) || Number(state.sourceCanvas && state.sourceCanvas.width) || 1);
+  const docH = Math.max(1, Number(state.imageHeight) || Number(state.sourceCanvas && state.sourceCanvas.height) || 1);
+  const activeSlot = getActiveSlot();
+  const poseWorld = state.mesh ? getSolvedPoseWorld(state.mesh) : null;
+  let drawTm = getBaseImageTransformMatrix(activeSlot, poseWorld, docW, docH);
+  if (state.mesh && activeSlot) {
+    const bi = getSlotBaseSpaceBoneIndex(activeSlot, state.mesh);
+    const invBind = getDisplayInvBind(state.mesh);
+    if (Number.isFinite(bi) && bi >= 0 && Array.isArray(poseWorld) && poseWorld[bi] && invBind && invBind[bi]) {
+      const delta = mul(poseWorld[bi], invBind[bi]);
+      drawTm = mul(drawTm, delta);
+    }
+  }
+  // Apply drawTm in image-local space, then localToScreen for the four corners.
+  const corners = [
+    transformPoint(drawTm, 0, 0),
+    transformPoint(drawTm, docW, 0),
+    transformPoint(drawTm, docW, docH),
+    transformPoint(drawTm, 0, docH),
+  ].map((p) => localToScreen(p.x, p.y));
+  // Match the 2D path's alpha policy: full opacity until slots exist,
+  // then fade to 0.35 unless we're on the Base Image Edit tab.
+  const alpha = isBaseImageEditTabActive() ? 1 : (state.slots.length > 0 ? 0.35 : 1);
+  const tex = ensureGLTextureForCanvas(state.sourceCanvas);
+  if (!tex) return false;
+  const v = _glBaseRef.verts;
+  // [sx, sy, u, v] × 4
+  v[0]  = corners[0].x; v[1]  = corners[0].y; v[2]  = 0; v[3]  = 0;
+  v[4]  = corners[1].x; v[5]  = corners[1].y; v[6]  = 1; v[7]  = 0;
+  v[8]  = corners[2].x; v[9]  = corners[2].y; v[10] = 1; v[11] = 1;
+  v[12] = corners[3].x; v[13] = corners[3].y; v[14] = 0; v[15] = 1;
+  gl.bufferData(gl.ARRAY_BUFFER, v, gl.DYNAMIC_DRAW);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, _glBaseRef.idx, gl.DYNAMIC_DRAW);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  applyGLBlendMode("normal");
+  gl.uniform1f(loc.uAlpha, alpha);
+  if (loc.uTint) gl.uniform3f(loc.uTint, 1, 1, 1);
+  if (loc.uDark) gl.uniform3f(loc.uDark, 0, 0, 0);
+  gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+  return true;
+}
+
 function shouldRenderOnionSkin() {
   const onion = ensureOnionSkinSettings();
   if (!state.mesh || !onion.enabled) return false;
@@ -274,7 +331,6 @@ function render(ts = 0) {
 
   const slots = getRenderableSlots();
   const wantsOnion = shouldRenderOnionSkin();
-  const hasBaseReference = shouldRenderBaseImageReference() && state.slots.length === 0;
 
   // Skip GPU draw while the context is lost; the lost handler will requestRender once restored.
   // TODO: proper restore path needs to rebuild program/vbo/ibo/vao from runtime.js.
@@ -282,7 +338,7 @@ function render(ts = 0) {
     return;
   }
 
-  if (hasGL && !hasBaseReference) {
+  if (hasGL) {
     state.overlayScene.enabled = false;
     if (wantsOnion) {
       const onionCtx = ensureOverlaySceneCanvas();
@@ -296,13 +352,18 @@ function render(ts = 0) {
     applyGLBlendMode("normal");
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+    // Always set up the program; even if there's no mesh, base reference
+    // alone may still need to draw.
+    gl.useProgram(program);
+    bindGeometry();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform2f(loc.uResolution, els.glCanvas.width, els.glCanvas.height);
+    // Base reference: shown at full opacity when no slots exist (initial
+    // setup), faded once slots exist (unless on the Canvas tab, full opacity).
+    drawBaseImageReferenceGL();
     if (state.mesh) {
-      gl.useProgram(program);
-      bindGeometry();
-      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.uniform2f(loc.uResolution, els.glCanvas.width, els.glCanvas.height);
       const poseWorld = getSolvedPoseWorld(state.mesh);
       const renderTime = typeof getCurrentRenderTime === "function" ? getCurrentRenderTime() : 0;
       for (const slot of slots) {
@@ -383,14 +444,11 @@ function render(ts = 0) {
       applyGLBlendMode("normal");
     }
   } else {
-    const ctx = hasGL ? ensureOverlaySceneCanvas() : stage2dCtx;
-    if (hasGL) {
-      state.overlayScene.enabled = true;
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-    } else {
-      state.overlayScene.enabled = false;
-    }
+    // No-WebGL fallback: browser doesn't support WebGL at all. Draw
+    // everything onto the stage 2D context. Modern browsers always have
+    // WebGL, so this path is effectively a safety net.
+    const ctx = stage2dCtx;
+    state.overlayScene.enabled = false;
     if (!ctx) {
       drawOverlay();
       if (shouldKeepRenderLoopAlive()) requestRender("keepalive");
@@ -398,7 +456,7 @@ function render(ts = 0) {
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, els.glCanvas.width, els.glCanvas.height);
-    if (hasBaseReference) drawBaseImageReference2D(ctx);
+    if (shouldRenderBaseImageReference() && state.slots.length === 0) drawBaseImageReference2D(ctx);
     if (wantsOnion) drawOnionSkins2D(ctx, slots);
     const poseWorld = state.mesh ? getSolvedPoseWorld(state.mesh) : [];
     renderSlots2DWithClipping(ctx, slots, poseWorld);
