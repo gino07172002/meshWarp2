@@ -794,6 +794,9 @@ function getEventDraftFromUI() {
     int: Number(els.eventInt && els.eventInt.value) || 0,
     float: Number(els.eventFloat && els.eventFloat.value) || 0,
     string: (els.eventString && els.eventString.value ? els.eventString.value : "").trim(),
+    audio: (els.eventAudio && els.eventAudio.value ? els.eventAudio.value : "").trim(),
+    volume: Math.max(0, Math.min(1, Number(els.eventVolume && els.eventVolume.value) || 1)),
+    balance: Math.max(-1, Math.min(1, Number(els.eventBalance && els.eventBalance.value) || 0)),
   };
 }
 
@@ -803,6 +806,9 @@ function applyEventDraftToUI(v) {
   if (els.eventInt) els.eventInt.value = String(Number(e.int) || 0);
   if (els.eventFloat) els.eventFloat.value = String(Number(e.float) || 0);
   if (els.eventString) els.eventString.value = e.string != null ? String(e.string) : "";
+  if (els.eventAudio) els.eventAudio.value = e.audio != null ? String(e.audio) : "";
+  if (els.eventVolume) els.eventVolume.value = String(Number.isFinite(Number(e.volume)) ? Number(e.volume) : 1);
+  if (els.eventBalance) els.eventBalance.value = String(Number.isFinite(Number(e.balance)) ? Number(e.balance) : 0);
 }
 
 function refreshEventKeyListUI() {

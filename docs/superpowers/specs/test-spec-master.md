@@ -570,6 +570,17 @@ Steps use:
 
 ## Bone color (editor visualisation)
 
+### bone-color-shows-in-tree
+- **summary**: A bone with .color set tints its row in the bone tree (left bar).
+- **impl**: app/core/bones.js renderBoneTree (sets --tree-type-color-bone inline)
+- **prereqs**: ≥1 bone with color="#ff8800"
+- **steps**:
+  1. set `state.mesh.rigBones[0].color = "#ff8800"`
+  2. `call:renderBoneTree()`
+- **verify**:
+  - the first `.tree-item[data-bone-index="0"]` element has `--tree-type-color-bone` set on its inline style
+- **manual_only**: true
+
 ### bone-color-set
 - **summary**: Setting a bone color tints the bone shape on canvas (no runtime effect).
 - **impl**: app/core/bones.js (b.color field); app/render/constraints.js userBoneTint branch

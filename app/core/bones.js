@@ -2251,6 +2251,12 @@ function renderBoneTree() {
       row.style.setProperty("--tree-row-extra", "0");
       row.dataset.boneIndex = String(i);
       row.dataset.rootBone = isRootBoneIndex(bones, i) ? "1" : "0";
+      // Apply user bone color to the left type bar via inline custom property,
+      // overriding the default --tree-type-color-bone for this row only.
+      if (typeof b.color === "string" && /^#?[0-9a-fA-F]{6}$/.test(b.color.trim())) {
+        const c = b.color.trim();
+        row.style.setProperty("--tree-type-color-bone", c.startsWith("#") ? c : "#" + c);
+      }
       const slotCount = (slotsByBone.get(i) || []).length;
       const childCount = (byParent.get(i) || []).length;
       const isRootBone = isRootBoneIndex(bones, i);
