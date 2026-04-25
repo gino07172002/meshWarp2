@@ -420,9 +420,14 @@ function applySkinSetToSlots(skin) {
     s.activeAttachment = next;
   }
   state.activeSkinSetId = skin.id;
-  if (changed) {
+  // Skin-scoped bones: visibility depends on activeSkinSetId, so changing
+  // skin always re-renders the tree (rows show "skin-hidden") and the canvas
+  // (skin-hidden bones + their slots are excluded from render via
+  // isBoneVisibleInWorkspace).
+  if (changed || skin) {
     refreshSlotUI();
     renderBoneTree();
+    if (typeof requestRender === "function") requestRender("skin-apply");
   }
   const m = state.mesh;
   if (m && skin && skin.constraints && typeof skin.constraints === "object") {

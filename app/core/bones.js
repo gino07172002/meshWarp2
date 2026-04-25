@@ -149,9 +149,46 @@ function isBoneAnimationHidden(bones, boneIndex) {
   return false;
 }
 
+// Skin-scoped bone hiding (Spine 4.x): if a bone appears in some skin's
+// `bones` list, it should only render when THAT skin (or one of its
+// ancestors that also owns the bone) is the currently applied skin.
+// Bones not in any skin list are considered "always visible" (default
+// behaviour). The check walks up the bone chain like the other hide checks
+// — child of a skin-hidden parent is also hidden.
+function isBoneHiddenBySkinDirect(m, boneIndex) {
+  if (!m || !Number.isFinite(boneIndex) || boneIndex < 0) return false;
+  const skinSets = Array.isArray(state.skinSets) ? state.skinSets : [];
+  if (skinSets.length === 0) return false;
+  const activeId = state.activeSkinSetId || (skinSets[0] && skinSets[0].id) || null;
+  let ownedByActive = false;
+  let ownedBySomeSkin = false;
+  for (const s of skinSets) {
+    if (!s || !Array.isArray(s.bones) || s.bones.length === 0) continue;
+    if (s.bones.indexOf(Number(boneIndex)) >= 0) {
+      ownedBySomeSkin = true;
+      if (s.id === activeId) { ownedByActive = true; break; }
+    }
+  }
+  return ownedBySomeSkin && !ownedByActive;
+}
+
+function isBoneHiddenBySkin(m, boneIndex) {
+  if (!m || !Number.isFinite(boneIndex) || boneIndex < 0) return false;
+  const bones = Array.isArray(m.rigBones) ? m.rigBones : [];
+  let index = Number(boneIndex);
+  while (index >= 0 && index < bones.length) {
+    if (isBoneHiddenBySkinDirect(m, index)) return true;
+    const bone = bones[index];
+    const parent = bone ? Number(bone.parent) : NaN;
+    index = Number.isFinite(parent) ? parent : -1;
+  }
+  return false;
+}
+
 function isBoneVisibleInWorkspace(m, bones, boneIndex) {
   if (isBoneWorkspaceHidden(m, boneIndex)) return false;
   if (state.boneMode === "pose" && isBoneAnimationHidden(bones, boneIndex)) return false;
+  if (isBoneHiddenBySkin(m, boneIndex)) return false;
   return true;
 }
 
@@ -2243,10 +2280,11 @@ function renderBoneTree() {
       const hiddenWork = isBoneWorkspaceHidden(m, i);
       const hiddenWorkSlots = hiddenWork && getGlobalBoneWorkHideMode() === "bone_and_slots";
       const hiddenAnim = state.boneMode === "pose" && isBoneAnimationHidden(activeBones, i);
+      const hiddenSkin = typeof isBoneHiddenBySkin === "function" ? isBoneHiddenBySkin(m, i) : false;
       row.className = `tree-item${state.selectedBone === i ? " selected" : ""}${picked ? " weight-picked" : ""}${parentCandidate ? " parent-candidate" : ""
         }${ikTargetCandidate ? " ik-target-candidate" : ""}${isIK ? " ik-bone" : ""}${isIKTarget ? " ik-target-bone" : ""}${isTFC ? " ik-bone" : ""
         }${isTFCTarget ? " ik-target-bone" : ""}${isPath ? " ik-bone" : ""}${isPathTarget ? " ik-target-bone" : ""}${hiddenWork || hiddenAnim ? " bone-hidden" : ""
-        }`;
+        }${hiddenSkin ? " bone-hidden-skin" : ""}`;
       row.style.setProperty("--tree-row-depth", String(depth));
       row.style.setProperty("--tree-row-extra", "0");
       row.dataset.boneIndex = String(i);

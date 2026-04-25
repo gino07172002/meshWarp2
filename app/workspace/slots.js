@@ -2324,6 +2324,10 @@ function isSlotHiddenByBoneVisibility(slot) {
     const bones = getActiveBones(m);
     if (isBoneAnimationHidden(bones, bi)) return true;
   }
+  // Skin-scoped bone hiding: when applied skin doesn't own this bone but some
+  // OTHER skin does, the bone (and the slots it parents) is hidden — matches
+  // Spine 4.x semantics that bones belong to a single skin.
+  if (typeof isBoneHiddenBySkin === "function" && isBoneHiddenBySkin(m, bi)) return true;
   return false;
 }
 

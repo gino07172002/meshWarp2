@@ -9,3 +9,7 @@ vendor/pose-runtime/
 .tmp_tfjs_vendor/
 .claude/
 .superpowers/
+warrior_*/
+*.webm
+codex-smoke-*.png
+warrior-*.png

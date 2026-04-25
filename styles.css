@@ -2473,6 +2473,19 @@ button:hover {
   opacity: 0.6;
 }
 
+.bone-tree .tree-item.bone-hidden-skin {
+  opacity: 0.4;
+  font-style: italic;
+}
+
+.bone-tree .tree-item.bone-hidden-skin::after {
+  content: "·skin·";
+  margin-left: 4px;
+  font-size: 9px;
+  color: #c8a4ff;
+  font-style: normal;
+}
+
 .bone-tree .tree-slot {
   color: #9ec2d0;
   cursor: grab;

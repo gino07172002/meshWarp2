@@ -459,6 +459,45 @@ Steps use:
 - **impl**: app/io/project-export.js + app/animation/model.js ensureSkinSets normalisation
 - **manual_only**: true
 
+### skin-bone-hidden-when-not-active
+- **summary**: A bone listed in skin A's bones[] is hidden when skin B (not owning it) is active.
+- **impl**: app/core/bones.js isBoneHiddenBySkin / isBoneHiddenBySkinDirect; isBoneVisibleInWorkspace integration
+- **prereqs**: ≥2 skins; skin A.bones = [3]; skin B.bones = []
+- **steps**:
+  1. apply skin B
+  2. call `isBoneHiddenBySkin(state.mesh, 3)` 
+- **verify**:
+  - `function_returns` `isBoneHiddenBySkin(state.mesh, 3)` == `true`
+
+### skin-bone-shown-when-its-skin-active
+- **summary**: Same bone is visible when its owning skin is active.
+- **impl**: same as above
+- **prereqs**: same setup
+- **steps**:
+  1. apply skin A
+  2. call `isBoneHiddenBySkin(state.mesh, 3)`
+- **verify**:
+  - `function_returns` `isBoneHiddenBySkin(state.mesh, 3)` == `false`
+
+### skin-bone-hides-its-slots
+- **summary**: A slot whose bone is skin-hidden is excluded from render via isSlotHiddenByBoneVisibility.
+- **impl**: app/workspace/slots.js isSlotHiddenByBoneVisibility (skin branch)
+- **prereqs**: skin A.bones contains a bone, skin B is active, a slot bound to that bone
+- **verify**:
+  - `function_returns` `isSlotHiddenByBoneVisibility(slotBoundToBone)` == `true`
+- **manual_only**: true
+
+### skin-bone-tree-row-marker
+- **summary**: Bone-tree row of a skin-hidden bone gets the bone-hidden-skin class with ·skin· marker.
+- **impl**: app/core/bones.js renderBoneTree className branch
+- **prereqs**: skin A owns bone idx N, skin B applied
+- **steps**:
+  1. apply skin B
+  2. `call:renderBoneTree()`
+- **verify**:
+  - the row `.tree-item[data-bone-index="N"]` has class `bone-hidden-skin`
+- **manual_only**: true
+
 ## Animation
 
 ### anim-deform-key-add
