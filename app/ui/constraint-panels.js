@@ -863,18 +863,6 @@ function resolveRelativeNumeric(rawText, currentValue) {
   return Number.isFinite(direct) ? direct : NaN;
 }
 
-// Helper for handlers that read a numeric input value: returns finite number
-// or NaN. If the input is operator-prefixed and the user has hit Enter / blur,
-// the absolute value will already have been written back by setupRelativeNumeric.
-function readRelativeNumeric(el, currentValue) {
-  if (!el) return NaN;
-  if (el.hasAttribute && el.hasAttribute("data-relative-numeric")) {
-    return resolveRelativeNumeric(el.value, currentValue);
-  }
-  const v = Number(el.value);
-  return Number.isFinite(v) ? v : NaN;
-}
-
 // Wire all [data-relative-numeric] inputs once. On Enter / blur, parse the
 // expression, resolve against the input's current "previous" value (we
 // stash it on focus), write the absolute number back, then dispatch a

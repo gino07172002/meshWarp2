@@ -1208,17 +1208,6 @@ function makeUniqueAttachmentName(slot, base = "attachment") {
   return next;
 }
 
-function listAttachmentTypes() {
-  return [
-    ATTACHMENT_TYPES.REGION,
-    ATTACHMENT_TYPES.MESH,
-    ATTACHMENT_TYPES.LINKED_MESH,
-    ATTACHMENT_TYPES.BOUNDING_BOX,
-    ATTACHMENT_TYPES.CLIPPING,
-    ATTACHMENT_TYPES.POINT,
-  ];
-}
-
 /* openAttachmentTypePicker — async popup, returns Promise<string|null>.
    Replaces the old synchronous window.prompt approach. */
 function openAttachmentTypePicker(initialType = ATTACHMENT_TYPES.REGION, title = "Choose Attachment Type") {

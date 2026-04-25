@@ -1,9 +1,13 @@
 // Split from app.js
 // Part: Canvas rendering, selection, bone/object interaction helpers, animation/id factories
-// Original source: app/03-constraints-render.js (segment 2)
-// SECTION: Canvas Rendering — 2D Slots, Clipping, Overlay
-// renderSlots2DWithClipping: main per-frame draw pass.
-// Uses 2D canvas; WebGL used for texture composition only.
+// SECTION: Canvas Rendering
+//   - render(): WebGL is the primary path. Slot meshes, clip slots
+//     (via stencil buffer), and the imported base reference all draw
+//     through the main mesh shader.
+//   - renderSlots2DWithClipping(): used only by drawOnionSkins2D (ghost
+//     overlay drawn on a 2D scene canvas above GL) and by the no-WebGL
+//     safety-net branch.
+//   - drawOverlay(): handles, gizmos, weight overlay — Canvas2D.
 // ============================================================
 function buildRenderableAttachmentGeometry(slot, poseWorld) {
   if (!slot) return null;
@@ -332,8 +336,9 @@ function render(ts = 0) {
   const slots = getRenderableSlots();
   const wantsOnion = shouldRenderOnionSkin();
 
-  // Skip GPU draw while the context is lost; the lost handler will requestRender once restored.
-  // TODO: proper restore path needs to rebuild program/vbo/ibo/vao from runtime.js.
+  // Skip GPU draw while the context is lost. webglcontextrestored fires
+  // initMainGLResources + finishMainGLSetup (runtime.js) and re-requests
+  // a render frame.
   if (hasGL && gl.isContextLost && gl.isContextLost()) {
     return;
   }

@@ -1501,15 +1501,6 @@ function getSlotAttachmentEntry(slot, name) {
   return list.find((a) => a.name === key) || null;
 }
 
-function getSlotCurrentAttachmentPlaceholder(slot) {
-  if (!slot) return "main";
-  ensureSlotAttachmentState(slot);
-  const current = getSlotCurrentAttachmentName(slot);
-  const entry = current ? getSlotAttachmentEntry(slot, current) : null;
-  if (entry && entry.placeholder) return String(entry.placeholder);
-  return String(slot.placeholderName || slot.attachmentName || "main");
-}
-
 function getSlotCurrentAttachmentName(slot) {
   ensureSlotAttachmentState(slot);
   ensureSlotAttachments(slot);

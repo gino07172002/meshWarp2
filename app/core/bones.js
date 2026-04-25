@@ -2092,6 +2092,7 @@ function renderBoneTree() {
   const tfcTargets = getTransformTargetBoneSet(m);
   const pathBones = getPathConstrainedBoneSet(m);
   const pathTargets = getPathTargetBoneSet(m);
+  const physicsBones = typeof getPhysicsConstrainedBoneSet === "function" ? getPhysicsConstrainedBoneSet(m) : new Set();
   for (let i = 0; i < bones.length; i += 1) {
     const p = bones[i].parent;
     if (!byParent.has(p)) byParent.set(p, []);
@@ -2330,13 +2331,14 @@ function renderBoneTree() {
       const isTFCTarget = tfcTargets.has(i);
       const isPath = pathBones.has(i);
       const isPathTarget = pathTargets.has(i);
+      const isPhysics = physicsBones.has(i);
       const hiddenWork = isBoneWorkspaceHidden(m, i);
       const hiddenWorkSlots = hiddenWork && getGlobalBoneWorkHideMode() === "bone_and_slots";
       const hiddenAnim = state.boneMode === "pose" && isBoneAnimationHidden(activeBones, i);
       const hiddenSkin = typeof isBoneHiddenBySkin === "function" ? isBoneHiddenBySkin(m, i) : false;
       row.className = `tree-item${state.selectedBone === i ? " selected" : ""}${picked ? " weight-picked" : ""}${parentCandidate ? " parent-candidate" : ""
         }${ikTargetCandidate ? " ik-target-candidate" : ""}${isIK ? " ik-bone" : ""}${isIKTarget ? " ik-target-bone" : ""}${isTFC ? " ik-bone" : ""
-        }${isTFCTarget ? " ik-target-bone" : ""}${isPath ? " ik-bone" : ""}${isPathTarget ? " ik-target-bone" : ""}${hiddenWork || hiddenAnim ? " bone-hidden" : ""
+        }${isTFCTarget ? " ik-target-bone" : ""}${isPath ? " ik-bone" : ""}${isPathTarget ? " ik-target-bone" : ""}${isPhysics ? " ik-bone" : ""}${hiddenWork || hiddenAnim ? " bone-hidden" : ""
         }${hiddenSkin ? " bone-hidden-skin" : ""}`;
       row.style.setProperty("--tree-row-depth", String(depth));
       row.style.setProperty("--tree-row-extra", "0");

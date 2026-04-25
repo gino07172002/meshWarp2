@@ -3560,13 +3560,6 @@ function refreshPhysicsUI() {
   if (els.physicsHint) els.physicsHint.textContent = `Editing "${c.name}" — bone ${m.rigBones[c.bone] ? m.rigBones[c.bone].name : "?"}.`;
 }
 
-function _physicsActive() {
-  const m = state.mesh;
-  if (!m) return null;
-  const list = ensurePhysicsConstraints(m);
-  if (state.selectedPhysics < 0 || state.selectedPhysics >= list.length) return null;
-  return list[state.selectedPhysics];
-}
 function _physicsBumpAndRefresh() {
   refreshPhysicsUI();
   if (typeof scheduleDraw === "function") scheduleDraw();
@@ -3628,14 +3621,14 @@ if (els.physicsSelect) {
 }
 if (els.physicsName) {
   els.physicsName.addEventListener("input", () => {
-    const c = _physicsActive();
+    const c = getActivePhysicsConstraint();
     if (!c) return;
     c.name = String(els.physicsName.value || "");
   });
 }
 if (els.physicsBone) {
   els.physicsBone.addEventListener("change", () => {
-    const c = _physicsActive();
+    const c = getActivePhysicsConstraint();
     if (!c) return;
     const v = Number(els.physicsBone.value);
     const m = state.mesh;
@@ -3648,7 +3641,7 @@ if (els.physicsBone) {
 }
 if (els.physicsEnabled) {
   els.physicsEnabled.addEventListener("change", () => {
-    const c = _physicsActive();
+    const c = getActivePhysicsConstraint();
     if (!c) return;
     c.enabled = els.physicsEnabled.value !== "false";
     _physicsBumpAndRefresh();
@@ -3657,7 +3650,7 @@ if (els.physicsEnabled) {
 function _wirePhysicsCheckbox(el, key) {
   if (!el) return;
   el.addEventListener("change", () => {
-    const c = _physicsActive();
+    const c = getActivePhysicsConstraint();
     if (!c) return;
     c[key] = !!el.checked;
     _physicsBumpAndRefresh();
@@ -3672,7 +3665,7 @@ _wirePhysicsCheckbox(els.physicsSkinRequired, "skinRequired");
 function _wirePhysicsNumeric(el, key, lo, hi) {
   if (!el) return;
   el.addEventListener("input", () => {
-    const c = _physicsActive();
+    const c = getActivePhysicsConstraint();
     if (!c) return;
     const v = Number(el.value);
     if (!Number.isFinite(v)) return;
