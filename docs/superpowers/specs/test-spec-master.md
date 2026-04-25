@@ -452,6 +452,18 @@ Steps use:
 - **impl**: app/animation/timeline-ui.js
 - **manual_only**: true
 
+### anim-event-audio-preview
+- **summary**: Timeline events with an audio field play during animation playback.
+- **impl**: app/animation/runtime.js emitTimelineEventsBetween + playTimelineEventAudio
+- **prereqs**: animation with at least one event keyframe whose value has audio: "some/path.wav"
+- **steps**:
+  1. start playback (`click:#playBtn`)
+  2. wait for the event time to pass
+  3. inspect that an HTMLAudioElement was created and `play()` was attempted
+- **verify**:
+  - `function_returns` `__timelineAudioCache.has("some/path.wav")` == `true`
+- **manual_only**: true
+
 ---
 
 ## Export
@@ -623,18 +635,33 @@ Steps use:
 ### tree-stable-during-bone-edit-drag
 - **summary**: Dragging a bone head/tail in Edit mode must NOT cause weighted slots to jump between bones in the tree mid-drag.
 - **impl**: app/core/bones.js commitRigEditPreserveCurrentLook (drag guard); app/ui/bootstrap.js clearDrag (final rebuild)
-- **prereqs**: 3 bones, 1 slot weighted across them, all visible in the bone tree
+- **prereqs**: 3 bones, 1 slot weighted across them, all visible in the bone tree; mode = Edit; selectedBone is on a bone whose head is near (300,300) in canvas px
 - **steps**:
-  1. capture the slot's tree parent bone index (call `getSlotTreeBoneIndex(slot, mesh)`)
-  2. start dragging bone head/tail (`pointer:overlay@x,y`)
-  3. during drag at 5 intermediate positions: `pointer:overlay@x+10*i, y` and call `getSlotTreeBoneIndex` again — record values
-  4. finish drag
-  5. capture again post-drag
+  1. `pointer:overlay@300,300:drag@400,300`
 - **verify**:
-  - all values during drag are equal (no flicker)
-  - post-drag may differ if topology change is significant — that's OK
-  - no console error about reweighting
-- **manual_only**: false (drives pointer events on overlay)
+  - `function_returns` `(typeof window.__lastTreeJump === "undefined" || window.__lastTreeJump === false)` == `true`
+- **manual_only**: true
+
+## Test infra self-checks
+
+### test-runner-pointer-step
+- **summary**: The pointer:overlay@x,y step dispatches a synthetic pointerdown/up on the canvas overlay.
+- **impl**: tools/test-runner-browser.js execPointerStep
+- **prereqs**: app loaded, overlay visible, no panel modal blocking
+- **steps**:
+  1. `call:(window.__pointerSteps = 0, els.overlay.addEventListener("pointerdown", () => { window.__pointerSteps += 1; }, { once: true }))`
+  2. `pointer:overlay@100,100`
+- **verify**:
+  - `state_path` `window.__pointerSteps` == `1`
+
+### test-runner-set-value
+- **summary**: set_value:#id=VALUE writes input.value and dispatches input + change.
+- **impl**: tools/test-runner-browser.js execStep "set_value"
+- **prereqs**: a known input element exists, e.g. #weightPruneThreshold
+- **steps**:
+  1. `set_value:#weightPruneThreshold=0.123`
+- **verify**:
+  - `function_returns` `els.weightPruneThreshold.value` == `"0.123"`
 
 ## Hotkeys (Blender-style A semantics)
 

@@ -99,8 +99,52 @@
         f();
         return;
       }
+      case "pointer": {
+        // Format: "overlay@x,y" or "overlay@x,y:drag@x2,y2"
+        // Synthesises pointerdown/move/up on #overlay with coordinates in CSS px.
+        return execPointerStep(arg);
+      }
       default:
         throw new Error(`unknown step op: ${op}`);
+    }
+  }
+
+  async function execPointerStep(arg) {
+    // arg = "overlay@x,y"  or  "overlay@x,y:drag@x2,y2"
+    const overlay = document.getElementById("overlay");
+    if (!overlay) throw new Error("#overlay not found");
+    const m1 = arg.match(/^overlay@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)(?::drag@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?))?$/);
+    if (!m1) throw new Error(`bad pointer step: ${arg}`);
+    const x0 = Number(m1[1]); const y0 = Number(m1[2]);
+    const x1 = m1[3] != null ? Number(m1[3]) : null;
+    const y1 = m1[4] != null ? Number(m1[4]) : null;
+    const rect = overlay.getBoundingClientRect();
+    const toClient = (x, y) => ({ clientX: rect.left + x, clientY: rect.top + y });
+    const pointerId = 9999; // arbitrary synthetic id
+    const fire = (type, x, y, opts = {}) => {
+      const c = toClient(x, y);
+      const ev = new PointerEvent(type, {
+        bubbles: true, cancelable: true,
+        pointerId, pointerType: "mouse",
+        clientX: c.clientX, clientY: c.clientY,
+        button: 0, buttons: type === "pointerup" ? 0 : 1,
+        ...opts,
+      });
+      overlay.dispatchEvent(ev);
+    };
+    fire("pointerdown", x0, y0);
+    if (x1 != null && y1 != null) {
+      // Move in 4 evenly spaced steps for a more natural drag.
+      for (let i = 1; i <= 4; i += 1) {
+        const t = i / 4;
+        const x = x0 + (x1 - x0) * t;
+        const y = y0 + (y1 - y0) * t;
+        fire("pointermove", x, y);
+        await delay(8);
+      }
+      fire("pointerup", x1, y1);
+    } else {
+      fire("pointerup", x0, y0);
     }
   }
 

@@ -266,13 +266,65 @@ function emitTimelineEventsBetween(anim, fromTime, toTime, looped = false, phase
       int: Number(v.int) || 0,
       float: Number(v.float) || 0,
       string: v.string != null ? String(v.string) : "",
+      audio: v.audio != null ? String(v.audio) : "",
+      volume: Number(v.volume) || 1,
+      balance: Number(v.balance) || 0,
       phase,
     };
+    // Audio preview: if the event has an audio path, schedule playback. Phase
+    // is "play" during normal playback; we don't fire on scrub.
+    if (detail.audio && phase === "play" && typeof playTimelineEventAudio === "function") {
+      try { playTimelineEventAudio(detail); } catch (err) { console.warn("[timeline-audio]", err); }
+    }
     window.dispatchEvent(new CustomEvent("timeline-event", { detail }));
   }
   const last = out[out.length - 1];
   const lv = last.value && typeof last.value === "object" ? last.value : {};
   setStatus(`Event: ${(lv.name || "event").toString()} @ ${(Number(last.time) || 0).toFixed(3)}s`);
+}
+
+// Audio preview cache. Maps audio path → HTMLAudioElement. Reused across
+// events with the same path. Uses a single lazily-created element per path.
+const __timelineAudioCache = new Map();
+function playTimelineEventAudio(detail) {
+  if (!detail || !detail.audio) return false;
+  const key = String(detail.audio);
+  let el = __timelineAudioCache.get(key);
+  if (!el) {
+    el = new Audio();
+    el.src = key;
+    __timelineAudioCache.set(key, el);
+  }
+  // Restart from beginning to allow the same key to fire repeatedly during
+  // looped playback.
+  try { el.currentTime = 0; } catch { /* some browsers may throw on src not yet loaded */ }
+  el.volume = Math.max(0, Math.min(1, Number(detail.volume) || 1));
+  // balance: -1=left, 0=center, 1=right. Use StereoPannerNode lazily.
+  // Only setup if balance ≠ 0 (most events).
+  const balance = Math.max(-1, Math.min(1, Number(detail.balance) || 0));
+  if (balance !== 0 && typeof AudioContext !== "undefined") {
+    try {
+      if (!el.__audioCtx) {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = ctx.createMediaElementSource(el);
+        const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+        if (panner) {
+          src.connect(panner).connect(ctx.destination);
+          el.__audioCtx = ctx;
+          el.__audioPanner = panner;
+        } else {
+          src.connect(ctx.destination);
+          el.__audioCtx = ctx;
+        }
+      }
+      if (el.__audioPanner) el.__audioPanner.pan.value = balance;
+    } catch (err) {
+      // fallback: ignore balance, just play
+    }
+  }
+  const p = el.play();
+  if (p && typeof p.catch === "function") p.catch(() => { /* user-gesture-required errors are silent */ });
+  return true;
 }
 
 
