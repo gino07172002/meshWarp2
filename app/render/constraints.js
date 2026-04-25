@@ -2222,11 +2222,13 @@ function getSolvedPoseWorld(m) {
   const pose = cloneBones(getPoseBones(m));
   enforceConnectedHeads(pose);
   const plan = buildConstraintExecutionPlan(m);
+  const nowSec = (typeof getCurrentRenderTime === "function" ? getCurrentRenderTime() : (performance.now() / 1000));
   for (const step of plan) {
     if (!step || !step.ref) continue;
     if (step.type === "pth") applySinglePathConstraintToBones(m, pose, step.ref);
     else if (step.type === "tfc") applySingleTransformConstraintToBones(m, pose, step.ref);
     else if (step.type === "ik") applySingleIKConstraintToBones(pose, step.ref);
+    else if (step.type === "phy") applySinglePhysicsConstraintToBones(m, pose, step.ref, nowSec);
     enforceConnectedHeads(pose);
   }
   return computeWorld(pose);
@@ -3427,3 +3429,224 @@ function drawClipPath2D(ctx, points) {
 }
 
 // ============================================================
+
+// ----------------------------------------------------------------
+// Physics Constraints UI (Spine 4.2 equivalent)
+// ----------------------------------------------------------------
+function refreshPhysicsUI() {
+  if (!els.physicsSelect) return;
+  const m = state.mesh;
+  if (!m || !Array.isArray(m.rigBones) || m.rigBones.length === 0) {
+    els.physicsSelect.innerHTML = "";
+    if (els.physicsList) els.physicsList.innerHTML = "<div class='muted'>No bones.</div>";
+    return;
+  }
+  const list = ensurePhysicsConstraints(m);
+  const prev = state.selectedPhysics >= 0 && state.selectedPhysics < list.length ? list[state.selectedPhysics] : null;
+  sortConstraintListByOrder(list);
+  if (prev) state.selectedPhysics = list.indexOf(prev);
+  if (state.selectedPhysics < 0 || state.selectedPhysics >= list.length) {
+    state.selectedPhysics = list.length > 0 ? 0 : -1;
+  }
+  if (els.physicsBone) {
+    els.physicsBone.innerHTML = "";
+    for (let i = 0; i < m.rigBones.length; i += 1) {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = `${i}: ${m.rigBones[i].name}`;
+      els.physicsBone.appendChild(opt);
+    }
+  }
+  els.physicsSelect.innerHTML = "";
+  for (let i = 0; i < list.length; i += 1) {
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = `${i}: ${list[i].name}`;
+    els.physicsSelect.appendChild(opt);
+  }
+  if (els.physicsList) {
+    els.physicsList.innerHTML = "";
+    if (list.length === 0) {
+      els.physicsList.innerHTML = "<div class='muted'>No Physics constraints yet.</div>";
+    } else {
+      for (let i = 0; i < list.length; i += 1) {
+        const c = list[i];
+        const row = document.createElement("div");
+        row.className = `tree-item${state.selectedPhysics === i ? " selected" : ""}`;
+        row.dataset.physicsIndex = String(i);
+        row.textContent = `${i}: ${c.name}${c.enabled === false ? " (off)" : ""}`;
+        els.physicsList.appendChild(row);
+      }
+    }
+  }
+  const c = state.selectedPhysics >= 0 ? list[state.selectedPhysics] : null;
+  const setDis = (el, dis) => { if (el) el.disabled = dis; };
+  if (els.physicsRemoveBtn) els.physicsRemoveBtn.disabled = !c;
+  if (els.physicsResetBtn) els.physicsResetBtn.disabled = !c;
+  if (els.physicsMoveUpBtn) els.physicsMoveUpBtn.disabled = !c || state.selectedPhysics <= 0;
+  const fields = [
+    els.physicsName, els.physicsBone, els.physicsEnabled,
+    els.physicsX, els.physicsY, els.physicsRotate, els.physicsScaleX, els.physicsShearX,
+    els.physicsMix, els.physicsInertia, els.physicsStrength, els.physicsDamping,
+    els.physicsMassInverse, els.physicsStep,
+    els.physicsWind, els.physicsGravity, els.physicsLimit, els.physicsSkinRequired,
+  ];
+  for (const f of fields) setDis(f, !c);
+  if (!c) {
+    if (els.physicsHint) els.physicsHint.textContent = "No Physics constraint. Add one.";
+    return;
+  }
+  if (els.physicsSelect) els.physicsSelect.value = String(state.selectedPhysics);
+  if (els.physicsName) els.physicsName.value = c.name || `physics_${state.selectedPhysics}`;
+  if (els.physicsBone) els.physicsBone.value = String(c.bone);
+  if (els.physicsEnabled) els.physicsEnabled.value = c.enabled === false ? "false" : "true";
+  if (els.physicsX) els.physicsX.checked = !!c.x;
+  if (els.physicsY) els.physicsY.checked = !!c.y;
+  if (els.physicsRotate) els.physicsRotate.checked = c.rotate !== false;
+  if (els.physicsScaleX) els.physicsScaleX.checked = !!c.scaleX;
+  if (els.physicsShearX) els.physicsShearX.checked = !!c.shearX;
+  if (els.physicsMix) els.physicsMix.value = String(c.mix);
+  if (els.physicsInertia) els.physicsInertia.value = String(c.inertia);
+  if (els.physicsStrength) els.physicsStrength.value = String(c.strength);
+  if (els.physicsDamping) els.physicsDamping.value = String(c.damping);
+  if (els.physicsMassInverse) els.physicsMassInverse.value = String(c.massInverse);
+  if (els.physicsStep) els.physicsStep.value = String(c.step);
+  if (els.physicsWind) els.physicsWind.value = String(c.wind);
+  if (els.physicsGravity) els.physicsGravity.value = String(c.gravity);
+  if (els.physicsLimit) els.physicsLimit.value = String(c.limit);
+  if (els.physicsSkinRequired) els.physicsSkinRequired.checked = !!c.skinRequired;
+  if (els.physicsHint) els.physicsHint.textContent = `Editing "${c.name}" — bone ${m.rigBones[c.bone] ? m.rigBones[c.bone].name : "?"}.`;
+}
+
+function _physicsActive() {
+  const m = state.mesh;
+  if (!m) return null;
+  const list = ensurePhysicsConstraints(m);
+  if (state.selectedPhysics < 0 || state.selectedPhysics >= list.length) return null;
+  return list[state.selectedPhysics];
+}
+function _physicsBumpAndRefresh() {
+  refreshPhysicsUI();
+  if (typeof scheduleDraw === "function") scheduleDraw();
+}
+
+if (els.physicsAddBtn) {
+  els.physicsAddBtn.addEventListener("click", () => {
+    if (!addPhysicsConstraint()) {
+      if (typeof setStatus === "function") setStatus("Add Physics failed. Need at least one bone.");
+      return;
+    }
+    _physicsBumpAndRefresh();
+  });
+}
+if (els.physicsRemoveBtn) {
+  els.physicsRemoveBtn.addEventListener("click", () => {
+    if (!removeSelectedPhysicsConstraint()) return;
+    _physicsBumpAndRefresh();
+  });
+}
+if (els.physicsResetBtn) {
+  els.physicsResetBtn.addEventListener("click", () => {
+    const m = state.mesh;
+    if (!m) return;
+    resetAllPhysicsConstraintState(m);
+    if (typeof setStatus === "function") setStatus("Physics simulator state reset.");
+    _physicsBumpAndRefresh();
+  });
+}
+if (els.physicsMoveUpBtn) {
+  els.physicsMoveUpBtn.addEventListener("click", () => {
+    const m = state.mesh;
+    if (!m) return;
+    const list = ensurePhysicsConstraints(m);
+    const i = state.selectedPhysics;
+    if (i <= 0 || i >= list.length) return;
+    const curr = list[i];
+    swapConstraintOrder(list, i, i - 1);
+    sortConstraintListByOrder(list);
+    state.selectedPhysics = list.indexOf(curr);
+    _physicsBumpAndRefresh();
+  });
+}
+if (els.physicsList) {
+  els.physicsList.addEventListener("click", (ev) => {
+    const row = ev.target.closest("[data-physics-index]");
+    if (!row) return;
+    const idx = Number(row.dataset.physicsIndex);
+    if (!Number.isFinite(idx)) return;
+    state.selectedPhysics = idx;
+    refreshPhysicsUI();
+  });
+}
+if (els.physicsSelect) {
+  els.physicsSelect.addEventListener("change", () => {
+    state.selectedPhysics = Number(els.physicsSelect.value);
+    refreshPhysicsUI();
+  });
+}
+if (els.physicsName) {
+  els.physicsName.addEventListener("input", () => {
+    const c = _physicsActive();
+    if (!c) return;
+    c.name = String(els.physicsName.value || "");
+  });
+}
+if (els.physicsBone) {
+  els.physicsBone.addEventListener("change", () => {
+    const c = _physicsActive();
+    if (!c) return;
+    const v = Number(els.physicsBone.value);
+    const m = state.mesh;
+    if (Number.isFinite(v) && v >= 0 && m && v < m.rigBones.length) {
+      c.bone = v;
+      if (c.state) c.state.reset = true;
+      _physicsBumpAndRefresh();
+    }
+  });
+}
+if (els.physicsEnabled) {
+  els.physicsEnabled.addEventListener("change", () => {
+    const c = _physicsActive();
+    if (!c) return;
+    c.enabled = els.physicsEnabled.value !== "false";
+    _physicsBumpAndRefresh();
+  });
+}
+function _wirePhysicsCheckbox(el, key) {
+  if (!el) return;
+  el.addEventListener("change", () => {
+    const c = _physicsActive();
+    if (!c) return;
+    c[key] = !!el.checked;
+    _physicsBumpAndRefresh();
+  });
+}
+_wirePhysicsCheckbox(els.physicsX, "x");
+_wirePhysicsCheckbox(els.physicsY, "y");
+_wirePhysicsCheckbox(els.physicsRotate, "rotate");
+_wirePhysicsCheckbox(els.physicsScaleX, "scaleX");
+_wirePhysicsCheckbox(els.physicsShearX, "shearX");
+_wirePhysicsCheckbox(els.physicsSkinRequired, "skinRequired");
+function _wirePhysicsNumeric(el, key, lo, hi) {
+  if (!el) return;
+  el.addEventListener("input", () => {
+    const c = _physicsActive();
+    if (!c) return;
+    const v = Number(el.value);
+    if (!Number.isFinite(v)) return;
+    let nv = v;
+    if (Number.isFinite(lo)) nv = Math.max(lo, nv);
+    if (Number.isFinite(hi)) nv = Math.min(hi, nv);
+    c[key] = nv;
+    if (typeof scheduleDraw === "function") scheduleDraw();
+  });
+}
+_wirePhysicsNumeric(els.physicsMix, "mix", 0, 1);
+_wirePhysicsNumeric(els.physicsInertia, "inertia", 0, 1);
+_wirePhysicsNumeric(els.physicsStrength, "strength", 0, Infinity);
+_wirePhysicsNumeric(els.physicsDamping, "damping", 0, 10);
+_wirePhysicsNumeric(els.physicsMassInverse, "massInverse", 0.01, Infinity);
+_wirePhysicsNumeric(els.physicsStep, "step", 1 / 240, 1 / 15);
+_wirePhysicsNumeric(els.physicsWind, "wind", -Infinity, Infinity);
+_wirePhysicsNumeric(els.physicsGravity, "gravity", -Infinity, Infinity);
+_wirePhysicsNumeric(els.physicsLimit, "limit", 0, Infinity);

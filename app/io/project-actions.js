@@ -416,6 +416,30 @@ async function handleProjectLoadInputChange(e) {
       }));
       ensurePathConstraints(state.mesh);
     }
+    if (state.mesh && Array.isArray(data.physicsConstraints)) {
+      state.mesh.physicsConstraints = data.physicsConstraints.map((c, i) => ({
+        name: c && c.name ? String(c.name) : `physics_${i}`,
+        bone: Number(c && c.bone),
+        x: !!(c && c.x),
+        y: !!(c && c.y),
+        rotate: c ? c.rotate !== false : true,
+        scaleX: !!(c && c.scaleX),
+        shearX: !!(c && c.shearX),
+        mix: math.clamp(Number(c && c.mix) || 1, 0, 1),
+        inertia: math.clamp(Number(c && c.inertia) || 1, 0, 1),
+        strength: Math.max(0, Number(c && c.strength) || 100),
+        damping: math.clamp(Number(c && c.damping) || 1, 0, 10),
+        massInverse: Math.max(0.01, Number(c && c.massInverse) || 1),
+        wind: Number(c && c.wind) || 0,
+        gravity: Number(c && c.gravity) || 0,
+        step: math.clamp(Number(c && c.step) || 1 / 60, 1 / 240, 1 / 15),
+        limit: Math.max(0, Number(c && c.limit) || 5000),
+        order: getConstraintOrder(c, i),
+        skinRequired: !!(c && c.skinRequired),
+        enabled: c ? c.enabled !== false : true,
+      }));
+      ensurePhysicsConstraints(state.mesh);
+    }
     if (Array.isArray(data.animations) && data.animations.length > 0) {
       state.anim.animations = data.animations.map((a, i) => normalizeAnimationRecord(a, `Anim ${i + 1}`));
       state.anim.currentAnimId = state.anim.animations[0].id;

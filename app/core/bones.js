@@ -1790,6 +1790,7 @@ function updateBoneSelectors() {
   refreshIKUI();
   refreshTransformUI();
   refreshPathUI();
+  if (typeof refreshPhysicsUI === "function") refreshPhysicsUI();
 }
 
 function refreshBoneTreeFilterUI() {
@@ -4197,7 +4198,7 @@ function updateWorkspaceUI() {
   const isObjPage   = page === "object";
   const isAnimPage  = page === "anim" && !animAuxMode;
   const tabVisible = animAuxMode
-    ? { canvas: false, setup: false, rig: false, object: false, ik: false, constraint: false, path: false, skin: false, tools: false, slotmesh: false }
+    ? { canvas: false, setup: false, rig: false, object: false, ik: false, constraint: false, path: false, physics: false, skin: false, tools: false, slotmesh: false }
     : {
       canvas:     isMeshPage || isAnimPage,
       setup:      isRigPage || isAnimPage,   // "Bones" tab
@@ -4206,6 +4207,7 @@ function updateWorkspaceUI() {
       ik:         (isRigPage || isAnimPage) && isSkeleton,
       constraint: (isRigPage || isAnimPage) && isSkeleton,
       path:       (isRigPage || isAnimPage) && isSkeleton,
+      physics:    (isRigPage || isAnimPage) && isSkeleton,
       skin:       (isRigPage || isAnimPage) && (isRigEdit || isRigPose),
       tools:      isRigPage || isObjPage || isAnimPage,
       slotmesh:   isMeshPage,
@@ -4225,6 +4227,7 @@ function updateWorkspaceUI() {
     ik: els.leftTabIK,
     constraint: els.leftTabConstraint,
     path: els.leftTabPath,
+    physics: els.leftTabPhysics,
     skin: els.leftTabSkin,
     tools: els.leftTabTools,
     slotmesh: els.leftTabSlotMesh,
@@ -4237,6 +4240,7 @@ function updateWorkspaceUI() {
     ik: els.leftIKTools,
     constraint: els.leftConstraintTools,
     path: els.leftPathTools,
+    physics: els.leftPhysicsTools,
     skin: els.leftSkinTools,
     tools: els.leftGeneralTools,
     slotmesh: els.slotMeshTools,
@@ -4381,6 +4385,7 @@ function setupLeftToolTabs() {
   bind(els.leftTabIK, "ik");
   bind(els.leftTabConstraint, "constraint");
   bind(els.leftTabPath, "path");
+  bind(els.leftTabPhysics, "physics");
   bind(els.leftTabSkin, "skin");
   bind(els.leftTabTools, "tools");
   bind(els.leftTabSlotMesh, "slotmesh");

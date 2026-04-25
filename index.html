@@ -1047,6 +1047,7 @@
           <button id="leftTabConstraint" class="left-tab-btn" data-left-tab="constraint"
             type="button">Constraint</button>
           <button id="leftTabPath" class="left-tab-btn" data-left-tab="path" type="button">Path</button>
+          <button id="leftTabPhysics" class="left-tab-btn" data-left-tab="physics" type="button">Physics</button>
           <button id="leftTabSkin" class="left-tab-btn" data-left-tab="skin" type="button">Skin</button>
         </div>
 
@@ -1482,6 +1483,154 @@
           </details>
 
           <p id="pathHint" class="muted">Default source is Drawn Path. Click Draw On Canvas, then click on canvas to place points.</p>
+        </section>
+
+        <section id="leftPhysicsTools" class="group left-tab-panel" data-left-panel="physics">
+          <h3>Physics Constraints</h3>
+
+          <details class="panel-section" open>
+            <summary class="panel-section-head">
+              <span class="panel-section-title">List</span>
+            </summary>
+            <div class="panel-section-body">
+              <div class="field two-col">
+                <button id="physicsAddBtn" type="button">+ Physics</button>
+                <button id="physicsRemoveBtn" type="button">Remove</button>
+              </div>
+              <div class="field two-col">
+                <button id="physicsResetBtn" type="button">Reset State</button>
+                <button id="physicsMoveUpBtn" type="button">Move Up</button>
+              </div>
+              <div id="physicsList" class="bone-tree"></div>
+            </div>
+          </details>
+
+          <details class="panel-section" open>
+            <summary class="panel-section-head">
+              <span class="panel-section-title">Properties</span>
+            </summary>
+            <div class="panel-section-body">
+              <div class="field two-col">
+                <label>
+                  <span>Constraint</span>
+                  <select id="physicsSelect"></select>
+                </label>
+                <label>
+                  <span>Name</span>
+                  <input id="physicsName" type="text" value="" />
+                </label>
+              </div>
+              <div class="field two-col">
+                <label>
+                  <span>Bone</span>
+                  <select id="physicsBone"></select>
+                </label>
+                <label>
+                  <span>Enabled</span>
+                  <select id="physicsEnabled">
+                    <option value="true" selected>On</option>
+                    <option value="false">Off</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </details>
+
+          <details class="panel-section" open>
+            <summary class="panel-section-head">
+              <span class="panel-section-title">Channels</span>
+            </summary>
+            <div class="panel-section-body">
+              <label class="slot-inline-check">
+                <input id="physicsX" type="checkbox" />
+                <span>X (translate)</span>
+              </label>
+              <label class="slot-inline-check">
+                <input id="physicsY" type="checkbox" />
+                <span>Y (translate)</span>
+              </label>
+              <label class="slot-inline-check">
+                <input id="physicsRotate" type="checkbox" checked />
+                <span>Rotate</span>
+              </label>
+              <label class="slot-inline-check">
+                <input id="physicsScaleX" type="checkbox" />
+                <span>ScaleX</span>
+              </label>
+              <label class="slot-inline-check">
+                <input id="physicsShearX" type="checkbox" />
+                <span>ShearX</span>
+              </label>
+            </div>
+          </details>
+
+          <details class="panel-section" open>
+            <summary class="panel-section-head">
+              <span class="panel-section-title">Spring</span>
+            </summary>
+            <div class="panel-section-body">
+              <div class="field two-col">
+                <label>
+                  <span>Mix</span>
+                  <input id="physicsMix" type="number" step="0.01" min="0" max="1" value="1" />
+                </label>
+                <label>
+                  <span>Inertia</span>
+                  <input id="physicsInertia" type="number" step="0.01" min="0" max="1" value="1" />
+                </label>
+              </div>
+              <div class="field two-col">
+                <label>
+                  <span>Strength</span>
+                  <input id="physicsStrength" type="number" step="1" min="0" value="100" />
+                </label>
+                <label>
+                  <span>Damping</span>
+                  <input id="physicsDamping" type="number" step="0.05" min="0" max="10" value="1" />
+                </label>
+              </div>
+              <div class="field two-col">
+                <label>
+                  <span>Mass⁻¹</span>
+                  <input id="physicsMassInverse" type="number" step="0.05" min="0.01" value="1" />
+                </label>
+                <label>
+                  <span>Step (s)</span>
+                  <input id="physicsStep" type="number" step="0.001" min="0.004" max="0.066" value="0.0167" />
+                </label>
+              </div>
+            </div>
+          </details>
+
+          <details class="panel-section">
+            <summary class="panel-section-head">
+              <span class="panel-section-title">External Forces</span>
+            </summary>
+            <div class="panel-section-body">
+              <div class="field two-col">
+                <label>
+                  <span>Wind (X)</span>
+                  <input id="physicsWind" type="number" step="0.5" value="0" />
+                </label>
+                <label>
+                  <span>Gravity (Y)</span>
+                  <input id="physicsGravity" type="number" step="0.5" value="0" />
+                </label>
+              </div>
+              <div class="field two-col">
+                <label>
+                  <span>Velocity Limit</span>
+                  <input id="physicsLimit" type="number" step="100" min="0" value="5000" />
+                </label>
+                <label class="slot-inline-check">
+                  <input id="physicsSkinRequired" type="checkbox" />
+                  <span>Skin Required</span>
+                </label>
+              </div>
+            </div>
+          </details>
+
+          <p id="physicsHint" class="muted">Springs follow the bone&#39;s rest pose; gravity/wind add per-second force. Reset State re-seeds the simulator from the current pose.</p>
         </section>
 
         <section id="leftSkinTools" class="group left-tab-panel" data-left-panel="skin">
@@ -1943,14 +2092,14 @@
     </section>
   </div>
 
-  <script src="app/core/runtime.js?v=20260425-23"></script>
+  <script src="app/core/runtime.js?v=20260425-24"></script>
   <script src="app/render/gl-toolkit.js?v=20260425-2"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>
-  <script src="app/core/bones.js?v=20260425-18"></script>
+  <script src="app/core/bones.js?v=20260425-19"></script>
   <script src="app/workspace/workspace.js?v=20260425-1"></script>
   <script src="app/workspace/slots.js?v=20260425-5"></script>
-  <script src="app/workspace/constraint-model.js?v=20260420-2"></script>
-  <script src="app/render/constraints.js?v=20260425-4"></script>
+  <script src="app/workspace/constraint-model.js?v=20260425-1"></script>
+  <script src="app/render/constraints.js?v=20260425-5"></script>
   <script src="app/render/weight-brush.js?v=20260425-5"></script>
   <script src="app/render/canvas.js?v=20260425-5"></script>
   <script src="app/render/state-machine.js?v=20260420-2"></script>
@@ -1958,8 +2107,8 @@
   <script src="app/animation/timeline-ui.js?v=20260420-2"></script>
   <script src="app/animation/runtime.js?v=20260425-1"></script>
   <script src="app/io/tree-bindings.js?v=20260425-4"></script>
-  <script src="app/io/project-export.js?v=20260425-4"></script>
-  <script src="app/io/project-actions.js?v=20260425-2"></script>
+  <script src="app/io/project-export.js?v=20260425-5"></script>
+  <script src="app/io/project-actions.js?v=20260425-3"></script>
   <script src="app/ui/editor-panels.js?v=20260425-7"></script>
   <script src="app/ui/constraint-panels.js?v=20260425-4"></script>
   <script src="app/ui/animation-panels.js?v=20260425-1"></script>

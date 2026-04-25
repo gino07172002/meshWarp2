@@ -233,6 +233,153 @@ function removeSelectedPathConstraint() {
   return true;
 }
 
+// Spine 4.2 Physics Constraints.
+// A physics constraint drives a single bone's transform via semi-implicit
+// Euler integration. The bone is "anchored" to its rest pose (in its
+// parent's local frame) by springs (inertia) and damped over time.
+// External forces come from gravity and from the bone's parent moving.
+//
+// Per-instance state is kept on `c.state`:
+//  - x/y/rot/sx/sy: previous-frame integrated values
+//  - vx/vy/vRot/vSx/vSy: velocities
+//  - lastTime: timestamp of previous step (-1 = never stepped)
+//  - reset: when true, next step re-seeds from current bone transform
+function ensurePhysicsConstraints(m) {
+  if (!m) return [];
+  if (!Array.isArray(m.physicsConstraints)) m.physicsConstraints = [];
+  const count = Array.isArray(m.rigBones) ? m.rigBones.length : 0;
+  m.physicsConstraints = m.physicsConstraints
+    .map((c, i) => {
+      const bone = Number(c && c.bone);
+      const prev = c && c.state && typeof c.state === "object" ? c.state : {};
+      return {
+        name: c && c.name ? String(c.name) : `physics_${i}`,
+        bone: Number.isFinite(bone) && bone >= 0 && bone < count ? bone : -1,
+        // What channels this constraint drives:
+        x: !!(c && c.x),
+        y: !!(c && c.y),
+        rotate: c ? c.rotate !== false : true,
+        scaleX: !!(c && c.scaleX),
+        shearX: !!(c && c.shearX),
+        // Mix amounts per channel (0..1).
+        mix: math.clamp(Number(c && c.mix) || 1, 0, 1),
+        // Physics parameters.
+        inertia: math.clamp(Number(c && c.inertia) || 1, 0, 1),
+        strength: Math.max(0, Number(c && c.strength) || 100),
+        damping: math.clamp(Number(c && c.damping) || 1, 0, 10),
+        massInverse: Math.max(0.01, Number(c && c.massInverse) || 1),
+        wind: Number(c && c.wind) || 0,
+        gravity: Number(c && c.gravity) || 0,
+        // Step in seconds. 1/60 default; clamp to [1/240, 1/15].
+        step: math.clamp(Number(c && c.step) || 1 / 60, 1 / 240, 1 / 15),
+        limit: Math.max(0, Number(c && c.limit) || 5000),
+        order: getConstraintOrder(c, i),
+        skinRequired: !!(c && c.skinRequired),
+        enabled: c ? c.enabled !== false : true,
+        state: {
+          x: Number.isFinite(Number(prev.x)) ? Number(prev.x) : 0,
+          y: Number.isFinite(Number(prev.y)) ? Number(prev.y) : 0,
+          rot: Number.isFinite(Number(prev.rot)) ? Number(prev.rot) : 0,
+          sx: Number.isFinite(Number(prev.sx)) ? Number(prev.sx) : 1,
+          sy: Number.isFinite(Number(prev.sy)) ? Number(prev.sy) : 1,
+          vx: 0,
+          vy: 0,
+          vRot: 0,
+          vSx: 0,
+          vSy: 0,
+          lastTime: -1,
+          reset: true,
+        },
+      };
+    })
+    .filter((c) => c.bone >= 0);
+  if (
+    !Number.isFinite(state.selectedPhysics) ||
+    state.selectedPhysics < 0 ||
+    state.selectedPhysics >= m.physicsConstraints.length
+  ) {
+    state.selectedPhysics = m.physicsConstraints.length > 0 ? 0 : -1;
+  }
+  return m.physicsConstraints;
+}
+
+function getActivePhysicsConstraint() {
+  const m = state.mesh;
+  if (!m) return null;
+  const list = ensurePhysicsConstraints(m);
+  sortConstraintListByOrder(list);
+  if (state.selectedPhysics < 0 || state.selectedPhysics >= list.length) return null;
+  return list[state.selectedPhysics];
+}
+
+function getPhysicsConstrainedBoneSet(m) {
+  const out = new Set();
+  if (!m) return out;
+  for (const c of ensurePhysicsConstraints(m)) {
+    if (!c || c.enabled === false) continue;
+    if (c.bone >= 0) out.add(c.bone);
+  }
+  return out;
+}
+
+function addPhysicsConstraint() {
+  const m = state.mesh;
+  if (!m || !Array.isArray(m.rigBones) || m.rigBones.length < 1) return false;
+  const list = ensurePhysicsConstraints(m);
+  const bone = Number.isFinite(state.selectedBone) && state.selectedBone >= 0 ? state.selectedBone : 0;
+  list.push({
+    name: `physics_${list.length}`,
+    bone,
+    x: false,
+    y: false,
+    rotate: true,
+    scaleX: false,
+    shearX: false,
+    mix: 1,
+    inertia: 1,
+    strength: 100,
+    damping: 1,
+    massInverse: 1,
+    wind: 0,
+    gravity: 0,
+    step: 1 / 60,
+    limit: 5000,
+    order: getNextGlobalConstraintOrder(m),
+    skinRequired: false,
+    enabled: true,
+  });
+  ensurePhysicsConstraints(m);
+  state.selectedPhysics = list.length - 1;
+  if (typeof refreshPhysicsUI === "function") refreshPhysicsUI();
+  return true;
+}
+
+function removeSelectedPhysicsConstraint() {
+  const m = state.mesh;
+  if (!m) return false;
+  const list = ensurePhysicsConstraints(m);
+  if (state.selectedPhysics < 0 || state.selectedPhysics >= list.length) return false;
+  list.splice(state.selectedPhysics, 1);
+  state.selectedPhysics = list.length > 0 ? Math.min(state.selectedPhysics, list.length - 1) : -1;
+  if (typeof refreshPhysicsUI === "function") refreshPhysicsUI();
+  return true;
+}
+
+function resetAllPhysicsConstraintState(m) {
+  if (!m) return;
+  const list = ensurePhysicsConstraints(m);
+  for (const c of list) {
+    if (!c || !c.state) continue;
+    c.state.reset = true;
+    c.state.lastTime = -1;
+    c.state.vx = 0;
+    c.state.vy = 0;
+    c.state.vRot = 0;
+    c.state.vSx = 0;
+    c.state.vSy = 0;
+  }
+}
+
 function getConstraintOrder(c, fallback = 0) {
   const o = Number(c && c.order);
   return Math.max(0, Number.isFinite(o) ? o : fallback);
@@ -251,6 +398,7 @@ function getNextGlobalConstraintOrder(m) {
   take(ensureIKConstraints(m));
   take(ensureTransformConstraints(m));
   take(ensurePathConstraints(m));
+  take(ensurePhysicsConstraints(m));
   return Math.max(0, maxOrder + 1);
 }
 
@@ -298,6 +446,12 @@ function buildConstraintExecutionPlan(m) {
     const c = pthList[i];
     if (!c || c.enabled === false) continue;
     out.push({ type: "pth", order: getConstraintOrder(c, i), seq: seq++, ref: c });
+  }
+  const physList = ensurePhysicsConstraints(m);
+  for (let i = 0; i < physList.length; i += 1) {
+    const c = physList[i];
+    if (!c || c.enabled === false) continue;
+    out.push({ type: "phy", order: getConstraintOrder(c, i), seq: seq++, ref: c });
   }
   out.sort((a, b) => {
     if (a.order !== b.order) return a.order - b.order;
@@ -409,4 +563,138 @@ function applySinglePathConstraintToBones(m, bones, c) {
   }
 }
 
+// Physics solver — semi-implicit Euler integration.
+//
+// `target` is the bone's current rest-pose value for the channel (what the
+// bone *would* be without physics). `current` is the value after the previous
+// step. `velocity` is the current per-second rate.
+//
+// On each step: spring force pulls current toward target (Hooke), damping
+// removes energy. External forces (wind/gravity for translate, etc.) push
+// the velocity. Result is integrated forward by `dt`.
+function _physicsStepChannel(target, current, velocity, dt, params, externalForce) {
+  const { strength, damping, massInverse, limit } = params;
+  // Spring towards target, damped.
+  const accel = (target - current) * strength * massInverse - velocity * damping + externalForce;
+  let vNext = velocity + accel * dt;
+  // Clamp velocity so a misconfigured rig can't explode.
+  if (vNext > limit) vNext = limit;
+  else if (vNext < -limit) vNext = -limit;
+  const cNext = current + vNext * dt;
+  return { value: cNext, velocity: vNext };
+}
+
+function _physicsBlendAngle(a, b, t) {
+  // Wrap-aware lerp (in radians). Equivalent to lerpAngle if available.
+  if (typeof lerpAngle === "function") return lerpAngle(a, b, t);
+  let d = b - a;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return a + d * t;
+}
+
+// Apply a single physics constraint. Mutates the bone in-place.
+//
+// `nowSec` should be the current animation/render time in seconds. If the
+// constraint hasn't been stepped before (or was reset), it re-seeds from
+// the bone's current transform and sets velocities to zero.
+function applySinglePhysicsConstraintToBones(m, bones, c, nowSec) {
+  if (!m || !bones || !c || c.enabled === false) return;
+  const bi = Number(c.bone);
+  if (!Number.isFinite(bi) || bi < 0 || bi >= bones.length) return;
+  const b = bones[bi];
+  if (!b) return;
+  const s = c.state;
+  if (!s) return;
+  const tNow = Number.isFinite(nowSec) ? nowSec : 0;
+  if (s.reset || s.lastTime < 0) {
+    s.x = Number(b.tx) || 0;
+    s.y = Number(b.ty) || 0;
+    s.rot = Number(b.rot) || 0;
+    s.sx = Number(b.sx) || 1;
+    s.sy = Number(b.sy) || 1;
+    s.vx = s.vy = s.vRot = s.vSx = s.vSy = 0;
+    s.lastTime = tNow;
+    s.reset = false;
+    return;
+  }
+  let elapsed = tNow - s.lastTime;
+  if (!Number.isFinite(elapsed) || elapsed <= 0) return;
+  // Cap a long pause (eg tab unfocused) so we don't spin forever.
+  if (elapsed > 0.5) elapsed = 0.5;
+  s.lastTime = tNow;
+  const dt = c.step;
+  const params = {
+    strength: c.strength,
+    damping: c.damping,
+    massInverse: c.massInverse,
+    limit: c.limit,
+  };
+  // External forces: wind acts on x velocity, gravity on y velocity.
+  const fx = c.wind;
+  const fy = c.gravity;
+  const mix = c.mix;
+  // Read current rest-pose targets before mutating the bone.
+  const targetX = Number(b.tx) || 0;
+  const targetY = Number(b.ty) || 0;
+  const targetRot = Number(b.rot) || 0;
+  const targetSx = Number(b.sx) || 1;
+  const targetSy = Number(b.sy) || 1;
+  // Inertia: 0 = bone always tracks rest pose (springs immediately re-seed
+  // toward it). 1 = full drift (springs only). Apply by lerping the
+  // simulator's current value toward the new rest target before stepping.
+  if (c.inertia < 1) {
+    const k = 1 - c.inertia;
+    s.x += (targetX - s.x) * k;
+    s.y += (targetY - s.y) * k;
+    s.rot = _physicsBlendAngle(s.rot, targetRot, k);
+    s.sx += (targetSx - s.sx) * k;
+    s.sy += (targetSy - s.sy) * k;
+  }
+  // Substep until we've consumed `elapsed`.
+  let remaining = elapsed;
+  let iter = 0;
+  while (remaining > 0 && iter < 16) {
+    const useDt = Math.min(dt, remaining);
+    if (c.x) {
+      const r = _physicsStepChannel(targetX, s.x, s.vx, useDt, params, fx);
+      s.x = r.value;
+      s.vx = r.velocity;
+    }
+    if (c.y) {
+      const r = _physicsStepChannel(targetY, s.y, s.vy, useDt, params, fy);
+      s.y = r.value;
+      s.vy = r.velocity;
+    }
+    if (c.rotate) {
+      // For rotation we drive the wrapped delta to zero rather than the
+      // absolute angle (avoids 360° wrap surprises).
+      let delta = targetRot - s.rot;
+      while (delta > Math.PI) delta -= Math.PI * 2;
+      while (delta < -Math.PI) delta += Math.PI * 2;
+      const r = _physicsStepChannel(delta, 0, s.vRot, useDt, params, 0);
+      s.rot = s.rot + r.value;
+      s.vRot = r.velocity;
+    }
+    if (c.scaleX) {
+      const r = _physicsStepChannel(targetSx, s.sx, s.vSx, useDt, params, 0);
+      s.sx = r.value;
+      s.vSx = r.velocity;
+    }
+    if (c.shearX) {
+      // Reuse sy state slot for shear (mutually exclusive in UI).
+      const r = _physicsStepChannel(targetSy, s.sy, s.vSy, useDt, params, 0);
+      s.sy = r.value;
+      s.vSy = r.velocity;
+    }
+    remaining -= useDt;
+    iter += 1;
+  }
+  // Mix the simulated values back onto the bone.
+  if (c.x) b.tx = targetX + (s.x - targetX) * mix;
+  if (c.y) b.ty = targetY + (s.y - targetY) * mix;
+  if (c.rotate) b.rot = _physicsBlendAngle(targetRot, s.rot, mix);
+  if (c.scaleX) b.sx = targetSx + (s.sx - targetSx) * mix;
+  if (c.shearX) b.shx = (Number(b.shx) || 0) + (s.sy - targetSy) * mix;
+}
 

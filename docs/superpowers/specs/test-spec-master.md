@@ -794,6 +794,74 @@ Steps use:
   - `state.mesh.rigBones[0].length` reflects the new tip distance
 - **manual_only**: true
 
+## Physics constraints (Spine 4.2)
+
+### physics-add-defaults
+- **summary**: Add Physics from the Physics tab creates a constraint on the currently selected bone with rotate-only channel and 100% mix/strength.
+- **impl**: app/workspace/constraint-model.js addPhysicsConstraint / ensurePhysicsConstraints; app/render/constraints.js refreshPhysicsUI
+- **prereqs**: ≥1 bone, Rig (or Animate) workspace, Physics tab open
+- **steps**:
+  1. `click:#physicsAddBtn`
+- **verify**:
+  - `function_returns` `state.mesh.physicsConstraints.length >= 1` == `true`
+  - `function_returns` `state.mesh.physicsConstraints[0].rotate === true && state.mesh.physicsConstraints[0].mix === 1` == `true`
+- **manual_only**: true
+
+### physics-bone-rotates-toward-rest
+- **summary**: With rotate=true, mix=1, damping=1, strength=100, when the bone is rotated away from rest pose, the simulator pulls it back over time.
+- **impl**: app/workspace/constraint-model.js applySinglePhysicsConstraintToBones (semi-implicit Euler, rotation channel)
+- **prereqs**: 1 physics constraint on bone 0, b.rot=0 at rest, simulator state seeded; Animate playing
+- **steps**:
+  1. set bone 0 `rot` to math.degToRad(45)
+  2. tick render loop ~30 frames (call `scheduleDraw()` in a loop)
+- **verify**:
+  - `function_returns` `Math.abs(state.mesh.rigBones[0].rot) < math.degToRad(45)` == `true`
+- **manual_only**: true
+
+### physics-reset-state-zeroes-velocity
+- **summary**: Reset State button clears each constraint's velocity & flags reset; next step re-seeds from current bone transform.
+- **impl**: app/workspace/constraint-model.js resetAllPhysicsConstraintState; constraints.js Reset button handler
+- **prereqs**: ≥1 physics constraint with non-zero state.vRot from prior simulation
+- **steps**:
+  1. `click:#physicsResetBtn`
+- **verify**:
+  - `function_returns` `state.mesh.physicsConstraints[0].state.reset === true` == `true`
+  - `function_returns` `state.mesh.physicsConstraints[0].state.vRot === 0` == `true`
+- **manual_only**: true
+
+### physics-disabled-no-effect
+- **summary**: With Enabled=Off the constraint is skipped in buildConstraintExecutionPlan, so the bone is unaffected.
+- **impl**: app/workspace/constraint-model.js buildConstraintExecutionPlan (filter on enabled); app/render/constraints.js plan loop
+- **prereqs**: Physics tab; one constraint on bone 0
+- **steps**:
+  1. `select_option:#physicsEnabled=false`
+  2. set bone 0 rot to math.degToRad(45)
+  3. tick render
+- **verify**:
+  - `function_returns` `Math.abs(state.mesh.rigBones[0].rot - math.degToRad(45)) < 0.001` == `true`
+- **manual_only**: true
+
+### physics-export-spine-json
+- **summary**: Spine JSON export emits a `physics` array entry per enabled physics constraint, with the bone resolved to its name.
+- **impl**: app/io/project-export.js outPhysics serialization
+- **prereqs**: Physics constraint on bone "head" with rotate=true, mix=1, strength=100
+- **steps**:
+  1. open the Spine JSON export preview / dump (call buildSpineExportObject)
+- **verify**:
+  - `function_returns` `Array.isArray(buildSpineExportObject().skeleton.physics) && buildSpineExportObject().skeleton.physics.length >= 1` == `true`
+  - `function_returns` `buildSpineExportObject().skeleton.physics[0].bone === "head"` == `true`
+- **manual_only**: true
+
+### physics-roundtrip-project-save-load
+- **summary**: Saving and loading the project preserves all physics constraint fields and re-seeds simulator state.
+- **impl**: app/io/project-export.js (physicsConstraints field); app/io/project-actions.js load handler; ensurePhysicsConstraints normalizer
+- **prereqs**: 1 physics constraint with non-default mix/strength/inertia
+- **steps**:
+  1. dump project JSON; reset mesh; reload from the dump
+- **verify**:
+  - `function_returns` `state.mesh.physicsConstraints.length === 1 && state.mesh.physicsConstraints[0].state.reset === true` == `true`
+- **manual_only**: true
+
 ## Pose-tool numeric ops (relative entry: +N / -N / *N / /N)
 
 ### relative-numeric-add

@@ -243,6 +243,30 @@ function buildProjectPayload() {
           enabled: c ? c.enabled !== false : true,
         }))
         : [],
+    physicsConstraints:
+      state.mesh && Array.isArray(state.mesh.physicsConstraints)
+        ? state.mesh.physicsConstraints.map((c, i) => ({
+          name: c && c.name ? c.name : `physics_${i}`,
+          bone: Number(c && c.bone),
+          x: !!(c && c.x),
+          y: !!(c && c.y),
+          rotate: c ? c.rotate !== false : true,
+          scaleX: !!(c && c.scaleX),
+          shearX: !!(c && c.shearX),
+          mix: math.clamp(Number(c && c.mix) || 1, 0, 1),
+          inertia: math.clamp(Number(c && c.inertia) || 1, 0, 1),
+          strength: Math.max(0, Number(c && c.strength) || 100),
+          damping: math.clamp(Number(c && c.damping) || 1, 0, 10),
+          massInverse: Math.max(0.01, Number(c && c.massInverse) || 1),
+          wind: Number(c && c.wind) || 0,
+          gravity: Number(c && c.gravity) || 0,
+          step: math.clamp(Number(c && c.step) || 1 / 60, 1 / 240, 1 / 15),
+          limit: Math.max(0, Number(c && c.limit) || 5000),
+          order: getConstraintOrder(c, i),
+          skinRequired: !!(c && c.skinRequired),
+          enabled: c ? c.enabled !== false : true,
+        }))
+        : [],
     animations: state.anim.animations,
     animationState: {
       layerTracks: ensureAnimLayerTracks().map((t) => ({
@@ -1407,6 +1431,7 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
   const outIk = [];
   const outTransform = [];
   const outPath = [];
+  const outPhysics = [];
   const slotExportInfos = [];
   let skippedPathForExport = 0;
   let skippedPathAttachmentForExport = 0;
@@ -1949,6 +1974,36 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
       skinDefault[pathSlotName][pathAttName] = pathAtt;
     }
     outPath.sort((a, b) => getConstraintOrder(a, 0) - getConstraintOrder(b, 0));
+  }
+  if (Array.isArray(m.physicsConstraints)) {
+    const phList = ensurePhysicsConstraints(m);
+    for (let i = 0; i < phList.length; i += 1) {
+      const c = phList[i];
+      if (!c || c.enabled === false) continue;
+      const bi = Number(c.bone);
+      if (!Number.isFinite(bi) || bi < 0 || bi >= bones.length) continue;
+      outPhysics.push({
+        name: c.name || `physics_${i}`,
+        order: getConstraintOrder(c, i),
+        skin: !!c.skinRequired,
+        bone: boneNames[bi],
+        x: !!c.x,
+        y: !!c.y,
+        rotate: c.rotate !== false,
+        scaleX: !!c.scaleX,
+        shearX: !!c.shearX,
+        mix: round4(math.clamp(Number(c.mix) || 1, 0, 1)),
+        inertia: round4(math.clamp(Number(c.inertia) || 1, 0, 1)),
+        strength: round4(Math.max(0, Number(c.strength) || 0)),
+        damping: round4(math.clamp(Number(c.damping) || 1, 0, 10)),
+        massInverse: round4(Math.max(0.01, Number(c.massInverse) || 1)),
+        wind: round4(Number(c.wind) || 0),
+        gravity: round4(Number(c.gravity) || 0),
+        step: round4(math.clamp(Number(c.step) || 1 / 60, 1 / 240, 1 / 15)),
+        limit: round4(Math.max(0, Number(c.limit) || 5000)),
+      });
+    }
+    outPhysics.sort((a, b) => getConstraintOrder(a, 0) - getConstraintOrder(b, 0));
   }
 
   const animations = {};
@@ -2753,6 +2808,7 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
       ik: outIk,
       transform: outTransform,
       path: outPath,
+      physics: outPhysics.length > 0 ? outPhysics : undefined,
       events: Object.keys(eventDefs).length > 0 ? eventDefs : undefined,
       skins: outSkins,
       animations,
