@@ -826,6 +826,95 @@ if (els.boneInherit) {
   });
 }
 
+// Spine-style relative numeric ops: typing "+45" then Enter/blur adds 45 to
+// current value; "*1.5" multiplies; "-30" subtracts; "/2" divides. Pure
+// numbers behave as before. Inputs opt in via [data-relative-numeric].
+//
+// resolveRelativeNumeric(rawText, currentValue): returns the absolute number
+// to commit, or NaN if the text isn't yet a complete expression (e.g. just
+// "+" while user is mid-typing). The caller's existing input/change handler
+// then bails on NaN.
+function resolveRelativeNumeric(rawText, currentValue) {
+  const text = String(rawText == null ? "" : rawText).trim();
+  if (text === "" || text === "+" || text === "-" || text === "*" || text === "/" || text === ".") return NaN;
+  const op = text[0];
+  if (op === "+" || op === "-" || op === "*" || op === "/") {
+    // Only treat as a relative op when there's a SECOND numeric token —
+    // otherwise "+45" is a perfectly valid signed number. We pick it up by
+    // requiring the rest after op to parse, AND rejecting "+45" / "-45"
+    // (those are signed absolutes). For ambiguous +/-, the convention is:
+    //   leading "+" or "-" with a digit IMMEDIATELY after = signed absolute
+    //   leading "+ 45" (with space) or operator + non-digit-prefix ⇒ relative.
+    // But Spine just treats ALL leading +/-/*//-prefix as relative. We
+    // follow Spine: + and - are always relative for these inputs since the
+    // typical use is "rotate by 30 more" not "set to +30". Users wanting
+    // an absolute negative type "-30" still get current-30; if current=0
+    // that's the same value anyway.
+    const rest = text.slice(1).trim();
+    const num = Number(rest);
+    if (!Number.isFinite(num)) return NaN;
+    const cur = Number(currentValue) || 0;
+    if (op === "+") return cur + num;
+    if (op === "-") return cur - num;
+    if (op === "*") return cur * num;
+    if (op === "/") return num !== 0 ? cur / num : cur;
+  }
+  const direct = Number(text);
+  return Number.isFinite(direct) ? direct : NaN;
+}
+
+// Helper for handlers that read a numeric input value: returns finite number
+// or NaN. If the input is operator-prefixed and the user has hit Enter / blur,
+// the absolute value will already have been written back by setupRelativeNumeric.
+function readRelativeNumeric(el, currentValue) {
+  if (!el) return NaN;
+  if (el.hasAttribute && el.hasAttribute("data-relative-numeric")) {
+    return resolveRelativeNumeric(el.value, currentValue);
+  }
+  const v = Number(el.value);
+  return Number.isFinite(v) ? v : NaN;
+}
+
+// Wire all [data-relative-numeric] inputs once. On Enter / blur, parse the
+// expression, resolve against the input's current "previous" value (we
+// stash it on focus), write the absolute number back, then dispatch a
+// synthesized input + change event so existing handlers commit.
+function initRelativeNumericInputs() {
+  const inputs = document.querySelectorAll("input[data-relative-numeric]");
+  inputs.forEach((el) => {
+    let priorValue = Number(el.value) || 0;
+    el.addEventListener("focus", () => {
+      const v = Number(el.value);
+      if (Number.isFinite(v)) priorValue = v;
+    });
+    const commit = () => {
+      const resolved = resolveRelativeNumeric(el.value, priorValue);
+      if (!Number.isFinite(resolved)) {
+        el.value = String(priorValue);
+        return;
+      }
+      const minAttr = el.getAttribute("data-relative-min");
+      const maxAttr = el.getAttribute("data-relative-max");
+      let n = resolved;
+      if (minAttr != null) n = Math.max(Number(minAttr) || 0, n);
+      if (maxAttr != null) n = Math.min(Number(maxAttr) || 0, n);
+      el.value = String(n);
+      priorValue = n;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    el.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") { ev.preventDefault(); commit(); el.blur(); }
+    });
+    el.addEventListener("blur", commit);
+  });
+}
+if (typeof document !== "undefined" && document.readyState !== "loading") {
+  initRelativeNumericInputs();
+} else if (typeof document !== "undefined") {
+  document.addEventListener("DOMContentLoaded", initRelativeNumericInputs, { once: true });
+}
+
 els.boneTx.addEventListener("input", () => {
   const m = state.mesh;
   if (!m) return;
@@ -833,8 +922,12 @@ els.boneTx.addEventListener("input", () => {
   const b = bones[state.selectedBone];
   if (!b) return;
   if (b.parent >= 0 && b.connected) return;
+  // Bail mid-typing if the value isn't yet a complete number (e.g. "+", "-").
+  const raw = els.boneTx.value;
+  const v = Number(raw);
+  if (!Number.isFinite(v)) return;
   const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
-  b.tx = Number(els.boneTx.value) || 0;
+  b.tx = v;
   if (state.boneMode === "edit") {
     preserveConnectedChildTipsAfterEdit(bones, snapshot, [state.selectedBone]);
   }
@@ -852,8 +945,11 @@ els.boneTy.addEventListener("input", () => {
   const b = bones[state.selectedBone];
   if (!b) return;
   if (b.parent >= 0 && b.connected) return;
+  const raw = els.boneTy.value;
+  const v = Number(raw);
+  if (!Number.isFinite(v)) return;
   const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
-  b.ty = Number(els.boneTy.value) || 0;
+  b.ty = v;
   if (state.boneMode === "edit") {
     preserveConnectedChildTipsAfterEdit(bones, snapshot, [state.selectedBone]);
   }
@@ -870,8 +966,10 @@ els.boneRot.addEventListener("input", () => {
   const bones = getBonesForCurrentMode(m);
   const b = bones[state.selectedBone];
   if (!b) return;
+  const v = Number(els.boneRot.value);
+  if (!Number.isFinite(v)) return;
   const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
-  b.rot = math.degToRad(Number(els.boneRot.value) || 0);
+  b.rot = math.degToRad(v);
   if (state.boneMode === "edit") {
     preserveConnectedChildTipsAfterEdit(bones, snapshot, [state.selectedBone]);
   }
@@ -900,8 +998,10 @@ els.boneLen.addEventListener("input", () => {
     return;
   }
   if (state.boneMode === "pose" && b.poseLenEditable === false) return;
+  const v = Number(els.boneLen.value);
+  if (!Number.isFinite(v)) return;
   const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
-  b.length = Math.max(1, Number(els.boneLen.value) || 1);
+  b.length = Math.max(1, v || 1);
   if (state.boneMode === "edit") {
     preserveConnectedChildTipsAfterEdit(bones, snapshot, [state.selectedBone]);
   }
@@ -921,8 +1021,10 @@ if (els.boneScaleX) {
     if (!m) return;
     const b = getBonesForCurrentMode(m)[state.selectedBone];
     if (!b) return;
+    const v = Number(els.boneScaleX.value);
+    if (!Number.isFinite(v)) return;
     normalizeBoneChannels(b);
-    b.sx = Number(els.boneScaleX.value) || 1;
+    b.sx = v || 1;
     markDirtyByBoneProp(state.selectedBone, "scaleX");
     if (state.boneMode === "edit") commitRigEdit(m, true);
     updateBoneUI();
@@ -934,8 +1036,10 @@ if (els.boneScaleY) {
     if (!m) return;
     const b = getBonesForCurrentMode(m)[state.selectedBone];
     if (!b) return;
+    const v = Number(els.boneScaleY.value);
+    if (!Number.isFinite(v)) return;
     normalizeBoneChannels(b);
-    b.sy = Number(els.boneScaleY.value) || 1;
+    b.sy = v || 1;
     markDirtyByBoneProp(state.selectedBone, "scaleY");
     if (state.boneMode === "edit") commitRigEdit(m, true);
     updateBoneUI();
@@ -947,8 +1051,10 @@ if (els.boneShearX) {
     if (!m) return;
     const b = getBonesForCurrentMode(m)[state.selectedBone];
     if (!b) return;
+    const v = Number(els.boneShearX.value);
+    if (!Number.isFinite(v)) return;
     normalizeBoneChannels(b);
-    b.shx = math.degToRad(Number(els.boneShearX.value) || 0);
+    b.shx = math.degToRad(v || 0);
     markDirtyByBoneProp(state.selectedBone, "shearX");
     if (state.boneMode === "edit") commitRigEdit(m, true);
     updateBoneUI();
@@ -960,8 +1066,10 @@ if (els.boneShearY) {
     if (!m) return;
     const b = getBonesForCurrentMode(m)[state.selectedBone];
     if (!b) return;
+    const v = Number(els.boneShearY.value);
+    if (!Number.isFinite(v)) return;
     normalizeBoneChannels(b);
-    b.shy = math.degToRad(Number(els.boneShearY.value) || 0);
+    b.shy = math.degToRad(v || 0);
     markDirtyByBoneProp(state.selectedBone, "shearY");
     if (state.boneMode === "edit") commitRigEdit(m, true);
     updateBoneUI();

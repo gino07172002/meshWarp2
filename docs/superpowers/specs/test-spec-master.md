@@ -794,6 +794,40 @@ Steps use:
   - `state.mesh.rigBones[0].length` reflects the new tip distance
 - **manual_only**: true
 
+## Pose-tool numeric ops (relative entry: +N / -N / *N / /N)
+
+### relative-numeric-add
+- **summary**: Typing `+10` in `#boneTx` adds 10 to the bone's current tx on commit (blur or Enter).
+- **impl**: app/ui/constraint-panels.js resolveRelativeNumeric / initRelativeNumericInputs; index.html data-relative-numeric attribute on bone numeric inputs
+- **prereqs**: ≥1 bone selected, parent connected = false (so tx is editable), record `state.mesh.rigBones[state.selectedBone].tx` as TX0
+- **steps**:
+  1. `set_value:#boneTx=+10`
+  2. `key:#boneTx=Enter`
+- **verify**:
+  - `function_returns` `Math.abs(state.mesh.rigBones[state.selectedBone].tx - (TX0 + 10)) < 0.001` == `true`
+- **manual_only**: true
+
+### relative-numeric-multiply
+- **summary**: Typing `*2` in `#boneScaleX` doubles the current scale on commit.
+- **impl**: app/ui/constraint-panels.js resolveRelativeNumeric (multiplicative branch)
+- **prereqs**: ≥1 bone selected; record `state.mesh.rigBones[state.selectedBone].sx` as SX0
+- **steps**:
+  1. `set_value:#boneScaleX=*2`
+  2. `key:#boneScaleX=Enter`
+- **verify**:
+  - `function_returns` `Math.abs(state.mesh.rigBones[state.selectedBone].sx - (SX0 * 2)) < 0.001` == `true`
+- **manual_only**: true
+
+### relative-numeric-mid-typing-no-corruption
+- **summary**: While the user is mid-typing an operator (e.g. `+`, `-`, `*`), the input handler must NOT zero out or corrupt the current value — it should bail until a parsable number is present.
+- **impl**: app/ui/constraint-panels.js bone input handlers (Number.isFinite bail-out before mutating)
+- **prereqs**: ≥1 bone selected; record TX0 = state.mesh.rigBones[state.selectedBone].tx
+- **steps**:
+  1. `set_value:#boneTx=+`  (no commit, simulates partial typing — fires `input` event)
+- **verify**:
+  - `state_path` `state.mesh.rigBones[state.selectedBone].tx` == `TX0`
+- **manual_only**: true
+
 ## Tree stability during edits (regression guards)
 
 ### tree-stable-during-bone-edit-drag
