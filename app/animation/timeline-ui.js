@@ -241,6 +241,28 @@ function renderTimelineTracks() {
     lane.appendChild(playhead);
 
     const keys = getTrackKeys(anim, td.id);
+    // For audio-bearing event keys, draw a waveform polyline behind the
+    // diamond marker so animators can sync to peaks visually.
+    if (td.id === EVENT_TRACK_ID && typeof getTimelineAudioPeaks === "function") {
+      for (const k of keys) {
+        const audio = k && k.value && k.value.audio ? String(k.value.audio) : "";
+        if (!audio) continue;
+        const entry = getTimelineAudioPeaks(audio, () => {
+          // Re-render once decode completes so the lane picks up the peaks.
+          if (typeof renderTimelineTracks === "function") renderTimelineTracks();
+        });
+        if (!entry || entry.state !== "ready" || !entry.peaks) continue;
+        const startPct = timelineXForTime(k.time, 100, timelineRange);
+        const endPct = timelineXForTime(k.time + entry.duration, 100, timelineRange);
+        const widthPct = endPct - startPct;
+        if (widthPct <= 0.01) continue;
+        const svg = renderWaveformSvg(entry.peaks);
+        svg.classList.add("track-waveform");
+        svg.style.left = `${startPct.toFixed(4)}%`;
+        svg.style.width = `${widthPct.toFixed(4)}%`;
+        lane.appendChild(svg);
+      }
+    }
     for (const k of keys) {
       if (!k.id) k.id = `k_${Math.random().toString(36).slice(2, 10)}`;
       const mk = document.createElement("div");

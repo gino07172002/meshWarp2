@@ -286,6 +286,120 @@ function emitTimelineEventsBetween(anim, fromTime, toTime, looped = false, phase
 // Audio preview cache. Maps audio path → HTMLAudioElement. Reused across
 // events with the same path. Uses a single lazily-created element per path.
 const __timelineAudioCache = new Map();
+
+// Waveform peaks cache. Each entry per audio path:
+//   { state: "loading" | "ready" | "error",
+//     duration: seconds,
+//     peaks: Float32Array of normalized [0..1] amplitudes (one per bucket),
+//     pending: Set<callback> awaiting decode }
+// Decoding is async; the timeline UI listens for the "ready" callback to
+// re-render the lane with the waveform polyline.
+const __timelineAudioPeaks = new Map();
+const WAVEFORM_BUCKETS = 256; // peak count per audio file
+let __waveformAudioCtx = null;
+
+function getOrCreateWaveformAudioCtx() {
+  if (__waveformAudioCtx) return __waveformAudioCtx;
+  const Ctor = typeof AudioContext !== "undefined"
+    ? AudioContext
+    : (typeof window !== "undefined" ? (window.AudioContext || window.webkitAudioContext) : null);
+  if (!Ctor) return null;
+  try { __waveformAudioCtx = new Ctor(); } catch { __waveformAudioCtx = null; }
+  return __waveformAudioCtx;
+}
+
+// Public: returns the cache entry, kicking off async decode the first time.
+// Callers pass `onReady` to be notified when decode finishes (so the timeline
+// can re-render). The cache shape is stable so callers can poll if they want.
+function getTimelineAudioPeaks(audioUrl, onReady) {
+  if (!audioUrl) return null;
+  const key = String(audioUrl);
+  let entry = __timelineAudioPeaks.get(key);
+  if (entry) {
+    if (entry.state !== "ready" && typeof onReady === "function") entry.pending.add(onReady);
+    return entry;
+  }
+  entry = { state: "loading", duration: 0, peaks: null, pending: new Set() };
+  if (typeof onReady === "function") entry.pending.add(onReady);
+  __timelineAudioPeaks.set(key, entry);
+  // Decode async; if anything fails, mark error so future polls don't retry.
+  decodeAudioToPeaks(key)
+    .then((res) => {
+      entry.state = "ready";
+      entry.duration = res.duration;
+      entry.peaks = res.peaks;
+      for (const cb of entry.pending) try { cb(entry); } catch { /* ignore */ }
+      entry.pending.clear();
+    })
+    .catch(() => {
+      entry.state = "error";
+      entry.pending.clear();
+    });
+  return entry;
+}
+
+// Build a self-contained SVG element showing the peaks as a vertical-symmetric
+// filled waveform. Caller positions the SVG; viewBox is unit-rectangle so CSS
+// width/height controls the final size.
+function renderWaveformSvg(peaks) {
+  const svgNs = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNs, "svg");
+  svg.setAttribute("viewBox", `0 0 ${peaks.length} 100`);
+  svg.setAttribute("preserveAspectRatio", "none");
+  const path = document.createElementNS(svgNs, "path");
+  // Top half: trace peaks downward; bottom half: mirror.
+  const cmds = [];
+  cmds.push("M 0 50");
+  for (let i = 0; i < peaks.length; i += 1) {
+    const y = 50 - peaks[i] * 48;
+    cmds.push(`L ${i} ${y}`);
+  }
+  cmds.push(`L ${peaks.length - 1} 50`);
+  for (let i = peaks.length - 1; i >= 0; i -= 1) {
+    const y = 50 + peaks[i] * 48;
+    cmds.push(`L ${i} ${y}`);
+  }
+  cmds.push("Z");
+  path.setAttribute("d", cmds.join(" "));
+  svg.appendChild(path);
+  return svg;
+}
+
+async function decodeAudioToPeaks(url) {
+  const ctx = getOrCreateWaveformAudioCtx();
+  if (!ctx) throw new Error("no AudioContext");
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`fetch failed: ${resp.status}`);
+  const buf = await resp.arrayBuffer();
+  // decodeAudioData has both promise and callback APIs; promise form preferred.
+  const audioBuf = await new Promise((resolve, reject) => {
+    const p = ctx.decodeAudioData(buf, resolve, reject);
+    if (p && typeof p.then === "function") p.then(resolve, reject);
+  });
+  // Mix to mono by averaging channels, then bucket-reduce to WAVEFORM_BUCKETS
+  // peaks. Each bucket stores max(|sample|) — visually faithful for music.
+  const len = audioBuf.length;
+  const channels = audioBuf.numberOfChannels;
+  const peaks = new Float32Array(WAVEFORM_BUCKETS);
+  const samplesPerBucket = Math.max(1, Math.floor(len / WAVEFORM_BUCKETS));
+  // Pull channel data refs once (decoded buffers expose typed arrays).
+  const chans = [];
+  for (let c = 0; c < channels; c += 1) chans.push(audioBuf.getChannelData(c));
+  for (let i = 0; i < WAVEFORM_BUCKETS; i += 1) {
+    const start = i * samplesPerBucket;
+    const end = Math.min(len, start + samplesPerBucket);
+    let peak = 0;
+    for (let j = start; j < end; j += 1) {
+      let sum = 0;
+      for (let c = 0; c < channels; c += 1) sum += chans[c][j];
+      const avg = Math.abs(sum / channels);
+      if (avg > peak) peak = avg;
+    }
+    peaks[i] = peak;
+  }
+  return { duration: audioBuf.duration, peaks };
+}
+
 function playTimelineEventAudio(detail) {
   if (!detail || !detail.audio) return false;
   const key = String(detail.audio);

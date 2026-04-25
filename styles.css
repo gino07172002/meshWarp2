@@ -3783,6 +3783,22 @@ button:hover {
   background: linear-gradient(90deg, rgba(119, 194, 232, 0.22), rgba(182, 233, 255, 0.34), rgba(119, 194, 232, 0.22));
 }
 
+.track-waveform {
+  position: absolute;
+  top: 1px;
+  height: 16px;
+  pointer-events: none;
+  z-index: 2;
+  /* Slightly translucent so the lane background, gridlines and active range
+     band remain visible behind the waveform. */
+  opacity: 0.55;
+}
+
+.track-waveform path {
+  fill: rgba(125, 211, 252, 0.85);
+  stroke: none;
+}
+
 .track-key {
   position: absolute;
   top: 50%;

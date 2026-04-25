@@ -862,6 +862,39 @@ Steps use:
   - `function_returns` `state.mesh.physicsConstraints.length === 1 && state.mesh.physicsConstraints[0].state.reset === true` == `true`
 - **manual_only**: true
 
+## Audio waveform on timeline (event track)
+
+### waveform-decode-on-audio-event
+- **summary**: Adding an audio event to the events track triggers an async decode that produces a 256-bucket peak Float32Array, cached by audio URL.
+- **impl**: app/animation/runtime.js getTimelineAudioPeaks / decodeAudioToPeaks
+- **prereqs**: ≥1 event keyframe with `value.audio` set to a fetchable audio URL (data URI works for tests)
+- **steps**:
+  1. call `getTimelineAudioPeaks("/path/to/audio.wav", () => { window.__waveformReady = true; })`
+  2. await window.__waveformReady or 2s timeout
+- **verify**:
+  - `function_returns` `(function(){ const e = getTimelineAudioPeaks("/path/to/audio.wav"); return e && e.state === "ready" && e.peaks instanceof Float32Array && e.peaks.length === 256; })()` == `true`
+- **manual_only**: true
+
+### waveform-svg-rendered-on-event-track
+- **summary**: When peaks are ready, the events lane in the timeline contains an `.track-waveform` SVG positioned at the event's time, sized by audio duration.
+- **impl**: app/animation/timeline-ui.js renderTimelineTracks() event-track branch; renderWaveformSvg in runtime.js
+- **prereqs**: ready peaks for the active event keyframe's audio URL
+- **steps**:
+  1. trigger `renderTimelineTracks()`
+- **verify**:
+  - `dom_exists` `.track-lane[data-track-id="event:timeline"] .track-waveform` == `true`
+
+### waveform-cache-survives-second-call
+- **summary**: A second call for the same URL returns the cached entry without re-fetching; only the first call triggers a network round-trip.
+- **impl**: app/animation/runtime.js __timelineAudioPeaks Map check at top of getTimelineAudioPeaks
+- **prereqs**: getTimelineAudioPeaks already invoked once for URL X
+- **steps**:
+  1. record cache size: `window.__sz0 = __timelineAudioPeaks.size`
+  2. call getTimelineAudioPeaks(X)
+- **verify**:
+  - `function_returns` `__timelineAudioPeaks.size === window.__sz0` == `true`
+- **manual_only**: true
+
 ## CPU skinning hot loop optimization (Phase 5)
 
 ### skinning-bone-palette-cached
