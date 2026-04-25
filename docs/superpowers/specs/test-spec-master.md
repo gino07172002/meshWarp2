@@ -862,6 +862,40 @@ Steps use:
   - `function_returns` `state.mesh.physicsConstraints.length === 1 && state.mesh.physicsConstraints[0].state.reset === true` == `true`
 - **manual_only**: true
 
+## GL stencil clipping (Phase 2 — clip slots stay on GL)
+
+### gl-stencil-clip-context-has-stencil
+- **summary**: The WebGL context is requested with `stencil: true` so stencil ops actually work.
+- **impl**: app/core/runtime.js gl context attributes
+- **prereqs**: WebGL available
+- **steps**:
+  1. (no-op — context attrs are set at startup)
+- **verify**:
+  - `function_returns` `gl.getContextAttributes().stencil === true` == `true`
+- **manual_only**: true
+
+### gl-stencil-clip-engaged-when-clip-slot-present
+- **summary**: When a clip slot is present, render() takes the GL path (not Canvas2D fallback) and sets `_glStencilClip.active` while drawing the clipped range.
+- **impl**: app/render/canvas.js render() loop (no longer gated on `hasClipSlot`); beginGLStencilClip / endGLStencilClip helpers
+- **prereqs**: at least 2 slots (one with `clipEnabled=true`, plus a normal slot in its clip range); WebGL available
+- **steps**:
+  1. trigger a single render: `requestRender("test"); await one rAF tick`
+- **verify**:
+  - `function_returns` `state.overlayScene.enabled === false` == `true`  (stayed on GL — overlay scene not used)
+  - `function_returns` `_glStencilClip.active === false` == `true`  (cleaned up after the loop)
+- **manual_only**: true
+
+### gl-stencil-clip-end-slot-closes-mask
+- **summary**: When the slot whose id matches `clipEndSlotId` is reached, the stencil mask is torn down.
+- **impl**: app/render/canvas.js render() loop (`isClipEnd` branch calling `endGLStencilClip()`)
+- **prereqs**: clip slot at index 0 with `clipEndSlotId` referencing the slot at index 2
+- **steps**:
+  1. instrument: `window.__clipDebug = []; const orig = endGLStencilClip; endGLStencilClip = function(){ window.__clipDebug.push("end"); orig(); };`
+  2. trigger render
+- **verify**:
+  - `function_returns` `Array.isArray(window.__clipDebug) && window.__clipDebug.length >= 1` == `true`
+- **manual_only**: true
+
 ## Pose-tool numeric ops (relative entry: +N / -N / *N / /N)
 
 ### relative-numeric-add

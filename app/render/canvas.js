@@ -89,6 +89,100 @@ function renderSlots2DWithClipping(ctx, slots, poseWorld, options = null) {
   }
 }
 
+// ----------------------------------------------------------------
+// GL stencil-based clipping (Phase 2 of WebGL migration).
+//
+// Replaces the 2D fallback that runs whenever a clip slot is present.
+// Approach: fill the clip polygon into the stencil buffer using INVERT
+// (handles concave polygons via even-odd rule — same as ctx.clip()'s
+// nonzero default behaves for simple polygons), then enable stencil
+// test EQUAL ref=1 so subsequent slot draws only land inside the mask.
+//
+// Reuses the main shader + VBO/IBO; we just feed dummy UVs and disable
+// color/alpha writes during the mask pass. The texture binding is
+// untouched — the shader still samples it but writes get masked.
+// ----------------------------------------------------------------
+const _glStencilClip = {
+  active: false,
+  endSlotId: null,
+  // Scratch buffers reused frame-to-frame.
+  vertScratch: null, // Float32Array
+  idxScratch: null,  // Uint16Array
+};
+
+function _glClipPolygonToInterleaved(points) {
+  // 4 floats per vertex (pos.xy + uv.xy). UVs unused during mask write.
+  const n = points.length;
+  if (!_glStencilClip.vertScratch || _glStencilClip.vertScratch.length < n * 4) {
+    _glStencilClip.vertScratch = new Float32Array(Math.max(n * 4, 64));
+  }
+  const arr = _glStencilClip.vertScratch;
+  for (let i = 0; i < n; i += 1) {
+    const p = points[i];
+    const o = i * 4;
+    arr[o] = Number(p.x) || 0;
+    arr[o + 1] = Number(p.y) || 0;
+    arr[o + 2] = 0;
+    arr[o + 3] = 0;
+  }
+  return arr;
+}
+
+function _glClipPolygonFanIndices(n) {
+  const triCount = n - 2;
+  const need = triCount * 3;
+  if (!_glStencilClip.idxScratch || _glStencilClip.idxScratch.length < need) {
+    _glStencilClip.idxScratch = new Uint16Array(Math.max(need, 64));
+  }
+  const idx = _glStencilClip.idxScratch;
+  for (let t = 0; t < triCount; t += 1) {
+    idx[t * 3] = 0;
+    idx[t * 3 + 1] = t + 1;
+    idx[t * 3 + 2] = t + 2;
+  }
+  return { idx, count: need };
+}
+
+function beginGLStencilClip(points, endSlotId) {
+  if (!hasGL) return false;
+  if (!Array.isArray(points) || points.length < 3) return false;
+  // Clear stencil to 0, then write 1's inside the polygon via INVERT.
+  // INVERT toggles the stencil bit per fragment, so any pixel covered
+  // by an odd number of fan triangles (i.e. inside the polygon under
+  // the even-odd rule) ends up with stencil=1. Concave polygons work.
+  gl.enable(gl.STENCIL_TEST);
+  gl.clearStencil(0);
+  gl.clear(gl.STENCIL_BUFFER_BIT);
+  gl.stencilFunc(gl.ALWAYS, 1, 0xFF);
+  gl.stencilOp(gl.KEEP, gl.KEEP, gl.INVERT);
+  gl.stencilMask(0xFF);
+  gl.colorMask(false, false, false, false);
+  // Upload polygon geometry through the same VBO/IBO. The mesh shader
+  // will run; texture sampling is harmless because color writes are off.
+  const verts = _glClipPolygonToInterleaved(points);
+  const fan = _glClipPolygonFanIndices(points.length);
+  gl.bufferData(gl.ARRAY_BUFFER, verts, gl.DYNAMIC_DRAW);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, fan.idx, gl.DYNAMIC_DRAW);
+  gl.drawElements(gl.TRIANGLES, fan.count, gl.UNSIGNED_SHORT, 0);
+  // Switch to "draw only where stencil == 1".
+  gl.colorMask(true, true, true, true);
+  gl.stencilFunc(gl.EQUAL, 1, 0xFF);
+  gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+  gl.stencilMask(0x00);
+  _glStencilClip.active = true;
+  _glStencilClip.endSlotId = endSlotId || null;
+  return true;
+}
+
+function endGLStencilClip() {
+  if (!hasGL) return;
+  if (!_glStencilClip.active) return;
+  gl.disable(gl.STENCIL_TEST);
+  gl.stencilMask(0xFF);
+  _glStencilClip.active = false;
+  _glStencilClip.endSlotId = null;
+}
+
 function shouldRenderOnionSkin() {
   const onion = ensureOnionSkinSettings();
   if (!state.mesh || !onion.enabled) return false;
@@ -179,10 +273,6 @@ function render(ts = 0) {
   drawBackdrop();
 
   const slots = getRenderableSlots();
-  const hasClipSlot = slots.some((s) => {
-    const att = getActiveAttachment(s);
-    return !!(s && att && att.clipEnabled);
-  });
   const wantsOnion = shouldRenderOnionSkin();
   const hasBaseReference = shouldRenderBaseImageReference() && state.slots.length === 0;
 
@@ -192,7 +282,7 @@ function render(ts = 0) {
     return;
   }
 
-  if (hasGL && !hasClipSlot && !hasBaseReference) {
+  if (hasGL && !hasBaseReference) {
     state.overlayScene.enabled = false;
     if (wantsOnion) {
       const onionCtx = ensureOverlaySceneCanvas();
@@ -205,7 +295,7 @@ function render(ts = 0) {
     gl.enable(gl.BLEND);
     applyGLBlendMode("normal");
     gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     if (state.mesh) {
       gl.useProgram(program);
       bindGeometry();
@@ -216,17 +306,43 @@ function render(ts = 0) {
       const poseWorld = getSolvedPoseWorld(state.mesh);
       const renderTime = typeof getCurrentRenderTime === "function" ? getCurrentRenderTime() : 0;
       for (const slot of slots) {
+        if (!slot) continue;
+        ensureSlotClipState(slot);
         const activeAttachment = getActiveAttachment(slot);
+        // 1) Clip-start slot: write the polygon to the stencil buffer
+        //    and skip drawing this slot itself (Spine semantics).
+        if (activeAttachment && activeAttachment.clipEnabled) {
+          const poly = getSlotClipPolygonScreen(slot, poseWorld);
+          if (poly && poly.length >= 3) {
+            beginGLStencilClip(
+              poly,
+              activeAttachment.clipEndSlotId ? String(activeAttachment.clipEndSlotId) : null
+            );
+          }
+          continue;
+        }
         const baseCanvas = (activeAttachment || {}).canvas;
         const attachmentCanvas = activeAttachment && typeof getEffectiveAttachmentCanvas === "function"
           ? (getEffectiveAttachmentCanvas(activeAttachment, renderTime) || baseCanvas)
           : baseCanvas;
-        if (!slot || !attachmentCanvas || !hasRenderableAttachment(slot)) continue;
+        // 2) Slot that ends a clip range — handled after the draw below.
+        const isClipEnd = !!(_glStencilClip.active && _glStencilClip.endSlotId
+          && slot.id && String(slot.id) === _glStencilClip.endSlotId);
+        if (!attachmentCanvas || !hasRenderableAttachment(slot)) {
+          if (isClipEnd) endGLStencilClip();
+          continue;
+        }
         const texture = ensureGLTextureForCanvas(attachmentCanvas);
-        if (!texture) continue;
+        if (!texture) {
+          if (isClipEnd) endGLStencilClip();
+          continue;
+        }
         ensureSlotVisualState(slot);
         const geom = buildRenderableAttachmentGeometry(slot, poseWorld);
-        if (!geom || !geom.interleaved || !geom.indices || geom.indices.length <= 0) continue;
+        if (!geom || !geom.interleaved || !geom.indices || geom.indices.length <= 0) {
+          if (isClipEnd) endGLStencilClip();
+          continue;
+        }
         gl.bufferData(gl.ARRAY_BUFFER, geom.interleaved, gl.DYNAMIC_DRAW);
         const drawIndices = geom.indices || state.mesh.indices;
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, drawIndices, gl.DYNAMIC_DRAW);
@@ -259,7 +375,11 @@ function render(ts = 0) {
           gl.uniform3f(loc.uDark, dr, dg, db);
         }
         gl.drawElements(gl.TRIANGLES, drawIndices.length, gl.UNSIGNED_SHORT, 0);
+        if (isClipEnd) endGLStencilClip();
       }
+      // Safety: if a clip range opened but never reached its end slot,
+      // tear it down so the next frame starts clean.
+      if (_glStencilClip.active) endGLStencilClip();
       applyGLBlendMode("normal");
     }
   } else {

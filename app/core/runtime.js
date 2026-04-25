@@ -578,9 +578,9 @@ const els = {
 };
 
 const gl =
-  els.glCanvas.getContext("webgl2", { alpha: true, premultipliedAlpha: false }) ||
-  els.glCanvas.getContext("webgl", { alpha: true, premultipliedAlpha: false }) ||
-  els.glCanvas.getContext("experimental-webgl", { alpha: true, premultipliedAlpha: false });
+  els.glCanvas.getContext("webgl2", { alpha: true, premultipliedAlpha: false, stencil: true }) ||
+  els.glCanvas.getContext("webgl", { alpha: true, premultipliedAlpha: false, stencil: true }) ||
+  els.glCanvas.getContext("experimental-webgl", { alpha: true, premultipliedAlpha: false, stencil: true });
 const backdropCtx = els.backdropCanvas ? els.backdropCanvas.getContext("2d") : null;
 const overlayCtx = els.overlay.getContext("2d");
 const stage2dCtx = !gl ? els.glCanvas.getContext("2d") : null;
