@@ -431,6 +431,34 @@ Steps use:
 
 ---
 
+## Skin scope (Spine 4.x)
+
+### skin-bones-add-remove
+- **summary**: Skin's bones[] tracks bone indices that "belong to" the skin.
+- **impl**: app/animation/model.js skin object + ensureSkinSets bones field; app/ui/editor-panels.js skinBoneAddBtn / skinBoneRemoveBtn handlers
+- **prereqs**: ≥1 skin, ≥1 bone, selectedBone valid
+- **steps**:
+  1. set selectedBone to a valid index
+  2. `click:#skinBoneAddBtn`
+  3. `click:#skinBoneRemoveBtn`
+- **verify**:
+  - after step 2: selectedSkin.bones contains the bone index
+  - after step 3: selectedSkin.bones does not contain it (or is empty)
+
+### skin-folder-field
+- **summary**: Skin folder field persists in skin.folder.
+- **impl**: app/io/project-export.js (folder write); app/ui/editor-panels.js skinFolderInput handler
+- **prereqs**: a skin selected
+- **steps**:
+  1. `set_value:#skinFolderInput=outfit/winter`
+- **verify**:
+  - `function_returns` `getSelectedSkinSet().folder` == `"outfit/winter"`
+
+### skin-bones-survives-save-load
+- **summary**: skin.bones round-trips through save/load.
+- **impl**: app/io/project-export.js + app/animation/model.js ensureSkinSets normalisation
+- **manual_only**: true
+
 ## Animation
 
 ### anim-deform-key-add

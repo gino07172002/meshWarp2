@@ -239,6 +239,61 @@ if (els.skinName) {
     refreshSkinUI();
   });
 }
+if (els.skinFolderInput) {
+  els.skinFolderInput.addEventListener("input", () => {
+    const skin = getSelectedSkinSet();
+    if (!skin) return;
+    skin.folder = String(els.skinFolderInput.value || "");
+  });
+}
+if (els.skinBoneAddBtn) {
+  els.skinBoneAddBtn.addEventListener("click", () => {
+    const skin = getSelectedSkinSet();
+    if (!skin) return;
+    const m = state.mesh;
+    if (!m || !Array.isArray(m.rigBones) || m.rigBones.length === 0) return;
+    const bi = Number(state.selectedBone);
+    if (!Number.isFinite(bi) || bi < 0 || bi >= m.rigBones.length) {
+      setStatus("Select a bone in the tree first.");
+      return;
+    }
+    if (!Array.isArray(skin.bones)) skin.bones = [];
+    if (skin.bones.indexOf(bi) >= 0) {
+      setStatus(`Bone ${m.rigBones[bi].name} is already in skin.`);
+      return;
+    }
+    skin.bones.push(bi);
+    refreshSkinUI();
+    setStatus(`Added bone ${m.rigBones[bi].name} to skin "${skin.name}".`);
+  });
+}
+if (els.skinBoneRemoveBtn) {
+  els.skinBoneRemoveBtn.addEventListener("click", () => {
+    const skin = getSelectedSkinSet();
+    if (!skin || !Array.isArray(skin.bones) || skin.bones.length === 0) return;
+    // Remove the last-added bone for simplicity; fancier UI can let user click a row.
+    const bi = skin.bones.pop();
+    refreshSkinUI();
+    const name = state.mesh && state.mesh.rigBones[bi] ? state.mesh.rigBones[bi].name : `bone ${bi}`;
+    setStatus(`Removed bone ${name} from skin.`);
+  });
+}
+if (els.skinBonesList) {
+  // Click a bone row to remove it from the skin's bones list.
+  els.skinBonesList.addEventListener("click", (ev) => {
+    const row = ev.target && ev.target.closest && ev.target.closest("[data-skin-bone-index]");
+    if (!row) return;
+    const skin = getSelectedSkinSet();
+    if (!skin || !Array.isArray(skin.bones)) return;
+    const bi = Number(row.dataset.skinBoneIndex);
+    const idx = skin.bones.indexOf(bi);
+    if (idx < 0) return;
+    skin.bones.splice(idx, 1);
+    refreshSkinUI();
+    const name = state.mesh && state.mesh.rigBones[bi] ? state.mesh.rigBones[bi].name : `bone ${bi}`;
+    setStatus(`Removed bone ${name} from skin.`);
+  });
+}
 if (els.skinAddBtn) {
   els.skinAddBtn.addEventListener("click", () => {
     const skin = addSkinSetFromCurrentState();

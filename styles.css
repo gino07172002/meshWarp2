@@ -1945,6 +1945,11 @@ button:hover {
   margin-top: 8px;
 }
 
+.skin-bones-list {
+  max-height: 120px;
+  overflow: auto;
+}
+
 .bone-color-row .bone-color-controls {
   display: inline-flex;
   align-items: center;

@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Web Spine-like Mesh Deformer</title>
-  <link rel="stylesheet" href="styles.css?v=20260425-29" />
+  <link rel="stylesheet" href="styles.css?v=20260425-30" />
 </head>
 
 <body>
@@ -1499,6 +1499,22 @@
                 <button id="skinApplyBtn" type="button">Apply Skin</button>
               </div>
               <div id="skinDiffList" class="skin-diff-list" hidden></div>
+              <details class="panel-section-advanced">
+                <summary>Skin scope (bones / folder)</summary>
+                <label class="field">
+                  <span>Folder</span>
+                  <input id="skinFolderInput" type="text" value="" placeholder="(none)" />
+                </label>
+                <div class="field">
+                  <span>Skin Bones</span>
+                  <div id="skinBonesList" class="bone-tree skin-bones-list"></div>
+                </div>
+                <div class="field two-col">
+                  <button id="skinBoneAddBtn" type="button" title="Add the currently selected bone (Selected Bone) to this skin's bone list">+ Selected Bone</button>
+                  <button id="skinBoneRemoveBtn" type="button" title="Remove the bone you click in the list above">Remove Bone</button>
+                </div>
+                <p class="muted">Skin bones are persisted but do not yet drive runtime visibility filtering. Spine 4.x semantics: bones owned by this skin are hidden when this skin isn't applied.</p>
+              </details>
             </div>
           </details>
 
@@ -1910,7 +1926,7 @@
     </section>
   </div>
 
-  <script src="app/core/runtime.js?v=20260425-18"></script>
+  <script src="app/core/runtime.js?v=20260425-19"></script>
   <script src="app/render/gl-toolkit.js?v=20260425-2"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>
   <script src="app/core/bones.js?v=20260425-14"></script>
@@ -1921,13 +1937,13 @@
   <script src="app/render/weight-brush.js?v=20260425-5"></script>
   <script src="app/render/canvas.js?v=20260425-3"></script>
   <script src="app/render/state-machine.js?v=20260420-2"></script>
-  <script src="app/animation/model.js?v=20260425-2"></script>
+  <script src="app/animation/model.js?v=20260425-3"></script>
   <script src="app/animation/timeline-ui.js?v=20260420-2"></script>
   <script src="app/animation/runtime.js?v=20260425-1"></script>
   <script src="app/io/tree-bindings.js?v=20260425-4"></script>
-  <script src="app/io/project-export.js?v=20260425-3"></script>
+  <script src="app/io/project-export.js?v=20260425-4"></script>
   <script src="app/io/project-actions.js?v=20260425-2"></script>
-  <script src="app/ui/editor-panels.js?v=20260425-5"></script>
+  <script src="app/ui/editor-panels.js?v=20260425-6"></script>
   <script src="app/ui/constraint-panels.js?v=20260425-2"></script>
   <script src="app/ui/animation-panels.js?v=20260420-2"></script>
   <script src="app/ui/timeline-pointer.js?v=20260420-2"></script>

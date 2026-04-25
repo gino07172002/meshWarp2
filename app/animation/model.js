@@ -344,6 +344,13 @@ function ensureSkinSets() {
           )
           : {},
       constraints: normalizeSkinConstraintMap(s && s.constraints),
+      // Spine-equivalent: skin-scoped bones (extra bones owned by this skin,
+      // e.g. for a hat that brings its own bone chain). Persisted but not
+      // currently filtered at render time — that's a future task.
+      bones: Array.isArray(s && s.bones) ? s.bones.map((bi) => Number(bi)).filter((bi) => Number.isFinite(bi) && bi >= 0) : [],
+      // Folder organisation (Spine 4.x). Empty = root. Multiple skins can
+      // share the same folder name; the picker UI groups them.
+      folder: s && typeof s.folder === "string" ? s.folder : "",
     }))
     .filter((s) => !!s.id);
   for (const s of state.skinSets) {
@@ -365,6 +372,8 @@ function ensureSkinSets() {
       slotAttachments: captureCurrentSkinMap(),
       slotPlaceholderAttachments: captureCurrentSkinPlaceholderMap(),
       constraints: captureCurrentSkinConstraintMap(),
+      bones: [],
+      folder: "",
     });
   }
   if (
@@ -471,6 +480,34 @@ function refreshSkinUI() {
   if (els.skinApplyBtn) els.skinApplyBtn.disabled = !selected || state.slots.length === 0;
   if (els.activeSkinCaptureBtn) els.activeSkinCaptureBtn.disabled = !selected || state.slots.length === 0;
   if (els.activeSkinApplyBtn) els.activeSkinApplyBtn.disabled = !selected || state.slots.length === 0;
+  if (els.skinFolderInput) {
+    els.skinFolderInput.value = selected ? String(selected.folder || "") : "";
+    els.skinFolderInput.disabled = !selected;
+  }
+  if (els.skinBonesList) {
+    els.skinBonesList.innerHTML = "";
+    if (selected && state.mesh && Array.isArray(state.mesh.rigBones) && Array.isArray(selected.bones)) {
+      const bones = state.mesh.rigBones;
+      for (const bi of selected.bones) {
+        const idx = Number(bi);
+        if (!Number.isFinite(idx) || idx < 0 || idx >= bones.length) continue;
+        const row = document.createElement("div");
+        row.className = "tree-item";
+        row.dataset.skinBoneIndex = String(idx);
+        row.style.cursor = "pointer";
+        row.textContent = `▸ ${idx}: ${bones[idx].name}`;
+        els.skinBonesList.appendChild(row);
+      }
+      if (selected.bones.length === 0) {
+        const row = document.createElement("div");
+        row.className = "muted";
+        row.textContent = "(no skin-scoped bones)";
+        els.skinBonesList.appendChild(row);
+      }
+    }
+  }
+  if (els.skinBoneAddBtn) els.skinBoneAddBtn.disabled = !selected || !state.mesh;
+  if (els.skinBoneRemoveBtn) els.skinBoneRemoveBtn.disabled = !selected || !state.mesh;
   renderSkinDiffList();
 }
 

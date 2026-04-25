@@ -289,6 +289,8 @@ function buildProjectPayload() {
             ])
           )
           : {},
+      bones: Array.isArray(s.bones) ? s.bones.slice() : [],
+      folder: typeof s.folder === "string" ? s.folder : "",
     })),
     selectedSkinSet: Number(state.selectedSkinSet) || 0,
     activeSkinSetId: state.activeSkinSetId || null,
