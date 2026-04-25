@@ -469,9 +469,25 @@ function moveBoneJointToLocal(bones, boneIndex, localTarget) {
 }
 
 function canEditLengthInCurrentMode(bones, boneIndex) {
-  if (state.boneMode !== "pose") return true;
-  const b = bones[boneIndex];
-  return !!(b && b.poseLenEditable !== false);
+  // In Animate mode (any sub-mode: rig/pose, object) bone length is part of
+  // the rest pose and must NOT change via drag. Blender / Spine 2D follow the
+  // same rule: vertices are bound in the bone's local frame so changing
+  // `length` mid-animation desynchronises mesh deform from rig.
+  // Setup-mode + Edit boneMode keeps length editable so the rig builder can
+  // adjust rest length freely.
+  // The per-bone `b.poseLenEditable === true` opt-in from the right Properties
+  // panel still allows length edits in Pose mode for users who explicitly
+  // unlock it, matching Spine's "Pose Length" checkbox.
+  const sysMode = typeof getCurrentSystemMode === "function" ? getCurrentSystemMode() : "setup";
+  if (sysMode === "animate") {
+    const b = bones[boneIndex];
+    return !!(b && b.poseLenEditable === true);
+  }
+  if (state.boneMode === "pose") {
+    const b = bones[boneIndex];
+    return !!(b && b.poseLenEditable !== false);
+  }
+  return true;
 }
 
 function rotatePointAroundPivot(point, pivot, delta) {

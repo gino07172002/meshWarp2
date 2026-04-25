@@ -669,6 +669,40 @@ Steps use:
 
 ---
 
+## Bone length lock in animate mode
+
+### bone-length-locked-in-animate-pose
+- **summary**: In Animate workspace + Rig (pose) mode, dragging a bone tail must NOT change bone length unless the per-bone Pose Length is explicitly set to Allow.
+- **impl**: app/render/canvas.js canEditLengthInCurrentMode (animate-mode branch); rotateBoneTipToLocal projects nextTip to original radius when locked
+- **prereqs**: ≥1 bone, switch to Animate workspace + Rig (pose mode), default poseLenEditable = false
+- **steps**:
+  1. record `state.mesh.rigBones[0].length` as L0
+  2. drag bone 0's tail handle far from its head
+- **verify**:
+  - `function_returns` `Math.abs(state.mesh.rigBones[0].length - L0) < 0.5` == `true`
+- **manual_only**: true
+
+### bone-length-locked-in-animate-object
+- **summary**: Animate + Object workspace cannot change rest length via any UI surface (drag uses bone_object_move which preserves; length input is gated).
+- **impl**: app/ui/constraint-panels.js boneLen input handler (animate-mode guard)
+- **prereqs**: Animate workspace + Object boneMode
+- **steps**:
+  1. record `state.mesh.rigBones[0].length` as L0
+  2. `set_value:#boneLen=999`
+- **verify**:
+  - `state_path` `state.mesh.rigBones[0].length` == `L0`
+- **manual_only**: true
+
+### bone-length-still-editable-in-setup
+- **summary**: Setup workspace + Edit mode still allows full length edits — this is the rigging mode.
+- **impl**: app/render/canvas.js canEditLengthInCurrentMode returns true when sysMode==="setup"
+- **prereqs**: Setup workspace + Edit boneMode
+- **steps**:
+  1. drag bone 0's tail to a new position
+- **verify**:
+  - `state.mesh.rigBones[0].length` reflects the new tip distance
+- **manual_only**: true
+
 ## Tree stability during edits (regression guards)
 
 ### tree-stable-during-bone-edit-drag

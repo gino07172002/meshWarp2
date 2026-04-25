@@ -891,6 +891,14 @@ els.boneLen.addEventListener("input", () => {
   const bones = getBonesForCurrentMode(m);
   const b = bones[state.selectedBone];
   if (!b) return;
+  // Length is part of the rest pose. Block edits whenever we're in any
+  // animate sub-mode (pose / object), unless the user has explicitly opted
+  // in via Pose Length: Allow on this bone.
+  const sysMode = typeof getCurrentSystemMode === "function" ? getCurrentSystemMode() : "setup";
+  if (sysMode === "animate" && b.poseLenEditable !== true) {
+    if (els.boneLen) els.boneLen.value = String(Math.max(1, Math.round(b.length)));
+    return;
+  }
   if (state.boneMode === "pose" && b.poseLenEditable === false) return;
   const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
   b.length = Math.max(1, Number(els.boneLen.value) || 1);
