@@ -20,6 +20,80 @@ function getActiveAttachment(slot) {
   return found || null;
 }
 
+// === Sequence (Spine 4.x image sequence attachment) =====================
+// Modes: 0 hold, 1 once, 2 loop, 3 pingpong, 4 once-reverse, 5 loop-reverse,
+// 6 pingpong-reverse. Frame index is computed from animation time.
+//
+// Storage convention: attachment.sequence.frames[] = Array<HTMLCanvasElement>
+// with length === sequence.count. Index i corresponds to frame "(start + i)
+// padded to digits" in Spine path semantics. att.canvas points at
+// frames[setupIndex] for static-mode renderers and editor previews.
+function computeSequenceFrameIndex(seq, time) {
+  if (!seq || !seq.enabled) return -1;
+  const count = Math.max(1, Math.round(Number(seq.count) || 1));
+  const setup = Math.max(0, Math.min(count - 1, Math.round(Number(seq.setupIndex) || 0)));
+  const mode = Number(seq.mode) || 0;
+  if (count <= 1) return setup;
+  // Spine treats time as frames-since-attachment-applied at 30fps unless
+  // overridden; we use the animation playhead seconds * fps where fps comes
+  // from state.anim.fps (default 30).
+  const fps = Math.max(1, Number(state && state.anim && state.anim.fps) || 30);
+  const t = Math.max(0, Number(time) || 0);
+  const frame = Math.floor(t * fps);
+  let idx;
+  switch (mode) {
+    case 1: // once
+      idx = Math.min(count - 1, frame);
+      break;
+    case 2: // loop
+      idx = frame % count;
+      break;
+    case 3: { // pingpong
+      const period = (count - 1) * 2;
+      const m = period > 0 ? frame % period : 0;
+      idx = m < count ? m : period - m;
+      break;
+    }
+    case 4: // once reverse
+      idx = Math.max(0, count - 1 - Math.min(count - 1, frame));
+      break;
+    case 5: // loop reverse
+      idx = (count - 1) - (frame % count);
+      break;
+    case 6: { // pingpong reverse — start at end, ping back
+      const period2 = (count - 1) * 2;
+      const m2 = period2 > 0 ? frame % period2 : 0;
+      const forward = m2 < count ? m2 : period2 - m2;
+      idx = count - 1 - forward;
+      break;
+    }
+    case 0: // hold (static = setup)
+    default:
+      idx = setup;
+      break;
+  }
+  if (!Number.isFinite(idx)) idx = setup;
+  return Math.max(0, Math.min(count - 1, idx));
+}
+
+// Returns the canvas to render for the given attachment at the given time.
+// For non-sequence (or single-frame, or no frames-array loaded) attachments
+// returns att.canvas unchanged.
+function getEffectiveAttachmentCanvas(att, time) {
+  if (!att) return null;
+  const seq = att.sequence;
+  if (!seq || !seq.enabled) return att.canvas;
+  const frames = Array.isArray(seq.frames) ? seq.frames : null;
+  if (!frames || frames.length === 0) return att.canvas;
+  const idx = computeSequenceFrameIndex(seq, time);
+  if (idx < 0 || idx >= frames.length) return att.canvas;
+  return frames[idx] || att.canvas;
+}
+
+function getCurrentRenderTime() {
+  return state && state.anim && Number.isFinite(state.anim.time) ? state.anim.time : 0;
+}
+
 function getSlotCanvas(slot, options = {}) {
   if (!slot) return null;
   const allowAnyAttachment =
@@ -1890,6 +1964,120 @@ function applyLiveGridPointsToSlotMesh(slot) {
     meshData.interleaved = new Float32Array(pointCount * 4);
   }
   return true;
+}
+
+// === Mesh micro-tools (Subdivide / Edge Flip / Add Centroid) ============
+//
+// All three operate on the current slot's contour fill points (interior) and
+// re-trigger triangulation. They live here because they mutate the same
+// contour data structure that the editor's Apply Mesh / Triangulate path uses.
+
+function _getSlotEditingPointsAndIndices(slot) {
+  const contour = ensureSlotContour(slot);
+  const points = Array.isArray(contour.fillPoints) && contour.fillPoints.length >= 3
+    ? contour.fillPoints
+    : Array.isArray(contour.points) ? contour.points : [];
+  const tris = Array.isArray(contour.fillPoints) && contour.fillPoints.length >= 3
+    ? (Array.isArray(contour.fillTriangles) ? contour.fillTriangles : [])
+    : (Array.isArray(contour.triangles) ? contour.triangles : []);
+  const isFill = Array.isArray(contour.fillPoints) && contour.fillPoints.length >= 3;
+  return { contour, points, tris, isFill };
+}
+
+// Subdivide every triangle whose 3 vertices are all in the active selection.
+// Centroid becomes a new fill point. Re-triangulates afterwards.
+function subdivideSelectedTriangles(slot) {
+  if (!slot) return { ok: false, reason: "No slot." };
+  const ctx = _getSlotEditingPointsAndIndices(slot);
+  if (!ctx.points || ctx.points.length < 3) return { ok: false, reason: "Not enough vertices." };
+  if (!ctx.tris || ctx.tris.length < 3) return { ok: false, reason: "Mesh has no triangles. Triangulate first." };
+  const setName = ctx.isFill ? "fill" : "contour";
+  const selectedSet = new Set(getSlotMeshSelection(setName, ctx.points.length));
+  if (selectedSet.size < 3) return { ok: false, reason: "Select ≥3 vertices forming triangles." };
+  if (!Array.isArray(ctx.contour.fillPoints)) ctx.contour.fillPoints = [];
+  let added = 0;
+  const added_indices = new Set();
+  for (let t = 0; t + 2 < ctx.tris.length; t += 3) {
+    const i0 = Number(ctx.tris[t]);
+    const i1 = Number(ctx.tris[t + 1]);
+    const i2 = Number(ctx.tris[t + 2]);
+    if (!selectedSet.has(i0) || !selectedSet.has(i1) || !selectedSet.has(i2)) continue;
+    const k = `${i0},${i1},${i2}`;
+    if (added_indices.has(k)) continue;
+    added_indices.add(k);
+    const p0 = ctx.points[i0]; const p1 = ctx.points[i1]; const p2 = ctx.points[i2];
+    if (!p0 || !p1 || !p2) continue;
+    const cx = (Number(p0.x) + Number(p1.x) + Number(p2.x)) / 3;
+    const cy = (Number(p0.y) + Number(p1.y) + Number(p2.y)) / 3;
+    ctx.contour.fillPoints.push({ x: cx, y: cy });
+    added += 1;
+  }
+  if (added === 0) return { ok: false, reason: "No triangle has all 3 corners selected." };
+  // Re-triangulate (boundary + interior) using existing path.
+  markSlotContourDirty(slot, true);
+  ctx.contour.fillTriangles = [];
+  ctx.contour.triangles = triangulateContourPoints(ctx.contour.points, ctx.contour.contourEdges, ctx.contour.manualEdges);
+  return { ok: true, added };
+}
+
+// Add a fill point at the centroid of the active selection.
+function addCentroidVertex(slot) {
+  if (!slot) return { ok: false, reason: "No slot." };
+  const ctx = _getSlotEditingPointsAndIndices(slot);
+  if (!ctx.points || ctx.points.length < 1) return { ok: false, reason: "No vertices." };
+  const setName = ctx.isFill ? "fill" : "contour";
+  const sel = getSlotMeshSelection(setName, ctx.points.length);
+  if (!sel || sel.length === 0) return { ok: false, reason: "Select ≥1 vertex first." };
+  let sx = 0; let sy = 0; let n = 0;
+  for (const i of sel) {
+    const p = ctx.points[Number(i)];
+    if (!p) continue;
+    sx += Number(p.x) || 0; sy += Number(p.y) || 0; n += 1;
+  }
+  if (n === 0) return { ok: false, reason: "Selected indices are invalid." };
+  if (!Array.isArray(ctx.contour.fillPoints)) ctx.contour.fillPoints = [];
+  ctx.contour.fillPoints.push({ x: sx / n, y: sy / n });
+  markSlotContourDirty(slot, true);
+  ctx.contour.fillTriangles = [];
+  ctx.contour.triangles = triangulateContourPoints(ctx.contour.points, ctx.contour.contourEdges, ctx.contour.manualEdges);
+  return { ok: true, addedAt: { x: sx / n, y: sy / n } };
+}
+
+// Flip the diagonal between exactly 2 selected vertices that share two
+// triangles. The two triangles together form a quad; we replace
+// (A,B) diagonal with (C,D) — the other two corners.
+function flipSelectedEdge(slot) {
+  if (!slot) return { ok: false, reason: "No slot." };
+  const ctx = _getSlotEditingPointsAndIndices(slot);
+  if (!ctx.tris || ctx.tris.length < 6) return { ok: false, reason: "Need at least 2 triangles." };
+  const setName = ctx.isFill ? "fill" : "contour";
+  const sel = getSlotMeshSelection(setName, ctx.points.length);
+  if (!sel || sel.length !== 2) return { ok: false, reason: "Select exactly 2 vertices." };
+  const a = Number(sel[0]); const b = Number(sel[1]);
+  // Find two triangles that contain both a and b.
+  const sharing = [];
+  for (let t = 0; t + 2 < ctx.tris.length; t += 3) {
+    const tri = [Number(ctx.tris[t]), Number(ctx.tris[t + 1]), Number(ctx.tris[t + 2])];
+    if (tri.includes(a) && tri.includes(b)) sharing.push({ start: t, tri });
+  }
+  if (sharing.length !== 2) return { ok: false, reason: "Selected pair is not a shared edge of exactly 2 triangles." };
+  const [t0, t1] = sharing;
+  const c = t0.tri.find((v) => v !== a && v !== b);
+  const d = t1.tri.find((v) => v !== a && v !== b);
+  if (c == null || d == null || c === d) return { ok: false, reason: "Could not resolve quad corners." };
+  // Replace t0 = (a, c, d) and t1 = (b, d, c) — flipped diagonal is (c, d).
+  // Preserve winding by sampling existing winding direction of t0.
+  const newT0 = [a, c, d];
+  const newT1 = [b, d, c];
+  const target = ctx.isFill ? ctx.contour.fillTriangles : ctx.contour.triangles;
+  target[t0.start] = newT0[0]; target[t0.start + 1] = newT0[1]; target[t0.start + 2] = newT0[2];
+  target[t1.start] = newT1[0]; target[t1.start + 1] = newT1[1]; target[t1.start + 2] = newT1[2];
+  // Add a manual edge so the new diagonal won't be re-flipped by future re-triangulation.
+  const manualKey = ctx.isFill ? "fillManualEdges" : "manualEdges";
+  if (!Array.isArray(ctx.contour[manualKey])) ctx.contour[manualKey] = [];
+  ctx.contour[manualKey].push([Math.min(c, d), Math.max(c, d)]);
+  markSlotContourDirty(slot, true);
+  return { ok: true, oldEdge: [a, b], newEdge: [c, d] };
 }
 
 function resetSlotMeshToGrid(slot) {

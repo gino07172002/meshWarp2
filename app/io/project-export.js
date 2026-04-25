@@ -87,8 +87,14 @@ function buildProjectPayload() {
             count: Math.max(1, Math.round(Number(a.sequence.count) || 1)),
             start: Math.max(0, Math.round(Number(a.sequence.start) || 0)),
             digits: Math.max(1, Math.round(Number(a.sequence.digits) || 2)),
+            setupIndex: Math.max(0, Math.round(Number(a.sequence.setupIndex) || 0)),
+            mode: Number(a.sequence.mode) || 0,
+            path: String(a.sequence.path || ""),
+            frameImageIndices: Array.isArray(a.sequence.frames)
+              ? a.sequence.frames.map((cv) => registerCanvas(cv))
+              : [],
           }
-          : { enabled: false, count: 1, start: 0, digits: 2 },
+          : { enabled: false, count: 1, start: 0, digits: 2, setupIndex: 0, mode: 0, path: "", frameImageIndices: [] },
       useWeights: a && a.useWeights === true,
       weightBindMode: a && a.weightBindMode ? String(a.weightBindMode) : "none",
       weightMode: a && a.weightMode ? String(a.weightMode) : "free",

@@ -193,9 +193,13 @@ function render(ts = 0) {
       gl.activeTexture(gl.TEXTURE0);
       gl.uniform2f(loc.uResolution, els.glCanvas.width, els.glCanvas.height);
       const poseWorld = getSolvedPoseWorld(state.mesh);
+      const renderTime = typeof getCurrentRenderTime === "function" ? getCurrentRenderTime() : 0;
       for (const slot of slots) {
         const activeAttachment = getActiveAttachment(slot);
-        const attachmentCanvas = (activeAttachment || {}).canvas;
+        const baseCanvas = (activeAttachment || {}).canvas;
+        const attachmentCanvas = activeAttachment && typeof getEffectiveAttachmentCanvas === "function"
+          ? (getEffectiveAttachmentCanvas(activeAttachment, renderTime) || baseCanvas)
+          : baseCanvas;
         if (!slot || !attachmentCanvas || !hasRenderableAttachment(slot)) continue;
         const texture = ensureGLTextureForCanvas(attachmentCanvas);
         if (!texture) continue;

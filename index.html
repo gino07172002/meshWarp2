@@ -436,6 +436,17 @@
             <div class="field">
               <button id="slotMeshRelaxBtn" type="button" title="Relax selected vertices (M, Shift for stronger)">Relax Selected (M)</button>
             </div>
+            <details class="panel-section-advanced">
+              <summary>Advanced topology ops</summary>
+              <div class="field two-col">
+                <button id="slotMeshSubdivideBtn" type="button" title="Add a centroid vertex inside every triangle whose 3 corners are all selected">Subdivide Selected</button>
+                <button id="slotMeshAddCentroidBtn" type="button" title="Add 1 fill vertex at the centroid of the active selection">Add Centroid</button>
+              </div>
+              <div class="field">
+                <button id="slotMeshFlipEdgeBtn" type="button" title="With exactly 2 selected vertices forming a shared edge of 2 triangles, flip the diagonal">Flip Edge</button>
+              </div>
+              <p class="muted">Subdivide and Add Centroid work on fill (interior) vertices. Flip Edge needs exactly 2 selected verts that share 2 triangles.</p>
+            </details>
           </div>
         </details>
 
@@ -849,6 +860,12 @@
                 <span>Path (prefix)</span>
                 <input id="slotAttachmentSequencePath" type="text" value="" placeholder="(uses attachment name)" />
               </label>
+              <div class="field two-col">
+                <button id="slotSequenceLoadFramesBtn" type="button" title="Pick N images for sequence frames; sets count to file count">Load Frames…</button>
+                <button id="slotSequenceClearFramesBtn" type="button" title="Discard loaded sequence frames; attachment.canvas becomes the only image">Clear Frames</button>
+              </div>
+              <p id="slotSequenceFramesHint" class="muted">No sequence frames loaded.</p>
+              <input id="slotSequenceFramesInput" type="file" accept="image/*" multiple hidden />
             </details>
             <div class="field two-col">
               <button id="slotAttachmentLoadBtn" type="button">Load Image</button>
@@ -1893,30 +1910,30 @@
     </section>
   </div>
 
-  <script src="app/core/runtime.js?v=20260425-15"></script>
+  <script src="app/core/runtime.js?v=20260425-18"></script>
   <script src="app/render/gl-toolkit.js?v=20260425-2"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>
-  <script src="app/core/bones.js?v=20260425-13"></script>
+  <script src="app/core/bones.js?v=20260425-14"></script>
   <script src="app/workspace/workspace.js?v=20260425-1"></script>
-  <script src="app/workspace/slots.js?v=20260425-1"></script>
+  <script src="app/workspace/slots.js?v=20260425-3"></script>
   <script src="app/workspace/constraint-model.js?v=20260420-2"></script>
   <script src="app/render/constraints.js?v=20260425-4"></script>
   <script src="app/render/weight-brush.js?v=20260425-5"></script>
-  <script src="app/render/canvas.js?v=20260425-2"></script>
+  <script src="app/render/canvas.js?v=20260425-3"></script>
   <script src="app/render/state-machine.js?v=20260420-2"></script>
   <script src="app/animation/model.js?v=20260425-2"></script>
   <script src="app/animation/timeline-ui.js?v=20260420-2"></script>
   <script src="app/animation/runtime.js?v=20260420-2"></script>
-  <script src="app/io/tree-bindings.js?v=20260425-3"></script>
-  <script src="app/io/project-export.js?v=20260425-2"></script>
-  <script src="app/io/project-actions.js?v=20260425-1"></script>
+  <script src="app/io/tree-bindings.js?v=20260425-4"></script>
+  <script src="app/io/project-export.js?v=20260425-3"></script>
+  <script src="app/io/project-actions.js?v=20260425-2"></script>
   <script src="app/ui/editor-panels.js?v=20260425-5"></script>
   <script src="app/ui/constraint-panels.js?v=20260425-2"></script>
   <script src="app/ui/animation-panels.js?v=20260420-2"></script>
   <script src="app/ui/timeline-pointer.js?v=20260420-2"></script>
   <script src="app/ui/dock-layout.js?v=20260425-18"></script>
   <script src="app/ui/hotkeys.js?v=20260425-6"></script>
-  <script src="app/ui/bootstrap.js?v=20260425-11"></script>
+  <script src="app/ui/bootstrap.js?v=20260425-12"></script>
 </body>
 
 </html>

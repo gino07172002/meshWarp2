@@ -436,6 +436,10 @@ const els = {
   slotAttachmentSequenceSetupIndex: document.getElementById("slotAttachmentSequenceSetupIndex"),
   slotAttachmentSequenceMode: document.getElementById("slotAttachmentSequenceMode"),
   slotAttachmentSequencePath: document.getElementById("slotAttachmentSequencePath"),
+  slotSequenceLoadFramesBtn: document.getElementById("slotSequenceLoadFramesBtn"),
+  slotSequenceClearFramesBtn: document.getElementById("slotSequenceClearFramesBtn"),
+  slotSequenceFramesHint: document.getElementById("slotSequenceFramesHint"),
+  slotSequenceFramesInput: document.getElementById("slotSequenceFramesInput"),
   slotAttachmentAddBtn: document.getElementById("slotAttachmentAddBtn"),
   slotAttachmentDuplicateBtn: document.getElementById("slotAttachmentDuplicateBtn"),
   slotAttachmentDeleteBtn: document.getElementById("slotAttachmentDeleteBtn"),
@@ -499,6 +503,9 @@ const els = {
   slotMeshPinBtn: document.getElementById("slotMeshPinBtn"),
   slotMeshUnpinBtn: document.getElementById("slotMeshUnpinBtn"),
   slotMeshRelaxBtn: document.getElementById("slotMeshRelaxBtn"),
+  slotMeshSubdivideBtn: document.getElementById("slotMeshSubdivideBtn"),
+  slotMeshAddCentroidBtn: document.getElementById("slotMeshAddCentroidBtn"),
+  slotMeshFlipEdgeBtn: document.getElementById("slotMeshFlipEdgeBtn"),
   slotMeshCopyWeightsBtn: document.getElementById("slotMeshCopyWeightsBtn"),
   slotMeshPasteWeightsBtn: document.getElementById("slotMeshPasteWeightsBtn"),
   slotMeshCaptureStartBtn: document.getElementById("slotMeshCaptureStartBtn"),
@@ -3946,7 +3953,9 @@ let vbo = null;
 let ibo = null;
 let vao = null;
 
-if (hasGL) {
+// Wrapped so we can rebuild after a webglcontextlost/webglcontextrestored cycle.
+function initMainGLResources() {
+  if (!hasGL) return;
   program = createProgram(
     isWebGL2
       ? `#version 300 es
@@ -4018,6 +4027,7 @@ if (hasGL) {
   ibo = gl.createBuffer();
   vao = hasVAO ? gl.createVertexArray() : null;
 }
+initMainGLResources();
 
 function setupVertexLayout() {
   if (!hasGL) return;
@@ -4032,7 +4042,8 @@ function setupVertexLayout() {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 }
 
-if (hasGL) {
+function finishMainGLSetup() {
+  if (!hasGL) return;
   setupVertexLayout();
   if (hasVAO) {
     gl.bindVertexArray(null);
@@ -4041,6 +4052,34 @@ if (hasGL) {
   gl.uniform1f(loc.uAlpha, 1);
   if (loc.uTint) gl.uniform3f(loc.uTint, 1, 1, 1);
   if (loc.uDark) gl.uniform3f(loc.uDark, 0, 0, 0);
+}
+finishMainGLSetup();
+
+// Rebuild path on context restore — runs after webglcontextrestored fires and
+// the toolkit has cleared its caches. The texture cache is invalidated too,
+// so subsequent ensureGLTextureForCanvas() calls will re-upload.
+function rebuildMainGLAfterRestore() {
+  if (!hasGL) return;
+  try {
+    initMainGLResources();
+    finishMainGLSetup();
+    if (typeof resetGLTextureCache === "function") resetGLTextureCache();
+    console.info("[main-gl] resources rebuilt after context restore");
+  } catch (err) {
+    console.error("[main-gl] rebuild after restore failed", err);
+  }
+}
+// Register the restore callback once gl-toolkit (which loads AFTER this file)
+// has populated window.glToolkit. We use the next macrotask so toolkit's IIFE
+// has run by then.
+if (typeof window !== "undefined" && hasGL) {
+  setTimeout(() => {
+    if (window.glToolkit && typeof window.glToolkit.onContextRestored === "function") {
+      window.glToolkit.onContextRestored((label) => {
+        if (label === "main") rebuildMainGLAfterRestore();
+      });
+    }
+  }, 0);
 }
 
 function bindGeometry() {

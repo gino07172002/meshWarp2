@@ -61,6 +61,20 @@ Steps use:
 - **cleanup**: `key:F11`
 - **manual_only**: true (Fullscreen API requires user gesture; headless typically blocks)
 
+### shell-main-gl-context-restore
+- **summary**: After webglcontextlost/restored, main render rebuilds shader+VBO+IBO+VAO+texture cache so the canvas is not stuck black.
+- **impl**: app/core/runtime.js initMainGLResources / finishMainGLSetup / rebuildMainGLAfterRestore + glToolkit onContextRestored
+- **prereqs**: app loaded with WebGL
+- **steps**:
+  1. dispatch `webglcontextlost` event on `#glCanvas` with preventDefault
+  2. wait one tick
+  3. dispatch `webglcontextrestored`
+  4. wait two ticks for setTimeout-deferred rebuild + render
+- **verify**:
+  - rebuilt program exists (`program` global non-null)
+  - no console error about lost context after step 4
+- **manual_only**: true
+
 ### shell-overlay-canvas-exists
 - **summary**: GL overlay canvas (#glOverlayCanvas) is sized to match main GL canvas.
 - **impl**: app/render/gl-toolkit.js syncOverlayCanvasSize; index.html canvas tag
@@ -163,6 +177,42 @@ Steps use:
   - `vCountAfter === vCountBefore - 1`
 
 ---
+
+## Mesh micro-tools (Subdivide / Flip Edge / Add Centroid)
+
+### mesh-subdivide-selected
+- **summary**: Subdivide adds a centroid vertex inside each triangle whose 3 verts are all selected.
+- **impl**: app/workspace/slots.js subdivideSelectedTriangles
+- **prereqs**: a triangulated mesh with ≥1 triangle, all 3 of its verts in active selection
+- **steps**:
+  1. record fillPoints.length as N
+  2. select 3 vertices forming an existing triangle
+  3. `click:#slotMeshSubdivideBtn`
+- **verify**:
+  - fillPoints.length === N + 1 (one centroid added)
+  - status text mentions "Subdivided 1 triangle(s)"
+
+### mesh-add-centroid
+- **summary**: Add Centroid creates 1 fill vertex at the centroid of the selection.
+- **impl**: app/workspace/slots.js addCentroidVertex
+- **prereqs**: ≥1 vertex selected
+- **steps**:
+  1. select 4 vertices
+  2. `click:#slotMeshAddCentroidBtn`
+- **verify**:
+  - fillPoints.length grew by 1
+  - the new point's (x,y) ≈ average of selected vertex positions
+
+### mesh-flip-edge
+- **summary**: Flip Edge swaps the diagonal of a quad formed by 2 triangles.
+- **impl**: app/workspace/slots.js flipSelectedEdge
+- **prereqs**: select exactly 2 verts forming a shared edge of 2 triangles
+- **steps**:
+  1. select the 2 vertices of an internal edge
+  2. `click:#slotMeshFlipEdgeBtn`
+- **verify**:
+  - status reports old → new edge index pair
+  - the quad's diagonal switched (the original edge is no longer in any triangle)
 
 ## Weight tools
 
@@ -428,6 +478,55 @@ Steps use:
   - returned ArrayBuffer length > 100
 
 ---
+
+## Sequence attachments (image sequence frame timeline)
+
+### sequence-frame-index-loop
+- **summary**: Loop mode advances frame index (frame % count) over time.
+- **impl**: app/workspace/slots.js computeSequenceFrameIndex (mode 2)
+- **prereqs**: an attachment with sequence.enabled=true, count=4, mode=2 (loop), fps=30
+- **steps**:
+  1. call `computeSequenceFrameIndex({enabled:true,count:4,mode:2,setupIndex:0}, 0)` → expect 0
+  2. call with t=0.034 (1 frame at 30fps) → expect 1
+  3. call with t=4/30 (full cycle) → expect 0
+  4. call with t=5/30 → expect 1
+- **verify**:
+  - all four expected values match
+
+### sequence-frame-index-pingpong
+- **summary**: Pingpong mode bounces between 0..count-1..0..count-1.
+- **impl**: app/workspace/slots.js computeSequenceFrameIndex (mode 3)
+- **prereqs**: count=3, mode=3 → period 4 (0,1,2,1,0,1,2,...)
+- **steps**: call computeSequenceFrameIndex at frame indices 0..6
+- **verify**:
+  - sequence is [0,1,2,1,0,1,2]
+
+### sequence-effective-canvas
+- **summary**: getEffectiveAttachmentCanvas returns the right frame for the current time.
+- **impl**: app/workspace/slots.js getEffectiveAttachmentCanvas
+- **prereqs**: att.sequence.frames = [c0,c1,c2], enabled=true, mode=2
+- **steps**:
+  1. set anim.time so frame index === 1
+  2. call getEffectiveAttachmentCanvas(att, anim.time)
+- **verify**:
+  - returned canvas is c1 (not c0, not att.canvas)
+
+### sequence-load-frames-button
+- **summary**: Load Frames... loads N images and stores them in att.sequence.frames.
+- **impl**: app/io/tree-bindings.js #slotSequenceLoadFramesBtn handler
+- **manual_only**: true
+
+### sequence-persists-via-image-indices
+- **summary**: Save → load round-trip preserves sequence frames via slotImages dataURLs.
+- **impl**: app/io/project-export.js (sequence.frameImageIndices write) + app/io/project-actions.js (read)
+- **prereqs**: project with attachment whose sequence has 3 loaded frames
+- **steps**:
+  1. trigger save → capture exported `slotImages.length` and `attachments[0].sequence.frameImageIndices`
+  2. clear in-memory state, load the saved JSON
+  3. inspect `att.sequence.frames.length`
+- **verify**:
+  - exported frameImageIndices.length === 3
+  - after load, frames.length === 3 and frames[0] is a canvas
 
 ## Bone color (editor visualisation)
 

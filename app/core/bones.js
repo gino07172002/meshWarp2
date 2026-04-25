@@ -3624,6 +3624,22 @@ function refreshAttachmentPanel(s) {
     els.slotAttachmentSequencePath.value = String(seq.path || "");
     els.slotAttachmentSequencePath.disabled = !isSeqCapable;
   }
+  if (els.slotSequenceFramesHint) {
+    const seq = activeAttachmentEntry && activeAttachmentEntry.sequence ? activeAttachmentEntry.sequence : null;
+    const n = seq && Array.isArray(seq.frames) ? seq.frames.length : 0;
+    if (n > 0) {
+      const setupIdx = Math.max(0, Math.min(n - 1, Math.round(Number(seq.setupIndex) || 0)));
+      els.slotSequenceFramesHint.textContent = `Loaded ${n} frame(s). Setup index ${setupIdx}.`;
+    } else {
+      els.slotSequenceFramesHint.textContent = "No sequence frames loaded.";
+    }
+  }
+  if (els.slotSequenceLoadFramesBtn) els.slotSequenceLoadFramesBtn.disabled = !isSeqCapable;
+  if (els.slotSequenceClearFramesBtn) {
+    const seq = activeAttachmentEntry && activeAttachmentEntry.sequence ? activeAttachmentEntry.sequence : null;
+    const hasFrames = !!(seq && Array.isArray(seq.frames) && seq.frames.length > 0);
+    els.slotSequenceClearFramesBtn.disabled = !hasFrames;
+  }
   if (els.slotClipEnabled) {
     els.slotClipEnabled.checked = !!(activeAttachmentState && activeAttachmentState.clipEnabled);
     els.slotClipEnabled.disabled = !s;

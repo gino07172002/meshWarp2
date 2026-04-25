@@ -90,6 +90,45 @@ function setupMeshTopologyButtons() {
       }
     });
   }
+  if (els.slotMeshSubdivideBtn) {
+    els.slotMeshSubdivideBtn.addEventListener("click", () => {
+      const slot = getActiveSlot();
+      if (!slot) { setStatus("Subdivide: no active slot."); return; }
+      if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+      const r = subdivideSelectedTriangles(slot);
+      setStatus(r.ok ? `Subdivided ${r.added} triangle(s).` : `Subdivide: ${r.reason}`);
+      if (r.ok) {
+        if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+        if (typeof requestRender === "function") requestRender("subdivide");
+      }
+    });
+  }
+  if (els.slotMeshAddCentroidBtn) {
+    els.slotMeshAddCentroidBtn.addEventListener("click", () => {
+      const slot = getActiveSlot();
+      if (!slot) { setStatus("Add Centroid: no active slot."); return; }
+      if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+      const r = addCentroidVertex(slot);
+      setStatus(r.ok ? `Added vertex at (${r.addedAt.x.toFixed(1)}, ${r.addedAt.y.toFixed(1)}).` : `Add Centroid: ${r.reason}`);
+      if (r.ok) {
+        if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+        if (typeof requestRender === "function") requestRender("add-centroid");
+      }
+    });
+  }
+  if (els.slotMeshFlipEdgeBtn) {
+    els.slotMeshFlipEdgeBtn.addEventListener("click", () => {
+      const slot = getActiveSlot();
+      if (!slot) { setStatus("Flip Edge: no active slot."); return; }
+      if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+      const r = flipSelectedEdge(slot);
+      setStatus(r.ok ? `Flipped edge ${r.oldEdge.join("-")} → ${r.newEdge.join("-")}.` : `Flip Edge: ${r.reason}`);
+      if (r.ok) {
+        if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+        if (typeof requestRender === "function") requestRender("flip-edge");
+      }
+    });
+  }
 }
 
 function setupWeightBrushUI() {

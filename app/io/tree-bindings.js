@@ -1708,6 +1708,90 @@ if (els.slotAttachmentLoadBtn && els.slotAttachmentFileInput) {
   });
 }
 
+// Sequence frames: load N images at once, store as att.sequence.frames[].
+if (els.slotSequenceLoadFramesBtn && els.slotSequenceFramesInput) {
+  els.slotSequenceLoadFramesBtn.addEventListener("click", () => {
+    if (!getActiveSlot()) return;
+    els.slotSequenceFramesInput.click();
+  });
+  els.slotSequenceFramesInput.addEventListener("change", async () => {
+    const s = getActiveSlot();
+    const fileList = els.slotSequenceFramesInput.files;
+    const files = fileList ? Array.from(fileList) : [];
+    els.slotSequenceFramesInput.value = "";
+    if (!s || files.length === 0) return;
+    const current = getSlotCurrentAttachmentName(s);
+    if (!current) {
+      setStatus("Select an attachment first.");
+      return;
+    }
+    const att = getSlotAttachmentEntry(s, current);
+    if (!att) return;
+    // Sort by filename to keep frame order predictable.
+    files.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    const frames = [];
+    const targetRect = s.rect || null;
+    let firstW = 0;
+    let firstH = 0;
+    for (const f of files) {
+      try {
+        const bmp = await createImageBitmap(f);
+        if (firstW === 0) { firstW = bmp.width; firstH = bmp.height; }
+        const tw = targetRect && Number(targetRect.w) > 0 ? Number(targetRect.w) : (firstW || bmp.width);
+        const th = targetRect && Number(targetRect.h) > 0 ? Number(targetRect.h) : (firstH || bmp.height);
+        const cv = makeCanvas(Math.max(1, tw), Math.max(1, th));
+        const cx = cv.getContext("2d");
+        if (!cx) continue;
+        cx.drawImage(bmp, 0, 0, bmp.width, bmp.height, 0, 0, cv.width, cv.height);
+        frames.push(cv);
+      } catch (err) {
+        console.warn(`Load frame ${f.name} failed`, err);
+      }
+    }
+    if (frames.length === 0) {
+      setStatus("No sequence frames loaded.");
+      return;
+    }
+    if (!att.sequence) {
+      att.sequence = { enabled: true, count: frames.length, start: 0, digits: 2, setupIndex: 0, mode: 2, path: "", frames };
+    } else {
+      att.sequence.enabled = true;
+      att.sequence.count = frames.length;
+      att.sequence.frames = frames;
+      if (!Number.isFinite(Number(att.sequence.setupIndex)) || att.sequence.setupIndex >= frames.length) {
+        att.sequence.setupIndex = 0;
+      }
+    }
+    // Point att.canvas at the setup frame so static-mode renderers and
+    // editor previews show the right thing.
+    const setupIdx = Math.max(0, Math.min(frames.length - 1, Math.round(Number(att.sequence.setupIndex) || 0)));
+    att.canvas = frames[setupIdx];
+    syncSourceCanvasToActiveAttachment(s);
+    refreshSlotUI();
+    if (els.slotSequenceFramesHint) {
+      els.slotSequenceFramesHint.textContent = `Loaded ${frames.length} frame(s). Setup index ${setupIdx}.`;
+    }
+    if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+    setStatus(`Sequence: loaded ${frames.length} frame(s) for ${current}.`);
+  });
+}
+if (els.slotSequenceClearFramesBtn) {
+  els.slotSequenceClearFramesBtn.addEventListener("click", () => {
+    const s = getActiveSlot();
+    if (!s) return;
+    const current = getSlotCurrentAttachmentName(s);
+    const att = current ? getSlotAttachmentEntry(s, current) : null;
+    if (!att || !att.sequence || !Array.isArray(att.sequence.frames) || att.sequence.frames.length === 0) {
+      setStatus("No sequence frames to clear.");
+      return;
+    }
+    att.sequence.frames = [];
+    if (els.slotSequenceFramesHint) els.slotSequenceFramesHint.textContent = "No sequence frames loaded.";
+    if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+    setStatus("Sequence frames cleared.");
+  });
+}
+
 if (els.slotAlpha) {
   els.slotAlpha.addEventListener("input", () => {
     const s = getActiveSlot();
