@@ -154,6 +154,8 @@ All in `app/io/tree-bindings.js`:
 | `duplicateAttachment(slot, name)` | [tree-bindings.js:1300](app/io/tree-bindings.js#L1300) | deep clone |
 | `convertAttachmentType(slot, name, nextType)` | [tree-bindings.js:1313](app/io/tree-bindings.js#L1313) | type change, clears incompatible data |
 | `openAttachmentTypePicker(initialType, title)` | [tree-bindings.js](app/io/tree-bindings.js) | async Promise-based modal popup (button grid, Escape/backdrop cancel); replaces old `window.prompt` |
+| `copyAttachmentToSlot(srcSlot, attName, destSlot)` | [tree-bindings.js](app/io/tree-bindings.js) | deep-clones attachment into a different slot via `addAttachmentOfType`; returns the new record |
+| `openSlotPickerPopup(excludeSlotIndex, title)` | [tree-bindings.js](app/io/tree-bindings.js) | async Promise → slot index; reuses `#attTypePickerWrap` modal, replaces grid with slot buttons |
 
 ---
 
@@ -251,6 +253,10 @@ All of the above must pass before committing.
 | BoundingBox/Clipping gizmos | Done | draggable vertex handles on contour.points |
 | Point attachment gizmo | Done | move handle + rotation tip handle |
 | Ghost attachment outlines | Done | non-active attachments shown as dashed outlines |
+| Rename (ctx menu) | Done | Right-click attachment → "Rename Attachment" → triggers inline rename |
+| Set as Active (ctx menu) | Done | Right-click attachment → "Set as Active" → switches `slot.activeAttachment` |
+| Copy to Slot (ctx menu) | Done | Right-click attachment → "Copy to Slot…" → slot picker popup → `copyAttachmentToSlot()` |
+| Load Image (attachment ctx) | Done | Right-click region/mesh attachment → "Load Image" → same file-input flow as slot Load Image |
 | Browser smoke test | Not done | Must manually verify mesh display, attachment switching, linkedmesh, clipping, timeline sync |
 | WebGL render path | Separate spec | See `docs/superpowers/specs/2026-04-20-webgl-support-diagnostics-design.md` |
 
@@ -284,3 +290,26 @@ state = {
 - **One undo checkpoint per user action**: call `pushUndoCheckpoint(true)` after mutations.
 - **Always call `refreshSlotUI()` or `refreshAttachmentPanel(s)` after mutating slot/attachment data** so the right panel stays in sync.
 - **Always call `renderBoneTree()` after mutating slot/attachment structure** so the tree stays in sync.
+
+---
+
+## 14. AI Capture Observability
+
+AI Capture is the repo-owned way to give future AI agents runtime context without relying on chat memory.
+
+When adding a UI feature that changes editor state, add semantic capture coverage:
+
+1. Register or extend a domain with `registerAICaptureDomain(...)`.
+2. Wrap meaningful operations with `beginAICaptureCommand(...)` or `runAICaptureCommand(...)`.
+3. Add stable dotted command IDs such as `mesh.reset_to_grid`, not prose IDs.
+4. Provide compact `snapshot`, `diff`, `invariants`, and `suspicions` functions for new domains.
+5. Update focused checks under `tools/`.
+
+Checklist: `docs/superpowers/runbooks/ai-capture-domain-checklist.md`
+
+Validation:
+
+```bash
+node tools/check-ai-capture-registry.js
+node tools/check-ai-capture-mesh.js
+```

@@ -184,6 +184,7 @@ async function handleProjectLoadInputChange(e) {
                         canvas: isVisualAttachment({ type: a && a.type }) ? ac : null,
                         type: normalizeAttachmentType(a && a.type),
                         linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
+                        inheritTimelines: !!(a && a.inheritTimelines),
                         pointX: Number(a && a.pointX) || 0,
                         pointY: Number(a && a.pointY) || 0,
                         pointRot: Number(a && a.pointRot) || 0,
@@ -511,6 +512,7 @@ async function handleProjectLoadInputChange(e) {
                   placeholder: String(a.placeholder || dst.placeholderName || dst.attachmentName || "main"),
                   type: normalizeAttachmentType(a.type),
                   linkedParent: a.linkedParent != null ? String(a.linkedParent) : "",
+                  inheritTimelines: !!a.inheritTimelines,
                   pointX: Number(a.pointX) || 0,
                   pointY: Number(a.pointY) || 0,
                   pointRot: Number(a.pointRot) || 0,
@@ -561,6 +563,7 @@ async function handleProjectLoadInputChange(e) {
             if (meta) {
               a.type = meta.type;
               a.linkedParent = meta.linkedParent;
+              a.inheritTimelines = !!meta.inheritTimelines;
               a.pointX = meta.pointX;
               a.pointY = meta.pointY;
               a.pointRot = meta.pointRot;
@@ -702,10 +705,14 @@ async function handleProjectLoadInputChange(e) {
               ])
             )
             : {},
+        constraints: normalizeSkinConstraintMap(s && s.constraints),
       }))
       : [];
     state.selectedSkinSet = Number.isFinite(Number(data.selectedSkinSet)) ? Number(data.selectedSkinSet) : 0;
+    state.activeSkinSetId = data.activeSkinSetId ? String(data.activeSkinSetId) : null;
     ensureSkinSets();
+    const skinToApply = getSelectedSkinSet();
+    if (skinToApply) applySkinSetToSlots(skinToApply);
     const sysModeAfterLoad = els.systemMode ? String(els.systemMode.value || "setup") : "setup";
     if (state.mesh) {
       if (sysModeAfterLoad === "animate") {

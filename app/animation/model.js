@@ -406,10 +406,11 @@ function applySkinSetToSlots(skin) {
     const next = target == null ? null : String(target);
     if (!next) continue;
     const att = getSlotAttachmentEntry(s, next);
-    if (!att || !att.canvas) continue;
+    if (!att) continue;
     if (s.activeAttachment !== next) changed = true;
     s.activeAttachment = next;
   }
+  state.activeSkinSetId = skin.id;
   if (changed) {
     refreshSlotUI();
     renderBoneTree();
@@ -441,38 +442,36 @@ function applySkinSetToSlots(skin) {
 
 function refreshSkinUI() {
   const list = ensureSkinSets();
-  const active = getSelectedSkinSet();
-  if (els.skinSelect) {
-    els.skinSelect.innerHTML = "";
+  const selected = getSelectedSkinSet();
+  const activeSkin = list.find((s) => s.id === state.activeSkinSetId) || null;
+  const buildOptions = (selectEl) => {
+    if (!selectEl) return;
+    selectEl.innerHTML = "";
     for (let i = 0; i < list.length; i += 1) {
       const s = list[i];
       const opt = document.createElement("option");
       opt.value = String(i);
-      opt.textContent = s.name || `skin_${i}`;
-      els.skinSelect.appendChild(opt);
+      opt.textContent = (s.name || `skin_${i}`) + (s.id === state.activeSkinSetId ? " ●" : "");
+      selectEl.appendChild(opt);
     }
-    els.skinSelect.value = String(Math.max(0, Number(state.selectedSkinSet) || 0));
-  }
-  if (els.activeSkinSelect) {
-    els.activeSkinSelect.innerHTML = "";
-    for (let i = 0; i < list.length; i += 1) {
-      const s = list[i];
-      const opt = document.createElement("option");
-      opt.value = String(i);
-      opt.textContent = s.name || `skin_${i}`;
-      els.activeSkinSelect.appendChild(opt);
-    }
-    els.activeSkinSelect.value = String(Math.max(0, Number(state.selectedSkinSet) || 0));
-  }
+    selectEl.value = String(Math.max(0, Number(state.selectedSkinSet) || 0));
+  };
+  buildOptions(els.skinSelect);
+  buildOptions(els.activeSkinSelect);
   if (els.skinName) {
-    els.skinName.value = active ? active.name || "" : "";
-    els.skinName.disabled = !active;
+    els.skinName.value = selected ? selected.name || "" : "";
+    els.skinName.disabled = !selected;
+  }
+  if (els.activeSkinLabel) {
+    els.activeSkinLabel.textContent = activeSkin ? `Active: ${activeSkin.name}` : "(none applied)";
   }
   if (els.skinDeleteBtn) els.skinDeleteBtn.disabled = list.length <= 1;
-  if (els.skinCaptureBtn) els.skinCaptureBtn.disabled = !active || state.slots.length === 0;
-  if (els.skinApplyBtn) els.skinApplyBtn.disabled = !active || state.slots.length === 0;
-  if (els.activeSkinCaptureBtn) els.activeSkinCaptureBtn.disabled = !active || state.slots.length === 0;
-  if (els.activeSkinApplyBtn) els.activeSkinApplyBtn.disabled = !active || state.slots.length === 0;
+  if (els.skinDupBtn) els.skinDupBtn.disabled = !selected;
+  if (els.skinCaptureBtn) els.skinCaptureBtn.disabled = !selected || state.slots.length === 0;
+  if (els.skinApplyBtn) els.skinApplyBtn.disabled = !selected || state.slots.length === 0;
+  if (els.activeSkinCaptureBtn) els.activeSkinCaptureBtn.disabled = !selected || state.slots.length === 0;
+  if (els.activeSkinApplyBtn) els.activeSkinApplyBtn.disabled = !selected || state.slots.length === 0;
+  renderSkinDiffList();
 }
 
 function addSkinSetFromCurrentState() {
@@ -486,6 +485,7 @@ function addSkinSetFromCurrentState() {
   };
   list.push(skin);
   state.selectedSkinSet = list.length - 1;
+  applySkinSetToSlots(skin);
   refreshSkinUI();
   return skin;
 }
@@ -506,12 +506,74 @@ function applySelectedSkinSetWithStatus() {
     setStatus("No active skin.");
     return false;
   }
-  if (applySkinSetToSlots(skin)) {
-    setStatus(`Skin applied: ${skin.name}`);
-    return true;
+  applySkinSetToSlots(skin);
+  refreshSkinUI();
+  pushUndoCheckpoint(true);
+  setStatus(`Skin applied: ${skin.name}`);
+  return true;
+}
+
+function duplicateSkinSet() {
+  const skin = getSelectedSkinSet();
+  if (!skin) return null;
+  const copy = {
+    id: makeSkinSetId(),
+    name: skin.name + "_copy",
+    slotAttachments: { ...skin.slotAttachments },
+    slotPlaceholderAttachments: JSON.parse(JSON.stringify(skin.slotPlaceholderAttachments || {})),
+    constraints: JSON.parse(JSON.stringify(skin.constraints || {})),
+  };
+  ensureSkinSets().push(copy);
+  state.selectedSkinSet = state.skinSets.length - 1;
+  applySkinSetToSlots(copy);
+  refreshSkinUI();
+  return copy;
+}
+
+function getSkinAttForSlot(skin, slot) {
+  const sid = String(slot.id);
+  const ph = String(slot.placeholderName || slot.attachmentName || "main");
+  const phMap = skin.slotPlaceholderAttachments && skin.slotPlaceholderAttachments[sid];
+  if (phMap && typeof phMap === "object" && Object.prototype.hasOwnProperty.call(phMap, ph)) return phMap[ph] || null;
+  return (skin.slotAttachments && skin.slotAttachments[sid]) || null;
+}
+
+function renderSkinDiffList() {
+  const container = els.skinDiffList;
+  if (!container) return;
+  const list = ensureSkinSets();
+  const selected = getSelectedSkinSet();
+  if (!selected || list.length <= 1) {
+    container.hidden = true;
+    return;
   }
-  setStatus(`Skin apply: no slot attachment changed (${skin.name}).`);
-  return false;
+  const defaultSkin = list.find((s) => s.name === "default") || list[0];
+  const isDefault = selected === defaultSkin;
+  const rows = [];
+  for (const slot of state.slots || []) {
+    if (!slot || !slot.id) continue;
+    const selAtt = getSkinAttForSlot(selected, slot);
+    const defAtt = getSkinAttForSlot(defaultSkin, slot);
+    if (!selAtt && !defAtt) continue;
+    const overrides = !isDefault && selAtt && selAtt !== defAtt;
+    rows.push({ name: slot.name || String(slot.id), selAtt, defAtt, overrides });
+  }
+  if (rows.length === 0) {
+    container.hidden = true;
+    return;
+  }
+  container.hidden = false;
+  container.innerHTML = "";
+  const header = document.createElement("div");
+  header.className = "skin-diff-header";
+  header.textContent = isDefault ? "Default skin attachments:" : "Overrides vs default:";
+  container.appendChild(header);
+  for (const row of rows) {
+    const el = document.createElement("div");
+    el.className = "skin-diff-row" + (row.overrides ? " skin-diff-override" : "");
+    el.textContent = `${row.name}: ${row.selAtt || "(none)"}`;
+    container.appendChild(el);
+  }
 }
 
 function colorHexToRgb01(hex) {
@@ -905,18 +967,41 @@ function setTrackValue(m, parsed, value) {
   if (parsed.type === "mesh" && Array.isArray(value)) {
     const si = Number.isFinite(parsed.slotIndex) ? Number(parsed.slotIndex) : state.activeSlot;
     const slot = Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : null;
-    if (slot && parsed.attachmentName && getSlotCurrentAttachmentName(slot) !== parsed.attachmentName) return;
-    let offsets = null;
-    if (state.slots.length > 0 && Number.isFinite(si) && si >= 0 && si < state.slots.length) {
-      offsets = getModelSlotOffsets(m, si);
+    const trackAttName = parsed.attachmentName ? String(parsed.attachmentName) : "";
+    const sourceActive = !slot || !trackAttName || getSlotCurrentAttachmentName(slot) === trackAttName;
+    // Apply to source slot if its active attachment matches the track.
+    if (sourceActive) {
+      let offsets = null;
+      if (state.slots.length > 0 && Number.isFinite(si) && si >= 0 && si < state.slots.length) {
+        offsets = getModelSlotOffsets(m, si);
+      }
+      if (!offsets) offsets = getActiveOffsets(m);
+      const n = Math.min(offsets.length, value.length);
+      for (let i = 0; i < n; i += 1) offsets[i] = Number(value[i]) || 0;
+      for (let i = n; i < offsets.length; i += 1) offsets[i] = 0;
     }
-    if (!offsets) offsets = getActiveOffsets(m);
-    const n = Math.min(offsets.length, value.length);
-    for (let i = 0; i < n; i += 1) {
-      offsets[i] = Number(value[i]) || 0;
-    }
-    for (let i = n; i < offsets.length; i += 1) {
-      offsets[i] = 0;
+    // Spine-equivalent "Inherit Timelines": apply the same deform values to any
+    // OTHER slot whose active attachment is a linked mesh with
+    // inheritTimelines = true and linkedParent pointing at this track's
+    // (slotIndex, attachmentName).
+    if (slot && trackAttName && state.slots.length > 0) {
+      for (let oi = 0; oi < state.slots.length; oi += 1) {
+        if (oi === si) continue;
+        const otherSlot = state.slots[oi];
+        if (!otherSlot) continue;
+        const otherAtt = typeof getActiveAttachment === "function" ? getActiveAttachment(otherSlot) : null;
+        if (!otherAtt || !otherAtt.inheritTimelines) continue;
+        if (normalizeAttachmentType(otherAtt.type) !== "linkedmesh") continue;
+        const src = typeof resolveLinkedMeshSource === "function" ? resolveLinkedMeshSource(otherSlot, otherAtt) : null;
+        if (!src || !src.slot || !src.attachment) continue;
+        if (src.slot !== slot) continue;
+        if (src.attachment.name !== trackAttName) continue;
+        const otherOffsets = getModelSlotOffsets(m, oi);
+        if (!otherOffsets) continue;
+        const n = Math.min(otherOffsets.length, value.length);
+        for (let i = 0; i < n; i += 1) otherOffsets[i] = Number(value[i]) || 0;
+        for (let i = n; i < otherOffsets.length; i += 1) otherOffsets[i] = 0;
+      }
     }
   }
   if (parsed.type === "event") {
@@ -2338,21 +2423,6 @@ function normalizeSelectedKeys(anim) {
 function setSingleTimelineSelection(trackId, keyId) {
   state.anim.selectedKeys = [{ trackId, keyId }];
   state.anim.selectedKey = { trackId, keyId };
-}
-
-function getBoneJointSelectionParts(boneIndex) {
-  return [
-    { index: boneIndex, type: "head" },
-    { index: boneIndex, type: "tail" },
-  ];
-}
-
-function hasBonePartSelection(boneIndex, partType) {
-  return !!(state.selectedBoneParts || []).some((p) => p.index === boneIndex && p.type === partType);
-}
-
-function hasBoneJointSelection(boneIndex) {
-  return hasBonePartSelection(boneIndex, "head") && hasBonePartSelection(boneIndex, "tail");
 }
 
 function focusTimelineTrack(trackId, preferNearestKey = true) {

@@ -301,6 +301,66 @@ function setBoneFromWorldEndpoints(bones, boneIndex, head, tip) {
   b.rot = worldAngle - matrixAngle(parentWorld);
 }
 
+function getConnectedChildBoneIndices(bones, parentIndex) {
+  if (!Array.isArray(bones)) return [];
+  const out = [];
+  for (let i = 0; i < bones.length; i += 1) {
+    const b = bones[i];
+    if (!b) continue;
+    if (Number(b.parent) === Number(parentIndex) && b.connected) out.push(i);
+  }
+  return out;
+}
+
+function moveEditBoneEndpointAndConnectedJoint(bones, boneIndex, endpoint, worldTarget) {
+  if (state.boneMode !== "edit" || !Array.isArray(bones)) return [];
+  const bi = Number(boneIndex);
+  const b = Number.isFinite(bi) && bi >= 0 && bi < bones.length ? bones[bi] : null;
+  if (!b) return [];
+  const target = {
+    x: Number(worldTarget && worldTarget.x) || 0,
+    y: Number(worldTarget && worldTarget.y) || 0,
+  };
+  const changed = new Set();
+  const moveTailJoint = (parentIndex, jointTarget) => {
+    const pi = Number(parentIndex);
+    const parentBone = Number.isFinite(pi) && pi >= 0 && pi < bones.length ? bones[pi] : null;
+    if (!parentBone) return;
+    const childTips = new Map();
+    for (const childIndex of getConnectedChildBoneIndices(bones, pi)) {
+      const childEp = getBoneWorldEndpointsFromBones(bones, childIndex);
+      childTips.set(childIndex, childEp.tip);
+    }
+    const parentEp = getBoneWorldEndpointsFromBones(bones, pi);
+    setBoneFromWorldEndpoints(bones, pi, parentEp.head, jointTarget);
+    changed.add(pi);
+    for (const childIndex of getConnectedChildBoneIndices(bones, pi)) {
+      const childEp = getBoneWorldEndpointsFromBones(bones, childIndex);
+      const nextTip = childTips.get(childIndex) || childEp.tip;
+      setBoneFromWorldEndpoints(bones, childIndex, jointTarget, nextTip);
+      changed.add(childIndex);
+    }
+  };
+
+  if (endpoint === "head") {
+    if (b.parent >= 0 && b.connected) {
+      moveTailJoint(Number(b.parent), target);
+      return [...changed];
+    }
+    const ep = getBoneWorldEndpointsFromBones(bones, bi);
+    setBoneFromWorldEndpoints(bones, bi, target, ep.tip);
+    changed.add(bi);
+    return [...changed];
+  }
+
+  if (endpoint === "tail") {
+    moveTailJoint(bi, target);
+    return [...changed];
+  }
+
+  return [];
+}
+
 function autoWeightMesh(m) {
   const vCount = getVertexCount(m);
   const bones = getRigBones(m);
@@ -881,6 +941,156 @@ function hasCompatibleSlotWeights(slot, m) {
   return !!(md.weights && md.weights.length === vCount * boneCount);
 }
 
+// --- Vertex weight clipboard (copy/paste a vertex's influence vector) ---
+const _vertexWeightClipboard = { values: null, boneCount: 0 };
+
+function getActiveMeshDataForWeights() {
+  const m = state.mesh;
+  if (!m) return null;
+  if (state.slots.length > 0) {
+    const slot = getActiveSlot();
+    if (!slot) return null;
+    const att = getActiveAttachment(slot);
+    if (!att || !att.meshData) return null;
+    return { m, meshData: att.meshData, slot, att };
+  }
+  return { m, meshData: m, slot: null, att: null };
+}
+
+function copyVertexWeightsToClipboard() {
+  const ctx = getActiveMeshDataForWeights();
+  if (!ctx) return { ok: false, reason: "No mesh." };
+  const { m, meshData } = ctx;
+  const boneCount = Array.isArray(m.rigBones) ? m.rigBones.length : 0;
+  const weights = meshData.weights;
+  if (!weights || weights.length === 0 || boneCount <= 0) return { ok: false, reason: "No weights on active mesh." };
+  const vCount = Math.floor(weights.length / boneCount);
+  if (vCount <= 0) return { ok: false, reason: "No vertices." };
+  const selected = getActiveVertexSelection(vCount);
+  if (!Array.isArray(selected) || selected.length === 0) return { ok: false, reason: "Select a vertex first." };
+  const src = selected[0];
+  if (!Number.isFinite(src) || src < 0 || src >= vCount) return { ok: false, reason: "Invalid selected vertex." };
+  const values = new Float32Array(boneCount);
+  for (let b = 0; b < boneCount; b += 1) {
+    values[b] = Number(weights[src * boneCount + b]) || 0;
+  }
+  _vertexWeightClipboard.values = values;
+  _vertexWeightClipboard.boneCount = boneCount;
+  return { ok: true, sourceVertex: src, boneCount };
+}
+
+function pasteVertexWeightsFromClipboard() {
+  const clip = _vertexWeightClipboard;
+  if (!clip.values || clip.boneCount <= 0) return { ok: false, reason: "No copied weights." };
+  const ctx = getActiveMeshDataForWeights();
+  if (!ctx) return { ok: false, reason: "No mesh." };
+  const { m, meshData } = ctx;
+  const boneCount = Array.isArray(m.rigBones) ? m.rigBones.length : 0;
+  if (boneCount !== clip.boneCount) return { ok: false, reason: "Bone count differs from copied weights." };
+  const weights = meshData.weights;
+  if (!weights || weights.length === 0) return { ok: false, reason: "Target mesh has no weights." };
+  const vCount = Math.floor(weights.length / boneCount);
+  const selected = getActiveVertexSelection(vCount);
+  if (!Array.isArray(selected) || selected.length === 0) return { ok: false, reason: "Select target vertex/vertices first." };
+  let pasted = 0;
+  for (const vi of selected) {
+    if (!Number.isFinite(vi) || vi < 0 || vi >= vCount) continue;
+    for (let b = 0; b < boneCount; b += 1) {
+      weights[vi * boneCount + b] = clip.values[b];
+    }
+    pasted += 1;
+  }
+  return { ok: pasted > 0, count: pasted };
+}
+
+// Prune: count or apply removal of bone influences below `threshold` from the
+// active slot's weighted mesh. Below threshold values are zeroed and the row
+// is renormalised. With dryRun=true returns counts without mutating.
+//
+// Returns { ok, reason, threshold, droppedInfluences, affectedVertices,
+//           emptiedBones (bones that have 0 weight everywhere after prune),
+//           boneCount, vCount }.
+function pruneVertexWeights(thresholdRaw, opts = {}) {
+  const dryRun = !!(opts && opts.dryRun);
+  const threshold = Math.max(0, Math.min(0.5, Number(thresholdRaw) || 0));
+  const ctx = getActiveMeshDataForWeights();
+  if (!ctx) return { ok: false, reason: "No active mesh." };
+  const { m, meshData, slot, att } = ctx;
+  const boneCount = Array.isArray(m.rigBones) ? m.rigBones.length : 0;
+  const weights = meshData.weights;
+  if (!weights || weights.length === 0 || boneCount <= 0) {
+    return { ok: false, reason: "Active attachment has no weighted bind." };
+  }
+  const vCount = Math.floor(weights.length / boneCount);
+  if (vCount <= 0) return { ok: false, reason: "No vertices." };
+  // Snapshot before mutation in case caller wants undo on failure.
+  const lockedSet = (typeof getLockedBoneSet === "function") ? getLockedBoneSet() : null;
+  let droppedInfluences = 0;
+  let affectedVertices = 0;
+  // Track which bones become empty everywhere (for influence list trimming).
+  const boneNonZero = new Uint8Array(boneCount);
+  // Work on a copy if dryRun, else in-place.
+  const target = dryRun ? new Float32Array(weights) : weights;
+  for (let v = 0; v < vCount; v += 1) {
+    const base = v * boneCount;
+    let hadDrop = false;
+    for (let b = 0; b < boneCount; b += 1) {
+      const w = Number(target[base + b]) || 0;
+      if (w === 0) continue;
+      // Locked bones are never pruned.
+      if (lockedSet && lockedSet.has(b)) {
+        boneNonZero[b] = 1;
+        continue;
+      }
+      if (w < threshold) {
+        target[base + b] = 0;
+        droppedInfluences += 1;
+        hadDrop = true;
+      } else {
+        boneNonZero[b] = 1;
+      }
+    }
+    if (hadDrop) {
+      affectedVertices += 1;
+      // Renormalise this row (locked bones preserved by helper).
+      if (typeof renormalizeVertexRowWithLocks === "function") {
+        renormalizeVertexRowWithLocks(target, base, boneCount, lockedSet, -1);
+      } else {
+        // Fallback: simple sum-rescale.
+        let sum = 0;
+        for (let b = 0; b < boneCount; b += 1) sum += Number(target[base + b]) || 0;
+        if (sum > 1e-6 && Math.abs(sum - 1) > 1e-5) {
+          const scale = 1 / sum;
+          for (let b = 0; b < boneCount; b += 1) target[base + b] = (Number(target[base + b]) || 0) * scale;
+        }
+      }
+    }
+  }
+  let emptiedBones = 0;
+  const emptiedList = [];
+  for (let b = 0; b < boneCount; b += 1) {
+    if (!boneNonZero[b]) {
+      emptiedBones += 1;
+      emptiedList.push(b);
+    }
+  }
+  // Note: we intentionally don't trim `att.influenceBones` here. Emptied bones
+  // stay in the list with all-zero weight rows; rebuildSlotWeights / save logic
+  // tolerates that, and it preserves the user's binding intent if they re-paint.
+  return {
+    ok: true,
+    threshold,
+    droppedInfluences,
+    affectedVertices,
+    emptiedBones,
+    emptiedList,
+    boneCount,
+    vCount,
+    dryRun,
+    slotIndex: slot ? state.slots.indexOf(slot) : -1,
+  };
+}
+
 function rebuildSlotWeights(slot, m) {
   if (!slot || !m) return;
   ensureSlotMeshData(slot, m);
@@ -1071,6 +1281,189 @@ function syncBindPose(m) {
   const world = computeRigWorldForCurrentSpace(m.rigBones);
   m.bindWorld = world;
   m.invBind = world.map(invert);
+}
+
+// Update Bindings (Spine-equivalent). Re-baselines the rest pose to the current
+// posed appearance: vertex `positions` are baked to where they currently render
+// under the live `poseWorld × invBindOld`, and then `invBind` is refreshed so
+// the new `poseWorld × invBindNew` is identity. Net visual: zero change. Net
+// editability: weights stay the same, but the rest pose is now the current
+// posed rig, so further weight tweaks won't drag the mesh away from its
+// painted-against position.
+//
+// Returns { ok, reason, slotsUpdated, vCountTotal }.
+// Weld: add bone A's weights into bone B, then zero A. The row total is
+// preserved (no renormalisation needed). Locked bones are protected: weld
+// fails if A or B is locked.
+function weldBoneWeights(fromBoneIndex, toBoneIndex) {
+  const fb = Number(fromBoneIndex);
+  const tb = Number(toBoneIndex);
+  if (!Number.isFinite(fb) || !Number.isFinite(tb)) return { ok: false, reason: "Invalid bone index." };
+  if (fb === tb) return { ok: false, reason: "From and To must differ." };
+  const ctx = getActiveMeshDataForWeights();
+  if (!ctx) return { ok: false, reason: "No active mesh." };
+  const { m, meshData, att } = ctx;
+  const boneCount = Array.isArray(m.rigBones) ? m.rigBones.length : 0;
+  if (fb < 0 || fb >= boneCount || tb < 0 || tb >= boneCount) {
+    return { ok: false, reason: "Bone index out of range." };
+  }
+  const lockedSet = (typeof getLockedBoneSet === "function") ? getLockedBoneSet() : null;
+  if (lockedSet && (lockedSet.has(fb) || lockedSet.has(tb))) {
+    return { ok: false, reason: "From or To bone is locked." };
+  }
+  const weights = meshData.weights;
+  if (!weights || weights.length === 0) {
+    return { ok: false, reason: "Active attachment has no weighted bind." };
+  }
+  const vCount = Math.floor(weights.length / boneCount);
+  let merged = 0;
+  for (let v = 0; v < vCount; v += 1) {
+    const base = v * boneCount;
+    const wf = Number(weights[base + fb]) || 0;
+    if (wf <= 0) continue;
+    weights[base + tb] = (Number(weights[base + tb]) || 0) + wf;
+    weights[base + fb] = 0;
+    merged += 1;
+  }
+  // Drop fromBone from influence list if it appears there (it has 0 weight everywhere now).
+  if (att && Array.isArray(att.influenceBones)) {
+    att.influenceBones = att.influenceBones.filter((bi) => Number(bi) !== fb);
+  }
+  return { ok: true, mergedVertices: merged, fromBone: fb, toBone: tb };
+}
+
+// Swap: exchange two bones' weight columns for every vertex. Row totals
+// preserved automatically. Locked bones blocked.
+function swapBoneWeights(boneAIndex, boneBIndex) {
+  const a = Number(boneAIndex);
+  const b = Number(boneBIndex);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return { ok: false, reason: "Invalid bone index." };
+  if (a === b) return { ok: false, reason: "Bones must differ." };
+  const ctx = getActiveMeshDataForWeights();
+  if (!ctx) return { ok: false, reason: "No active mesh." };
+  const { m, meshData } = ctx;
+  const boneCount = Array.isArray(m.rigBones) ? m.rigBones.length : 0;
+  if (a < 0 || a >= boneCount || b < 0 || b >= boneCount) return { ok: false, reason: "Bone index out of range." };
+  const lockedSet = (typeof getLockedBoneSet === "function") ? getLockedBoneSet() : null;
+  if (lockedSet && (lockedSet.has(a) || lockedSet.has(b))) {
+    return { ok: false, reason: "One of the bones is locked." };
+  }
+  const weights = meshData.weights;
+  if (!weights || weights.length === 0) return { ok: false, reason: "Active attachment has no weighted bind." };
+  const vCount = Math.floor(weights.length / boneCount);
+  let touched = 0;
+  for (let v = 0; v < vCount; v += 1) {
+    const base = v * boneCount;
+    const wa = Number(weights[base + a]) || 0;
+    const wb = Number(weights[base + b]) || 0;
+    if (wa === 0 && wb === 0) continue;
+    weights[base + a] = wb;
+    weights[base + b] = wa;
+    touched += 1;
+  }
+  return { ok: true, swappedVertices: touched, boneA: a, boneB: b };
+}
+
+function applyUpdateBindings(opts = {}) {
+  const m = state.mesh;
+  if (!m) return { ok: false, reason: "No mesh." };
+  if (!Array.isArray(m.rigBones) || m.rigBones.length === 0) {
+    return { ok: false, reason: "No bones to bind against." };
+  }
+  // We need the live solved pose (with IK / constraints applied) — that's what
+  // the user sees on canvas right now.
+  const poseWorld = (typeof getSolvedPoseWorld === "function")
+    ? getSolvedPoseWorld(m)
+    : (Array.isArray(m.bindWorld) ? m.bindWorld : null);
+  const invBindOld = (typeof getDisplayInvBind === "function")
+    ? getDisplayInvBind(m)
+    : m.invBind;
+  if (!Array.isArray(poseWorld) || !Array.isArray(invBindOld)) {
+    return { ok: false, reason: "Pose data unavailable." };
+  }
+  const boneCount = m.rigBones.length;
+  const targetSlots = Array.isArray(opts.slots) ? opts.slots : state.slots;
+  let slotsUpdated = 0;
+  let vCountTotal = 0;
+  // Per-bone composite matrix: poseWorld × invBindOld. We need this to map
+  // each vertex's old rest position → its current rendered position.
+  const compose = new Array(boneCount);
+  for (let b = 0; b < boneCount; b += 1) {
+    const pw = poseWorld[b];
+    const ib = invBindOld[b];
+    compose[b] = (pw && ib) ? mul(pw, ib) : null;
+  }
+  for (const slot of targetSlots) {
+    if (!slot) continue;
+    const att = (typeof getActiveAttachment === "function") ? getActiveAttachment(slot) : null;
+    const md = att && att.meshData;
+    if (!md || !md.positions || md.positions.length < 2) continue;
+    const weights = md.weights;
+    const vCount = Math.floor(md.positions.length / 2);
+    if (vCount <= 0) continue;
+    // Skip non-weighted attachments — there's nothing to "rebake" for them
+    // because their position is fixed in mesh-local space already.
+    if (!weights || weights.length === 0 || weights.length !== vCount * boneCount) continue;
+    const newPositions = new Float32Array(vCount * 2);
+    for (let v = 0; v < vCount; v += 1) {
+      const x = Number(md.positions[v * 2]) || 0;
+      const y = Number(md.positions[v * 2 + 1]) || 0;
+      let sx = 0;
+      let sy = 0;
+      let totalW = 0;
+      for (let b = 0; b < boneCount; b += 1) {
+        const w = Number(weights[v * boneCount + b]) || 0;
+        if (w <= 0 || !compose[b]) continue;
+        const skinned = transformPoint(compose[b], x, y);
+        sx += skinned.x * w;
+        sy += skinned.y * w;
+        totalW += w;
+      }
+      if (totalW <= 1e-6) {
+        // Unweighted vertex — keep its old position.
+        newPositions[v * 2] = x;
+        newPositions[v * 2 + 1] = y;
+      } else {
+        newPositions[v * 2] = sx;
+        newPositions[v * 2 + 1] = sy;
+      }
+    }
+    md.positions = newPositions;
+    // Force buildSlotGeometry caches / dependent arrays to recompute.
+    md.deformedScreen = null;
+    md.deformedLocal = null;
+    md.interleaved = null;
+    slotsUpdated += 1;
+    vCountTotal += vCount;
+  }
+  // Now refresh invBind to current pose. After this, poseWorld[b] × invBindNew[b]
+  // is identity, so the mesh shows at its newly-baked positions.
+  // We don't want syncBindPose to re-snap bones to their current rig (they're
+  // already there); we just need invBind = inv(poseWorld).
+  m.bindWorld = poseWorld.map((mat) => mat ? mat.slice(0, 6) : null);
+  m.invBind = poseWorld.map((mat) => mat ? invert(mat) : null);
+  // Mesh-level positions (used when no slots) — same treatment if there are weights.
+  if (m.positions && m.weights && m.weights.length === Math.floor(m.positions.length / 2) * boneCount) {
+    const vCount = Math.floor(m.positions.length / 2);
+    const newP = new Float32Array(vCount * 2);
+    for (let v = 0; v < vCount; v += 1) {
+      const x = Number(m.positions[v * 2]) || 0;
+      const y = Number(m.positions[v * 2 + 1]) || 0;
+      let sx = 0;
+      let sy = 0;
+      let totalW = 0;
+      for (let b = 0; b < boneCount; b += 1) {
+        const w = Number(m.weights[v * boneCount + b]) || 0;
+        if (w <= 0 || !compose[b]) continue;
+        const sk = transformPoint(compose[b], x, y);
+        sx += sk.x * w; sy += sk.y * w; totalW += w;
+      }
+      if (totalW <= 1e-6) { newP[v * 2] = x; newP[v * 2 + 1] = y; }
+      else { newP[v * 2] = sx; newP[v * 2 + 1] = sy; }
+    }
+    m.positions = newP;
+  }
+  return { ok: true, slotsUpdated, vCountTotal, boneCount };
 }
 
 function rebuildMesh() {
@@ -1282,6 +1675,29 @@ function updateBoneSelectors() {
     addOpt.textContent = `${i}: ${b.name}`;
     els.addBoneParent.appendChild(addOpt);
   }
+  // Weld / Swap selects (mesh tab → Weights → Weld). Empty + bone list.
+  if (els.weightWeldFromBone) {
+    const prev = els.weightWeldFromBone.value;
+    els.weightWeldFromBone.innerHTML = "";
+    for (let i = 0; i < bones.length; i += 1) {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = `${i}: ${bones[i].name}`;
+      els.weightWeldFromBone.appendChild(opt);
+    }
+    if (prev) els.weightWeldFromBone.value = prev;
+  }
+  if (els.weightWeldToBone) {
+    const prev = els.weightWeldToBone.value;
+    els.weightWeldToBone.innerHTML = "";
+    for (let i = 0; i < bones.length; i += 1) {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = `${i}: ${bones[i].name}`;
+      els.weightWeldToBone.appendChild(opt);
+    }
+    if (prev) els.weightWeldToBone.value = prev;
+  }
   refreshIKUI();
   refreshTransformUI();
   refreshPathUI();
@@ -1485,8 +1901,14 @@ function commitBoneTreeInlineRename(kind, index, nextRaw, attachmentName) {
     if (slot.activeAttachment === currentAttName) slot.activeAttachment = finalName;
     if (slot.id) {
       for (const skin of ensureSkinSets()) {
-        if (!skin || !skin.slotAttachments) continue;
-        if (skin.slotAttachments[slot.id] === currentAttName) skin.slotAttachments[slot.id] = finalName;
+        if (!skin) continue;
+        if (skin.slotAttachments && skin.slotAttachments[slot.id] === currentAttName) skin.slotAttachments[slot.id] = finalName;
+        const phMap = skin.slotPlaceholderAttachments && skin.slotPlaceholderAttachments[slot.id];
+        if (phMap && typeof phMap === "object") {
+          for (const [ph, val] of Object.entries(phMap)) {
+            if (val === currentAttName) phMap[ph] = finalName;
+          }
+        }
       }
     }
     const anim = getCurrentAnimation();
@@ -1633,7 +2055,8 @@ function renderBoneTree() {
         }${autoWeightTargeted ? " auto-weight-target" : ""
         }${hiddenByBone ? " slot-hidden-by-bone" : ""
         }`;
-      row.style.marginLeft = `${depth * 14 + 16}px`;
+      row.style.setProperty("--tree-row-depth", String(depth));
+      row.style.setProperty("--tree-row-extra", "16");
       row.dataset.slotIndex = String(si);
       row.dataset.slotDraggable = "1";
       row.draggable = true;
@@ -1645,15 +2068,20 @@ function renderBoneTree() {
       eye.title = isSlotEditorVisible(s) ? "Hide slot in editor" : "Show slot in editor";
       eye.textContent = isSlotEditorVisible(s) ? "👁ˢ" : "👁̶ˢ";
       const editing = isBoneTreeInlineRename("slot", si);
+      const slotIcon = document.createElement("span");
+      slotIcon.className = "tree-type-icon tree-type-icon-slot";
+      slotIcon.textContent = "◆";
+      slotIcon.title = "Slot";
       const prefix = document.createElement("span");
       prefix.className = "tree-slot-prefix";
       if (parentBone < 0) {
-        prefix.textContent = isActiveSlot ? "Staged A:" : "Staged:";
+        prefix.textContent = isActiveSlot ? "A" : "·";
       } else {
-        prefix.textContent = isActiveSlot && selectedForBone ? "Slot A/B:" : isActiveSlot ? "Slot A:" : selectedForBone ? "Slot B:" : "Slot:";
+        prefix.textContent = isActiveSlot && selectedForBone ? "A/B" : isActiveSlot ? "A" : selectedForBone ? "B" : "";
       }
       row.appendChild(eye);
-      row.appendChild(prefix);
+      row.appendChild(slotIcon);
+      if (prefix.textContent) row.appendChild(prefix);
       if (editing) {
         const input = makeRenameInput("slot", si, s.name || `slot_${si}`);
         row.appendChild(input);
@@ -1679,6 +2107,25 @@ function renderBoneTree() {
         row.appendChild(attToggle);
       }
 
+      /* --- Hover quick actions on slot row (Spine-style) --- */
+      const slotHoverActions = document.createElement("span");
+      slotHoverActions.className = "tree-row-actions";
+      const addAttBtn = document.createElement("button");
+      addAttBtn.type = "button";
+      addAttBtn.className = "tree-row-action-btn";
+      addAttBtn.dataset.slotAddAttachment = String(si);
+      addAttBtn.textContent = "+";
+      addAttBtn.title = "Add attachment to this slot";
+      slotHoverActions.appendChild(addAttBtn);
+      const renameSlotBtn = document.createElement("button");
+      renameSlotBtn.type = "button";
+      renameSlotBtn.className = "tree-row-action-btn";
+      renameSlotBtn.dataset.slotRename = String(si);
+      renameSlotBtn.textContent = "✎";
+      renameSlotBtn.title = "Rename slot";
+      slotHoverActions.appendChild(renameSlotBtn);
+      row.appendChild(slotHoverActions);
+
       els.boneTree.appendChild(row);
 
       /* --- Attachment child rows --- */
@@ -1686,15 +2133,16 @@ function renderBoneTree() {
       if (!attCollapsed) {
         const slotAttachments = ensureSlotAttachments(s);
         const currentAttName = getSlotCurrentAttachmentName(s);
-        const attDepthPx = depth * 14 + 32;
         const typeMap = { region: "R", mesh: "M", linkedmesh: "LM", boundingbox: "BB", clipping: "CL", point: "PT" };
+        const iconMap = { region: "□", mesh: "◇", linkedmesh: "◈", boundingbox: "▭", clipping: "✂", point: "•" };
         for (let ai = 0; ai < slotAttachments.length; ai += 1) {
           const att = slotAttachments[ai];
           const isActive = att.name === currentAttName;
           const isRenaming = isBoneTreeInlineRename("attachment", si, att.name);
           const attRow = document.createElement("div");
           attRow.className = `tree-item tree-attachment${isActive ? " active-attachment" : ""}`;
-          attRow.style.marginLeft = `${attDepthPx}px`;
+          attRow.style.setProperty("--tree-row-depth", String(depth));
+          attRow.style.setProperty("--tree-row-extra", "32");
           attRow.dataset.slotIndex = String(si);
           attRow.dataset.attachmentName = att.name;
           attRow.dataset.attachmentIndex = String(ai);
@@ -1705,9 +2153,16 @@ function renderBoneTree() {
           dot.className = "att-active-dot";
           attRow.appendChild(dot);
 
+          const attType = normalizeAttachmentType(att.type);
+          const typeIcon = document.createElement("span");
+          typeIcon.className = "tree-type-icon tree-type-icon-attachment";
+          typeIcon.textContent = iconMap[attType] || "□";
+          typeIcon.title = typeMap[attType] || "R";
+          attRow.appendChild(typeIcon);
+
           const typeBadge = document.createElement("span");
           typeBadge.className = "att-type-badge";
-          typeBadge.textContent = typeMap[normalizeAttachmentType(att.type)] || "R";
+          typeBadge.textContent = typeMap[attType] || "R";
           attRow.appendChild(typeBadge);
 
           if (isRenaming) {
@@ -1719,6 +2174,29 @@ function renderBoneTree() {
             attNameSpan.textContent = att.name;
             attRow.appendChild(attNameSpan);
           }
+
+          /* --- Hover quick actions on attachment row (Spine-style) --- */
+          const attHoverActions = document.createElement("span");
+          attHoverActions.className = "tree-row-actions";
+          const renameAttBtn = document.createElement("button");
+          renameAttBtn.type = "button";
+          renameAttBtn.className = "tree-row-action-btn";
+          renameAttBtn.dataset.attRename = String(si);
+          renameAttBtn.dataset.attName = att.name;
+          renameAttBtn.textContent = "✎";
+          renameAttBtn.title = "Rename attachment";
+          attHoverActions.appendChild(renameAttBtn);
+          if (slotAttachments.length > 1) {
+            const delAttBtn = document.createElement("button");
+            delAttBtn.type = "button";
+            delAttBtn.className = "tree-row-action-btn tree-row-action-danger";
+            delAttBtn.dataset.attDelete = String(si);
+            delAttBtn.dataset.attName = att.name;
+            delAttBtn.textContent = "✕";
+            delAttBtn.title = "Delete attachment";
+            attHoverActions.appendChild(delAttBtn);
+          }
+          attRow.appendChild(attHoverActions);
 
           els.boneTree.appendChild(attRow);
         }
@@ -1769,7 +2247,8 @@ function renderBoneTree() {
         }${ikTargetCandidate ? " ik-target-candidate" : ""}${isIK ? " ik-bone" : ""}${isIKTarget ? " ik-target-bone" : ""}${isTFC ? " ik-bone" : ""
         }${isTFCTarget ? " ik-target-bone" : ""}${isPath ? " ik-bone" : ""}${isPathTarget ? " ik-target-bone" : ""}${hiddenWork || hiddenAnim ? " bone-hidden" : ""
         }`;
-      row.style.marginLeft = `${depth * 14}px`;
+      row.style.setProperty("--tree-row-depth", String(depth));
+      row.style.setProperty("--tree-row-extra", "0");
       row.dataset.boneIndex = String(i);
       row.dataset.rootBone = isRootBoneIndex(bones, i) ? "1" : "0";
       const slotCount = (slotsByBone.get(i) || []).length;
@@ -1831,6 +2310,11 @@ function renderBoneTree() {
       const badgeText = `${isIK ? " [IK]" : ""}${isIKTarget ? " [IK-T]" : ""}${isTFC ? " [TC]" : ""}${isTFCTarget ? " [TC-T]" : ""
         }${isPath ? " [PATH]" : ""}${isPathTarget ? " [PATH-T]" : ""}${hiddenWork ? (hiddenWorkSlots ? " [HS]" : " [H]") : ""}${hiddenAnim ? " [AH]" : ""
         }`;
+      const boneIcon = document.createElement("span");
+      boneIcon.className = "tree-type-icon tree-type-icon-bone";
+      boneIcon.textContent = isRootBone ? "★" : "▸";
+      boneIcon.title = isRootBone ? "Root Bone" : "Bone";
+      row.appendChild(boneIcon);
       if (isBoneTreeInlineRename("bone", i)) {
         const input = makeRenameInput("bone", i, b.name || `bone_${i}`);
         row.appendChild(input);
@@ -1843,7 +2327,7 @@ function renderBoneTree() {
       } else {
         const label = document.createElement("span");
         label.className = "tree-bone-name";
-        label.textContent = `Bone: ${b.name}${badgeText}`;
+        label.textContent = `${b.name}${badgeText}`;
         row.appendChild(label);
       }
       const post = document.createElement("span");
@@ -1852,6 +2336,19 @@ function renderBoneTree() {
       if (isRootBone) {
         post.appendChild(workBtn);
         post.appendChild(animBtn);
+      }
+      // Brush bone-lock toggle (visible only while weight brush is active)
+      if (state.weightBrush && state.weightBrush.active) {
+        const isLocked = isBoneLockedForBrush(i);
+        const lockBtn = document.createElement("button");
+        lockBtn.type = "button";
+        lockBtn.className = `tree-bone-lock-toggle${isLocked ? " active" : ""}`;
+        lockBtn.dataset.boneLockToggle = String(i);
+        lockBtn.textContent = isLocked ? "🔒" : "🔓";
+        lockBtn.title = isLocked
+          ? "Brush lock: weights for this bone are protected"
+          : "Click to lock this bone's weights from brush";
+        post.appendChild(lockBtn);
       }
       row.appendChild(post);
 
@@ -1911,6 +2408,11 @@ function updateBoneUI() {
 
   els.boneSelect.value = String(i);
   els.boneName.value = b.name;
+  if (els.boneColor) {
+    const col = typeof b.color === "string" ? b.color.trim() : "";
+    els.boneColor.value = col && /^#?[0-9a-fA-F]{6}$/.test(col) ? (col.startsWith("#") ? col : "#" + col) : "#7dd3fc";
+    els.boneColor.classList.toggle("color-active", !!col);
+  }
   els.boneParent.value = String(b.parent);
   if (els.boneInherit) els.boneInherit.value = normalizeBoneInheritValue(b.inherit);
   if (!els.addBoneParent.value) {
@@ -1960,6 +2462,23 @@ function updateBoneUI() {
   renderTimelineTracks();
   refreshSlotUI();
   renderBoneTree();
+  refreshBoneEditHintBar();
+}
+
+function refreshBoneEditHintBar() {
+  const bar = els.boneEditHintBar;
+  const txt = els.boneEditHintText;
+  if (!bar || !txt) return;
+  const inBoneEdit = state.editMode === "skeleton" && state.boneMode === "edit";
+  if (!inBoneEdit) { bar.hidden = true; return; }
+  bar.hidden = false;
+  const parts = state.selectedBoneParts || [];
+  if (parts.length > 0) {
+    const n = parts.length;
+    txt.textContent = `${n} part${n > 1 ? "s" : ""} selected  |  drag to move  |  Alt+click: add to selection  |  click empty: deselect`;
+  } else {
+    txt.textContent = "Click head/tail to select + drag  |  Alt+click: multi-select  |  drag empty: box-select";
+  }
 }
 
 function resetPose() {
@@ -2025,6 +2544,7 @@ function addBone(opts = null) {
     shy: 0,
     connected,
     poseLenEditable: false,
+    color: "", // Editor-only visualization tint, e.g. "#ff8800" (empty = default)
   });
 
   const idx = bones.length - 1;
@@ -2312,6 +2832,12 @@ function commitRigEditPreserveCurrentLook(m) {
   // without running global auto-weight redistribution.
   syncPoseFromRig(m);
   syncBindPose(m);
+  // While the user is mid-drag, skip rebuildSlotWeights: every pointermove
+  // would re-run autoWeightForPositions (weighted slots), which can shift the
+  // dominant bone and make slots jump around in the bone tree. Defer the
+  // rebuild to the drag-end path (clearDrag). For non-drag callers we still
+  // rebuild as before.
+  if (state.drag) return;
   for (const s of state.slots) {
     if (!s) continue;
     rebuildSlotWeights(s, m);
@@ -2989,7 +3515,7 @@ function refreshAttachmentPanel(s) {
     none.textContent = "(none)";
     els.slotAttachmentLinkedParent.appendChild(none);
     if (s && activeAttachmentEntry) {
-      /* Enumerate ALL slots' mesh/region attachments as candidates.
+      /* Enumerate ALL slots' deformable attachments as candidates.
          Value format: "slotId::attachmentName" for unambiguous cross-slot reference. */
       let currentGroup = null;
       for (const candidateSlot of state.slots || []) {
@@ -3001,7 +3527,7 @@ function refreshAttachmentPanel(s) {
           if (!a) continue;
           if (isSameSlot && a.name === activeAttachmentEntry.name) continue;
           const t = normalizeAttachmentType(a.type);
-          if (t !== "mesh" && t !== "region") continue;
+          if (t !== "mesh" && t !== "linkedmesh") continue;
           if (!groupEl) {
             groupEl = document.createElement("optgroup");
             groupEl.label = groupLabel;
@@ -3036,6 +3562,11 @@ function refreshAttachmentPanel(s) {
     }
     const can = !!(activeAttachmentEntry && normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh");
     els.slotAttachmentLinkedParent.disabled = !can;
+  }
+  if (els.slotAttachmentInheritTimelines) {
+    const can = !!(activeAttachmentEntry && normalizeAttachmentType(activeAttachmentEntry.type) === "linkedmesh");
+    els.slotAttachmentInheritTimelines.checked = !!(activeAttachmentEntry && activeAttachmentEntry.inheritTimelines);
+    els.slotAttachmentInheritTimelines.disabled = !can;
   }
   if (els.slotAttachmentPointX) {
     els.slotAttachmentPointX.value = String(activeAttachmentEntry ? Number(activeAttachmentEntry.pointX) || 0 : 0);
@@ -3301,15 +3832,11 @@ function setRightPropsFocus(mode) {
 function ensureSetupQuickUIElements() {
   if (!els.leftMeshSetup) return;
   const hasAll =
-    !!els.setupAddBoneBtn &&
-    !!els.setupDeleteBoneBtn &&
     !!els.setupHumanoidBoneBtn &&
     !!els.setupHumanoidSourceMode &&
     !!els.setupHumanoidMinScore &&
     !!els.setupHumanoidSmoothing &&
     !!els.setupHumanoidFallback &&
-    !!els.setupBindBoneBtn &&
-    !!els.setupBindWeightedBtn &&
     !!els.setupAutoWeightSingleBtn &&
     !!els.setupAutoWeightMultiBtn &&
     !!els.setupEditWeightsBtn &&
@@ -3385,10 +3912,6 @@ function ensureSetupQuickUIElements() {
     wrap.className = "setup-quick-wrap";
     wrap.innerHTML = `
       <div class="field two-col">
-        <button id="setupAddBoneBtn" type="button">Add Bone</button>
-        <button id="setupDeleteBoneBtn" type="button">Delete Bone</button>
-      </div>
-      <div class="field two-col">
         <button id="setupAutoWeightSingleBtn" type="button">Auto Weight (Single Bone)</button>
         <button id="setupAutoWeightMultiBtn" type="button">Auto Weight (Multi Bone)</button>
       </div>
@@ -3396,55 +3919,50 @@ function ensureSetupQuickUIElements() {
         <button id="setupEditWeightsBtn" type="button">Edit Weights (Vertex)</button>
       </div>
       <p id="setupAutoWeightSelectionSummary" class="muted"></p>
-      <section id="setupHumanoidRigSection" class="setup-subsection">
-        <h4>Humanoid Auto Rig / Bind</h4>
-        <div class="field">
-          <button id="setupHumanoidBoneBtn" type="button" title="Auto-generate humanoid parent-child rig">humanoid bone</button>
-        </div>
-        <div id="setupHumanoidOptions" class="field">
-          <div class="field two-col">
-            <label>
-              <span>Pose Source</span>
-              <select id="setupHumanoidSourceMode">
-                <option value="auto" selected>Auto</option>
-                <option value="project">Project Image</option>
-                <option value="active_slot">Active Slot</option>
-              </select>
+      <details id="setupHumanoidRigSection" class="panel-section setup-subsection" open>
+        <summary class="panel-section-head">
+          <span class="panel-section-title">Humanoid Auto Rig</span>
+        </summary>
+        <div class="panel-section-body">
+          <div class="field">
+            <button id="setupHumanoidBoneBtn" type="button" title="Auto-generate humanoid parent-child rig">Auto Rig Humanoid</button>
+          </div>
+          <div id="setupHumanoidOptions" class="field">
+            <div class="field two-col">
+              <label>
+                <span>Pose Source</span>
+                <select id="setupHumanoidSourceMode">
+                  <option value="auto" selected>Auto</option>
+                  <option value="project">Project Image</option>
+                  <option value="active_slot">Active Slot</option>
+                </select>
+              </label>
+              <label>
+                <span>Min Score</span>
+                <input id="setupHumanoidMinScore" type="number" min="0.05" max="0.95" step="0.05" value="0.20" />
+              </label>
+            </div>
+            <label class="slot-inline-check">
+              <input id="setupHumanoidSmoothing" type="checkbox" checked />
+              <span>Detector Smoothing</span>
             </label>
-            <label>
-              <span>Min Score</span>
-              <input id="setupHumanoidMinScore" type="number" min="0.05" max="0.95" step="0.05" value="0.20" />
+            <label class="slot-inline-check">
+              <input id="setupHumanoidFallback" type="checkbox" checked />
+              <span>Allow Missing-Point Fallback</span>
             </label>
           </div>
-          <label class="slot-inline-check">
-            <input id="setupHumanoidSmoothing" type="checkbox" checked />
-            <span>Detector Smoothing</span>
-          </label>
-          <label class="slot-inline-check">
-            <input id="setupHumanoidFallback" type="checkbox" checked />
-            <span>Allow Missing-Point Fallback</span>
-          </label>
         </div>
-        <div class="field two-col">
-          <button id="setupBindBoneBtn" type="button">Bind Slot -> Selected Bone</button>
-          <button id="setupBindWeightedBtn" type="button">Bind Slot -> Selected Bones</button>
-        </div>
-      </section>
-      <p class="muted">Setup quick actions: add/edit bones and apply auto weight.</p>
+      </details>
     `;
     const remesh = els.remeshBtn && els.remeshBtn.parentElement === els.leftMeshSetup ? els.remeshBtn : null;
     if (remesh && remesh.nextSibling) els.leftMeshSetup.insertBefore(wrap, remesh.nextSibling);
     else els.leftMeshSetup.appendChild(wrap);
   }
-  els.setupAddBoneBtn = document.getElementById("setupAddBoneBtn");
-  els.setupDeleteBoneBtn = document.getElementById("setupDeleteBoneBtn");
   els.setupHumanoidBoneBtn = document.getElementById("setupHumanoidBoneBtn");
   els.setupHumanoidSourceMode = document.getElementById("setupHumanoidSourceMode");
   els.setupHumanoidMinScore = document.getElementById("setupHumanoidMinScore");
   els.setupHumanoidSmoothing = document.getElementById("setupHumanoidSmoothing");
   els.setupHumanoidFallback = document.getElementById("setupHumanoidFallback");
-  els.setupBindBoneBtn = document.getElementById("setupBindBoneBtn");
-  els.setupBindWeightedBtn = document.getElementById("setupBindWeightedBtn");
   els.setupAutoWeightSingleBtn = document.getElementById("setupAutoWeightSingleBtn");
   els.setupAutoWeightMultiBtn = document.getElementById("setupAutoWeightMultiBtn");
   els.setupEditWeightsBtn = document.getElementById("setupEditWeightsBtn");
@@ -3462,13 +3980,6 @@ function refreshSetupQuickActions() {
   const bindSelection = hasMesh ? getBindSelectionState(state.mesh) : { slotIndices: [], boneIndices: [], primaryBone: -1, slotPreview: "(none)", bonePreview: "(slot default)" };
   const selectedBones = bindSelection.boneIndices;
   const selectedSlots = bindSelection.slotIndices;
-  const canBindSingle = hasMesh && editMode && selectedSlots.length > 0 && bindSelection.primaryBone >= 0;
-  const canBindWeighted = hasMesh && editMode && selectedSlots.length > 0 && selectedBones.length > 0;
-  if (els.setupAddBoneBtn) {
-    els.setupAddBoneBtn.disabled = !hasMesh || !editMode;
-    els.setupAddBoneBtn.textContent = state.addBoneArmed ? "Cancel Add" : "Add Bone";
-  }
-  if (els.setupDeleteBoneBtn) els.setupDeleteBoneBtn.disabled = !hasMesh || !editMode;
   if (els.setupHumanoidBoneBtn) {
     const ready = hasMesh && editMode;
     els.setupHumanoidBoneBtn.disabled = false;
@@ -3480,18 +3991,6 @@ function refreshSetupQuickActions() {
   if (els.setupHumanoidMinScore) els.setupHumanoidMinScore.disabled = false;
   if (els.setupHumanoidSmoothing) els.setupHumanoidSmoothing.disabled = false;
   if (els.setupHumanoidFallback) els.setupHumanoidFallback.disabled = false;
-  if (els.setupBindBoneBtn) {
-    els.setupBindBoneBtn.disabled = !canBindSingle;
-    els.setupBindBoneBtn.textContent =
-      selectedSlots.length > 1 ? `Bind ${selectedSlots.length} Slot(s) -> Bone` : "Bind Slot -> Selected Bone";
-  }
-  if (els.setupBindWeightedBtn) {
-    els.setupBindWeightedBtn.disabled = !canBindWeighted;
-    els.setupBindWeightedBtn.textContent =
-      selectedSlots.length > 1 || selectedBones.length > 1
-        ? `Bind ${selectedSlots.length} Slot(s) -> ${selectedBones.length} Bone(s)`
-        : "Bind Slot -> Selected Bones";
-  }
   if (els.setupAutoWeightSingleBtn) {
     const singleOn = (state.weightMode || "hard") === "hard";
     els.setupAutoWeightSingleBtn.disabled = !hasMesh || !editMode;
@@ -3532,7 +4031,7 @@ function updateWorkspaceUI() {
     page = "rig";
     state.uiPage = page;
   }
-  if (page === "slot" && !canBuildPages) {
+  if (page === "slot" && !canBuildPages && state.editMode !== "mesh") {
     page = "rig";
     state.uiPage = page;
   }
@@ -3700,6 +4199,7 @@ function updateWorkspaceUI() {
   refreshVertexDeformUI();
   refreshWebGLSupportUI();
   refreshSlotMeshToolModeUI();
+  refreshSlotMeshEditTargetUI();
   refreshCanvasInteractionAffordance();
   refreshSetupQuickActions();
   if (isSlotMeshEditTabActive()) {
@@ -3734,6 +4234,13 @@ function setWorkspacePage(page) {
   } else if (state.editMode === "mesh") {
     state.editMode = "skeleton";
     if (state.leftToolTab === "slotmesh" || state.leftToolTab === "canvas") setLeftToolTab("setup");
+    if (systemMode === "setup") {
+      state.boneMode = "edit";
+      if (els.boneMode) els.boneMode.value = "edit";
+    }
+  } else if (next === "rig" && systemMode === "setup") {
+    state.boneMode = "edit";
+    if (els.boneMode) els.boneMode.value = "edit";
   }
   if (els.editMode) els.editMode.value = state.editMode;
   state.workspaceMode = state.editMode === "mesh" ? "slotmesh" : "rig";

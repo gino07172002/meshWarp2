@@ -165,6 +165,12 @@ function render(ts = 0) {
   const wantsOnion = shouldRenderOnionSkin();
   const hasBaseReference = shouldRenderBaseImageReference() && state.slots.length === 0;
 
+  // Skip GPU draw while the context is lost; the lost handler will requestRender once restored.
+  // TODO: proper restore path needs to rebuild program/vbo/ibo/vao from runtime.js.
+  if (hasGL && gl.isContextLost && gl.isContextLost()) {
+    return;
+  }
+
   if (hasGL && !hasClipSlot && !hasBaseReference) {
     state.overlayScene.enabled = false;
     if (wantsOnion) {
@@ -209,6 +215,23 @@ function render(ts = 0) {
             math.clamp(Number(slot.g) || 1, 0, 1),
             math.clamp(Number(slot.b) || 1, 0, 1)
           );
+        }
+        if (loc.uDark) {
+          // Dark color is enabled per slot. Hex format "rrggbb"; default "000000".
+          let dr = 0, dg = 0, db = 0;
+          if (slot.darkEnabled) {
+            const hex = String(slot.dark || "000000").trim().toLowerCase();
+            const norm = hex.startsWith("#") ? hex.slice(1) : hex;
+            if (norm.length >= 6) {
+              dr = parseInt(norm.slice(0, 2), 16) / 255;
+              dg = parseInt(norm.slice(2, 4), 16) / 255;
+              db = parseInt(norm.slice(4, 6), 16) / 255;
+              if (!Number.isFinite(dr)) dr = 0;
+              if (!Number.isFinite(dg)) dg = 0;
+              if (!Number.isFinite(db)) db = 0;
+            }
+          }
+          gl.uniform3f(loc.uDark, dr, dg, db);
         }
         gl.drawElements(gl.TRIANGLES, drawIndices.length, gl.UNSIGNED_SHORT, 0);
       }

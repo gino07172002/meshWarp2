@@ -106,7 +106,8 @@ function setupAnimateSubTabs() {
       updateWorkspaceUI();
       renderTimelineTracks();
       if ((panel === "layers" || panel === "state") && els.leftTools) {
-        els.leftTools.scrollTop = 0;
+        const scrollHost = els.leftTools.querySelector(".dock-panel-body") || els.leftTools;
+        scrollHost.scrollTop = 0;
       }
     });
   };
@@ -125,14 +126,15 @@ function setupAnimateSubTabs() {
 
 function mountAnimateAuxPanelsInLeftTools() {
   if (!els.leftTools) return;
-  const anchor = els.leftToolTabs || els.leftMeshSetup || null;
-  if (els.stateDock && els.stateDock.parentElement !== els.leftTools) {
-    if (anchor) els.leftTools.insertBefore(els.stateDock, anchor);
-    else els.leftTools.appendChild(els.stateDock);
+  const host = els.leftTools.querySelector(".dock-panel-body") || els.leftTools;
+  const anchor = host.querySelector("#leftToolTabs") || host.querySelector("#leftMeshSetup") || null;
+  if (els.stateDock && els.stateDock.parentElement !== host) {
+    if (anchor) host.insertBefore(els.stateDock, anchor);
+    else host.appendChild(els.stateDock);
   }
-  if (els.layerDock && els.layerDock.parentElement !== els.leftTools) {
-    if (anchor) els.leftTools.insertBefore(els.layerDock, anchor);
-    else els.leftTools.appendChild(els.layerDock);
+  if (els.layerDock && els.layerDock.parentElement !== host) {
+    if (anchor) host.insertBefore(els.layerDock, anchor);
+    else host.appendChild(els.layerDock);
   }
 }
 
@@ -145,10 +147,9 @@ function setActiveSlot(index, options = null) {
   setRightPropsFocus("slot");
   ensureSlotContour(slot);
   state.slotMesh.activePoint = -1;
-  state.slotMesh.activeSet = "contour";
   state.slotMesh.edgeSelection = [];
-  state.slotMesh.edgeSelectionSet = "contour";
   clearSlotMeshSelection();
+  setSlotMeshEditTarget("boundary", false);
   setSlotMeshToolMode("select", false);
   syncSourceCanvasToActiveAttachment(slot);
   refreshSlotUI();
@@ -185,10 +186,9 @@ function clearActiveSlotSelection(options = null) {
   state.treeSlotLastClickIndex = -1;
   state.treeSlotLastClickTs = 0;
   state.slotMesh.activePoint = -1;
-  state.slotMesh.activeSet = "contour";
   state.slotMesh.edgeSelection = [];
-  state.slotMesh.edgeSelectionSet = "contour";
   clearSlotMeshSelection();
+  setSlotMeshEditTarget("boundary", false);
   if (opts.clearSourceCanvas) state.sourceCanvas = null;
   if (state.selectedBone >= 0) setRightPropsFocus("bone");
   refreshSlotUI();
@@ -290,6 +290,7 @@ function addSlotEntry(entry, activate = true) {
           canvas: a && a.canvas ? normalizeSlotCanvas(a.canvas, Math.max(1, rect.w), Math.max(1, rect.h)) : canvas,
           type: normalizeAttachmentType(a && a.type),
           linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
+          inheritTimelines: !!(a && a.inheritTimelines),
           pointX: Number(a && a.pointX) || 0,
           pointY: Number(a && a.pointY) || 0,
           pointRot: Number(a && a.pointRot) || 0,
@@ -666,6 +667,7 @@ function duplicateActiveSlotQuick() {
       canvas: getClonedCanvas(a && a.canvas) || sourceCanvasClone,
       type: normalizeAttachmentType(a && a.type),
       linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
+      inheritTimelines: !!(a && a.inheritTimelines),
       pointX: Number(a && a.pointX) || 0,
       pointY: Number(a && a.pointY) || 0,
       pointRot: Number(a && a.pointRot) || 0,
@@ -1010,6 +1012,25 @@ function refreshBoneTreeContextMenuUI() {
   if (els.treeCtxAttachmentDeleteBtn) {
     els.treeCtxAttachmentDeleteBtn.disabled = !active || ensureSlotAttachments(active).length <= 1 || !getSlotCurrentAttachmentName(active);
     els.treeCtxAttachmentDeleteBtn.hidden = !isAttachmentCtx;
+  }
+  if (els.treeCtxAttachmentRenameBtn) {
+    els.treeCtxAttachmentRenameBtn.disabled = !active || !getSlotCurrentAttachmentName(active);
+    els.treeCtxAttachmentRenameBtn.hidden = !isAttachmentCtx;
+  }
+  if (els.treeCtxAttachmentSetActiveBtn) {
+    els.treeCtxAttachmentSetActiveBtn.disabled = !active || !getSlotCurrentAttachmentName(active);
+    els.treeCtxAttachmentSetActiveBtn.hidden = !isAttachmentCtx;
+  }
+  if (els.treeCtxAttachmentCopyToSlotBtn) {
+    els.treeCtxAttachmentCopyToSlotBtn.disabled = !active || !getSlotCurrentAttachmentName(active) || state.slots.filter(Boolean).length < 2;
+    els.treeCtxAttachmentCopyToSlotBtn.hidden = !isAttachmentCtx;
+  }
+  if (els.treeCtxAttachmentLoadImageBtn) {
+    const attForLoad = active ? getActiveAttachment(active) : null;
+    const attTypeForLoad = attForLoad ? normalizeAttachmentType(attForLoad.type) : "";
+    const canLoadImg = attTypeForLoad === "region" || attTypeForLoad === "mesh";
+    els.treeCtxAttachmentLoadImageBtn.disabled = !canLoadImg;
+    els.treeCtxAttachmentLoadImageBtn.hidden = !isAttachmentCtx;
   }
   if (els.treeCtxSlotLoadImageBtn) {
     els.treeCtxSlotLoadImageBtn.disabled = !active;
@@ -1368,6 +1389,7 @@ function normalizeSlotAttachmentRecord(slot, a, fallbackName, fallbackPlaceholde
     type,
     canvas: rec.canvas || fallbackCanvas || null,
     linkedParent: rec && rec.linkedParent != null ? String(rec.linkedParent) : "",
+    inheritTimelines: !!(rec && rec.inheritTimelines),
     pointX: Number(rec && rec.pointX) || 0,
     pointY: Number(rec && rec.pointY) || 0,
     pointRot: Number(rec && rec.pointRot) || 0,
@@ -1601,6 +1623,7 @@ function addContourSlotFromActiveSlot(sourceSlot) {
           canvas: a && a.canvas ? a.canvas : sourceCanvas,
           type: normalizeAttachmentType(a && a.type),
           linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
+          inheritTimelines: !!(a && a.inheritTimelines),
           pointX: Number(a && a.pointX) || 0,
           pointY: Number(a && a.pointY) || 0,
           pointRot: Number(a && a.pointRot) || 0,

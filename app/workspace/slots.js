@@ -234,7 +234,7 @@ function linkSelectedSlotMeshEdge(shouldLink) {
   const slot = getActiveSlot();
   if (!slot) return false;
   const contour = ensureSlotContour(slot);
-  const activeSet = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
+  const activeSet = getSlotMeshEditSetName();
   const activePoints = activeSet === "fill" ? contour.fillPoints : contour.points;
   const activeEdges = activeSet === "fill" ? contour.fillManualEdges : contour.manualEdges;
 
@@ -418,6 +418,75 @@ function markSlotContourDirty(slot, dirty = true) {
   if (dirty) contour.fillFromMeshData = false;
 }
 
+function buildSlotMeshDefaultContourPoints(slot, meshData = null) {
+  const att = getActiveAttachment(slot);
+  const rect = (att && att.rect) || (slot && slot.rect) || null;
+  if (rect) {
+    const x = Number(rect.x) || 0;
+    const y = Number(rect.y) || 0;
+    const w = Math.max(1, Number(rect.w) || 1);
+    const h = Math.max(1, Number(rect.h) || 1);
+    return [
+      { x, y },
+      { x: x + w, y },
+      { x: x + w, y: y + h },
+      { x, y: y + h },
+    ];
+  }
+  const positions = meshData && meshData.positions;
+  if (positions && positions.length >= 6) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i + 1 < positions.length; i += 2) {
+      const x = Number(positions[i]);
+      const y = Number(positions[i + 1]);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+    if (Number.isFinite(minX) && Number.isFinite(minY) && maxX > minX && maxY > minY) {
+      return [
+        { x: minX, y: minY },
+        { x: maxX, y: minY },
+        { x: maxX, y: maxY },
+        { x: minX, y: maxY },
+      ];
+    }
+  }
+  const w = Math.max(1, Number(state.imageWidth) || 64);
+  const h = Math.max(1, Number(state.imageHeight) || 64);
+  return [
+    { x: 0, y: 0 },
+    { x: w, y: 0 },
+    { x: w, y: h },
+    { x: 0, y: h },
+  ];
+}
+
+function buildClosedContourEdges(pointCount) {
+  const count = Math.max(0, Math.floor(Number(pointCount) || 0));
+  if (count < 2) return [];
+  const edges = [];
+  for (let i = 0; i + 1 < count; i += 1) edges.push([i, i + 1]);
+  if (count >= 3) edges.push([count - 1, 0]);
+  return edges;
+}
+
+function seedSlotContourBounds(contour, points) {
+  if (!contour || !Array.isArray(points)) return;
+  contour.points = points.map((p) => ({ x: Number(p && p.x) || 0, y: Number(p && p.y) || 0 }));
+  contour.closed = contour.points.length >= 3;
+  contour.contourEdges = buildClosedContourEdges(contour.points.length);
+  contour.manualEdges = [];
+  contour.triangles = [];
+  contour.authorContourPoints = cloneSlotMeshPoints(contour.points);
+  contour.sourcePoints = cloneSlotMeshPoints(contour.authorContourPoints);
+}
+
 // ============================================================
 // SECTION: Mesh / FFD — Contour, Triangulation, Vertex Deform
 // syncSlotContourFromMeshData: keeps slot contour in sync with mesh.
@@ -459,18 +528,20 @@ function syncSlotContourFromMeshData(slot, force = false) {
   contour.fillFromMeshData = true;
   contour.dirty = false;
   if (!Array.isArray(contour.points) || contour.points.length < 3) {
-    contour.points = cloneSlotMeshPoints(contour.fillPoints);
-    contour.closed = contour.points.length >= 3;
-    syncSlotContourSourcePoints(contour);
+    seedSlotContourBounds(contour, buildSlotMeshDefaultContourPoints(slot, sm));
+  } else if (!Array.isArray(contour.contourEdges) || contour.contourEdges.length === 0) {
+    contour.contourEdges = buildClosedContourEdges(contour.points.length);
   }
   if (isSlotMeshEditTabActive()) {
-    state.slotMesh.activeSet = "fill";
-    state.slotMesh.activePoint = contour.fillPoints.length > 0 ? math.clamp(Number(state.slotMesh.activePoint) || 0, 0, contour.fillPoints.length - 1) : -1;
-    state.slotMesh.edgeSelectionSet = "fill";
-    const sel = getSlotMeshSelection("fill", contour.fillPoints.length);
-    if (sel.length <= 0 && contour.fillPoints.length > 0) {
-      state.slotMesh.edgeSelection = [0];
-      setSlotMeshSelection("fill", [0], contour.fillPoints.length);
+    const setName = getSlotMeshEditSetName();
+    const points = setName === "fill" ? contour.fillPoints : contour.points;
+    state.slotMesh.activeSet = setName;
+    state.slotMesh.activePoint = points.length > 0 ? math.clamp(Number(state.slotMesh.activePoint) || 0, 0, points.length - 1) : -1;
+    state.slotMesh.edgeSelectionSet = setName;
+    const sel = getSlotMeshSelection(setName, points.length);
+    if (sel.length <= 0 && points.length > 0) {
+      state.slotMesh.edgeSelection = [state.slotMesh.activePoint];
+      setSlotMeshSelection(setName, [state.slotMesh.activePoint], points.length);
     }
   }
   return true;
@@ -1361,9 +1432,11 @@ function mapImagePolygonToSlotSpace(slot, points, imageW, imageH) {
   }));
 }
 
-function buildAutoForegroundContourForSlot(slot, colsHint, rowsHint) {
+function buildAutoForegroundContourForSlot(slot, colsHint, rowsHint, opts = {}) {
   if (!slot || !(getActiveAttachment(slot) || {}).canvas) return null;
-  const alphaMask = getCanvasAlphaMask((getActiveAttachment(slot) || {}).canvas, 8);
+  const alphaThreshold = math.clamp(Number(opts.alphaThreshold), 0, 254);
+  const alpha = Number.isFinite(alphaThreshold) ? alphaThreshold : 8;
+  const alphaMask = getCanvasAlphaMask((getActiveAttachment(slot) || {}).canvas, alpha);
   if (!alphaMask) return null;
   const comp = pickForegroundComponent(alphaMask);
   if (!comp || !Array.isArray(comp.pixels) || comp.pixels.length < 3) return null;
@@ -1371,8 +1444,11 @@ function buildAutoForegroundContourForSlot(slot, colsHint, rowsHint) {
   for (const idx of comp.pixels) {
     if (Number.isFinite(idx) && idx >= 0 && idx < selectedMask.length) selectedMask[idx] = 1;
   }
-  // Slight outward dilation to avoid clipping into opaque foreground edges.
-  const safeMask = dilateBinaryMask(selectedMask, alphaMask.width, alphaMask.height, 1);
+  const paddingRaw = Number(opts.padding);
+  const padding = Number.isFinite(paddingRaw) ? math.clamp(Math.round(paddingRaw), 0, 32) : 1;
+  const safeMask = padding > 0
+    ? dilateBinaryMask(selectedMask, alphaMask.width, alphaMask.height, padding)
+    : selectedMask;
   const loops = buildMaskBoundaryLoops(safeMask, alphaMask.width, alphaMask.height);
   if (!Array.isArray(loops) || loops.length === 0) return null;
   let bestLoop = loops[0];
@@ -1384,7 +1460,10 @@ function buildAutoForegroundContourForSlot(slot, colsHint, rowsHint) {
       bestLoop = loops[i];
     }
   }
-  const contourMaxPoints = math.clamp(((Number(colsHint) || 24) + (Number(rowsHint) || 24)) * 4, 24, 600);
+  const detailMultRaw = Number(opts.detail);
+  const detailMult = Number.isFinite(detailMultRaw) ? math.clamp(detailMultRaw, 0.25, 4) : 1;
+  const baseMax = ((Number(colsHint) || 24) + (Number(rowsHint) || 24)) * 4;
+  const contourMaxPoints = math.clamp(Math.round(baseMax * detailMult), 12, 2000);
   const simplified = simplifyClosedPolygon(bestLoop, contourMaxPoints);
   if (!Array.isArray(simplified) || simplified.length < 3) return null;
   const contourPoints = mapImagePolygonToSlotSpace(slot, simplified, alphaMask.width, alphaMask.height);
@@ -1395,9 +1474,9 @@ function buildAutoForegroundContourForSlot(slot, colsHint, rowsHint) {
   };
 }
 
-function autoBuildForegroundMeshForSlot(slot, colsHint, rowsHint) {
+function autoBuildForegroundMeshForSlot(slot, colsHint, rowsHint, opts = {}) {
   if (!slot) return { ok: false, reason: "No active slot." };
-  const auto = buildAutoForegroundContourForSlot(slot, colsHint, rowsHint);
+  const auto = buildAutoForegroundContourForSlot(slot, colsHint, rowsHint, opts);
   if (!auto || !Array.isArray(auto.contourPoints) || auto.contourPoints.length < 3) {
     return { ok: false, reason: "No opaque foreground region found." };
   }
@@ -1421,7 +1500,7 @@ function autoBuildForegroundMeshForSlot(slot, colsHint, rowsHint) {
     c.fillTriangles = [];
     c.triangles = applyManualEdgesToTriangles(c.points, triangulatePolygon(c.points), c.manualEdges);
   }
-  state.slotMesh.activeSet = c.fillPoints.length >= 3 ? "fill" : "contour";
+  setSlotMeshEditTarget(c.fillPoints.length >= 3 ? "grid" : "boundary", false);
   state.slotMesh.activePoint = -1;
   state.slotMesh.edgeSelection = [];
   state.slotMesh.edgeSelectionSet = state.slotMesh.activeSet;
@@ -1457,6 +1536,18 @@ function removePointAtIndex(points, index) {
 
 function getSlotMeshSetKey(setName) {
   return setName === "fill" ? "fill" : "contour";
+}
+
+function normalizeSlotMeshEditTarget(target) {
+  return String(target || "").toLowerCase() === "grid" ? "grid" : "boundary";
+}
+
+function getSlotMeshEditSetName(target = state.slotMesh && state.slotMesh.editTarget) {
+  return normalizeSlotMeshEditTarget(target) === "grid" ? "fill" : "contour";
+}
+
+function getSlotMeshEditTargetLabel(target = state.slotMesh && state.slotMesh.editTarget) {
+  return normalizeSlotMeshEditTarget(target) === "grid" ? "Grid" : "Boundary";
 }
 
 function getSlotMeshSelection(setName, maxCount = null) {
@@ -1558,6 +1649,69 @@ function refreshSlotMeshToolModeUI() {
   }
 }
 
+function refreshSlotMeshEditTargetUI() {
+  if (!state.slotMesh) return;
+  const target = normalizeSlotMeshEditTarget(state.slotMesh.editTarget);
+  state.slotMesh.editTarget = target;
+  const isGrid = target === "grid";
+  if (els.slotMeshBoundaryEditBtn) {
+    els.slotMeshBoundaryEditBtn.classList.toggle("active", !isGrid);
+    els.slotMeshBoundaryEditBtn.setAttribute("aria-pressed", isGrid ? "false" : "true");
+  }
+  if (els.slotMeshGridEditBtn) {
+    els.slotMeshGridEditBtn.classList.toggle("active", isGrid);
+    els.slotMeshGridEditBtn.setAttribute("aria-pressed", isGrid ? "true" : "false");
+  }
+  if (els.slotMeshEditTargetHint) {
+    els.slotMeshEditTargetHint.textContent = isGrid
+      ? "Editing: Grid vertices (drag/delete internal mesh points)"
+      : "Editing: Boundary vertices (outline/add contour points)";
+  }
+}
+
+function setSlotMeshEditTarget(target, withStatus = false) {
+  if (!state.slotMesh) return;
+  const prevTarget = normalizeSlotMeshEditTarget(state.slotMesh.editTarget);
+  const prevToolMode = normalizeSlotMeshToolMode(state.slotMesh.toolMode);
+  const next = normalizeSlotMeshEditTarget(target);
+  state.slotMesh.editTarget = next;
+  if (prevToolMode !== "add") {
+    state.slotMesh.toolRestoreTarget = next;
+  }
+  if (next === "grid" && normalizeSlotMeshToolMode(state.slotMesh.toolMode) === "add") {
+    state.slotMesh.toolMode = "select";
+  }
+  const setName = getSlotMeshEditSetName(next);
+  state.slotMesh.activeSet = setName;
+  state.slotMesh.edgeSelectionSet = setName;
+  const slot = getActiveSlot();
+  const contour = slot ? ensureSlotContour(slot) : null;
+  if (slot) {
+    const points = setName === "fill" ? contour.fillPoints : contour.points;
+    state.slotMesh.activePoint = Array.isArray(points) && points.length > 0
+      ? math.clamp(Number(state.slotMesh.activePoint) || 0, 0, points.length - 1)
+      : -1;
+  }
+  const contourCount = slot ? ((contour && contour.points && contour.points.length) || 0) : 0;
+  const fillCount = slot ? ((contour && contour.fillPoints && contour.fillPoints.length) || 0) : 0;
+  pushMeshDebugEvent("slot_mesh_edit_target", {
+    slotIndex: Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1,
+    previousTarget: prevTarget,
+    nextTarget: next,
+    previousToolMode: prevToolMode,
+    nextToolMode: normalizeSlotMeshToolMode(state.slotMesh.toolMode),
+    activeSet: state.slotMesh.activeSet,
+    activePoint: Number.isFinite(Number(state.slotMesh.activePoint)) ? Number(state.slotMesh.activePoint) : -1,
+    contourCount,
+    fillCount,
+  });
+  refreshSlotMeshToolModeUI();
+  refreshSlotMeshEditTargetUI();
+  if (withStatus) {
+    setStatus(`${getSlotMeshEditTargetLabel(next)} edit mode.`);
+  }
+}
+
 function refreshSlotMeshContourReferenceHint() {
   if (!els.slotMeshContourRefHint) return;
   const slot = getActiveSlot();
@@ -1572,8 +1726,27 @@ function refreshSlotMeshContourReferenceHint() {
 
 function setSlotMeshToolMode(mode, withStatus = false) {
   if (!state.slotMesh) return;
+  const prevMode = normalizeSlotMeshToolMode(state.slotMesh.toolMode);
+  const prevTarget = normalizeSlotMeshEditTarget(state.slotMesh.editTarget);
   const next = normalizeSlotMeshToolMode(mode);
   state.slotMesh.toolMode = next;
+  if (next === "add") {
+    state.slotMesh.toolRestoreTarget = prevTarget;
+    setSlotMeshEditTarget("boundary", false);
+  } else if (prevMode === "add" && next === "select") {
+    const restoreTarget = normalizeSlotMeshEditTarget(state.slotMesh.toolRestoreTarget || prevTarget);
+    setSlotMeshEditTarget(restoreTarget, false);
+  } else {
+    state.slotMesh.toolRestoreTarget = normalizeSlotMeshEditTarget(state.slotMesh.editTarget);
+  }
+  pushMeshDebugEvent("slot_mesh_tool_mode", {
+    slotIndex: Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1,
+    previousMode: prevMode,
+    nextMode: next,
+    previousTarget: prevTarget,
+    nextTarget: normalizeSlotMeshEditTarget(state.slotMesh.editTarget),
+    restoreTarget: normalizeSlotMeshEditTarget(state.slotMesh.toolRestoreTarget),
+  });
   refreshSlotMeshToolModeUI();
   if (withStatus) {
     setStatus(next === "add" ? "Slot Mesh tool: Add Vertex mode." : "Slot Mesh tool: Select mode.");
@@ -1692,6 +1865,33 @@ function applyContourMeshToSlot(slot) {
   return true;
 }
 
+function applyLiveGridPointsToSlotMesh(slot) {
+  if (!slot) return false;
+  const att = getActiveAttachment(slot);
+  const meshData = att && att.meshData;
+  if (!meshData || !meshData.positions || !meshData.uvs) return false;
+  const contour = ensureSlotContour(slot);
+  if (!Array.isArray(contour.fillPoints) || contour.fillPoints.length <= 0) return false;
+  const pointCount = Math.floor((Number(meshData.positions.length) || 0) / 2);
+  if (pointCount !== contour.fillPoints.length) return false;
+  if (meshData.uvs.length !== pointCount * 2) return false;
+  for (let i = 0; i < pointCount; i += 1) {
+    const p = contour.fillPoints[i];
+    meshData.positions[i * 2] = Number(p && p.x) || 0;
+    meshData.positions[i * 2 + 1] = Number(p && p.y) || 0;
+  }
+  if (!meshData.deformedLocal || meshData.deformedLocal.length !== pointCount * 2) {
+    meshData.deformedLocal = new Float32Array(pointCount * 2);
+  }
+  if (!meshData.deformedScreen || meshData.deformedScreen.length !== pointCount * 2) {
+    meshData.deformedScreen = new Float32Array(pointCount * 2);
+  }
+  if (!meshData.interleaved || meshData.interleaved.length !== pointCount * 4) {
+    meshData.interleaved = new Float32Array(pointCount * 4);
+  }
+  return true;
+}
+
 function resetSlotMeshToGrid(slot) {
   const m = state.mesh;
   if (!m || !slot) return false;
@@ -1716,18 +1916,30 @@ function resetSlotMeshToGrid(slot) {
   contour.fillManualEdges = [];
   syncSlotContourSourcePoints(contour);
   syncSlotContourFromMeshData(slot, true);
+  setSlotMeshEditTarget("grid", false);
+  pushMeshDebugEvent("slot_mesh_reset_to_grid", {
+    slotIndex: Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1,
+    rect: {
+      x: Number(r.x) || 0,
+      y: Number(r.y) || 0,
+      w: Number(r.w) || 0,
+      h: Number(r.h) || 0,
+    },
+    contourCount: contour.points.length,
+    fillCount: Array.isArray(contour.fillPoints) ? contour.fillPoints.length : 0,
+    toolMode: normalizeSlotMeshToolMode(state.slotMesh && state.slotMesh.toolMode),
+    editTarget: normalizeSlotMeshEditTarget(state.slotMesh && state.slotMesh.editTarget),
+  });
   return true;
 }
 
 function pickSlotContourPoint(slot, mx, my, radius = 10, poseWorld = null) {
   const contour = ensureSlotContour(slot);
   const r2 = radius * radius;
-  let best = { set: "contour", index: -1 };
+  const targetSet = getSlotMeshEditSetName();
+  let best = { set: targetSet, index: -1 };
   let bestD2 = r2;
-  const sets = [];
-  const preferFill = state.slotMesh.activeSet === "fill";
-  if (preferFill) sets.push(["fill", contour.fillPoints || []], ["contour", contour.points || []]);
-  else sets.push(["contour", contour.points || []], ["fill", contour.fillPoints || []]);
+  const sets = [[targetSet, targetSet === "fill" ? contour.fillPoints || [] : contour.points || []]];
   for (const [setName, list] of sets) {
     for (let i = 0; i < list.length; i += 1) {
       const p = list[i];
@@ -1741,7 +1953,18 @@ function pickSlotContourPoint(slot, mx, my, radius = 10, poseWorld = null) {
       }
     }
   }
-  return best.index >= 0 ? best : null;
+  const result = best.index >= 0 ? best : null;
+  pushMeshDebugEvent("slot_mesh_pick", {
+    slotIndex: Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1,
+    mx: Number(mx) || 0,
+    my: Number(my) || 0,
+    radius: Number(radius) || 0,
+    targetSet,
+    candidateCount: Array.isArray(sets[0][1]) ? sets[0][1].length : 0,
+    hitSet: result ? result.set : "",
+    hitIndex: result ? Number(result.index) : -1,
+  });
+  return result;
 }
 
 function ensureSlotMeshData(slot, m) {

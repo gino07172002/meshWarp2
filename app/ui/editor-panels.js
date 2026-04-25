@@ -41,30 +41,37 @@ if (els.diagnosticsList) {
 
 ensureSetupQuickUIElements();
 els.remeshBtn.addEventListener("click", rebuildMesh);
-if (els.setupAddBoneBtn) {
-  els.setupAddBoneBtn.addEventListener("click", () => {
-    if (els.addBoneBtn) els.addBoneBtn.click();
-  });
-}
-if (els.setupDeleteBoneBtn) {
-  els.setupDeleteBoneBtn.addEventListener("click", () => {
-    if (els.deleteBoneBtn) els.deleteBoneBtn.click();
-  });
-}
 bindSetupHumanoidBoneButton();
-if (els.setupBindBoneBtn) {
-  els.setupBindBoneBtn.addEventListener("click", () => {
-    if (els.slotBindBoneBtn) els.slotBindBoneBtn.click();
-  });
-}
-if (els.setupBindWeightedBtn) {
-  els.setupBindWeightedBtn.addEventListener("click", () => {
-    if (els.slotBindWeightedBtn) els.slotBindWeightedBtn.click();
-  });
-}
 if (els.setupEditWeightsBtn) {
   els.setupEditWeightsBtn.addEventListener("click", () => {
     if (els.slotWeightQuickEditBtn) els.slotWeightQuickEditBtn.click();
+  });
+}
+if (els.setupUpdateBindingsBtn) {
+  els.setupUpdateBindingsBtn.addEventListener("click", () => {
+    if (typeof applyUpdateBindings !== "function") {
+      setStatus("Update Bindings unavailable.");
+      return;
+    }
+    // Block in Pose / Animate mode — rebaking the rest pose changes the
+    // meaning of existing deform keys, which would silently break animations.
+    const inPoseMode = state.boneMode === "pose";
+    const inAnimateMode = state.uiPage === "anim";
+    if (inPoseMode || inAnimateMode) {
+      const proceed = window.confirm(
+        "Update Bindings 會把目前姿勢設為新的 rest pose。在 Pose/Animate 模式下這會讓既有的動畫關鍵幀數值意義改變,動畫結果可能跑掉。\n\n建議在 Setup/Edit 模式做。確定繼續嗎?"
+      );
+      if (!proceed) return;
+    }
+    if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+    const r = applyUpdateBindings();
+    if (!r.ok) {
+      setStatus(`Update Bindings: ${r.reason}`);
+      return;
+    }
+    setStatus(`Update Bindings: rebaked ${r.slotsUpdated} slot(s) (${r.vCountTotal} vertices); ${r.boneCount} bone(s) re-bound.`);
+    if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+    if (typeof requestRender === "function") requestRender("update-bindings");
   });
 }
 if (els.setupAutoWeightSingleBtn) {
@@ -214,6 +221,7 @@ if (els.skinSelect) {
   els.skinSelect.addEventListener("change", () => {
     state.selectedSkinSet = Number(els.skinSelect.value) || 0;
     refreshSkinUI();
+    applySelectedSkinSetWithStatus();
   });
 }
 if (els.activeSkinSelect) {
@@ -237,6 +245,12 @@ if (els.skinAddBtn) {
     setStatus(`Skin added: ${skin.name}`);
   });
 }
+if (els.skinDupBtn) {
+  els.skinDupBtn.addEventListener("click", () => {
+    const skin = duplicateSkinSet();
+    if (skin) setStatus(`Skin duplicated: ${skin.name}`);
+  });
+}
 if (els.activeSkinAddBtn) {
   els.activeSkinAddBtn.addEventListener("click", () => {
     const skin = addSkinSetFromCurrentState();
@@ -253,6 +267,10 @@ if (els.skinDeleteBtn) {
     const idx = Number(state.selectedSkinSet) || 0;
     const removed = list.splice(Math.max(0, Math.min(idx, list.length - 1)), 1)[0];
     state.selectedSkinSet = Math.max(0, Math.min(idx, list.length - 1));
+    if (removed && removed.id === state.activeSkinSetId) {
+      const fallback = getSelectedSkinSet();
+      if (fallback) applySkinSetToSlots(fallback);
+    }
     refreshSkinUI();
     setStatus(`Skin deleted: ${removed && removed.name ? removed.name : "skin"}`);
   });
@@ -375,6 +393,59 @@ if (els.treeCtxAttachmentDeleteBtn) {
     closeBoneTreeContextMenu();
   });
 }
+if (els.treeCtxAttachmentRenameBtn) {
+  els.treeCtxAttachmentRenameBtn.addEventListener("click", () => {
+    const slot = getActiveSlot();
+    const si = Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1;
+    const attName = slot ? getSlotCurrentAttachmentName(slot) : null;
+    closeBoneTreeContextMenu();
+    if (si >= 0 && attName) startBoneTreeInlineRename("attachment", si, attName);
+  });
+}
+if (els.treeCtxAttachmentSetActiveBtn) {
+  els.treeCtxAttachmentSetActiveBtn.addEventListener("click", () => {
+    const slot = getActiveSlot();
+    const name = slot ? getSlotCurrentAttachmentName(slot) : null;
+    closeBoneTreeContextMenu();
+    if (!slot || !name) return;
+    slot.activeAttachment = name;
+    pushUndoCheckpoint(true);
+    refreshSlotUI();
+    renderBoneTree();
+    setStatus(`Active attachment: ${name}`);
+  });
+}
+if (els.treeCtxAttachmentCopyToSlotBtn) {
+  els.treeCtxAttachmentCopyToSlotBtn.addEventListener("click", async () => {
+    const slot = getActiveSlot();
+    const si = Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1;
+    const attName = slot ? getSlotCurrentAttachmentName(slot) : null;
+    if (!slot || !attName) {
+      setStatus("Select an attachment first.");
+      closeBoneTreeContextMenu();
+      return;
+    }
+    closeBoneTreeContextMenu();
+    const destIdx = await openSlotPickerPopup(si, "Copy to Slot…");
+    if (destIdx == null || !Number.isFinite(destIdx)) return;
+    const destSlot = state.slots[destIdx];
+    if (!destSlot) return;
+    const created = copyAttachmentToSlot(slot, attName, destSlot);
+    if (created) {
+      pushUndoCheckpoint(true);
+      renderBoneTree();
+      setStatus(`Copied "${attName}" → ${destSlot.name || `slot ${destIdx}`} as "${created.name}"`);
+    }
+  });
+}
+if (els.treeCtxAttachmentLoadImageBtn) {
+  els.treeCtxAttachmentLoadImageBtn.addEventListener("click", () => {
+    if (!openLoadImageForActiveSlotFromTree()) {
+      setStatus("Select a region or mesh attachment first.");
+    }
+    closeBoneTreeContextMenu();
+  });
+}
 if (els.treeCtxBoneDeleteBtn) {
   els.treeCtxBoneDeleteBtn.addEventListener("click", () => {
     const info = getSelectedBoneDeleteInfo();
@@ -472,6 +543,11 @@ if (els.vertexWeightVizToggle) {
   els.vertexWeightVizToggle.addEventListener("change", () => {
     state.vertexDeform.weightViz = !!els.vertexWeightVizToggle.checked;
     refreshVertexDeformUI();
+    if (!state.vertexDeform.weightViz && typeof weightHeatmapGPU !== "undefined" && weightHeatmapGPU) {
+      weightHeatmapGPU.clear();
+    }
+    if (typeof refreshWeightOverlayQuickBtn === "function") refreshWeightOverlayQuickBtn();
+    if (typeof requestRender === "function") requestRender("weight-viz-toggle");
     setStatus(`Weight overlay ${state.vertexDeform.weightViz ? "ON" : "OFF"}.`);
   });
 }

@@ -80,11 +80,17 @@ const rightColResizer = document.getElementById("rightColResizer");
 
 if (leftResizer) {
   leftResizer.addEventListener("pointerdown", (ev) => {
+    const layout = normalizeDockLayout(state.uiLayout);
+    if (layout.sides && layout.sides.left && layout.sides.left.collapsed) {
+      setDockSideCollapsed("left", false);
+      if (typeof applyDockLayout === "function") applyDockLayout(state.uiLayout);
+    }
     state.uiResizing = {
       type: "left",
       pointerId: ev.pointerId,
       startX: ev.clientX,
-      startW: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--left-w")) || 260,
+      startW: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--left-w"))
+        || (layout.sides && layout.sides.left ? layout.sides.left.expandedWidth : 260),
     };
     leftResizer.setPointerCapture(ev.pointerId);
   });
@@ -92,6 +98,7 @@ if (leftResizer) {
     if (!state.uiResizing || state.uiResizing.type !== "left") return;
     const next = math.clamp(state.uiResizing.startW + (ev.clientX - state.uiResizing.startX), 150, 800);
     document.documentElement.style.setProperty("--left-w", `${Math.round(next)}px`);
+    rememberDockSideWidth("left", next);
   });
   const clearLeft = (ev) => {
     if (state.uiResizing && state.uiResizing.type === "left") {
@@ -105,11 +112,17 @@ if (leftResizer) {
 
 if (rightResizer) {
   rightResizer.addEventListener("pointerdown", (ev) => {
+    const layout = normalizeDockLayout(state.uiLayout);
+    if (layout.sides && layout.sides.right && layout.sides.right.collapsed) {
+      setDockSideCollapsed("right", false);
+      if (typeof applyDockLayout === "function") applyDockLayout(state.uiLayout);
+    }
     state.uiResizing = {
       type: "right",
       pointerId: ev.pointerId,
       startX: ev.clientX,
-      startW: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--right-w")) || 340,
+      startW: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--right-w"))
+        || (layout.sides && layout.sides.right ? layout.sides.right.expandedWidth : 340),
     };
     rightResizer.setPointerCapture(ev.pointerId);
   });
@@ -117,6 +130,7 @@ if (rightResizer) {
     if (!state.uiResizing || state.uiResizing.type !== "right") return;
     const next = math.clamp(state.uiResizing.startW - (ev.clientX - state.uiResizing.startX), 200, 800);
     document.documentElement.style.setProperty("--right-w", `${Math.round(next)}px`);
+    rememberDockSideWidth("right", next);
   });
   const clearRight = (ev) => {
     if (state.uiResizing && state.uiResizing.type === "right") {
@@ -158,6 +172,10 @@ if (els.timelineCollapseBtn) {
   els.timelineCollapseBtn.addEventListener("click", () => {
     state.anim.timelineMinimized = !state.anim.timelineMinimized;
     updateWorkspaceUI();
+    // Keep the dock chrome Collapse/Expand label in sync
+    if (typeof updateDockPanelToggle === "function") {
+      updateDockPanelToggle(document.getElementById("timelineDock"));
+    }
   });
 }
 if (els.playBtn) {
@@ -223,6 +241,11 @@ function cycleActiveAttachment(step) {
 
 window.addEventListener("keydown", async (ev) => {
   if (ev.isComposing) return;
+  if (ev.key === "F11") {
+    ev.preventDefault();
+    if (typeof toggleFullscreen === "function") toggleFullscreen();
+    return;
+  }
   if (isEditableHotkeyTarget(ev.target)) return;
   const keyLower = String(ev.key || "").toLowerCase();
   if (keyLower === "escape" && (state.boneTreeMenuOpen || (els.boneTreeDeleteBoneMenu && !els.boneTreeDeleteBoneMenu.classList.contains("collapsed")))) {
@@ -267,21 +290,9 @@ window.addEventListener("keydown", async (ev) => {
   }
   const hotkey = String(ev.key || "").toLowerCase();
   if (!ev.ctrlKey && !ev.metaKey && !ev.altKey && state.slots.length > 0 && state.editMode !== "mesh") {
-    if (hotkey === "a" && ev.shiftKey) {
-      const slot = getActiveSlot();
-      const current = slot ? getSlotCurrentAttachmentName(slot) : null;
-      if (slot && current) {
-        const created = duplicateAttachment(slot, current);
-        if (created) setStatus(`Attachment duplicated: ${created.name}`);
-      }
-      ev.preventDefault();
-      return;
-    }
-    if (hotkey === "a") {
-      addAttachmentToActiveSlot();
-      ev.preventDefault();
-      return;
-    }
+    // Note: A / Shift+A no longer add or duplicate attachments here. A is reserved
+    // for "Select All" (Blender-style). Use the right-click menu in the bone tree
+    // or the right Properties panel to add / duplicate attachments.
     if (ev.key === "Tab") {
       if (cycleActiveAttachment(ev.shiftKey ? -1 : 1)) {
         ev.preventDefault();
@@ -296,10 +307,38 @@ window.addEventListener("keydown", async (ev) => {
     }
   }
   if (state.editMode === "mesh") {
+    // Copy/paste weights between vertices
+    if ((ev.ctrlKey || ev.metaKey) && hotkey === "c" && !ev.shiftKey && !ev.altKey) {
+      const r = copyVertexWeightsToClipboard();
+      setStatus(r.ok
+        ? `Copied weights from vertex ${r.sourceVertex} (${r.boneCount} bones).`
+        : `Copy weights: ${r.reason}`);
+      ev.preventDefault();
+      return;
+    }
+    if ((ev.ctrlKey || ev.metaKey) && hotkey === "v" && !ev.shiftKey && !ev.altKey) {
+      const r = pasteVertexWeightsFromClipboard();
+      if (r.ok) {
+        setStatus(`Pasted weights to ${r.count} vertex(es).`);
+        if (typeof requestRender === "function") requestRender("ui");
+        if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+      } else {
+        setStatus(`Paste weights: ${r.reason}`);
+      }
+      ev.preventDefault();
+      return;
+    }
     if (hotkey === "h" && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
       state.vertexDeform.mirror = !state.vertexDeform.mirror;
       refreshVertexDeformUI();
       setStatus(`Vertex mirror edit ${state.vertexDeform.mirror ? "ON" : "OFF"}.`);
+      ev.preventDefault();
+      return;
+    }
+    if (hotkey === "w" && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      if (typeof setWeightBrushActive === "function") {
+        setWeightBrushActive(!state.weightBrush.active);
+      }
       ev.preventDefault();
       return;
     }
@@ -402,36 +441,51 @@ window.addEventListener("keydown", async (ev) => {
     if (!slot) return;
     syncSlotContourFromMeshData(slot, false);
     const contour = ensureSlotContour(slot);
-    const activeSet = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
+    const activeSet = getSlotMeshEditSetName();
     const activePoints = activeSet === "fill" ? contour.fillPoints : contour.points;
     if (hotkey === "v" && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      const finishCapture = beginAICaptureCommand("mesh.hotkey.toggle_add_vertex", { key: "v" });
       const next = normalizeSlotMeshToolMode(state.slotMesh.toolMode) === "add" ? "select" : "add";
       setSlotMeshToolMode(next, true);
+      finishCapture({ ok: true, nextMode: next });
       ev.preventDefault();
       return;
     }
     if (ev.key === "Enter") {
+      const finishCapture = beginAICaptureCommand("mesh.hotkey.triangulate_preview", { key: "Enter" }, { topologyCommand: true });
       markSlotContourDirty(slot, true);
       if (!contour.closed && contour.points.length >= 3) contour.closed = true;
       contour.triangles = triangulateContourPoints(contour.points, contour.contourEdges, contour.manualEdges);
       contour.fillPoints = [];
       contour.fillTriangles = [];
       contour.fillManualEdges = [];
-      state.slotMesh.activeSet = "contour";
+      setSlotMeshEditTarget("boundary", false);
       clearSlotMeshSelection();
       setStatus(
         contour.triangles.length >= 3
           ? `Triangulated preview: ${contour.triangles.length / 3} triangles. Use Apply Mesh to commit.`
           : "Triangulation failed."
       );
+      finishCapture({
+        ok: contour.triangles.length >= 3,
+        triangleCount: contour.triangles.length / 3,
+        closed: !!contour.closed,
+      });
       ev.preventDefault();
       return;
     }
     if ((ev.key === "Backspace" || ev.key === "Delete" || ev.key.toLowerCase() === "x") && activePoints.length > 0) {
+      const finishCapture = beginAICaptureCommand("mesh.hotkey.delete_vertex", {
+        key: ev.key,
+        activeSet,
+      }, { topologyCommand: true });
       markSlotContourDirty(slot, true);
       const selected = getSlotMeshSelection(activeSet, activePoints.length);
       const indices = selected.length > 0 ? selected : [state.slotMesh.activePoint >= 0 ? state.slotMesh.activePoint : activePoints.length - 1];
       const removed = removeSlotMeshPointsByIndices(contour, activeSet, indices);
+      if (activeSet === "fill" && removed.removed > 0) {
+        applyContourMeshToSlot(slot);
+      }
       const maxCount = activeSet === "fill" ? contour.fillPoints.length : contour.points.length;
       setSlotMeshSelection(activeSet, [], maxCount);
       const removedSorted = [...indices].sort((a, b) => a - b);
@@ -440,6 +494,12 @@ window.addEventListener("keydown", async (ev) => {
         .map((v) => v - removedSorted.filter((x) => x < v).length);
       state.slotMesh.activePoint = maxCount > 0 ? Math.min(state.slotMesh.activePoint, maxCount - 1) : -1;
       setStatus(`${activeSet === "fill" ? "Fill" : "Contour"} vertex removed (${removed.remain}).`);
+      finishCapture({
+        ok: removed.removed > 0,
+        removedCount: removed.removed,
+        remainingCount: removed.remain,
+        requestedIndices: indices,
+      });
       ev.preventDefault();
       return;
     }
@@ -741,7 +801,7 @@ window.addEventListener("keydown", async (ev) => {
 els.overlay.addEventListener("pointerdown", (ev) => {
   const panMode = !!(state.view && state.view.panMode);
   const middlePan = isMiddleMousePanEvent(ev);
-  if (!state.mesh && !isBaseImageEditTabActive() && !panMode && !middlePan) return;
+  if (!state.mesh && !isBaseImageEditTabActive() && !isSlotMeshEditTabActive() && !panMode && !middlePan) return;
 
   const rect = els.overlay.getBoundingClientRect();
   const dpr = els.overlay.width / rect.width;
@@ -760,6 +820,41 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     };
     if (els.stage) els.stage.classList.add("dragging-pan");
     els.overlay.setPointerCapture(ev.pointerId);
+    return;
+  }
+
+  if (typeof isWeightBrushActive === "function" && isWeightBrushActive() && ev.button === 0) {
+    ev.preventDefault();
+    const targetBone = getPrimarySelectedBoneIndex();
+    if (!Number.isFinite(targetBone) || targetBone < 0) {
+      setStatus("Weight brush: select a bone in the tree first.");
+      return;
+    }
+    state.drag = {
+      type: "weight_brush",
+      pointerId: ev.pointerId,
+      lastX: mx,
+      lastY: my,
+      changed: false,
+    };
+    els.overlay.setPointerCapture(ev.pointerId);
+    state.vertexDeform.cursorX = mx;
+    state.vertexDeform.cursorY = my;
+    state.vertexDeform.hasCursor = true;
+    const firstHit = applyWeightBrushStrokeAt(mx, my, 1);
+    if (firstHit) {
+      state.drag.changed = true;
+    } else {
+      // Could be: no weights array (single/free), no vertices in radius, or no mesh.
+      // Don't spam — just check the hard "no weighted attachment" case once.
+      const slot = getActiveSlot();
+      const att = slot ? getActiveAttachment(slot) : null;
+      const md = att && att.meshData;
+      if (!md || !md.weights || md.weights.length === 0) {
+        setStatus("Weight brush: this slot/attachment has no weighted bind. Use Auto Weight (Multi Bone) first.");
+      }
+    }
+    if (typeof requestRender === "function") requestRender("weight-brush-down");
     return;
   }
 
@@ -854,8 +949,29 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     syncSlotContourFromMeshData(slot, false);
     const contour = ensureSlotContour(slot);
     const toolMode = normalizeSlotMeshToolMode(state.slotMesh.toolMode);
+    const editTarget = normalizeSlotMeshEditTarget(state.slotMesh.editTarget);
+    const targetSet = getSlotMeshEditSetName(editTarget);
     const slotLocal = screenToSlotMeshLocal(slot, mx, my, poseWorldForGizmo);
-    const hit = pickSlotContourPoint(slot, mx, my, 10, poseWorldForGizmo);
+    pushMeshDebugEvent("mesh_pointerdown", {
+      slotIndex: Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1,
+      mx: Number(mx) || 0,
+      my: Number(my) || 0,
+      slotLocalX: Number(slotLocal.x) || 0,
+      slotLocalY: Number(slotLocal.y) || 0,
+      toolMode,
+      editTarget,
+      targetSet,
+      contourCount: Array.isArray(contour.points) ? contour.points.length : 0,
+      fillCount: Array.isArray(contour.fillPoints) ? contour.fillPoints.length : 0,
+      activeSet: state.slotMesh.activeSet || "",
+      activePoint: Number.isFinite(Number(state.slotMesh.activePoint)) ? Number(state.slotMesh.activePoint) : -1,
+      shiftKey: !!ev.shiftKey,
+      altKey: !!ev.altKey,
+      ctrlKey: !!(ev.ctrlKey || ev.metaKey),
+    });
+    // In add mode, skip the general hit-test — user intent is to always place a new point.
+    // (The explicit "click first point to close" check runs later with its own hit-test.)
+    const hit = toolMode === "add" ? null : pickSlotContourPoint(slot, mx, my, 10, poseWorldForGizmo);
     if (hit && hit.index >= 0) {
       const hitSet = hit.set === "fill" ? "fill" : "contour";
       const hitPoints = hitSet === "fill" ? contour.fillPoints : contour.points;
@@ -901,9 +1017,28 @@ els.overlay.addEventListener("pointerdown", (ev) => {
           pointSet: hitSet,
           pointIndices: [...selected],
           prevSlotLocal: { x: slotLocal.x, y: slotLocal.y },
+          debugMoved: false,
         };
+        pushMeshDebugEvent("mesh_drag_start", {
+          slotIndex: Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1,
+          dragType: "slot_mesh_multi_move",
+          pointSet: hitSet,
+          pointIndices: [...selected],
+        });
       } else {
-        state.drag = { type: "slot_mesh_point", pointerId: ev.pointerId, pointIndex: hit.index, pointSet: hitSet };
+        state.drag = {
+          type: "slot_mesh_point",
+          pointerId: ev.pointerId,
+          pointIndex: hit.index,
+          pointSet: hitSet,
+          debugMoved: false,
+        };
+        pushMeshDebugEvent("mesh_drag_start", {
+          slotIndex: Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1,
+          dragType: "slot_mesh_point",
+          pointSet: hitSet,
+          pointIndex: Number(hit.index) || 0,
+        });
       }
       els.overlay.setPointerCapture(ev.pointerId);
       return;
@@ -917,7 +1052,14 @@ els.overlay.addEventListener("pointerdown", (ev) => {
         curX: mx,
         curY: my,
         append: !!(ev.altKey || ev.shiftKey || ev.ctrlKey || ev.metaKey),
+        debugMoved: false,
       };
+      pushMeshDebugEvent("mesh_drag_start", {
+        slotIndex: Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1,
+        dragType: "slot_mesh_marquee",
+        pointSet: targetSet,
+        append: !!(ev.altKey || ev.shiftKey || ev.ctrlKey || ev.metaKey),
+      });
       els.overlay.setPointerCapture(ev.pointerId);
       return;
     }
@@ -940,7 +1082,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
         contour.fillPoints = [];
         contour.fillTriangles = [];
         contour.fillManualEdges = [];
-        state.slotMesh.activeSet = "contour";
+        setSlotMeshEditTarget("boundary", false);
         state.slotMesh.activePoint = 0;
         setStatus("Contour closed. Triangulate to preview and Apply Mesh to commit.");
         return;
@@ -968,7 +1110,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     }
     contour.manualEdges = normalizeEdgePairs(contour.manualEdges, contour.points.length);
     syncSlotContourSourcePoints(contour);
-    state.slotMesh.activeSet = "contour";
+    setSlotMeshEditTarget("boundary", false);
     state.slotMesh.activePoint = newIdx;
     setSlotMeshSelection("contour", [state.slotMesh.activePoint], contour.points.length);
     state.slotMesh.edgeSelection = [state.slotMesh.activePoint];
@@ -977,7 +1119,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
     return;
   }
 
-  {
+  if (state.editMode === "mesh" || state.uiPage === "slot") {
     const attGizmoHit = pickAttachmentGizmoHandle(mx, my, poseWorldForGizmo);
     if (attGizmoHit) {
       const slot = getActiveSlot();
@@ -1258,14 +1400,11 @@ els.overlay.addEventListener("pointerdown", (ev) => {
       else set.add(hit.boneIndex);
       state.selectedBonesForWeight = [...set];
       const parts = state.selectedBoneParts || [];
-      if (state.boneMode === "edit" && hit.type === "bone_joint") {
-        const jointSelected = hasBoneJointSelection(hit.boneIndex);
-        for (let i = parts.length - 1; i >= 0; i -= 1) {
-          if (parts[i].index === hit.boneIndex && (parts[i].type === "head" || parts[i].type === "tail")) {
-            parts.splice(i, 1);
-          }
-        }
-        if (!jointSelected) parts.push(...getBoneJointSelectionParts(hit.boneIndex));
+      if (state.boneMode === "edit") {
+        const partType = hit.type === "bone_joint" ? "head" : "tail";
+        const partIdx = parts.findIndex(p => p.index === hit.boneIndex && p.type === partType);
+        if (partIdx >= 0) parts.splice(partIdx, 1);
+        else parts.push({ index: hit.boneIndex, type: partType });
       } else {
         const partType = hit.type === "bone_joint" ? "head" : "tail";
         const partIdx = parts.findIndex(p => p.index === hit.boneIndex && p.type === partType);
@@ -1277,40 +1416,62 @@ els.overlay.addEventListener("pointerdown", (ev) => {
       updateBoneUI();
       return;
     }
+    if (state.boneMode === "edit") {
+      // Alt+click: toggle-add to selection without dragging
+      if (ev.altKey) {
+        const partType = hit.type === "bone_joint" ? "head" : "tail";
+        const parts = state.selectedBoneParts ? [...state.selectedBoneParts] : [];
+        const idx = parts.findIndex(p => p.index === hit.boneIndex && p.type === partType);
+        if (idx >= 0) parts.splice(idx, 1);
+        else parts.push({ index: hit.boneIndex, type: partType });
+        state.selectedBoneParts = parts;
+        state.selectedBone = hit.boneIndex;
+        state.selectedBonesForWeight = [hit.boneIndex];
+        updateBoneUI();
+        return;
+      }
+      // Plain click: select this part and start drag immediately
+      const partType = hit.type === "bone_joint" ? "head" : "tail";
+      const selectedParts = state.selectedBoneParts || [];
+      const alreadyInSelection = selectedParts.some(p => p.index === hit.boneIndex && p.type === partType);
+      if (!alreadyInSelection || selectedParts.length === 1) {
+        state.selectedBoneParts = [{ index: hit.boneIndex, type: partType }];
+        state.selectedBonesForWeight = [hit.boneIndex];
+      }
+      state.selectedBone = hit.boneIndex;
+      updateBoneUI();
+      const bones = getBonesForCurrentMode(state.mesh);
+      const world = getEditAwareWorld(bones);
+      const dragParts = alreadyInSelection && selectedParts.length > 1 ? selectedParts : state.selectedBoneParts;
+      state.drag = {
+        type: "bone_part_multi_move",
+        pointerId: ev.pointerId,
+        startLocal: local,
+        needsReweight: false,
+        items: dragParts.map(p => {
+          const ep = getBoneWorldEndpointsFromBones(bones, p.index, world);
+          return { boneIndex: p.index, type: p.type, head: ep.head, tip: ep.tip };
+        }),
+      };
+      els.overlay.setPointerCapture(ev.pointerId);
+      return;
+    }
     state.selectedBone = hit.boneIndex;
     const selectedParts = state.selectedBoneParts || [];
-    const hitPartTypes = state.boneMode === "edit" && hit.type === "bone_joint" ? ["head", "tail"] : [hit.type === "bone_joint" ? "head" : "tail"];
+    const hitPartType = hit.type === "bone_joint" ? "head" : "tail";
     const dragWholeSelection =
       selectedParts.length > 1 &&
-      hitPartTypes.every((partType) => selectedParts.some(p => p.index === hit.boneIndex && p.type === partType));
+      selectedParts.some(p => p.index === hit.boneIndex && p.type === hitPartType);
     if (!dragWholeSelection) {
       state.selectedBonesForWeight = [hit.boneIndex];
-      state.selectedBoneParts =
-        state.boneMode === "edit" && hit.type === "bone_joint"
-          ? getBoneJointSelectionParts(hit.boneIndex)
-          : [{ index: hit.boneIndex, type: hitPartTypes[0] }];
+      state.selectedBoneParts = [{ index: hit.boneIndex, type: hitPartType }];
       updateBoneUI();
-      if (state.boneMode === "edit" && hit.type === "bone_joint") {
-        const bones = getBonesForCurrentMode(state.mesh);
-        const world = getEditAwareWorld(bones);
-        state.drag = {
-          type: "bone_part_multi_move",
-          pointerId: ev.pointerId,
-          startLocal: local,
-          needsReweight: false,
-          items: getBoneJointSelectionParts(hit.boneIndex).map((p) => {
-            const ep = getBoneWorldEndpointsFromBones(bones, p.index, world);
-            return { boneIndex: p.index, type: p.type, head: ep.head, tip: ep.tip };
-          })
-        };
-      } else {
-        state.drag = { ...hit, pointerId: ev.pointerId, needsReweight: false };
-      }
+      state.drag = { ...hit, pointerId: ev.pointerId, needsReweight: false };
       els.overlay.setPointerCapture(ev.pointerId);
       return;
     }
     const bones = getBonesForCurrentMode(state.mesh);
-    const world = state.boneMode === "pose" ? getSolvedPoseWorld(state.mesh) : getEditAwareWorld(bones);
+    const world = getSolvedPoseWorld(state.mesh);
     state.drag = {
       type: "bone_part_multi_move",
       pointerId: ev.pointerId,
@@ -1334,7 +1495,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
       startY: my,
       curX: mx,
       curY: my,
-      append: !!(ev.ctrlKey || ev.metaKey),
+      append: !!(ev.altKey),
     };
     els.overlay.setPointerCapture(ev.pointerId);
     return;
@@ -1350,9 +1511,12 @@ els.overlay.addEventListener("pointermove", (ev) => {
   const middlePan = isMiddleMousePanEvent(ev);
   const allowNoMesh =
     isBaseImageEditTabActive() ||
+    isSlotMeshEditTabActive() ||
     middlePan ||
     (state.drag &&
-      (String(state.drag.type || "").startsWith("base_transform_") || state.drag.type === "view_pan"));
+      (String(state.drag.type || "").startsWith("base_transform_") ||
+        String(state.drag.type || "").startsWith("slot_mesh_") ||
+        state.drag.type === "view_pan"));
   if (!state.mesh && !allowNoMesh) return;
 
   const rect = els.overlay.getBoundingClientRect();
@@ -1365,6 +1529,38 @@ els.overlay.addEventListener("pointermove", (ev) => {
     state.vertexDeform.cursorX = mx;
     state.vertexDeform.cursorY = my;
     state.vertexDeform.hasCursor = true;
+  }
+  if (typeof isWeightBrushActive === "function" && isWeightBrushActive()) {
+    state.vertexDeform.cursorX = mx;
+    state.vertexDeform.cursorY = my;
+    state.vertexDeform.hasCursor = true;
+    if (state.drag && state.drag.type === "weight_brush") {
+      const lx = Number(state.drag.lastX);
+      const ly = Number(state.drag.lastY);
+      const dx = mx - lx;
+      const dy = my - ly;
+      const dist = Math.hypot(dx, dy);
+      const radius = Math.max(2, Number(state.weightBrush.size) || 80);
+      const stepLen = Math.max(4, radius * 0.5);
+      let touched = false;
+      if (dist <= 0) {
+        if (applyWeightBrushStrokeAt(mx, my, 1)) touched = true;
+      } else {
+        const steps = Math.max(1, Math.ceil(dist / stepLen));
+        for (let s = 1; s <= steps; s += 1) {
+          const t = s / steps;
+          const px = lx + dx * t;
+          const py = ly + dy * t;
+          if (applyWeightBrushStrokeAt(px, py, 1)) touched = true;
+        }
+      }
+      state.drag.lastX = mx;
+      state.drag.lastY = my;
+      if (touched) state.drag.changed = true;
+      requestRender("weight-brush-stroke");
+      return;
+    }
+    requestRender("weight-brush-cursor");
   }
   if (m && !state.ikPickArmed && state.ikHoverBone !== -1) {
     state.ikHoverBone = -1;
@@ -1585,6 +1781,17 @@ els.overlay.addEventListener("pointermove", (ev) => {
     const i = state.drag.pointIndex;
     if (i >= 0 && i < points.length) {
       points[i] = { x: slotLocal.x, y: slotLocal.y };
+      if (!state.drag.debugMoved) {
+        pushMeshDebugEvent("mesh_drag_first_move", {
+          slotIndex: Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1,
+          dragType: "slot_mesh_point",
+          pointSet: setName,
+          pointIndex: Number(i) || 0,
+          x: Number(slotLocal.x) || 0,
+          y: Number(slotLocal.y) || 0,
+        });
+        state.drag.debugMoved = true;
+      }
       markSlotContourDirty(slot, true);
       if (setName === "contour") {
         contour.triangles = [];
@@ -1592,6 +1799,8 @@ els.overlay.addEventListener("pointermove", (ev) => {
         contour.fillTriangles = [];
         contour.fillManualEdges = [];
         syncSlotContourSourcePoints(contour);
+      } else {
+        applyLiveGridPointsToSlotMesh(slot);
       }
       state.slotMesh.activeSet = setName;
       state.slotMesh.activePoint = i;
@@ -1612,6 +1821,17 @@ els.overlay.addEventListener("pointermove", (ev) => {
       const setName = state.drag.pointSet === "fill" ? "fill" : "contour";
       const points = setName === "fill" ? contour.fillPoints : contour.points;
       const list = setSlotMeshSelection(setName, state.drag.pointIndices, points.length);
+      if (!state.drag.debugMoved) {
+        pushMeshDebugEvent("mesh_drag_first_move", {
+          slotIndex: Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1,
+          dragType: "slot_mesh_multi_move",
+          pointSet: setName,
+          pointIndices: [...list],
+          dx,
+          dy,
+        });
+        state.drag.debugMoved = true;
+      }
       for (const i of list) {
         const p = points[i];
         if (!p) continue;
@@ -1625,6 +1845,8 @@ els.overlay.addEventListener("pointermove", (ev) => {
         contour.fillTriangles = [];
         contour.fillManualEdges = [];
         syncSlotContourSourcePoints(contour);
+      } else {
+        applyLiveGridPointsToSlotMesh(slot);
       }
       state.slotMesh.activeSet = setName;
       if (list.length > 0) state.slotMesh.activePoint = list[list.length - 1];
@@ -1634,6 +1856,18 @@ els.overlay.addEventListener("pointermove", (ev) => {
   }
 
   if (state.drag.type === "slot_mesh_marquee") {
+    if (!state.drag.debugMoved && (Math.abs(mx - state.drag.startX) > 1e-8 || Math.abs(my - state.drag.startY) > 1e-8)) {
+      pushMeshDebugEvent("mesh_drag_first_move", {
+        slotIndex: Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1,
+        dragType: "slot_mesh_marquee",
+        pointSet: getSlotMeshEditSetName(),
+        startX: Number(state.drag.startX) || 0,
+        startY: Number(state.drag.startY) || 0,
+        x: Number(mx) || 0,
+        y: Number(my) || 0,
+      });
+      state.drag.debugMoved = true;
+    }
     state.drag.curX = mx;
     state.drag.curY = my;
     return;
@@ -1756,13 +1990,12 @@ els.overlay.addEventListener("pointermove", (ev) => {
   const bones = getBonesForCurrentMode(m);
   if (state.drag.type === "bone_joint") {
     if (state.boneMode === "edit") {
-      const snapshot = captureEditBoneSnapshot(bones);
-      const ep = getBoneWorldEndpointsFromBones(bones, state.drag.boneIndex);
-      setBoneFromWorldEndpoints(bones, state.drag.boneIndex, local, ep.tip);
-      preserveConnectedChildTipsAfterEdit(bones, snapshot, [state.drag.boneIndex]);
-      markDirtyByBoneProp(state.drag.boneIndex, "translate");
-      markDirtyByBoneProp(state.drag.boneIndex, "rotate");
-      markDirtyByBoneProp(state.drag.boneIndex, "scale");
+      const changed = moveEditBoneEndpointAndConnectedJoint(bones, state.drag.boneIndex, "head", local);
+      for (const bi of changed) {
+        markDirtyByBoneProp(bi, "translate");
+        markDirtyByBoneProp(bi, "rotate");
+        markDirtyByBoneProp(bi, "scale");
+      }
       commitRigEditPreserveCurrentLook(m);
       updateBoneUI();
       return;
@@ -1776,6 +2009,17 @@ els.overlay.addEventListener("pointermove", (ev) => {
   }
 
   if (state.drag.type === "bone_tip") {
+    if (state.boneMode === "edit") {
+      const changed = moveEditBoneEndpointAndConnectedJoint(bones, state.drag.boneIndex, "tail", local);
+      for (const bi of changed) {
+        markDirtyByBoneProp(bi, "translate");
+        markDirtyByBoneProp(bi, "rotate");
+        markDirtyByBoneProp(bi, "scale");
+      }
+      commitRigEditPreserveCurrentLook(m);
+      updateBoneUI();
+      return;
+    }
     const rotateResult = rotateBoneTipToLocal(bones, state.drag.boneIndex, local) || {
       ikDriven: false,
       movedHead: false,
@@ -1797,9 +2041,30 @@ els.overlay.addEventListener("pointermove", (ev) => {
 
   if (state.drag.type === "bone_part_multi_move") {
     const d = state.drag;
+    if (!d.startLocal) return;
     const dx = local.x - d.startLocal.x;
     const dy = local.y - d.startLocal.y;
-    const snapshot = state.boneMode === "edit" ? captureEditBoneSnapshot(bones) : null;
+    if (state.boneMode === "edit") {
+      const changed = new Set();
+      for (const it of d.items) {
+        const endpoint = it.type === "head" ? "head" : "tail";
+        const target =
+          endpoint === "head"
+            ? { x: (Number(it.head && it.head.x) || 0) + dx, y: (Number(it.head && it.head.y) || 0) + dy }
+            : { x: (Number(it.tip && it.tip.x) || 0) + dx, y: (Number(it.tip && it.tip.y) || 0) + dy };
+        for (const bi of moveEditBoneEndpointAndConnectedJoint(bones, it.boneIndex, endpoint, target)) {
+          changed.add(bi);
+        }
+      }
+      for (const bi of changed) {
+        markDirtyByBoneProp(bi, "translate");
+        markDirtyByBoneProp(bi, "rotate");
+        markDirtyByBoneProp(bi, "scale");
+      }
+      commitRigEditPreserveCurrentLook(m);
+      updateBoneUI();
+      return;
+    }
 
     const movesByBone = new Map();
     for (const it of d.items) {
@@ -1811,8 +2076,10 @@ els.overlay.addEventListener("pointermove", (ev) => {
 
     const editedIndices = [];
     for (const [bi, bData] of movesByBone.entries()) {
+      // Pose-mode multi-drag keeps the legacy whole-bone / tail-reshape behavior.
+      const headOnly = bData.headMove && !bData.tailMove;
       const nh = bData.headMove ? { x: bData.origHead.x + dx, y: bData.origHead.y + dy } : bData.origHead;
-      const nt = bData.tailMove ? { x: bData.origTip.x + dx, y: bData.origTip.y + dy } : bData.origTip;
+      const nt = (bData.tailMove || headOnly) ? { x: bData.origTip.x + dx, y: bData.origTip.y + dy } : bData.origTip;
       setBoneFromWorldEndpoints(bones, bi, nh, nt);
       markDirtyByBoneProp(bi, "translate");
       markDirtyByBoneProp(bi, "rotate");
@@ -1820,10 +2087,6 @@ els.overlay.addEventListener("pointermove", (ev) => {
       editedIndices.push(bi);
     }
 
-    if (state.boneMode === "edit" && snapshot) {
-      preserveConnectedChildTipsAfterEdit(bones, snapshot, editedIndices);
-      commitRigEditPreserveCurrentLook(m);
-    }
     updateBoneUI();
     return;
   }

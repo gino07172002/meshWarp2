@@ -400,8 +400,26 @@ if (els.pathApplyHandleModeBtn) {
 }
 if (els.slotMeshNewBtn) {
   els.slotMeshNewBtn.addEventListener("click", () => {
+    const finishCapture = beginAICaptureCommand("mesh.tool.toggle_add_vertex", { buttonId: "slotMeshNewBtn" });
     const next = normalizeSlotMeshToolMode(state.slotMesh.toolMode) === "add" ? "select" : "add";
     setSlotMeshToolMode(next, true);
+    finishCapture({ ok: true, nextMode: next });
+  });
+}
+if (els.slotMeshBoundaryEditBtn) {
+  els.slotMeshBoundaryEditBtn.addEventListener("click", () => {
+    const finishCapture = beginAICaptureCommand("mesh.edit_target.boundary", { buttonId: "slotMeshBoundaryEditBtn" });
+    setSlotMeshEditTarget("boundary", true);
+    setSlotMeshToolMode("select", false);
+    finishCapture({ ok: true, nextTarget: "boundary" });
+  });
+}
+if (els.slotMeshGridEditBtn) {
+  els.slotMeshGridEditBtn.addEventListener("click", () => {
+    const finishCapture = beginAICaptureCommand("mesh.edit_target.grid", { buttonId: "slotMeshGridEditBtn" });
+    setSlotMeshEditTarget("grid", true);
+    setSlotMeshToolMode("select", false);
+    finishCapture({ ok: true, nextTarget: "grid" });
   });
 }
 if (els.slotMeshGridReplaceContour) {
@@ -411,12 +429,17 @@ if (els.slotMeshGridReplaceContour) {
 }
 if (els.slotMeshCloseBtn) {
   els.slotMeshCloseBtn.addEventListener("click", () => {
+    const finishCapture = beginAICaptureCommand("mesh.close_loop", { buttonId: "slotMeshCloseBtn" }, { topologyCommand: true });
     const slot = getActiveSlot();
-    if (!slot) return;
+    if (!slot) {
+      finishCapture({ ok: false, reason: "no_active_slot" });
+      return;
+    }
     const c = ensureSlotContour(slot);
     markSlotContourDirty(slot, true);
     if (c.points.length < 3) {
       setStatus("Need at least 3 points to close contour.");
+      finishCapture({ ok: false, reason: "not_enough_points", pointCount: c.points.length });
       return;
     }
     c.closed = true;
@@ -426,16 +449,22 @@ if (els.slotMeshCloseBtn) {
     c.fillManualEdges = [];
     clearSlotMeshSelection();
     setStatus("Contour closed.");
+    finishCapture({ ok: true, pointCount: c.points.length });
   });
 }
 if (els.slotMeshTriangulateBtn) {
   els.slotMeshTriangulateBtn.addEventListener("click", () => {
+    const finishCapture = beginAICaptureCommand("mesh.triangulate_preview", { buttonId: "slotMeshTriangulateBtn" }, { topologyCommand: true });
     const slot = getActiveSlot();
-    if (!slot) return;
+    if (!slot) {
+      finishCapture({ ok: false, reason: "no_active_slot" });
+      return;
+    }
     const c = ensureSlotContour(slot);
     markSlotContourDirty(slot, true);
     if (!c.closed || c.points.length < 3) {
       setStatus("Close contour first, then triangulate.");
+      finishCapture({ ok: false, reason: "invalid_contour", closed: !!c.closed, pointCount: c.points.length });
       return;
     }
     // Filter triangles outside the contour (using the reusable helper)
@@ -445,26 +474,34 @@ if (els.slotMeshTriangulateBtn) {
     c.fillManualEdges = [];
     if (c.triangles.length < 3) {
       setStatus("Triangulation failed. Adjust contour (avoid self-intersection).");
+      finishCapture({ ok: false, reason: "triangulation_failed", triangleCount: 0 });
       return;
     }
     clearSlotMeshSelection();
     setStatus(`Triangulated preview: ${c.triangles.length / 3} triangles. Use Apply Mesh to commit.`);
+    finishCapture({ ok: true, triangleCount: c.triangles.length / 3 });
   });
 }
 if (els.slotMeshGridFillBtn) {
   els.slotMeshGridFillBtn.addEventListener("click", () => {
+    const finishCapture = beginAICaptureCommand("mesh.grid_fill_preview", { buttonId: "slotMeshGridFillBtn" }, { topologyCommand: true });
     const slot = getActiveSlot();
-    if (!slot) return;
+    if (!slot) {
+      finishCapture({ ok: false, reason: "no_active_slot" });
+      return;
+    }
     const c = ensureSlotContour(slot);
     markSlotContourDirty(slot, true);
     if (!c.closed || c.points.length < 3) {
       setStatus("Close contour first, then run Grid Fill.");
+      finishCapture({ ok: false, reason: "invalid_contour", closed: !!c.closed, pointCount: c.points.length });
       return;
     }
     const replaceContour = !!state.slotMesh.gridReplaceContour;
     const sourceContourPoints = getSlotContourSourcePoints(c);
     if (sourceContourPoints.length < 3) {
       setStatus("Grid fill source contour is invalid. Re-draw contour points first.");
+      finishCapture({ ok: false, reason: "invalid_source_contour", sourcePointCount: sourceContourPoints.length });
       return;
     }
     const fill = buildUniformGridFillForContour(
@@ -478,6 +515,7 @@ if (els.slotMeshGridFillBtn) {
     c.fillTriangles = buildSafeFillTriangles(c.fillPoints, fill.triangles, sourceContourPoints, c.fillManualEdges);
     if (c.fillTriangles.length < 3) {
       setStatus("Grid fill failed. Increase Grid X/Y or adjust contour.");
+      finishCapture({ ok: false, reason: "grid_fill_failed", fillPointCount: c.fillPoints.length });
       return;
     }
     if (replaceContour) {
@@ -498,62 +536,105 @@ if (els.slotMeshGridFillBtn) {
           c.fillPoints = [];
           c.fillManualEdges = [];
           setStatus("Grid fill contour replacement failed. Increase Grid X/Y or adjust contour.");
+          finishCapture({ ok: false, reason: "contour_replacement_failed" });
           return;
         }
         state.slotMesh.edgeSelection = [];
-        state.slotMesh.edgeSelectionSet = "fill";
-        state.slotMesh.activeSet = "fill";
+        setSlotMeshEditTarget("grid", false);
         state.slotMesh.activePoint = Math.max(0, Math.min(state.slotMesh.activePoint, c.fillPoints.length - 1));
         replaced = true;
       }
       clearSlotMeshSelection();
+      setSlotMeshEditTarget("grid", false);
       setStatus(
         `Grid fill generated: ${c.fillPoints.length} points, ${c.fillTriangles.length / 3} triangles. ${replaced ? `Contour replaced: ${c.points.length} points.` : "Contour replacement skipped."
         } Preview updated. Use Apply Mesh to commit.`
       );
+      finishCapture({
+        ok: true,
+        replaceContour,
+        fillPointCount: c.fillPoints.length,
+        triangleCount: c.fillTriangles.length / 3,
+        replaced,
+      });
       return;
     }
     clearSlotMeshSelection();
+    setSlotMeshEditTarget("grid", false);
     setStatus(
       `Grid fill generated: ${c.fillPoints.length} points, ${c.fillTriangles.length / 3} triangles. Preview updated; use Apply Mesh to commit.`
     );
+    finishCapture({
+      ok: true,
+      replaceContour,
+      fillPointCount: c.fillPoints.length,
+      triangleCount: c.fillTriangles.length / 3,
+      replaced: false,
+    });
   });
 }
 if (els.slotMeshAutoForegroundBtn) {
   els.slotMeshAutoForegroundBtn.addEventListener("click", () => {
+    const finishCapture = beginAICaptureCommand("mesh.auto_foreground_preview", { buttonId: "slotMeshAutoForegroundBtn" }, { topologyCommand: true });
     const slot = getActiveSlot();
-    if (!slot) return;
+    if (!slot) {
+      finishCapture({ ok: false, reason: "no_active_slot" });
+      return;
+    }
     markSlotContourDirty(slot, true);
-    const result = autoBuildForegroundMeshForSlot(slot, Number(els.gridX.value) || 24, Number(els.gridY.value) || 24);
+    const autoFgOpts = {
+      alphaThreshold: els.autoFgAlphaThreshold ? Number(els.autoFgAlphaThreshold.value) : 8,
+      padding: els.autoFgPadding ? Number(els.autoFgPadding.value) : 1,
+      detail: els.autoFgDetail ? Number(els.autoFgDetail.value) : 1,
+    };
+    const result = autoBuildForegroundMeshForSlot(slot, Number(els.gridX.value) || 24, Number(els.gridY.value) || 24, autoFgOpts);
     if (!result || !result.ok) {
       setStatus(`Auto Foreground failed: ${(result && result.reason) || "unknown error"}`);
+      finishCapture({ ok: false, reason: (result && result.reason) || "unknown_error" });
       return;
     }
     clearSlotMeshSelection();
     setStatus(`Auto Foreground preview: contour ${result.contourPoints}, fill ${result.fillPoints}, triangles ${result.triangles}.`);
+    finishCapture({
+      ok: true,
+      contourPointCount: result.contourPoints,
+      fillPointCount: result.fillPoints,
+      triangleCount: result.triangles,
+    });
   });
 }
 if (els.slotMeshApplyBtn) {
   els.slotMeshApplyBtn.addEventListener("click", () => {
+    const finishCapture = beginAICaptureCommand("mesh.apply", { buttonId: "slotMeshApplyBtn" }, { topologyCommand: true });
     const slot = getActiveSlot();
-    if (!slot) return;
+    if (!slot) {
+      finishCapture({ ok: false, reason: "no_active_slot" });
+      return;
+    }
     const ok = applyContourMeshToSlot(slot);
     if (!ok) {
       setStatus("Apply failed. Need a closed contour with valid triangulation.");
+      finishCapture({ ok: false, reason: "apply_failed" });
       return;
     }
     syncSlotContourFromMeshData(slot, true);
     clearSlotMeshSelection();
     setStatus("Slot mesh applied from contour.");
+    finishCapture({ ok: true });
   });
 }
 if (els.slotMeshCreateApplyBtn) {
   els.slotMeshCreateApplyBtn.addEventListener("click", () => {
+    const finishCapture = beginAICaptureCommand("mesh.create_slot_and_apply", { buttonId: "slotMeshCreateApplyBtn" }, { topologyCommand: true });
     const source = getActiveSlot();
-    if (!source) return;
+    if (!source) {
+      finishCapture({ ok: false, reason: "no_active_slot" });
+      return;
+    }
     const created = addContourSlotFromActiveSlot(source);
     if (!created) {
       setStatus("Create slot failed.");
+      finishCapture({ ok: false, reason: "create_slot_failed" });
       return;
     }
     created.meshContour = cloneSlotMeshContour(source.meshContour);
@@ -561,39 +642,53 @@ if (els.slotMeshCreateApplyBtn) {
     if (!ok) {
       deleteActiveSlotQuick();
       setStatus("Create slot + apply failed. Need a closed contour with valid triangulation.");
+      finishCapture({ ok: false, reason: "apply_failed" });
       return;
     }
     syncSlotContourFromMeshData(created, true);
     clearSlotMeshSelection();
     setStatus(`Created slot "${created.name}" and applied contour mesh.`);
+    finishCapture({ ok: true, createdSlotName: created.name || "" });
   });
 }
 if (els.slotMeshLinkEdgeBtn) {
   els.slotMeshLinkEdgeBtn.addEventListener("click", () => {
+    const finishCapture = beginAICaptureCommand("mesh.link_edge", { buttonId: "slotMeshLinkEdgeBtn" }, { topologyCommand: true });
     const slot = getActiveSlot();
-    if (!slot) return;
+    if (!slot) {
+      finishCapture({ ok: false, reason: "no_active_slot" });
+      return;
+    }
     const ok = linkSelectedSlotMeshEdge(true);
-    const activeSet = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
+    const activeSet = getSlotMeshEditSetName();
     if (!ok) {
       setStatus("Select exactly 2 vertices, then Link Edge.");
+      finishCapture({ ok: false, reason: "invalid_selection", activeSet });
       return;
     }
     markSlotContourDirty(slot, true);
     setStatus(`Edge linked (${activeSet}).`);
+    finishCapture({ ok: true, activeSet });
   });
 }
 if (els.slotMeshUnlinkEdgeBtn) {
   els.slotMeshUnlinkEdgeBtn.addEventListener("click", () => {
+    const finishCapture = beginAICaptureCommand("mesh.unlink_edge", { buttonId: "slotMeshUnlinkEdgeBtn" }, { topologyCommand: true });
     const slot = getActiveSlot();
-    if (!slot) return;
+    if (!slot) {
+      finishCapture({ ok: false, reason: "no_active_slot" });
+      return;
+    }
     const ok = linkSelectedSlotMeshEdge(false);
-    const activeSet = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
+    const activeSet = getSlotMeshEditSetName();
     if (!ok) {
       setStatus("Select exactly 2 vertices, then Unlink Edge.");
+      finishCapture({ ok: false, reason: "invalid_selection", activeSet });
       return;
     }
     markSlotContourDirty(slot, true);
     setStatus(`Edge unlinked (${activeSet}).`);
+    finishCapture({ ok: true, activeSet });
   });
 }
 if (els.slotBindBoneBtn) {
@@ -618,12 +713,34 @@ if (els.slotBindWeightedBtn) {
 }
 if (els.slotMeshResetBtn) {
   els.slotMeshResetBtn.addEventListener("click", () => {
+    const finishCapture = beginAICaptureCommand("mesh.reset_to_grid", { buttonId: "slotMeshResetBtn" }, { topologyCommand: true });
     const slot = getActiveSlot();
-    if (!slot) return;
+    if (!slot) {
+      finishCapture({ ok: false, reason: "no_active_slot" });
+      return;
+    }
     if (resetSlotMeshToGrid(slot)) {
       clearSlotMeshSelection();
-      setStatus("Slot mesh reset to square grid.");
+      setStatus("Slot mesh reset to square grid. Editing: Grid.");
+      finishCapture({ ok: true });
+      return;
     }
+    finishCapture({ ok: false, reason: "reset_failed" });
+  });
+}
+if (els.slotMeshCaptureStartBtn) {
+  els.slotMeshCaptureStartBtn.addEventListener("click", () => {
+    startAICapture("mesh");
+  });
+}
+if (els.slotMeshCaptureMarkBtn) {
+  els.slotMeshCaptureMarkBtn.addEventListener("click", () => {
+    markAICaptureIssue("User marked issue");
+  });
+}
+if (els.slotMeshCaptureCopyBtn) {
+  els.slotMeshCaptureCopyBtn.addEventListener("click", async () => {
+    await copyAICaptureReport();
   });
 }
 
@@ -640,6 +757,39 @@ els.boneName.addEventListener("input", () => {
   els.boneSelect.value = String(state.selectedBone);
   els.boneParent.value = String(b.parent);
 });
+
+if (els.boneColor) {
+  els.boneColor.addEventListener("input", () => {
+    const m = state.mesh;
+    if (!m) return;
+    const b = m.rigBones[state.selectedBone];
+    if (!b) return;
+    const v = String(els.boneColor.value || "").trim();
+    b.color = v && /^#?[0-9a-fA-F]{6}$/.test(v) ? (v.startsWith("#") ? v : "#" + v) : "";
+    if (m.poseBones && m.poseBones[state.selectedBone]) {
+      m.poseBones[state.selectedBone].color = b.color;
+    }
+    if (els.boneColor) els.boneColor.classList.toggle("color-active", !!b.color);
+    if (typeof requestRender === "function") requestRender("bone-color");
+  });
+}
+if (els.boneColorClearBtn) {
+  els.boneColorClearBtn.addEventListener("click", () => {
+    const m = state.mesh;
+    if (!m) return;
+    const b = m.rigBones[state.selectedBone];
+    if (!b) return;
+    b.color = "";
+    if (m.poseBones && m.poseBones[state.selectedBone]) {
+      m.poseBones[state.selectedBone].color = "";
+    }
+    if (els.boneColor) {
+      els.boneColor.value = "#7dd3fc";
+      els.boneColor.classList.remove("color-active");
+    }
+    if (typeof requestRender === "function") requestRender("bone-color-clear");
+  });
+}
 
 els.boneParent.addEventListener("change", () => {
   const m = state.mesh;

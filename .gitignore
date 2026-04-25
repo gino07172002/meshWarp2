@@ -7,3 +7,5 @@ vendor/mediapipe/
 vendor/pose-runtime/
 .tmp_pose_vendor/
 .tmp_tfjs_vendor/
+.claude/
+.superpowers/

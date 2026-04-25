@@ -1,6 +1,268 @@
 // Split from app.js
 // Part: Canvas pointer interactions and app bootstrap
 // Original lines: 29899-30158
+function toggleFullscreen() {
+  const electronApi = typeof window !== "undefined" ? window.electronAPI : null;
+  if (electronApi && typeof electronApi.toggleFullscreen === "function") {
+    try { electronApi.toggleFullscreen(); } catch (err) { console.warn("[fullscreen] electron toggle failed", err); }
+    return;
+  }
+  const doc = document;
+  const isFs = !!(doc.fullscreenElement || doc.webkitFullscreenElement);
+  if (isFs) {
+    const exit = doc.exitFullscreen || doc.webkitExitFullscreen;
+    if (!exit) { console.warn("[fullscreen] exitFullscreen not supported"); return; }
+    const result = exit.call(doc);
+    if (result && typeof result.catch === "function") result.catch((err) => console.warn("[fullscreen] exit failed", err));
+  } else {
+    const root = doc.documentElement;
+    const req = root.requestFullscreen || root.webkitRequestFullscreen;
+    if (!req) { console.warn("[fullscreen] requestFullscreen not supported"); return; }
+    const result = req.call(root);
+    if (result && typeof result.catch === "function") result.catch((err) => console.warn("[fullscreen] request failed", err));
+  }
+}
+
+function setupFullscreenButton() {
+  const btn = document.getElementById("fullscreenBtn");
+  const syncState = () => {
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    document.body.dataset.fullscreen = isFs ? "true" : "false";
+    if (btn) {
+      btn.textContent = isFs ? "⛌" : "⛶";
+      btn.title = isFs ? "Exit Fullscreen (F11)" : "Fullscreen (F11)";
+    }
+  };
+  if (btn) btn.addEventListener("click", toggleFullscreen);
+  document.addEventListener("fullscreenchange", syncState);
+  document.addEventListener("webkitfullscreenchange", syncState);
+  syncState();
+}
+
+// Mesh topology buttons (Pin / Unpin / Relax / Add / Delete) dispatch synthetic
+// keydown events so the existing hotkey handlers remain the single source of truth.
+function dispatchMeshHotkey(key, modifiers = {}) {
+  const ev = new KeyboardEvent("keydown", {
+    key,
+    bubbles: true,
+    cancelable: true,
+    shiftKey: !!modifiers.shift,
+    ctrlKey: !!modifiers.ctrl,
+    altKey: !!modifiers.alt,
+    metaKey: !!modifiers.meta,
+  });
+  window.dispatchEvent(ev);
+}
+
+function setupMeshTopologyButtons() {
+  if (els.slotMeshAddVertexBtn) {
+    els.slotMeshAddVertexBtn.addEventListener("click", () => dispatchMeshHotkey("v"));
+  }
+  if (els.slotMeshDeleteVertexBtn) {
+    els.slotMeshDeleteVertexBtn.addEventListener("click", () => dispatchMeshHotkey("Delete"));
+  }
+  if (els.slotMeshPinBtn) {
+    els.slotMeshPinBtn.addEventListener("click", () => dispatchMeshHotkey("p"));
+  }
+  if (els.slotMeshUnpinBtn) {
+    els.slotMeshUnpinBtn.addEventListener("click", () => dispatchMeshHotkey("u"));
+  }
+  if (els.slotMeshRelaxBtn) {
+    els.slotMeshRelaxBtn.addEventListener("click", (ev) => dispatchMeshHotkey("m", { shift: ev.shiftKey }));
+  }
+  if (els.slotMeshCopyWeightsBtn) {
+    els.slotMeshCopyWeightsBtn.addEventListener("click", () => {
+      const r = copyVertexWeightsToClipboard();
+      setStatus(r.ok
+        ? `Copied weights from vertex ${r.sourceVertex} (${r.boneCount} bones).`
+        : `Copy weights: ${r.reason}`);
+    });
+  }
+  if (els.slotMeshPasteWeightsBtn) {
+    els.slotMeshPasteWeightsBtn.addEventListener("click", () => {
+      const r = pasteVertexWeightsFromClipboard();
+      if (r.ok) {
+        setStatus(`Pasted weights to ${r.count} vertex(es).`);
+        if (typeof requestRender === "function") requestRender("ui");
+        if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+      } else {
+        setStatus(`Paste weights: ${r.reason}`);
+      }
+    });
+  }
+}
+
+function setupWeightBrushUI() {
+  if (els.weightBrushToggle) {
+    els.weightBrushToggle.addEventListener("change", () => {
+      setWeightBrushActive(!!els.weightBrushToggle.checked);
+    });
+  }
+  if (els.weightBrushAddBtn) {
+    els.weightBrushAddBtn.addEventListener("click", () => setWeightBrushMode("add"));
+  }
+  if (els.weightBrushRemoveBtn) {
+    els.weightBrushRemoveBtn.addEventListener("click", () => setWeightBrushMode("remove"));
+  }
+  if (els.weightBrushReplaceBtn) {
+    els.weightBrushReplaceBtn.addEventListener("click", () => setWeightBrushMode("replace"));
+  }
+  if (els.weightBrushSmoothBtn) {
+    els.weightBrushSmoothBtn.addEventListener("click", () => setWeightBrushMode("smooth"));
+  }
+  if (els.weightBrushSize) {
+    els.weightBrushSize.addEventListener("input", () => {
+      const v = Number(els.weightBrushSize.value);
+      if (Number.isFinite(v)) state.weightBrush.size = Math.max(4, Math.min(400, v));
+      if (typeof requestRender === "function") requestRender("weight-brush-size");
+    });
+  }
+  if (els.weightBrushStrength) {
+    els.weightBrushStrength.addEventListener("input", () => {
+      const v = Number(els.weightBrushStrength.value);
+      if (Number.isFinite(v)) state.weightBrush.strength = Math.max(0, Math.min(1, v));
+    });
+  }
+  if (els.weightBrushFeather) {
+    els.weightBrushFeather.addEventListener("input", () => {
+      const v = Number(els.weightBrushFeather.value);
+      if (Number.isFinite(v)) state.weightBrush.feather = Math.max(0, Math.min(1, v));
+      if (typeof requestRender === "function") requestRender("weight-brush-feather");
+    });
+  }
+  refreshWeightBrushUI();
+  setupWeightPruneUI();
+  setupWeightOverlayQuickToggle();
+}
+
+function refreshWeightOverlayQuickBtn() {
+  if (!els.weightOverlayQuickBtn) return;
+  const on = !!(state.vertexDeform && state.vertexDeform.weightViz);
+  els.weightOverlayQuickBtn.classList.toggle("active", on);
+  els.weightOverlayQuickBtn.setAttribute("aria-pressed", on ? "true" : "false");
+  const label = els.weightOverlayQuickBtn.querySelector(".mesh-quick-label");
+  if (label) label.textContent = on ? "Weight Overlay (ON)" : "Weight Overlay";
+}
+
+function setupWeightOverlayQuickToggle() {
+  if (!els.weightOverlayQuickBtn) return;
+  els.weightOverlayQuickBtn.addEventListener("click", () => {
+    const next = !(state.vertexDeform && state.vertexDeform.weightViz);
+    state.vertexDeform.weightViz = next;
+    if (els.vertexWeightVizToggle) els.vertexWeightVizToggle.checked = next;
+    if (typeof refreshVertexDeformUI === "function") refreshVertexDeformUI();
+    if (!next && typeof weightHeatmapGPU !== "undefined" && weightHeatmapGPU && typeof weightHeatmapGPU.clear === "function") {
+      weightHeatmapGPU.clear();
+    }
+    refreshWeightOverlayQuickBtn();
+    if (typeof requestRender === "function") requestRender("weight-overlay-quick");
+    setStatus(`Weight overlay ${next ? "ON" : "OFF"}.`);
+  });
+  refreshWeightOverlayQuickBtn();
+}
+
+function getPruneThreshold() {
+  if (!els.weightPruneThreshold) return 0.02;
+  const v = Number(els.weightPruneThreshold.value);
+  if (!Number.isFinite(v)) return 0.02;
+  return Math.max(0, Math.min(0.5, v));
+}
+
+function setupWeightPruneUI() {
+  if (els.weightPrunePreviewBtn) {
+    els.weightPrunePreviewBtn.addEventListener("click", () => {
+      const t = getPruneThreshold();
+      const r = pruneVertexWeights(t, { dryRun: true });
+      if (!els.weightPrunePreview) return;
+      if (!r.ok) {
+        els.weightPrunePreview.textContent = `Prune preview: ${r.reason}`;
+        return;
+      }
+      els.weightPrunePreview.textContent =
+        `Threshold ${t.toFixed(3)} → drop ${r.droppedInfluences} influences across ${r.affectedVertices} vertex(es); ${r.emptiedBones} bone(s) become unused.`;
+    });
+  }
+  if (els.weightPruneApplyBtn) {
+    els.weightPruneApplyBtn.addEventListener("click", () => {
+      const t = getPruneThreshold();
+      // Capture the BEFORE state so undo restores pre-prune weights.
+      if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+      const r = pruneVertexWeights(t, { dryRun: false });
+      if (!r.ok) {
+        setStatus(`Prune: ${r.reason}`);
+        if (els.weightPrunePreview) els.weightPrunePreview.textContent = `Prune: ${r.reason}`;
+        return;
+      }
+      setStatus(`Pruned ${r.droppedInfluences} influences across ${r.affectedVertices} vertex(es); ${r.emptiedBones} bone(s) emptied.`);
+      if (els.weightPrunePreview) {
+        els.weightPrunePreview.textContent =
+          `Applied threshold ${t.toFixed(3)} — dropped ${r.droppedInfluences}, affected ${r.affectedVertices}, emptied ${r.emptiedBones}.`;
+      }
+      if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+      if (typeof requestRender === "function") requestRender("weight-prune-apply");
+    });
+  }
+  if (els.weightPruneThreshold) {
+    els.weightPruneThreshold.addEventListener("input", () => {
+      // Live label update without re-running preview (preview can be heavy on big meshes).
+      if (els.weightPrunePreview) {
+        const t = getPruneThreshold();
+        els.weightPrunePreview.textContent = `Threshold ${t.toFixed(3)} — preview to count removable influences.`;
+      }
+    });
+  }
+  setupWeightWeldSwapUI();
+}
+
+function setupWeightWeldSwapUI() {
+  if (els.weightWeldApplyBtn) {
+    els.weightWeldApplyBtn.addEventListener("click", () => {
+      const fb = Number(els.weightWeldFromBone ? els.weightWeldFromBone.value : -1);
+      const tb = Number(els.weightWeldToBone ? els.weightWeldToBone.value : -1);
+      if (typeof weldBoneWeights !== "function") {
+        setStatus("Weld unavailable.");
+        return;
+      }
+      if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+      const r = weldBoneWeights(fb, tb);
+      if (!r.ok) {
+        setStatus(`Weld: ${r.reason}`);
+        if (els.weightWeldHint) els.weightWeldHint.textContent = `Weld failed: ${r.reason}`;
+        return;
+      }
+      const fromName = state.mesh && state.mesh.rigBones && state.mesh.rigBones[r.fromBone] ? state.mesh.rigBones[r.fromBone].name : `bone ${r.fromBone}`;
+      const toName = state.mesh && state.mesh.rigBones && state.mesh.rigBones[r.toBone] ? state.mesh.rigBones[r.toBone].name : `bone ${r.toBone}`;
+      setStatus(`Welded: ${fromName} → ${toName} (${r.mergedVertices} vertices touched)`);
+      if (els.weightWeldHint) els.weightWeldHint.textContent = `Welded ${fromName} → ${toName} on ${r.mergedVertices} vertex(es).`;
+      if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+      if (typeof requestRender === "function") requestRender("weight-weld");
+    });
+  }
+  if (els.weightSwapApplyBtn) {
+    els.weightSwapApplyBtn.addEventListener("click", () => {
+      const fb = Number(els.weightWeldFromBone ? els.weightWeldFromBone.value : -1);
+      const tb = Number(els.weightWeldToBone ? els.weightWeldToBone.value : -1);
+      if (typeof swapBoneWeights !== "function") {
+        setStatus("Swap unavailable.");
+        return;
+      }
+      if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+      const r = swapBoneWeights(fb, tb);
+      if (!r.ok) {
+        setStatus(`Swap: ${r.reason}`);
+        if (els.weightWeldHint) els.weightWeldHint.textContent = `Swap failed: ${r.reason}`;
+        return;
+      }
+      const aName = state.mesh && state.mesh.rigBones && state.mesh.rigBones[r.boneA] ? state.mesh.rigBones[r.boneA].name : `bone ${r.boneA}`;
+      const bName = state.mesh && state.mesh.rigBones && state.mesh.rigBones[r.boneB] ? state.mesh.rigBones[r.boneB].name : `bone ${r.boneB}`;
+      setStatus(`Swapped: ${aName} ↔ ${bName} (${r.swappedVertices} vertices)`);
+      if (els.weightWeldHint) els.weightWeldHint.textContent = `Swapped ${aName} ↔ ${bName} on ${r.swappedVertices} vertex(es).`;
+      if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+      if (typeof requestRender === "function") requestRender("weight-swap");
+    });
+  }
+}
+
 function clearDrag(ev) {
   const drag = state.drag;
   const shiftHeld = !!(ev && ev.shiftKey);
@@ -12,6 +274,17 @@ function clearDrag(ev) {
       // ignore
     }
   }
+  if (drag.type === "slot_mesh_point" || drag.type === "slot_mesh_multi_move" || drag.type === "slot_mesh_marquee") {
+    pushMeshDebugEvent("mesh_drag_end", {
+      slotIndex: Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1,
+      dragType: drag.type,
+      pointSet: drag.pointSet || getSlotMeshEditSetName(),
+      pointIndex: Number.isFinite(drag.pointIndex) ? Number(drag.pointIndex) : -1,
+      pointIndices: Array.isArray(drag.pointIndices) ? [...drag.pointIndices] : [],
+      moved: !!drag.debugMoved,
+      shiftHeld,
+    });
+  }
   state.drag = null;
   refreshCanvasInteractionAffordance();
   if (drag.type === "bone_object_scale") {
@@ -20,6 +293,13 @@ function clearDrag(ev) {
   }
   if (drag.type === "view_pan") {
     if (els.stage) els.stage.classList.remove("dragging-pan");
+    return;
+  }
+  if (drag.type === "weight_brush") {
+    if (drag.changed) {
+      setStatus(`Weight brush stroke (${state.weightBrush.mode}) → bone ${getPrimarySelectedBoneIndex()}`);
+      pushUndoCheckpoint(true);
+    }
     return;
   }
   if (drag.type === "base_transform_move" || drag.type === "base_transform_rotate" || drag.type === "base_transform_scale") {
@@ -69,7 +349,7 @@ function clearDrag(ev) {
     const slot = getActiveSlot();
     if (!slot) return;
     const contour = ensureSlotContour(slot);
-    const setName = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
+    const setName = getSlotMeshEditSetName();
     const points = setName === "fill" ? contour.fillPoints : contour.points;
     const x0 = Math.min(Number(drag.startX) || 0, Number(drag.curX) || 0);
     const y0 = Math.min(Number(drag.startY) || 0, Number(drag.curY) || 0);
@@ -144,6 +424,21 @@ function clearDrag(ev) {
       rebuildSlotWeights(s, state.mesh);
     }
   }
+  // Bone-edit drags (bone_joint / bone_tip / bone_part_multi_move) skip the
+  // per-frame slot weight rebuild while dragging (see commitRigEditPreserveCurrentLook
+  // guard). Run it once now that the drag has finished so the final pose is
+  // reflected in the slot weights / tree positioning.
+  const wasBoneEditDrag =
+    state.mesh &&
+    state.boneMode === "edit" &&
+    (drag.type === "bone_joint" || drag.type === "bone_tip" || drag.type === "bone_part_multi_move");
+  if (wasBoneEditDrag) {
+    for (const s of state.slots) {
+      if (!s) continue;
+      rebuildSlotWeights(s, state.mesh);
+    }
+    if (typeof renderBoneTree === "function") renderBoneTree();
+  }
   if (
     drag.type === "bone_head" ||
     drag.type === "bone_tip" ||
@@ -151,7 +446,9 @@ function clearDrag(ev) {
     drag.type === "bone_object_move" ||
     drag.type === "bone_object_scale" ||
     drag.type === "bone_object_rotate" ||
-    drag.type === "vertex"
+    drag.type === "vertex" ||
+    drag.type === "bone_joint" ||
+    drag.type === "bone_part_multi_move"
   ) {
     pushUndoCheckpoint(true);
   }
@@ -237,7 +534,11 @@ setupLeftToolTabs();
 setupWorkspaceTabs();
 setupAnimateSubTabs();
 mountAnimateAuxPanelsInLeftTools();
+setupDockLayout();
 setupApplicationMenuBar();
+setupFullscreenButton();
+setupMeshTopologyButtons();
+setupWeightBrushUI();
 requestRender("bootstrap");
 state.editMode =
   els.editMode && (els.editMode.value === "skeleton" || els.editMode.value === "mesh")

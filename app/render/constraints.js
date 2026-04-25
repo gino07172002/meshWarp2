@@ -1295,8 +1295,9 @@ function getSlotTransformMatrix(slot, poseWorld) {
 }
 
 function getSlotMeshEditMatrix(slot, poseWorld = null) {
+  if (!slot) return createIdentity();
   const m = state.mesh;
-  if (!m || !slot) return createIdentity();
+  if (!m) return getBaseImageTransformMatrix(slot, null);
   const world = Array.isArray(poseWorld) ? poseWorld : getSolvedPoseWorld(m);
   return getSlotTransformMatrix(slot, world);
 }
@@ -1660,6 +1661,9 @@ function resize(force = false) {
     els.glCanvas.height = h;
     els.overlay.width = w;
     els.overlay.height = h;
+    if (typeof window !== "undefined" && window.glToolkit && typeof window.glToolkit.syncOverlayCanvasSize === "function") {
+      window.glToolkit.syncOverlayCanvasSize();
+    }
     perf.backdropSig = "";
   }
 
@@ -2610,6 +2614,20 @@ function drawOverlay() {
                             : b.connected
                               ? "#f6b84c"
                               : "#7dd3fc";
+      // Editor-only bone tint (b.color, e.g. "#ff8800"). Used as base fill
+      // ONLY when there is no overriding semantic state (selected, IK, parent
+      // candidate, etc.) — those need to stay visually distinct.
+      let userBoneTint = "";
+      if (b && typeof b.color === "string" && b.color.trim().length > 0) {
+        const c = b.color.trim();
+        const hex = c.startsWith("#") ? c.slice(1) : c;
+        if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+          const r = parseInt(hex.slice(0, 2), 16);
+          const g = parseInt(hex.slice(2, 4), 16);
+          const bl = parseInt(hex.slice(4, 6), 16);
+          userBoneTint = `rgba(${r}, ${g}, ${bl}, 0.22)`;
+        }
+      }
       const boneFill = shouldDimBone
         ? "rgba(98, 103, 111, 0.28)"
         : isParentCandidate
@@ -2632,9 +2650,11 @@ function drawOverlay() {
                           ? "rgba(154, 196, 255, 0.15)"
                           : state.addBoneArmed
                             ? "rgba(246,184,76,0.12)"
-                            : b.connected
-                              ? "rgba(246,184,76,0.12)"
-                              : "rgba(125,211,252,0.1)";
+                            : userBoneTint
+                              ? userBoneTint
+                              : b.connected
+                                ? "rgba(246,184,76,0.12)"
+                                : "rgba(125,211,252,0.1)";
       if (isBodyPrimarySelected) {
         ctx.strokeStyle = "rgba(255, 236, 153, 0.24)";
         ctx.lineWidth = 5.5;
@@ -2840,12 +2860,17 @@ function drawOverlay() {
     }
   }
 
+  if (state.editMode !== "mesh" && typeof weightHeatmapGPU !== "undefined" && weightHeatmapGPU && typeof weightHeatmapGPU.clear === "function") {
+    weightHeatmapGPU.clear();
+  }
   if (state.editMode === "mesh") {
     const vCount = Math.floor((screenForOverlay && screenForOverlay.length ? screenForOverlay.length : 0) / 2);
     if (state.vertexDeform.weightViz && vCount > 0) {
       const activeSlot = getActiveSlot();
       const weightMesh = state.slots.length > 0 ? (activeSlot ? (getActiveAttachment(activeSlot) || {}).meshData : null) : m;
       drawWeightOverlayForMesh(ctx, m, weightMesh, screenForOverlay);
+    } else if (typeof weightHeatmapGPU !== "undefined" && weightHeatmapGPU && typeof weightHeatmapGPU.clear === "function") {
+      weightHeatmapGPU.clear();
     }
     const selectedVerts = getActiveVertexSelection(vCount);
     const selectedSet = new Set(selectedVerts);
@@ -2865,7 +2890,7 @@ function drawOverlay() {
         ctx.fill();
       }
     }
-    if (state.vertexDeform.proportional && state.vertexDeform.hasCursor) {
+    if (state.vertexDeform.proportional && state.vertexDeform.hasCursor && !(state.weightBrush && state.weightBrush.active)) {
       const r = Math.max(4, Number(state.vertexDeform.radius) || 80);
       ctx.strokeStyle = "rgba(122, 214, 255, 0.85)";
       ctx.lineWidth = 1.4;
@@ -2875,6 +2900,7 @@ function drawOverlay() {
       ctx.stroke();
       ctx.setLineDash([]);
     }
+    if (typeof drawWeightBrushCursor === "function") drawWeightBrushCursor(ctx);
     ctx.fillStyle = "rgba(220, 245, 255, 0.92)";
     for (let i = 0; i < screenForOverlay.length / 2; i += 1) {
       ctx.beginPath();
@@ -2903,8 +2929,8 @@ function drawOverlay() {
       syncSlotContourFromMeshData(slot, false);
       const slotPoseWorld = getSolvedPoseWorld(m);
       const contour = ensureSlotContour(slot);
-      const showContourLayer = !(contour.fillFromMeshData && !contour.dirty);
-      const activeSet = state.slotMesh.activeSet === "fill" ? "fill" : "contour";
+      const showContourLayer = Array.isArray(contour.points) && contour.points.length > 0;
+      const activeSet = getSlotMeshEditSetName();
       const triIdx =
         Array.isArray(contour.fillTriangles) && contour.fillTriangles.length >= 3 ? contour.fillTriangles : contour.triangles;
       const triPts =
@@ -2933,7 +2959,7 @@ function drawOverlay() {
       // Manual edges are now applied directly to triangulation, no separate rendering needed
 
       if (showContourLayer) {
-        ctx.strokeStyle = contour.closed ? "#66f2cc" : "#7dd3fc";
+        ctx.strokeStyle = contour.closed ? "#f0c46a" : "#f3b86b";
         ctx.lineWidth = 2;
         if (Array.isArray(contour.contourEdges) && contour.contourEdges.length > 0) {
           for (const edge of contour.contourEdges) {
@@ -2954,23 +2980,27 @@ function drawOverlay() {
         const s = slotMeshLocalToScreen(slot, p, slotPoseWorld);
         const active = activeSet === "fill" && i === state.slotMesh.activePoint;
         const selected = getSlotMeshSelection("fill", contour.fillPoints.length).includes(i);
+        ctx.globalAlpha = activeSet === "fill" ? 1 : 0.38;
         ctx.fillStyle = active ? "#ff8fd0" : selected ? "#ffd9ec" : "#88e9ff";
         ctx.beginPath();
         ctx.arc(s.x, s.y, active ? 5.8 : selected ? 4.4 : 3.2, 0, Math.PI * 2);
         ctx.fill();
       }
+      ctx.globalAlpha = 1;
       if (showContourLayer) {
         for (let i = 0; i < contour.points.length; i += 1) {
           const p = contour.points[i];
           const s = slotMeshLocalToScreen(slot, p, slotPoseWorld);
           const active = activeSet === "contour" && i === state.slotMesh.activePoint;
           const selected = getSlotMeshSelection("contour", contour.points.length).includes(i);
-          ctx.fillStyle = active ? "#ffe46e" : selected ? "#fff0b8" : i === 0 ? "#66f2cc" : "#d3f2ff";
+          ctx.globalAlpha = activeSet === "contour" ? 1 : 0.55;
+          ctx.fillStyle = active ? "#ffd27a" : selected ? "#ffe2a8" : i === 0 ? "#f3b86b" : "#e7dcc2";
           ctx.beginPath();
           ctx.arc(s.x, s.y, active ? 6 : selected ? 5.4 : 4.5, 0, Math.PI * 2);
           ctx.fill();
         }
       }
+      ctx.globalAlpha = 1;
       if (state.slotMesh.edgeSelectionSet && state.slotMesh.edgeSelection.length > 0) {
         const points = state.slotMesh.edgeSelectionSet === "fill" ? contour.fillPoints : contour.points;
         for (const i of state.slotMesh.edgeSelection) {
@@ -3126,12 +3156,23 @@ function drawGhostAttachments(ctx, poseWorld) {
     }
 
     if ((attType === "region" || attType === "mesh" || attType === "linkedmesh") && att.canvas) {
-      const cw = Number(att.canvas.width) || 0;
-      const ch = Number(att.canvas.height) || 0;
-      if (cw > 0 && ch > 0) {
+      const rect =
+        att.rect && Number.isFinite(att.rect.w) && Number.isFinite(att.rect.h)
+          ? att.rect
+          : slot.rect && Number.isFinite(slot.rect.w) && Number.isFinite(slot.rect.h)
+            ? slot.rect
+            : {
+                x: 0,
+                y: 0,
+                w: Math.max(1, Number(att.canvas.width) || 1),
+                h: Math.max(1, Number(att.canvas.height) || 1),
+              };
+      if (Number(rect.w) > 0 && Number(rect.h) > 0) {
         const corners = [
-          { x: -cw / 2, y: -ch / 2 }, { x: cw / 2, y: -ch / 2 },
-          { x: cw / 2, y: ch / 2 }, { x: -cw / 2, y: ch / 2 },
+          { x: Number(rect.x) || 0, y: Number(rect.y) || 0 },
+          { x: (Number(rect.x) || 0) + (Number(rect.w) || 0), y: Number(rect.y) || 0 },
+          { x: (Number(rect.x) || 0) + (Number(rect.w) || 0), y: (Number(rect.y) || 0) + (Number(rect.h) || 0) },
+          { x: Number(rect.x) || 0, y: (Number(rect.y) || 0) + (Number(rect.h) || 0) },
         ];
         ctx.beginPath();
         for (let i = 0; i < corners.length; i += 1) {

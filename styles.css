@@ -25,12 +25,12 @@ body {
 .app {
   display: grid;
   grid-template-columns: var(--left-w, 260px) 6px minmax(0, 1fr) 6px var(--right-w, 340px);
-  grid-template-rows: auto minmax(0, 1fr) 8px var(--timeline-h);
+  grid-template-rows: auto minmax(0, 1fr) var(--timeline-resizer-h, 8px) var(--timeline-h) 6px var(--bottom-dock-h, 0px);
   height: 100vh;
 }
 
 .app.page-anim.timeline-minimized {
-  grid-template-rows: auto minmax(0, 1fr) 0 var(--timeline-min-h);
+  grid-template-rows: auto minmax(0, 1fr) 0 var(--timeline-min-h) 6px var(--bottom-dock-h, 0px);
 }
 
 .topbar {
@@ -210,6 +210,57 @@ body {
   justify-content: flex-end;
   gap: 10px;
   white-space: nowrap;
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.ai-capture-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 8px;
+  border: 1px solid rgba(56, 79, 92, 0.86);
+  border-radius: 8px;
+  background: rgba(10, 18, 23, 0.74);
+}
+
+.fullscreen-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 6px;
+  font-size: 15px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(56, 79, 92, 0.86);
+  background: rgba(10, 18, 23, 0.74);
+  color: inherit;
+  cursor: pointer;
+}
+
+.fullscreen-btn:hover {
+  background: rgba(30, 48, 58, 0.9);
+}
+
+:root:fullscreen .fullscreen-btn,
+body[data-fullscreen="true"] .fullscreen-btn {
+  background: rgba(60, 120, 150, 0.35);
+}
+
+.ai-capture-label {
+  color: var(--muted);
+  font-size: 11px;
+  margin-right: 2px;
+}
+
+.ai-capture-bar button {
+  width: auto;
+  min-width: 42px;
+  padding: 4px 7px;
+  border-radius: 6px;
   font-size: 11px;
 }
 
@@ -635,6 +686,10 @@ body {
   cursor: crosshair;
 }
 
+body[data-weight-brush="on"] .stage:not(.pan-mode) #overlay {
+  cursor: none;
+}
+
 .stage.object-mode:not(.pan-mode)::after {
   content: attr(data-object-tool);
   position: absolute;
@@ -764,6 +819,486 @@ body {
   border: 1px solid var(--line);
 }
 
+.dock-side {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dock-side-left {
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 0;
+  padding: 10px;
+}
+
+.right-col.dock-side-right {
+  grid-column: 5;
+  grid-row: 2;
+  min-height: 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.right-col.dock-side-right > .right-col-resizer {
+  display: none;
+}
+
+.dock-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dock-panel.left-tools,
+.dock-panel.right-tree,
+.dock-panel.right-props {
+  padding: 0;
+}
+
+.dock-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(47, 67, 79, 0.65);
+  background: rgba(16, 28, 35, 0.78);
+  color: var(--ink);
+}
+
+.dock-panel-head-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dock-panel-title {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dock-panel-handle {
+  cursor: grab;
+  user-select: none;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  letter-spacing: 1px;
+  padding: 0 2px;
+}
+
+.dock-panel-handle:active {
+  cursor: grabbing;
+}
+
+.dock-panel.dragging {
+  opacity: 0.7;
+}
+
+.dock-panel-toggle {
+  width: auto;
+  min-width: 72px;
+  padding: 4px 8px;
+  font-size: 11px;
+  flex: 0 0 auto;
+}
+
+.dock-panel-body {
+  min-height: 0;
+  padding: 10px;
+  overflow: auto;
+}
+
+.dock-drop-indicator {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(63, 208, 162, 0.55);
+  flex: 0 0 auto;
+}
+
+.dock-side-collapsed {
+  overflow: hidden;
+  flex-direction: column; /* override row layout when collapsed */
+}
+
+.dock-side-collapsed .dock-drop-indicator {
+  display: none;
+}
+
+.dock-side-collapsed .dock-col:not(:first-child),
+.dock-side-collapsed .dock-col-resizer {
+  display: none;
+}
+
+.dock-side-collapsed .dock-col {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dock-side-collapsed .dock-panel {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.dock-side-collapsed .dock-panel:not(:first-of-type) {
+  display: none;
+}
+
+.dock-side-collapsed .dock-panel-head {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 100%;
+  height: 100%;
+  padding: 6px 2px;
+  border-bottom: none;
+  cursor: pointer; /* whole rail is clickable to expand */
+  transition: background 100ms;
+}
+
+/* Hover highlight for any collapsed dock rail (left/right/bottom) */
+.dock-side-collapsed .dock-panel-head:hover,
+.dock-side-collapsed:hover > .dock-panel {
+  background: rgba(63, 208, 162, 0.15);
+}
+
+.dock-side-collapsed {
+  cursor: pointer;
+  transition: background 100ms;
+}
+
+.dock-side-collapsed:hover {
+  background: rgba(63, 208, 162, 0.08);
+}
+
+.dock-side-collapsed .dock-panel-head-left {
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.dock-side-collapsed .dock-panel-body,
+.dock-side-collapsed .dock-panel-handle {
+  display: none;
+}
+
+/* Expand button in collapsed rail — prominent and vertical */
+.dock-side-collapsed .dock-panel-toggle {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  min-width: 0;
+  width: 100%;
+  padding: 6px 2px;
+  font-size: 11px;
+  background: rgba(63, 208, 162, 0.2);
+  border: 1px solid rgba(63, 208, 162, 0.5);
+  color: var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.dock-side-collapsed .dock-panel-toggle:hover {
+  background: rgba(63, 208, 162, 0.4);
+  color: var(--ink);
+}
+
+.dock-side-empty {
+  padding: 0;
+  border: 0;
+  gap: 0;
+}
+
+/* ── Dock column layout (side-by-side panels) ────────────────── */
+.dock-side-left,
+.right-col.dock-side-right {
+  display: flex !important;   /* override .right-col { display:grid } */
+  flex-direction: row;
+  align-items: stretch;
+  grid-template-rows: none;
+}
+
+.dock-col {
+  flex: 1 1 0;
+  min-width: 80px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+/* Column handle — appears at top of col when it has 2+ panels */
+.dock-col-handle {
+  flex: 0 0 auto;
+  align-self: stretch;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 3px;
+  padding: 3px 0;
+  cursor: grab;
+  user-select: none;
+  background: rgba(16, 28, 35, 0.5);
+  border: 1px dashed rgba(63, 208, 162, 0.3);
+  border-radius: 4px;
+  transition: background 100ms, color 100ms, border-color 100ms;
+}
+
+.dock-col-handle:hover {
+  background: rgba(63, 208, 162, 0.15);
+  color: var(--accent);
+  border-color: rgba(63, 208, 162, 0.6);
+}
+
+.dock-col-handle:active {
+  cursor: grabbing;
+}
+
+/* Floating column (while being dragged as a group) */
+.dock-col-floating {
+  position: fixed;
+  z-index: 60;
+  background: var(--panel);
+  border: 1px solid rgba(63, 208, 162, 0.5);
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65), 0 0 0 2px rgba(63, 208, 162, 0.3);
+  opacity: 0.92;
+}
+
+.dock-col .dock-panel {
+  flex: 1 1 0;
+}
+
+/* Resizer between columns */
+.dock-col-resizer {
+  flex: 0 0 5px;
+  cursor: ew-resize;
+  background: transparent;
+  border-radius: 3px;
+  transition: background 100ms;
+  align-self: stretch;
+}
+
+.dock-col-resizer:hover,
+.dock-col-resizer:active {
+  background: rgba(63, 208, 162, 0.3);
+}
+
+/* Resizer between stacked panels within a column */
+.dock-row-resizer {
+  flex: 0 0 5px;
+  cursor: ns-resize;
+  background: transparent;
+  border-radius: 3px;
+  transition: background 100ms;
+  margin: -2px 0;   /* slight overlap for easier grabbing */
+}
+
+.dock-row-resizer:hover,
+.dock-row-resizer:active {
+  background: rgba(63, 208, 162, 0.3);
+}
+
+/* Vertical line shown when dragging panel to create new column */
+.dock-col-split-indicator {
+  position: fixed;
+  width: 4px;
+  background: rgba(63, 208, 162, 0.8);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: 0 0 6px rgba(63, 208, 162, 0.5);
+}
+
+/* ── Bottom dock zone ────────────────────────────────────────── */
+.dock-side-bottom {
+  grid-column: 1 / -1;
+  grid-row: var(--bottom-dock-row, 6);
+  display: flex;
+  flex-direction: row;   /* panels side by side horizontally */
+  gap: 8px;
+  padding: 6px 10px;
+  min-height: 0;
+  height: var(--bottom-dock-h, 280px);
+  overflow: hidden;
+  background: linear-gradient(0deg, #0c161b, #101e26);
+  border-top: 1px solid var(--line);
+}
+
+.dock-side-bottom .dock-panel {
+  flex: 1 1 0;
+  min-width: 180px;
+  height: 100%;
+}
+
+.dock-side-bottom .dock-panel-body {
+  height: calc(100% - 36px);
+  overflow: auto;
+}
+
+/* Bottom dock collapsed rail */
+.dock-side-bottom.dock-side-collapsed {
+  height: 34px;
+  overflow: hidden;
+  flex-direction: row;
+  align-items: center;
+  padding: 0 10px;
+}
+
+.dock-side-bottom.dock-side-collapsed .dock-panel:not(:first-of-type) {
+  display: none;
+}
+
+.dock-side-bottom.dock-side-collapsed .dock-panel-body {
+  display: none;
+}
+
+.dock-side-bottom.dock-side-collapsed .dock-panel-head {
+  writing-mode: initial;
+  height: 34px;
+  padding: 4px 8px;
+}
+
+/* Bottom dock resizer */
+.bottom-dock-resizer {
+  grid-column: 1 / -1;
+  grid-row: var(--bottom-dock-resizer-row, 5);
+  height: 6px;
+  cursor: ns-resize;
+  background: transparent;
+  transition: background 120ms;
+  flex: 0 0 auto;
+}
+
+.bottom-dock-resizer:hover,
+.bottom-dock-resizer:active {
+  background: rgba(63, 208, 162, 0.25);
+}
+
+/* Drop indicator — horizontal direction (for bottom dock) */
+.dock-drop-indicator-h {
+  width: 6px;
+  height: 100%;
+  min-height: 40px;
+  flex: 0 0 6px;
+  border-radius: 999px;
+  background: rgba(63, 208, 162, 0.55);
+}
+
+/* When timeline is managed by dock system, suppress its native grid row */
+.timeline-dock-managed {
+  grid-column: initial !important;
+  grid-row: initial !important;
+  position: initial !important;
+}
+
+/* ── Floating panels ─────────────────────────────────────────── */
+.dock-panel-floating {
+  position: fixed;
+  min-width: 180px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(63, 208, 162, 0.18);
+  background: var(--panel);
+  border: 1px solid rgba(63, 208, 162, 0.22);
+  resize: none;
+}
+
+.dock-panel-floating .dock-panel-head {
+  cursor: move;
+  background: rgba(16, 32, 42, 0.95);
+  border-bottom: 1px solid rgba(63, 208, 162, 0.2);
+  user-select: none;
+}
+
+.dock-panel-floating .dock-panel-body {
+  flex: 1 1 0;
+  overflow: auto;
+}
+
+.dock-panel-floating .dock-panel-toggle {
+  min-width: 48px;
+}
+
+/* Resize handle — bottom-right corner */
+.dock-float-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  opacity: 0.45;
+  background: linear-gradient(135deg, transparent 50%, var(--accent) 50%);
+  border-radius: 0 0 6px 0;
+}
+
+.dock-float-resize-handle:hover {
+  opacity: 0.9;
+}
+
+/* Snap ghost — full-side preview overlay */
+.dock-snap-ghost {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(63, 208, 162, 0.1);
+  border: 2px solid rgba(63, 208, 162, 0.55);
+  z-index: 9999;
+  transition: opacity 80ms ease;
+  border-radius: 4px;
+  /* default: left/right vertical ghost */
+  top: 0;
+  bottom: 0;
+  width: 260px;
+}
+
+.dock-snap-ghost[data-side="left"] {
+  left: 0;
+  right: auto;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+}
+
+.dock-snap-ghost[data-side="right"] {
+  right: 0;
+  left: auto;
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+}
+
+.dock-snap-ghost[data-side="bottom"] {
+  bottom: 0;
+  top: auto;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 160px;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+}
+
+.dock-panel-floating.dragging-float {
+  opacity: 0.88;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 0 2px rgba(63, 208, 162, 0.45);
+}
+
+
 .left-tools {
   grid-column: 1;
   grid-row: 2;
@@ -795,6 +1330,58 @@ body {
   grid-row: 2;
   padding: 10px;
   min-height: 0;
+  position: relative;
+}
+
+.bone-edit-hint-bar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 60;
+  background: rgba(20, 22, 28, 0.82);
+  color: #e2e8f0;
+  font-size: 12px;
+  padding: 4px 12px;
+  pointer-events: none;
+  white-space: nowrap;
+  border-radius: 6px 6px 0 0;
+}
+
+.active-skin-label {
+  color: #94a3b8;
+  font-size: 11px;
+  white-space: nowrap;
+  align-self: center;
+  padding: 0 4px;
+}
+
+.skin-diff-list {
+  margin-top: 6px;
+  font-size: 11px;
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+
+.skin-diff-header {
+  color: #94a3b8;
+  margin-bottom: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.skin-diff-row {
+  color: #94a3b8;
+  padding: 1px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.skin-diff-row.skin-diff-override {
+  color: #e2e8f0;
+  font-weight: 500;
 }
 
 .stage {
@@ -809,6 +1396,7 @@ body {
 
 #backdropCanvas,
 #glCanvas,
+#glOverlayCanvas,
 #overlay {
   position: absolute;
   inset: 0;
@@ -820,16 +1408,21 @@ body {
   pointer-events: none;
 }
 
+#glOverlayCanvas {
+  pointer-events: none;
+}
+
 #overlay {
   pointer-events: auto;
 }
 
 #backdropCanvas,
 #glCanvas,
+#glOverlayCanvas,
 #overlay,
 #timelineTracks {
-  user-select: none;
   -webkit-user-select: none;
+  user-select: none;
   -webkit-user-drag: none;
 }
 
@@ -895,23 +1488,38 @@ body {
   -webkit-user-select: none;
 }
 
+/* Timeline in native position: dock-panel-body uses display:contents so the
+   original timeline children behave as direct children of .timeline-dock
+   (preserving the existing .timeline-dock > .anim-toolbar etc layout). */
+#timelineDock:not(.timeline-dock-managed):not(.dock-panel-floating) > .dock-panel-body {
+  padding: 0 !important;
+  display: contents;
+}
+
+/* Native timeline header: slim, no drag handle visible, Collapse button still works */
+#timelineDock:not(.timeline-dock-managed):not(.dock-panel-floating) > .dock-panel-head {
+  padding: 2px 8px;
+  min-height: 0;
+}
+
 .timeline-dock.minimized {
   gap: 0;
   padding-top: 5px;
   padding-bottom: 5px;
 }
 
-.timeline-dock.minimized > :not(.anim-toolbar) {
+/* Minimized state: in the dock era, only the dock-panel-head is visible.
+   It already contains the Expand button on the right — no need to also keep
+   anim-toolbar (which had the old Min button). */
+.timeline-dock.minimized > :not(.dock-panel-head) {
   display: none !important;
 }
 
-.timeline-dock.minimized .anim-toolbar {
-  overflow: hidden;
-  padding-bottom: 0;
-}
-
-.timeline-dock.minimized .anim-toolbar > :not(#animSelect):not(#timelineCollapseBtn) {
-  display: none !important;
+.timeline-dock.minimized > .dock-panel-head {
+  padding: 4px 10px !important;
+  min-height: 0;
+  flex: 0 0 auto;
+  height: 100%;
 }
 
 .export-dock {
@@ -1152,9 +1760,346 @@ button:hover {
   color: #c4d4db;
 }
 
+/* --- Reusable collapsible panel section (used across all left-tab panels) --- */
+.left-tab-panel .panel-section,
+.left-tab-panel .mesh-section {
+  margin: 0 0 8px;
+  border: 1px solid rgba(56, 79, 92, 0.55);
+  border-radius: 6px;
+  background: rgba(14, 24, 30, 0.55);
+  overflow: hidden;
+}
+
+.left-tab-panel .panel-section > .panel-section-head,
+.left-tab-panel .mesh-section > .mesh-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  background: rgba(22, 35, 43, 0.85);
+  border-bottom: 1px solid rgba(56, 79, 92, 0.5);
+  list-style: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.left-tab-panel .panel-section > .panel-section-head::-webkit-details-marker,
+.left-tab-panel .mesh-section > .mesh-section-head::-webkit-details-marker {
+  display: none;
+}
+
+.left-tab-panel .panel-section:not([open]) > .panel-section-head,
+.left-tab-panel .mesh-section:not([open]) > .mesh-section-head {
+  border-bottom-color: transparent;
+}
+
+.left-tab-panel .panel-section-title,
+.left-tab-panel .mesh-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #d8e6ec;
+  letter-spacing: 0.3px;
+  flex: 1;
+}
+
+.left-tab-panel .panel-section-hint,
+.left-tab-panel .mesh-section-hint {
+  font-size: 10px;
+  color: #7a9da8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.left-tab-panel .panel-section-head::before,
+.left-tab-panel .mesh-section-head::before {
+  content: "▾";
+  font-size: 9px;
+  color: #7a9da8;
+  margin-right: 2px;
+  transition: transform 100ms ease;
+}
+
+.left-tab-panel .panel-section:not([open]) > .panel-section-head::before,
+.left-tab-panel .mesh-section:not([open]) > .mesh-section-head::before {
+  transform: rotate(-90deg);
+}
+
+.left-tab-panel .panel-section-body,
+.left-tab-panel .mesh-section-body {
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Nested "Advanced" disclosure inside a panel-section.
+   Closed: just the pill summary (the wrapper itself is invisible).
+   Open: pill + body with tinted card connected below. */
+.left-tab-panel .mesh-advanced,
+.left-tab-panel .panel-section-advanced {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  transition: background-color 100ms ease, border-color 100ms ease;
+}
+
+.left-tab-panel .mesh-advanced[open],
+.left-tab-panel .panel-section-advanced[open] {
+  border: 1px solid rgba(120, 200, 255, 0.55);
+  background: rgba(40, 68, 92, 0.45);
+  padding-bottom: 10px;
+}
+
+.left-tab-panel .mesh-advanced[open] > *:not(summary),
+.left-tab-panel .panel-section-advanced[open] > *:not(summary) {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.left-tab-panel .mesh-advanced > summary,
+.left-tab-panel .panel-section-advanced > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d8e6ec;
+  -webkit-user-select: none;
+  user-select: none;
+  list-style: none;
+  padding: 6px 10px;
+  margin: -2px -4px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(36, 56, 76, 0.8), rgba(22, 38, 54, 0.8));
+  border: 1px solid rgba(120, 158, 181, 0.55);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 100ms ease, border-color 100ms ease, color 100ms ease;
+}
+
+.left-tab-panel .mesh-advanced > summary:hover,
+.left-tab-panel .panel-section-advanced > summary:hover {
+  border-color: rgba(160, 200, 220, 0.85);
+  color: #f0f6fa;
+  background: linear-gradient(180deg, rgba(46, 70, 92, 0.9), rgba(28, 48, 66, 0.9));
+}
+
+.left-tab-panel .mesh-advanced[open] > summary,
+.left-tab-panel .panel-section-advanced[open] > summary {
+  color: #d6ebff;
+  background: linear-gradient(180deg, rgba(40, 68, 92, 0.95), rgba(24, 50, 72, 0.95));
+  border: 0;
+  border-bottom: 1px solid rgba(120, 200, 255, 0.45);
+  margin: 0 0 8px;
+  border-radius: 4px 4px 0 0;
+}
+
+.left-tab-panel .mesh-advanced > summary::-webkit-details-marker,
+.left-tab-panel .panel-section-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.left-tab-panel .mesh-advanced > summary::before,
+.left-tab-panel .panel-section-advanced > summary::before {
+  content: "▸";
+  color: #b8c8d0;
+  font-size: 10px;
+  width: 10px;
+  display: inline-block;
+}
+
+.left-tab-panel .mesh-advanced[open] > summary::before,
+.left-tab-panel .panel-section-advanced[open] > summary::before {
+  content: "▾";
+  color: #8fc6ff;
+}
+
+/* Sticky apply-bar at bottom of a panel */
+.left-tab-panel .mesh-apply-bar {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(56, 79, 92, 0.7);
+}
+
+.left-tab-panel .mesh-apply-bar > button {
+  flex: 1;
+}
+
+.left-tab-panel .mesh-apply-bar > button.primary,
+.left-tab-panel button.primary {
+  background: linear-gradient(180deg, rgba(26, 80, 66, 0.95), rgba(14, 50, 42, 0.95));
+  border-color: rgba(63, 208, 162, 0.55);
+  color: #d5fff1;
+  font-weight: 700;
+}
+
+.left-tab-panel .mesh-apply-bar > button.primary:hover,
+.left-tab-panel button.primary:hover {
+  background: linear-gradient(180deg, rgba(34, 100, 82, 0.95), rgba(18, 64, 54, 0.95));
+}
+
+.setup-update-bindings-row {
+  margin-top: 8px;
+}
+
+.bone-color-row .bone-color-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bone-color-row input[type="color"] {
+  width: 38px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(120, 158, 181, 0.6);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.bone-color-row input[type="color"].color-active {
+  border-color: rgba(255, 200, 80, 0.85);
+  box-shadow: 0 0 4px rgba(255, 200, 80, 0.5);
+}
+
+.bone-color-row #boneColorClearBtn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #c4d4db;
+  background: rgba(22, 35, 43, 0.85);
+  border: 1px solid rgba(120, 158, 181, 0.5);
+  cursor: pointer;
+}
+
+.bone-color-row #boneColorClearBtn:hover {
+  background: rgba(60, 30, 30, 0.85);
+  color: #ffd5d5;
+  border-color: rgba(255, 130, 130, 0.7);
+}
+
+/* Mesh quick-toggle row (sits right under the panel h3) */
+.mesh-quick-toggles {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+}
+
+.mesh-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 158, 181, 0.6);
+  background: linear-gradient(180deg, rgba(22, 35, 43, 0.95), rgba(12, 22, 28, 0.95));
+  color: #c4d4db;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.mesh-quick-btn:hover {
+  border-color: rgba(160, 200, 220, 0.85);
+  color: #e4ecf0;
+}
+
+.mesh-quick-dot {
+  width: 9px;
+  height: 9px;
+  min-width: 9px;
+  border-radius: 50%;
+  background: rgba(180, 200, 210, 0.25);
+  border: 1px solid rgba(120, 158, 181, 0.6);
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.mesh-quick-btn.active {
+  border-color: rgba(120, 230, 170, 0.9);
+  background: linear-gradient(180deg, rgba(26, 80, 66, 0.95), rgba(14, 50, 42, 0.95));
+  color: #d5fff1;
+  box-shadow: 0 0 8px rgba(63, 208, 162, 0.35);
+}
+
+.mesh-quick-btn.active .mesh-quick-dot {
+  background: #6dffb4;
+  border-color: #6dffb4;
+  box-shadow: 0 0 8px rgba(109, 255, 180, 0.85);
+}
+
+/* Panel h3 (panel title) gets consistent treatment */
+.left-tab-panel > h3 {
+  margin: 0 0 10px;
+  padding: 0 2px 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #e4ecf0;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(56, 79, 92, 0.7);
+}
+
 .slotmesh-ref-hint {
   border-color: rgba(63, 208, 162, 0.32);
   color: #bdeedf;
+}
+
+.slotmesh-edit-target {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 6px 0 4px;
+}
+
+.slotmesh-edit-target button {
+  border-color: rgba(79, 107, 120, 0.9);
+  background: linear-gradient(180deg, rgba(22, 35, 43, 0.95), rgba(12, 22, 28, 0.95));
+  color: #c4d4db;
+  font-weight: 700;
+}
+
+.slotmesh-edit-target button.active {
+  border-color: rgba(63, 208, 162, 0.78);
+  background: linear-gradient(180deg, rgba(20, 66, 56, 0.95), rgba(11, 40, 34, 0.95));
+  color: #d5fff1;
+}
+
+/* Weight brush mode pad: 2x2 grid, color-coded per mode when active */
+.weight-brush-modes {
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+}
+
+.weight-brush-modes #weightBrushAddBtn.active {
+  border-color: rgba(120, 230, 170, 0.85);
+  background: linear-gradient(180deg, rgba(24, 80, 60, 0.95), rgba(12, 50, 38, 0.95));
+}
+
+.weight-brush-modes #weightBrushRemoveBtn.active {
+  border-color: rgba(255, 130, 130, 0.85);
+  background: linear-gradient(180deg, rgba(90, 30, 30, 0.95), rgba(60, 18, 18, 0.95));
+  color: #ffd5d5;
+}
+
+.weight-brush-modes #weightBrushReplaceBtn.active {
+  border-color: rgba(120, 200, 255, 0.85);
+  background: linear-gradient(180deg, rgba(28, 60, 90, 0.95), rgba(16, 40, 64, 0.95));
+  color: #d5e8ff;
+}
+
+.weight-brush-modes #weightBrushSmoothBtn.active {
+  border-color: rgba(200, 150, 240, 0.85);
+  background: linear-gradient(180deg, rgba(60, 35, 90, 0.95), rgba(40, 22, 64, 0.95));
+  color: #e8d5ff;
 }
 
 #slotMeshNewBtn.slotmesh-tool-toggle {
@@ -1325,17 +2270,151 @@ button:hover {
   cursor: not-allowed;
 }
 
-.bone-tree .tree-item {
-  font-size: 12px;
-  padding: 4px 6px;
-  border-radius: 6px;
-  cursor: pointer;
+/* Tree indentation — depth × step + extra (set per-row via inline CSS vars) */
+.bone-tree {
+  --tree-indent-step: 14px;
+  --tree-type-bar-w: 3px;
+  --tree-type-color-bone: #6da9d8;
+  --tree-type-color-slot: #f5a25c;
+  --tree-type-color-attachment: #6dcfa4;
+  --tree-type-tint-slot: rgba(245, 162, 92, 0.07);
+  --tree-type-tint-attachment: rgba(109, 207, 164, 0.05);
 }
 
+.bone-tree .tree-item {
+  position: relative;
+  font-size: 12px;
+  padding: 4px 6px 4px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: calc(var(--tree-row-depth, 0) * var(--tree-indent-step) + (var(--tree-row-extra, 0) * 1px));
+}
+
+/* Left type-color bar */
+.bone-tree .tree-item::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  bottom: 4px;
+  width: var(--tree-type-bar-w);
+  border-radius: 2px;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* Type icon — Unicode glyph in a fixed-width slot */
+.bone-tree .tree-type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-right: 4px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.bone-tree .tree-type-icon-bone {
+  color: var(--tree-type-color-bone);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.bone-tree .tree-type-icon-slot {
+  color: var(--tree-type-color-slot);
+  font-size: 13px;
+}
+
+.bone-tree .tree-type-icon-attachment {
+  color: var(--tree-type-color-attachment);
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.bone-tree .tree-attachment.active-attachment .tree-type-icon-attachment {
+  opacity: 1;
+  text-shadow: 0 0 4px rgba(109, 207, 164, 0.5);
+}
+
+/* === Bone rows: bold, larger, neutral background === */
 .bone-tree .tree-item[data-bone-index] {
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: #d8e6ec;
+  min-height: 26px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.bone-tree .tree-item[data-bone-index]::before {
+  background: var(--tree-type-color-bone);
+}
+
+.bone-tree .tree-bone-name {
+  font-weight: 600;
+}
+
+/* === Slot rows: orange-tinted card, medium weight === */
+.bone-tree .tree-slot {
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--tree-type-tint-slot);
+  min-height: 24px;
+}
+
+.bone-tree .tree-slot::before {
+  background: var(--tree-type-color-slot);
+}
+
+.bone-tree .tree-slot-prefix {
+  font-size: 10px;
+  color: var(--tree-type-color-slot);
+  font-weight: 700;
+  margin: 0 4px 0 2px;
+  letter-spacing: 0.05em;
+}
+
+/* Active slot highlights name in stronger orange */
+.bone-tree .tree-slot.active-slot .tree-slot-name {
+  color: #ffd9a8;
+  font-weight: 700;
+}
+
+/* === Attachment rows: green tint, italic, smaller === */
+.bone-tree .tree-attachment {
+  font-style: italic;
+  font-size: 11px;
+  background: var(--tree-type-tint-attachment);
+  min-height: 22px;
+}
+
+.bone-tree .tree-attachment::before {
+  background: var(--tree-type-color-attachment);
+  opacity: 0.55;
+}
+
+.bone-tree .tree-attachment.active-attachment::before {
+  opacity: 1;
+  box-shadow: 0 0 6px rgba(109, 207, 164, 0.6);
+}
+
+.bone-tree .tree-attachment .att-name {
+  font-style: italic;
+}
+
+.bone-tree .tree-attachment.active-attachment .att-name {
+  font-weight: 700;
+  color: #d5fff1;
+  font-style: normal;
 }
 
 .bone-tree .tree-item:hover {
@@ -1390,7 +2469,6 @@ button:hover {
 }
 
 .bone-tree .tree-slot {
-  margin-left: 16px;
   color: #9ec2d0;
   cursor: grab;
   display: flex;
@@ -1494,7 +2572,8 @@ button:hover {
 }
 
 .bone-tree .tree-bone-hide-toggle,
-.bone-tree .tree-bone-anim-hide-toggle {
+.bone-tree .tree-bone-anim-hide-toggle,
+.bone-tree .tree-bone-lock-toggle {
   width: 26px;
   min-width: 26px;
   height: 18px;
@@ -1505,6 +2584,12 @@ button:hover {
   line-height: 1;
   color: #9ec2d0;
   border-radius: 9px;
+}
+
+.bone-tree .tree-bone-lock-toggle.active {
+  border-color: rgba(200, 150, 240, 0.85);
+  color: #e0c8ff;
+  background: rgba(80, 50, 110, 0.5);
 }
 
 .bone-tree .tree-bone-hide-toggle.active {
@@ -1541,6 +2626,7 @@ button:hover {
 .bone-tree .tree-slot-name {
   flex: 1;
   min-width: 0;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -1561,7 +2647,7 @@ button:hover {
   align-items: center;
   color: #8db8c8;
   font-size: 11px;
-  padding: 2px 6px;
+  padding: 2px 6px 2px 10px;
   border-radius: 5px;
   cursor: pointer;
   gap: 4px;
@@ -1610,6 +2696,7 @@ button:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -1637,6 +2724,51 @@ button:hover {
   color: #8db8c8;
   margin-left: 4px;
   flex-shrink: 0;
+}
+
+/* --- Hover quick actions on tree rows (Spine-style) --- */
+.bone-tree .tree-row-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 80ms ease;
+  flex-shrink: 0;
+  padding-left: 6px;
+}
+
+.bone-tree .tree-item:hover .tree-row-actions {
+  opacity: 1;
+}
+
+.bone-tree .tree-row-action-btn {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(24, 37, 46, 0.85);
+  border: 1px solid rgba(84, 106, 118, 0.6);
+  color: #b8c8d0;
+  cursor: pointer;
+}
+
+.bone-tree .tree-row-action-btn:hover {
+  background: rgba(40, 66, 82, 0.95);
+  border-color: rgba(120, 160, 180, 0.9);
+  color: #e4ecf0;
+}
+
+.bone-tree .tree-row-action-btn.tree-row-action-danger:hover {
+  background: rgba(110, 40, 40, 0.9);
+  border-color: rgba(200, 100, 100, 0.9);
+  color: #ffdede;
 }
 
 /* --- Attachment properties group --- */
@@ -2694,18 +3826,6 @@ button:hover {
   white-space: nowrap;
 }
 
-.vertex-deform-tools {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid #243843;
-}
-
-.vertex-deform-tools h4 {
-  margin: 0 0 8px;
-  font-size: 12px;
-  color: #bdefff;
-}
-
 .app.page-slot,
 .app.page-rig,
 .app.page-object {
@@ -2958,13 +4078,14 @@ button:hover {
   color: #d7f2ff;
 }
 
-.setup-subsection {
+/* Legacy .setup-subsection (only applies if NOT a panel-section) */
+.setup-subsection:not(.panel-section) {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid rgba(120, 158, 181, 0.35);
 }
 
-.setup-subsection>h4 {
+.setup-subsection:not(.panel-section) > h4 {
   margin: 0 0 8px;
   font-size: 12px;
   letter-spacing: 0.02em;

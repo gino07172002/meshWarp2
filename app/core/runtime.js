@@ -72,6 +72,7 @@ const els = {
   webglSupportBlockers: document.getElementById("webglSupportBlockers"),
   webglSupportWarnings: document.getElementById("webglSupportWarnings"),
   webglSupportReport: document.getElementById("webglSupportReport"),
+  leftDockSide: document.getElementById("leftDockSide"),
   leftTools: document.getElementById("leftTools"),
   rightCol: document.getElementById("rightCol"),
   rightTree: document.getElementById("rightTree"),
@@ -92,15 +93,11 @@ const els = {
   gridX: document.getElementById("gridX"),
   gridY: document.getElementById("gridY"),
   remeshBtn: document.getElementById("remeshBtn"),
-  setupAddBoneBtn: document.getElementById("setupAddBoneBtn"),
-  setupDeleteBoneBtn: document.getElementById("setupDeleteBoneBtn"),
   setupHumanoidBoneBtn: document.getElementById("setupHumanoidBoneBtn"),
   setupHumanoidSourceMode: document.getElementById("setupHumanoidSourceMode"),
   setupHumanoidMinScore: document.getElementById("setupHumanoidMinScore"),
   setupHumanoidSmoothing: document.getElementById("setupHumanoidSmoothing"),
   setupHumanoidFallback: document.getElementById("setupHumanoidFallback"),
-  setupBindBoneBtn: document.getElementById("setupBindBoneBtn"),
-  setupBindWeightedBtn: document.getElementById("setupBindWeightedBtn"),
   setupAutoWeightSingleBtn: document.getElementById("setupAutoWeightSingleBtn"),
   setupAutoWeightMultiBtn: document.getElementById("setupAutoWeightMultiBtn"),
   setupEditWeightsBtn: document.getElementById("setupEditWeightsBtn"),
@@ -198,6 +195,8 @@ const els = {
   pathClosed: document.getElementById("pathClosed"),
   pathHint: document.getElementById("pathHint"),
   boneName: document.getElementById("boneName"),
+  boneColor: document.getElementById("boneColor"),
+  boneColorClearBtn: document.getElementById("boneColorClearBtn"),
   boneParent: document.getElementById("boneParent"),
   boneInherit: document.getElementById("boneInherit"),
   boneConnect: document.getElementById("boneConnect"),
@@ -215,11 +214,14 @@ const els = {
   boneTipX: document.getElementById("boneTipX"),
   boneTipY: document.getElementById("boneTipY"),
   skinAddBtn: document.getElementById("skinAddBtn"),
+  skinDupBtn: document.getElementById("skinDupBtn"),
   skinDeleteBtn: document.getElementById("skinDeleteBtn"),
   skinSelect: document.getElementById("skinSelect"),
   skinName: document.getElementById("skinName"),
   skinCaptureBtn: document.getElementById("skinCaptureBtn"),
   skinApplyBtn: document.getElementById("skinApplyBtn"),
+  skinDiffList: document.getElementById("skinDiffList"),
+  activeSkinLabel: document.getElementById("activeSkinLabel"),
   weightMode: document.getElementById("weightMode"),
   autoWeightBtn: document.getElementById("autoWeightBtn"),
   resetPoseBtn: document.getElementById("resetPoseBtn"),
@@ -400,6 +402,12 @@ const els = {
   treeCtxAttachmentDupBtn: document.getElementById("treeCtxAttachmentDupBtn"),
   treeCtxAttachmentChangeTypeBtn: document.getElementById("treeCtxAttachmentChangeTypeBtn"),
   treeCtxAttachmentDeleteBtn: document.getElementById("treeCtxAttachmentDeleteBtn"),
+  treeCtxAttachmentRenameBtn: document.getElementById("treeCtxAttachmentRenameBtn"),
+  treeCtxAttachmentSetActiveBtn: document.getElementById("treeCtxAttachmentSetActiveBtn"),
+  treeCtxAttachmentCopyToSlotBtn: document.getElementById("treeCtxAttachmentCopyToSlotBtn"),
+  treeCtxAttachmentLoadImageBtn: document.getElementById("treeCtxAttachmentLoadImageBtn"),
+  boneEditHintBar:  document.getElementById("boneEditHintBar"),
+  boneEditHintText: document.getElementById("boneEditHintText"),
   treeCtxBoneDeleteBtn: document.getElementById("treeCtxBoneDeleteBtn"),
   treeCtxBoneDeleteWithSlotsBtn: document.getElementById("treeCtxBoneDeleteWithSlotsBtn"),
   treeCtxSlotLoadImageBtn: document.getElementById("treeCtxSlotLoadImageBtn"),
@@ -416,6 +424,7 @@ const els = {
   slotAttachmentName: document.getElementById("slotAttachmentName"),
   slotAttachmentType: document.getElementById("slotAttachmentType"),
   slotAttachmentLinkedParent: document.getElementById("slotAttachmentLinkedParent"),
+  slotAttachmentInheritTimelines: document.getElementById("slotAttachmentInheritTimelines"),
   slotAttachmentPointX: document.getElementById("slotAttachmentPointX"),
   slotAttachmentPointY: document.getElementById("slotAttachmentPointY"),
   slotAttachmentPointRot: document.getElementById("slotAttachmentPointRot"),
@@ -466,12 +475,18 @@ const els = {
   slotOrderUp: document.getElementById("slotOrderUp"),
   slotOrderDown: document.getElementById("slotOrderDown"),
   slotMeshTools: document.getElementById("slotMeshTools"),
+  slotMeshBoundaryEditBtn: document.getElementById("slotMeshBoundaryEditBtn"),
+  slotMeshGridEditBtn: document.getElementById("slotMeshGridEditBtn"),
+  slotMeshEditTargetHint: document.getElementById("slotMeshEditTargetHint"),
   slotMeshNewBtn: document.getElementById("slotMeshNewBtn"),
   slotMeshToolModeHint: document.getElementById("slotMeshToolModeHint"),
   slotMeshCloseBtn: document.getElementById("slotMeshCloseBtn"),
   slotMeshTriangulateBtn: document.getElementById("slotMeshTriangulateBtn"),
   slotMeshGridFillBtn: document.getElementById("slotMeshGridFillBtn"),
   slotMeshAutoForegroundBtn: document.getElementById("slotMeshAutoForegroundBtn"),
+  autoFgAlphaThreshold: document.getElementById("autoFgAlphaThreshold"),
+  autoFgPadding: document.getElementById("autoFgPadding"),
+  autoFgDetail: document.getElementById("autoFgDetail"),
   slotMeshGridReplaceContour: document.getElementById("slotMeshGridReplaceContour"),
   slotMeshContourRefHint: document.getElementById("slotMeshContourRefHint"),
   slotMeshLinkEdgeBtn: document.getElementById("slotMeshLinkEdgeBtn"),
@@ -479,9 +494,39 @@ const els = {
   slotMeshApplyBtn: document.getElementById("slotMeshApplyBtn"),
   slotMeshCreateApplyBtn: document.getElementById("slotMeshCreateApplyBtn"),
   slotMeshResetBtn: document.getElementById("slotMeshResetBtn"),
+  slotMeshAddVertexBtn: document.getElementById("slotMeshAddVertexBtn"),
+  slotMeshDeleteVertexBtn: document.getElementById("slotMeshDeleteVertexBtn"),
+  slotMeshPinBtn: document.getElementById("slotMeshPinBtn"),
+  slotMeshUnpinBtn: document.getElementById("slotMeshUnpinBtn"),
+  slotMeshRelaxBtn: document.getElementById("slotMeshRelaxBtn"),
+  slotMeshCopyWeightsBtn: document.getElementById("slotMeshCopyWeightsBtn"),
+  slotMeshPasteWeightsBtn: document.getElementById("slotMeshPasteWeightsBtn"),
+  slotMeshCaptureStartBtn: document.getElementById("slotMeshCaptureStartBtn"),
+  slotMeshCaptureMarkBtn: document.getElementById("slotMeshCaptureMarkBtn"),
+  slotMeshCaptureCopyBtn: document.getElementById("slotMeshCaptureCopyBtn"),
+  weightBrushToggle: document.getElementById("weightBrushToggle"),
+  weightBrushAddBtn: document.getElementById("weightBrushAddBtn"),
+  weightBrushRemoveBtn: document.getElementById("weightBrushRemoveBtn"),
+  weightBrushReplaceBtn: document.getElementById("weightBrushReplaceBtn"),
+  weightBrushSmoothBtn: document.getElementById("weightBrushSmoothBtn"),
+  weightBrushSize: document.getElementById("weightBrushSize"),
+  weightBrushStrength: document.getElementById("weightBrushStrength"),
+  weightBrushFeather: document.getElementById("weightBrushFeather"),
+  weightPruneThreshold: document.getElementById("weightPruneThreshold"),
+  weightPrunePreviewBtn: document.getElementById("weightPrunePreviewBtn"),
+  weightPrunePreview: document.getElementById("weightPrunePreview"),
+  weightPruneApplyBtn: document.getElementById("weightPruneApplyBtn"),
+  weightWeldFromBone: document.getElementById("weightWeldFromBone"),
+  weightWeldToBone: document.getElementById("weightWeldToBone"),
+  weightWeldApplyBtn: document.getElementById("weightWeldApplyBtn"),
+  weightSwapApplyBtn: document.getElementById("weightSwapApplyBtn"),
+  weightWeldHint: document.getElementById("weightWeldHint"),
+  weightOverlayQuickBtn: document.getElementById("weightOverlayQuickBtn"),
+  setupUpdateBindingsBtn: document.getElementById("setupUpdateBindingsBtn"),
   stage: document.getElementById("stage"),
   backdropCanvas: document.getElementById("backdropCanvas"),
   glCanvas: document.getElementById("glCanvas"),
+  glOverlayCanvas: document.getElementById("glOverlayCanvas"),
   overlay: document.getElementById("overlay"),
 };
 
@@ -506,6 +551,161 @@ const hasVAO = hasGL && typeof gl.createVertexArray === "function";
 const TIMELINE_MIN_STEP = 0.1;
 const TIMELINE_ZOOM_MIN = 0.5;
 const TIMELINE_ZOOM_MAX = 8;
+const DOCK_LAYOUT_STORAGE_KEY = "uiLayout:v3";
+const DOCK_PANEL_IDS = ["leftTools", "rightTree", "rightProps", "timelineDock"];
+
+// "native" = timeline stays in its original CSS grid row (default state)
+const DOCK_VALID_SIDES = ["left", "right", "bottom"];
+const DOCK_ALL_SIDES   = ["left", "right", "bottom", "native"];
+
+function getDefaultDockLayout() {
+  return {
+    version: 3,
+    sides: {
+      left:   { collapsed: false, expandedWidth: 260 },
+      right:  { collapsed: false, expandedWidth: 340 },
+      bottom: { collapsed: false, expandedHeight: 280 },
+    },
+    panels: {
+      leftTools:    { side: "left",   order: 0, column: 0, colWidth: null, float: null },
+      rightTree:    { side: "right",  order: 0, column: 0, colWidth: null, float: null },
+      rightProps:   { side: "right",  order: 1, column: 0, colWidth: null, float: null },
+      timelineDock: { side: "native", order: 0, column: 0, colWidth: null, float: null },
+    },
+  };
+}
+
+function normalizeDockLayout(raw) {
+  const fallback = getDefaultDockLayout();
+  const source = raw && typeof raw === "object" ? raw : null;
+  const panelSource = source && source.panels && typeof source.panels === "object" ? source.panels : null;
+
+  function normSide(key, minW, maxW, defaultW, isHeight) {
+    const s = source && source.sides && source.sides[key] ? source.sides[key] : null;
+    const dim = isHeight ? "expandedHeight" : "expandedWidth";
+    const raw2 = s && Number.isFinite(s[dim]) ? s[dim] : defaultW;
+    return {
+      collapsed: !!(s && s.collapsed),
+      [dim]: math.clamp(Math.round(raw2), minW, maxW),
+    };
+  }
+
+  const normalized = {
+    version: 3,
+    sides: {
+      left:   normSide("left",   150, 800, 260, false),
+      right:  normSide("right",  200, 800, 340, false),
+      bottom: normSide("bottom", 80,  600, 280, true),
+    },
+    panels: Object.create(null),
+  };
+
+  for (const id of DOCK_PANEL_IDS) {
+    const base = fallback.panels[id];
+    const entry = panelSource && panelSource[id] ? panelSource[id] : base;
+    const floatEntry = entry && entry.float && typeof entry.float === "object" ? entry.float : null;
+    const isFloat = !!(floatEntry);
+    const rawSide = entry && entry.side;
+    const side = (!isFloat && DOCK_ALL_SIDES.includes(rawSide)) ? rawSide : base.side;
+    const order = Number.isFinite(entry && entry.order) ? Math.max(0, Math.floor(entry.order)) : base.order;
+    const floatNorm = isFloat ? {
+      x: Number.isFinite(floatEntry.x) ? Math.round(floatEntry.x) : 100,
+      y: Number.isFinite(floatEntry.y) ? Math.round(floatEntry.y) : 100,
+      w: Number.isFinite(floatEntry.w) ? math.clamp(Math.round(floatEntry.w), 180, 1200) : 640,
+      h: Number.isFinite(floatEntry.h) ? math.clamp(Math.round(floatEntry.h), 120, 900) : 320,
+    } : null;
+    const column = Number.isFinite(entry && entry.column) ? Math.max(0, Math.floor(entry.column)) : 0;
+    const colWidth = Number.isFinite(entry && entry.colWidth) ? math.clamp(Math.round(entry.colWidth), 80, 1200) : null;
+    normalized.panels[id] = { side, order, column, colWidth, float: floatNorm };
+  }
+  return normalized;
+}
+
+function setDockPanelFloat(panelId, floatRect) {
+  const layout = normalizeDockLayout(state.uiLayout);
+  if (!layout.panels[panelId]) return layout;
+  layout.panels[panelId].float = floatRect
+    ? { x: Math.round(floatRect.x), y: Math.round(floatRect.y), w: Math.round(floatRect.w), h: Math.round(floatRect.h) }
+    : null;
+  writeDockLayout(layout);
+  return layout;
+}
+
+function readDockLayout() {
+  try {
+    const raw = localStorage.getItem(DOCK_LAYOUT_STORAGE_KEY);
+    return normalizeDockLayout(raw ? JSON.parse(raw) : null);
+  } catch {
+    return getDefaultDockLayout();
+  }
+}
+
+function writeDockLayout(layout) {
+  const normalized = normalizeDockLayout(layout);
+  state.uiLayout = normalized;
+  try {
+    localStorage.setItem(DOCK_LAYOUT_STORAGE_KEY, JSON.stringify(normalized));
+  } catch {
+    // localStorage full or disabled (QuotaExceededError, private mode, etc.)
+    // Keep in-memory state anyway so the current session works
+  }
+  return normalized;
+}
+
+function resetDockLayout() {
+  const layout = getDefaultDockLayout();
+  localStorage.removeItem(DOCK_LAYOUT_STORAGE_KEY);
+  // Also clear any legacy storage keys from previous versions
+  try { localStorage.removeItem("uiLayout:v1"); } catch { /**/ }
+  try { localStorage.removeItem("uiLayout:v2"); } catch { /**/ }
+  state.uiLayout = layout;
+  // Force-strip any residual float / inline styling from all dock panels
+  if (typeof DOCK_PANEL_IDS !== "undefined") {
+    for (const id of DOCK_PANEL_IDS) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.classList.remove("dock-panel-floating", "dragging-float", "dragging");
+      el.style.position = "";
+      el.style.left = "";
+      el.style.top = "";
+      el.style.width = "";
+      el.style.height = "";
+      el.style.zIndex = "";
+      el.style.order = "";
+      el.style.flex = "";
+      const rh = el.querySelector(".dock-float-resize-handle");
+      if (rh) rh.remove();
+    }
+  }
+  if (typeof applyDockLayout === "function") applyDockLayout(layout);
+  return layout;
+}
+
+function setDockSideCollapsed(side, collapsed) {
+  const layout = normalizeDockLayout(state.uiLayout);
+  const key = DOCK_VALID_SIDES.includes(side) ? side : "right";
+  layout.sides[key].collapsed = !!collapsed;
+  writeDockLayout(layout);
+  return layout;
+}
+
+function rememberDockSideWidth(side, width) {
+  const layout = normalizeDockLayout(state.uiLayout);
+  const key = side === "left" ? "left" : "right";
+  const next = key === "left"
+    ? math.clamp(Math.round(width), 150, 800)
+    : math.clamp(Math.round(width), 200, 800);
+  layout.sides[key].expandedWidth = next;
+  writeDockLayout(layout);
+  return layout;
+}
+
+function rememberDockBottomHeight(height) {
+  const layout = normalizeDockLayout(state.uiLayout);
+  layout.sides.bottom.expandedHeight = math.clamp(Math.round(height), 80, 600);
+  writeDockLayout(layout);
+  return layout;
+}
 
 // ============================================================
 // SECTION: Application State
@@ -529,6 +729,8 @@ const state = {
   uiPage: "rig",
   animSubPanel: "timeline",
   exportPanelOpen: false,
+  uiLayout: getDefaultDockLayout(),
+  uiResizing: null,
   mesh: null,
   editMode: "skeleton",
   selectedBone: 0,
@@ -539,8 +741,11 @@ const state = {
   selectedPath: -1,
   skinSets: [],
   selectedSkinSet: -1,
+  activeSkinSetId: null,
   ikPickArmed: false,
   ikHoverBone: -1,
+  grabArmed: false,
+  grabLive: false,
   boneMode: "edit",
   weightMode: "hard",
   dragTool: "auto",
@@ -661,6 +866,20 @@ const state = {
     issues: [],
     lastRunAt: 0,
   },
+  aiCapture: {
+    active: false,
+    domain: "",
+    startedAt: 0,
+    endedAt: 0,
+    eventSeq: 0,
+    events: [],
+    marks: [],
+    rawEventCount: 0,
+    rawDroppedCount: 0,
+    lastRawMoveAt: Object.create(null),
+    startSnapshot: null,
+    lastReportText: "",
+  },
   webglSupport: {
     lastCheckedAt: 0,
     summary: "No WebGL support report yet.",
@@ -712,6 +931,8 @@ const state = {
     edgeSelectionSet: "contour",
     selectedPoints: { contour: [], fill: [] },
     toolMode: "select",
+    editTarget: "boundary",
+    toolRestoreTarget: "boundary",
     gridReplaceContour: false,
   },
   pathEdit: {
@@ -733,6 +954,14 @@ const state = {
     hasCursor: false,
     selectionByKey: {},
     pinnedByKey: {},
+  },
+  weightBrush: {
+    active: false,
+    mode: "add",
+    size: 80,
+    strength: 0.5,
+    feather: 0.5,
+    lockedBones: [],
   },
   overlayScene: {
     canvas: null,
@@ -1243,6 +1472,946 @@ function setStatus(text) {
   els.status.textContent = text;
   if (typeof requestRender === "function") requestRender("status");
 }
+
+const AI_CAPTURE_DOMAIN_REGISTRY = {};
+const AI_CAPTURE_RAW_EVENT_LIMIT = 1000;
+const AI_CAPTURE_RAW_MOVE_INTERVAL_MS = 120;
+const MESH_DEBUG_EVENT_LIMIT = 500;
+
+function registerAICaptureDomain(domain, adapter = {}) {
+  const key = String(domain || "").trim();
+  if (!key) return null;
+  const normalized = {
+    id: key,
+    label: adapter.label || key,
+    snapshot: typeof adapter.snapshot === "function" ? adapter.snapshot : () => null,
+    diff: typeof adapter.diff === "function" ? adapter.diff : () => [],
+    invariants: typeof adapter.invariants === "function" ? adapter.invariants : () => [],
+    suspicions: typeof adapter.suspicions === "function" ? adapter.suspicions : () => [],
+    commands: Array.isArray(adapter.commands) ? adapter.commands.slice() : [],
+  };
+  AI_CAPTURE_DOMAIN_REGISTRY[key] = normalized;
+  return normalized;
+}
+
+function getAICaptureDomain(domain) {
+  return AI_CAPTURE_DOMAIN_REGISTRY[String(domain || "")] || null;
+}
+
+function listAICaptureDomains() {
+  return Object.keys(AI_CAPTURE_DOMAIN_REGISTRY).sort();
+}
+
+function getAICaptureDomainSnapshot(domain) {
+  const adapter = getAICaptureDomain(domain);
+  return adapter ? adapter.snapshot() : null;
+}
+
+function getAICaptureDomainDiffs(domain, startSnapshot = null, finalSnapshot = null, timeline = []) {
+  const adapter = getAICaptureDomain(domain);
+  return adapter ? adapter.diff(startSnapshot, finalSnapshot, timeline) : [];
+}
+
+function getAICaptureDomainInvariants(domain, finalSnapshot = null, context = {}) {
+  const adapter = getAICaptureDomain(domain);
+  return adapter ? adapter.invariants(finalSnapshot, context) : [];
+}
+
+function getAICaptureDomainSuspicions(domain, context = {}) {
+  const adapter = getAICaptureDomain(domain);
+  return adapter ? adapter.suspicions(context) : [];
+}
+
+function buildAICaptureDomainCoverage(timeline = []) {
+  const capturedCommands = new Set(
+    (Array.isArray(timeline) ? timeline : [])
+      .filter((event) => event && event.category === "command")
+      .map((event) => event.id)
+  );
+  const out = {};
+  for (const domain of listAICaptureDomains()) {
+    const adapter = getAICaptureDomain(domain);
+    const commands = adapter.commands.slice();
+    out[domain] = {
+      label: adapter.label,
+      capabilities: ["snapshot", "diff", "invariants", "suspicions"],
+      commandCatalog: commands,
+      capturedCommands: commands.filter((id) => capturedCommands.has(id)),
+      capturedCommandCount: commands.filter((id) => capturedCommands.has(id)).length,
+      registeredCommandCount: commands.length,
+    };
+  }
+  return out;
+}
+
+function resolveAICaptureEventDomain(kind, details = {}) {
+  if (details && details.domain) return String(details.domain);
+  const text = String(kind || "");
+  if (text.startsWith("mesh_") || text.startsWith("slot_mesh_")) return "mesh";
+  if (text.startsWith("timeline_")) return "timeline";
+  if (text.startsWith("bone_")) return "bone";
+  if (text.startsWith("attachment_")) return "attachment";
+  return "app";
+}
+
+function resolveAICaptureEventCategory(kind, details = {}) {
+  const text = String(kind || "");
+  if (text === "command" || text.endsWith("_command") || details.command) return "command";
+  if (text.startsWith("capture_") || text.startsWith("ai_capture_")) return "capture";
+  if (text.includes("pointer") || text.includes("pick")) return "pointer";
+  if (text.includes("drag")) return "drag";
+  if (text.includes("target") || text.includes("mode")) return "state_change";
+  return "event";
+}
+
+function resolveAICaptureIntent(kind, details = {}) {
+  if (details && details.command) return String(details.command);
+  const text = String(kind || "");
+  if (text === "mesh_pointerdown") return "begin_interaction";
+  if (text === "slot_mesh_pick") return "pick_vertex";
+  if (text === "mesh_drag_start") return "start_drag";
+  if (text === "mesh_drag_first_move") return "move_vertex";
+  if (text === "mesh_drag_end") return "finish_drag";
+  if (text === "slot_mesh_reset_to_grid") return "reset_grid";
+  if (text === "slot_mesh_edit_target") return "change_edit_target";
+  if (text === "slot_mesh_tool_mode") return "change_tool_mode";
+  if (text === "capture_start" || text === "ai_capture_start") return "capture_start";
+  if (text === "capture_mark" || text === "ai_capture_mark") return "capture_mark";
+  return text || "unknown";
+}
+
+function buildAICaptureEventId(kind, details = {}, domain = "app") {
+  if (details && details.command) return String(details.command);
+  const safeDomain = String(domain || "app").replace(/[^a-z0-9_]+/gi, "_").toLowerCase();
+  const safeKind = String(kind || "event").replace(/[^a-z0-9_]+/gi, "_").toLowerCase();
+  return `${safeDomain}.${safeKind}`;
+}
+
+function buildAICaptureEntity(details = {}) {
+  const entity = {};
+  if (Number.isFinite(Number(details.slotIndex))) entity.slotIndex = Number(details.slotIndex);
+  if (details.pointSet) entity.pointSet = String(details.pointSet);
+  if (Number.isFinite(Number(details.pointIndex))) entity.pointIndex = Number(details.pointIndex);
+  if (Array.isArray(details.pointIndices)) entity.pointCount = details.pointIndices.length;
+  if (details.targetSet) entity.targetSet = String(details.targetSet);
+  if (details.activeSet) entity.activeSet = String(details.activeSet);
+  if (Number.isFinite(Number(details.activePoint))) entity.activePoint = Number(details.activePoint);
+  return entity;
+}
+
+function sanitizeAICaptureRawTarget(target) {
+  const el = target && target.nodeType === 1 ? target : null;
+  if (!el) return { tag: "" };
+  const rect = typeof el.getBoundingClientRect === "function" ? el.getBoundingClientRect() : null;
+  const text = String(el.innerText || el.textContent || "").replace(/\s+/g, " ").trim();
+  return {
+    tag: String(el.tagName || "").toLowerCase(),
+    id: String(el.id || ""),
+    classes: String(el.className || "").split(/\s+/).filter(Boolean).slice(0, 6),
+    role: String(el.getAttribute && el.getAttribute("role") || ""),
+    ariaLabel: String(el.getAttribute && el.getAttribute("aria-label") || ""),
+    name: String(el.getAttribute && el.getAttribute("name") || ""),
+    type: String(el.getAttribute && el.getAttribute("type") || ""),
+    text: text.slice(0, 40),
+    rect: rect ? {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      w: Math.round(rect.width),
+      h: Math.round(rect.height),
+    } : null,
+  };
+}
+
+function sanitizeAICaptureKey(event) {
+  if (!event) return "";
+  if (event.key && event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) return "character";
+  return String(event.key || "");
+}
+
+function summarizeAICaptureRawEvent(event) {
+  const type = String(event && event.type || "");
+  const data = {
+    target: sanitizeAICaptureRawTarget(event && event.target),
+    ui: {
+      workspaceMode: state.workspaceMode,
+      uiPage: state.uiPage,
+      editMode: state.editMode,
+      toolMode: state.slotMesh && state.slotMesh.toolMode,
+      editTarget: state.slotMesh && state.slotMesh.editTarget,
+    },
+  };
+  if (type.startsWith("pointer") || type === "click" || type === "dblclick" || type === "contextmenu") {
+    data.pointer = {
+      x: Math.round(Number(event.clientX) || 0),
+      y: Math.round(Number(event.clientY) || 0),
+      button: Number(event.button) || 0,
+      buttons: Number(event.buttons) || 0,
+      pointerType: String(event.pointerType || ""),
+    };
+  }
+  if (type === "wheel") {
+    data.wheel = {
+      x: Math.round(Number(event.clientX) || 0),
+      y: Math.round(Number(event.clientY) || 0),
+      deltaX: Math.round(Number(event.deltaX) || 0),
+      deltaY: Math.round(Number(event.deltaY) || 0),
+    };
+  }
+  if (type === "keydown" || type === "keyup") {
+    data.key = {
+      key: sanitizeAICaptureKey(event),
+      ctrlKey: !!event.ctrlKey,
+      shiftKey: !!event.shiftKey,
+      altKey: !!event.altKey,
+      metaKey: !!event.metaKey,
+    };
+  }
+  if (type === "input" || type === "change") {
+    const target = event && event.target;
+    data.input = {
+      valueLength: target && target.value != null ? String(target.value).length : 0,
+      checked: target && "checked" in target ? !!target.checked : undefined,
+      selectedIndex: target && "selectedIndex" in target ? Number(target.selectedIndex) : undefined,
+    };
+  }
+  return data;
+}
+
+function pushAICaptureRawInputEvent(event) {
+  if (!state || !state.aiCapture || !state.aiCapture.active || !event) return null;
+  const type = String(event.type || "");
+  const now = Date.now();
+  if ((type === "pointermove" || type === "wheel") && now - (Number(state.aiCapture.lastRawMoveAt[type]) || 0) < AI_CAPTURE_RAW_MOVE_INTERVAL_MS) {
+    state.aiCapture.rawDroppedCount += 1;
+    return null;
+  }
+  if (type === "pointermove" || type === "wheel") state.aiCapture.lastRawMoveAt[type] = now;
+  if (state.aiCapture.rawEventCount >= AI_CAPTURE_RAW_EVENT_LIMIT) {
+    state.aiCapture.rawDroppedCount += 1;
+    return null;
+  }
+  state.aiCapture.rawEventCount += 1;
+  return pushAICaptureEvent(`raw_${type}`, summarizeAICaptureRawEvent(event), {
+    id: `raw.${type}`,
+    category: "raw_input",
+    domain: state.aiCapture.domain || "app",
+    intent: type,
+  });
+}
+
+function installAICaptureRawInputRecorder() {
+  if (window.__aiCaptureRawInputRecorderInstalled) return;
+  window.__aiCaptureRawInputRecorderInstalled = true;
+  for (const eventName of [
+    "pointerdown",
+    "pointermove",
+    "pointerup",
+    "click",
+    "dblclick",
+    "contextmenu",
+    "keydown",
+    "keyup",
+    "wheel",
+    "change",
+    "input",
+    "focus",
+    "blur",
+  ]) {
+    document.addEventListener(eventName, pushAICaptureRawInputEvent, true);
+  }
+}
+
+function sanitizeAICaptureData(details = {}) {
+  const data = {};
+  for (const [key, value] of Object.entries(details || {})) {
+    if (key === "before" || key === "after") continue;
+    if (key === "ok" || key === "error" || key === "reason") continue;
+    if (typeof value === "function") continue;
+    data[key] = value;
+  }
+  return data;
+}
+
+function pushAICaptureEvent(kind, details = {}, options = {}) {
+  if (!state || !state.aiCapture || !state.aiCapture.active) return null;
+  const domain = options.domain || resolveAICaptureEventDomain(kind, details);
+  const captureDomain = state.aiCapture.domain || domain;
+  if (captureDomain !== "all" && captureDomain !== domain) return null;
+  const now = Date.now();
+  const seq = Number(options.seq) || ((Number(state.aiCapture.eventSeq) || 0) + 1);
+  state.aiCapture.eventSeq = Math.max(Number(state.aiCapture.eventSeq) || 0, seq);
+  const event = {
+    t: now - (Number(state.aiCapture.startedAt) || now),
+    seq,
+    at: options.at || new Date(now).toISOString(),
+    id: options.id || buildAICaptureEventId(kind, details, domain),
+    kind: String(kind || ""),
+    category: options.category || resolveAICaptureEventCategory(kind, details),
+    domain,
+    entity: options.entity || buildAICaptureEntity(details),
+    intent: options.intent || resolveAICaptureIntent(kind, details),
+    topologyCommand: !!(options.topologyCommand || details.topologyCommand),
+    data: sanitizeAICaptureData(details),
+  };
+  const okSource = options.ok !== undefined ? options : details;
+  if (okSource.ok !== undefined) event.ok = !!okSource.ok;
+  if (okSource.error !== undefined) event.error = String(okSource.error);
+  if (okSource.reason !== undefined) event.reason = String(okSource.reason);
+  if (Number.isFinite(options.duration)) event.duration = options.duration;
+  if (options.before) event.before = options.before;
+  if (options.after) event.after = options.after;
+  state.aiCapture.events.push(event);
+  return event;
+}
+
+function beginAICaptureCommand(command, details = {}, options = {}) {
+  const domain = options.domain || "mesh";
+  const before = state.aiCapture && state.aiCapture.active ? getAICaptureDomainSnapshot(domain) : null;
+  const startedAt = Date.now();
+  return (result = {}) => pushAICaptureEvent("command", {
+    command,
+    ...details,
+  }, {
+    category: "command",
+    domain,
+    intent: command,
+    topologyCommand: !!options.topologyCommand,
+    before,
+    after: state.aiCapture && state.aiCapture.active ? getAICaptureDomainSnapshot(domain) : null,
+    ok: result.ok,
+    error: result.error,
+    reason: result.reason,
+    duration: Date.now() - startedAt,
+  });
+}
+
+function runAICaptureCommand(command, details = {}, options = {}, action = null) {
+  const run = typeof action === "function" ? action : options;
+  const captureOptions = typeof action === "function" ? options : {};
+  const finishCapture = beginAICaptureCommand(command, details, captureOptions);
+  try {
+    const result = typeof run === "function" ? run() : undefined;
+    if (result && typeof result.then === "function") {
+      return result.then(
+        (value) => {
+          finishCapture({ ok: true });
+          return value;
+        },
+        (err) => {
+          finishCapture({ ok: false, error: err && err.message || String(err) });
+          throw err;
+        }
+      );
+    }
+    finishCapture({ ok: true });
+    return result;
+  } catch (err) {
+    finishCapture({ ok: false, error: err && err.message || String(err) });
+    throw err;
+  }
+}
+
+function pushMeshDebugEvent(kind, details = {}) {
+  const list = Array.isArray(window.__meshDebugEvents) ? window.__meshDebugEvents : [];
+  if (list !== window.__meshDebugEvents) window.__meshDebugEvents = list;
+  const seq = (Number(window.__meshDebugSeq) || 0) + 1;
+  window.__meshDebugSeq = seq;
+  const entry = {
+    seq,
+    at: new Date().toISOString(),
+    kind: String(kind || ""),
+    ...details,
+  };
+  list.push(entry);
+  if (list.length > MESH_DEBUG_EVENT_LIMIT) {
+    list.splice(0, list.length - MESH_DEBUG_EVENT_LIMIT);
+  }
+  pushAICaptureEvent(kind, details, { domain: "mesh", seq, at: entry.at });
+  if (window.__meshDebugEnabled !== false && typeof console !== "undefined" && typeof console.debug === "function") {
+    console.debug("[mesh-debug]", entry);
+  }
+  return entry;
+}
+
+if (!Array.isArray(window.__meshDebugEvents)) window.__meshDebugEvents = [];
+if (!Number.isFinite(window.__meshDebugSeq)) window.__meshDebugSeq = 0;
+if (typeof window.__meshDebugEnabled !== "boolean") window.__meshDebugEnabled = true;
+window.__dumpMeshDebugLog = function __dumpMeshDebugLog() {
+  return JSON.stringify(window.__meshDebugEvents, null, 2);
+};
+window.__clearMeshDebugLog = function __clearMeshDebugLog() {
+  window.__meshDebugEvents.length = 0;
+  window.__meshDebugSeq = 0;
+  return 0;
+};
+
+function summarizeNumericArray(values, sampleSize = 8) {
+  if (!values || typeof values.length !== "number") return { length: 0, sample: [] };
+  const length = Number(values.length) || 0;
+  const sample = [];
+  for (let i = 0; i < Math.min(length, sampleSize); i += 1) {
+    sample.push(Number(values[i]) || 0);
+  }
+  let hash = 2166136261;
+  for (let i = 0; i < length; i += 1) {
+    hash ^= Math.round((Number(values[i]) || 0) * 1000);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return { length, sample, hash: hash.toString(16).padStart(8, "0") };
+}
+
+function summarizePoints(points, sampleSize = 6) {
+  const list = Array.isArray(points) ? points : [];
+  return {
+    count: list.length,
+    sample: list.slice(0, sampleSize).map((p) => ({
+      x: Number(p && p.x) || 0,
+      y: Number(p && p.y) || 0,
+    })),
+  };
+}
+
+function buildMeshCaptureSnapshot() {
+  const slot = typeof getActiveSlot === "function" ? getActiveSlot() : null;
+  const att = slot && typeof getActiveAttachment === "function" ? getActiveAttachment(slot) : null;
+  const contour = slot && typeof ensureSlotContour === "function" ? ensureSlotContour(slot) : null;
+  const meshData = att && att.meshData ? att.meshData : null;
+  const positions = meshData && meshData.positions;
+  const uvs = meshData && meshData.uvs;
+  const indices = meshData && meshData.indices;
+  return {
+    ui: {
+      workspaceMode: state.workspaceMode,
+      uiPage: state.uiPage,
+      editMode: state.editMode,
+      toolMode: typeof normalizeSlotMeshToolMode === "function"
+        ? normalizeSlotMeshToolMode(state.slotMesh && state.slotMesh.toolMode)
+        : state.slotMesh && state.slotMesh.toolMode,
+      editTarget: typeof normalizeSlotMeshEditTarget === "function"
+        ? normalizeSlotMeshEditTarget(state.slotMesh && state.slotMesh.editTarget)
+        : state.slotMesh && state.slotMesh.editTarget,
+      activeSet: state.slotMesh && state.slotMesh.activeSet,
+      activePoint: state.slotMesh && state.slotMesh.activePoint,
+      selectedPoints: state.slotMesh && state.slotMesh.selectedPoints,
+      view: {
+        scale: Number(state.view && state.view.scale) || 1,
+        cx: Number(state.view && state.view.cx) || 0,
+        cy: Number(state.view && state.view.cy) || 0,
+      },
+    },
+    slot: slot ? {
+      index: Number(state.activeSlot),
+      id: slot.id || "",
+      name: slot.name || "",
+      activeAttachment: slot.activeAttachment || "",
+    } : null,
+    attachment: att ? {
+      name: att.name || "",
+      type: att.type || "",
+      rect: att.rect || null,
+    } : null,
+    mesh: meshData ? {
+      cols: Number(meshData.cols) || 0,
+      rows: Number(meshData.rows) || 0,
+      vertexCount: positions ? Math.floor(positions.length / 2) : 0,
+      uvCount: uvs ? Math.floor(uvs.length / 2) : 0,
+      triangleCount: indices ? Math.floor(indices.length / 3) : 0,
+      positions: summarizeNumericArray(positions),
+      uvs: summarizeNumericArray(uvs),
+      indices: summarizeNumericArray(indices, 12),
+    } : null,
+    contour: contour ? {
+      closed: !!contour.closed,
+      dirty: !!contour.dirty,
+      fillFromMeshData: !!contour.fillFromMeshData,
+      boundary: summarizePoints(contour.points),
+      fill: summarizePoints(contour.fillPoints),
+      fillTriangles: summarizeNumericArray(contour.fillTriangles, 12),
+    } : null,
+  };
+}
+
+function buildMeshCaptureDiffs(startSnapshot = null, finalSnapshot = null, timeline = []) {
+  const startMesh = startSnapshot && startSnapshot.mesh;
+  const finalMesh = finalSnapshot && finalSnapshot.mesh;
+  if (!startMesh || !finalMesh) return [];
+  const topologyCommandCount = Array.isArray(timeline) ? timeline.filter((e) => e && e.topologyCommand).length : 0;
+  const add = (id, label, before, after) => ({
+    id,
+    label,
+    changed: before !== after,
+    before,
+    after,
+  });
+  return [
+    add("mesh.vertex_count_changed", "Vertex count changed", startMesh.vertexCount, finalMesh.vertexCount),
+    add("mesh.triangle_count_changed", "Triangle count changed", startMesh.triangleCount, finalMesh.triangleCount),
+    add("mesh.position_hash_changed", "Position hash changed", startMesh.positions && startMesh.positions.hash, finalMesh.positions && finalMesh.positions.hash),
+    add("mesh.uv_hash_changed", "UV hash changed", startMesh.uvs && startMesh.uvs.hash, finalMesh.uvs && finalMesh.uvs.hash),
+    add("mesh.index_hash_changed", "Index hash changed", startMesh.indices && startMesh.indices.hash, finalMesh.indices && finalMesh.indices.hash),
+    add("mesh.grid_cols_changed", "Grid column metadata changed", startMesh.cols, finalMesh.cols),
+    add("mesh.grid_rows_changed", "Grid row metadata changed", startMesh.rows, finalMesh.rows),
+    {
+      id: "capture.topology_command_count",
+      label: "Topology command count",
+      changed: topologyCommandCount > 0,
+      before: 0,
+      after: topologyCommandCount,
+    },
+  ];
+}
+
+function hasAICaptureGridDrag(timeline = []) {
+  return Array.isArray(timeline) && timeline.some((event) => {
+    const data = event && event.data || {};
+    return event && event.domain === "mesh"
+      && event.category === "drag"
+      && data.pointSet === "fill"
+      && (data.dragType === "slot_mesh_point" || data.dragType === "slot_mesh_multi_move");
+  });
+}
+
+function buildAICaptureSuspicions({ timeline = [], diffs = [] } = {}) {
+  const topologyCommandCount = Array.isArray(timeline) ? timeline.filter((e) => e && e.topologyCommand).length : 0;
+  const changed = (id) => diffs.some((d) => d && d.id === id && d.changed);
+  const suspicions = [];
+  if (hasAICaptureGridDrag(timeline) && topologyCommandCount === 0
+    && (changed("mesh.vertex_count_changed") || changed("mesh.uv_hash_changed") || changed("mesh.index_hash_changed"))) {
+    suspicions.push({
+      id: "mesh.grid_drag_changed_topology_without_command",
+      severity: "warning",
+      label: "Grid drag changed topology-like data without a topology command",
+      evidence: {
+        vertexCountChanged: changed("mesh.vertex_count_changed"),
+        uvHashChanged: changed("mesh.uv_hash_changed"),
+        indexHashChanged: changed("mesh.index_hash_changed"),
+      },
+    });
+  }
+  return suspicions;
+}
+
+function buildAICaptureHealth(timeline = [], captureDomain = "mesh", startSnapshot = null, finalSnapshot = null) {
+  const list = Array.isArray(timeline) ? timeline : [];
+  const rawEvents = list.filter((e) => e && e.category === "raw_input");
+  const commandEvents = list.filter((e) => e && e.category === "command");
+  const captureEvents = list.filter((e) => e && e.category === "capture");
+  const semanticEvents = list.filter((e) => e && e.category !== "raw_input" && e.category !== "capture");
+  const pointerEvents = rawEvents.filter((e) => String(e.intent || "").startsWith("pointer") || e.intent === "click" || e.intent === "dblclick").length;
+  const keyEvents = rawEvents.filter((e) => String(e.intent || "").startsWith("key")).length;
+  const durationMs = (Number(state.aiCapture.endedAt) || Date.now()) - (Number(state.aiCapture.startedAt) || Date.now());
+  const startUi = startSnapshot && startSnapshot.ui || {};
+  const finalUi = finalSnapshot && finalSnapshot.ui || {};
+  const meshModeActive = captureDomain !== "mesh"
+    || startUi.workspaceMode === "slotmesh"
+    || startUi.uiPage === "slot"
+    || startUi.editMode === "mesh"
+    || finalUi.workspaceMode === "slotmesh"
+    || finalUi.uiPage === "slot"
+    || finalUi.editMode === "mesh";
+  return {
+    durationMs: Math.max(0, Math.round(durationMs)),
+    rawEventCount: rawEvents.length,
+    rawDroppedCount: Number(state.aiCapture.rawDroppedCount) || 0,
+    semanticEventCount: semanticEvents.length,
+    commandCount: commandEvents.length,
+    captureEventCount: captureEvents.length,
+    pointerEventCount: pointerEvents,
+    keyEventCount: keyEvents,
+    likelyUseful: rawEvents.length > 0 || semanticEvents.length > 1 || commandEvents.length > 0,
+    domainModeMatches: meshModeActive,
+  };
+}
+
+function buildAICaptureHealthSuspicions(captureHealth, captureDomain = "mesh") {
+  const suspicions = [];
+  if (!captureHealth) return suspicions;
+  if (captureHealth.rawEventCount === 0 && captureHealth.durationMs > 1000) {
+    suspicions.push({
+      id: "capture.no_raw_input_events_recorded",
+      severity: "warning",
+      label: "Capture recorded no raw input events after start",
+      evidence: {
+        durationMs: captureHealth.durationMs,
+        rawEventCount: captureHealth.rawEventCount,
+        semanticEventCount: captureHealth.semanticEventCount,
+        commandCount: captureHealth.commandCount,
+      },
+    });
+  }
+  if (captureHealth.rawEventCount > 0 && captureHealth.semanticEventCount <= 1 && captureHealth.commandCount === 0) {
+    suspicions.push({
+      id: "capture.raw_input_without_semantic_events",
+      severity: "warning",
+      label: "Raw input was recorded, but no semantic command or feature events were captured",
+      evidence: {
+        rawEventCount: captureHealth.rawEventCount,
+        semanticEventCount: captureHealth.semanticEventCount,
+        commandCount: captureHealth.commandCount,
+      },
+    });
+  }
+  if (captureDomain === "mesh" && !captureHealth.domainModeMatches) {
+    suspicions.push({
+      id: "capture.domain_mode_mismatch",
+      severity: "warning",
+      label: "Capture domain is mesh, but snapshots do not show Mesh edit mode",
+      evidence: {
+        domain: captureDomain,
+        domainModeMatches: captureHealth.domainModeMatches,
+      },
+    });
+  }
+  return suspicions;
+}
+
+function runMeshCaptureInvariants(snapshot = buildMeshCaptureSnapshot(), context = {}) {
+  const mesh = snapshot && snapshot.mesh;
+  const checks = [];
+  const add = (id, label, ok, details = {}) => checks.push({ id, label, ok: !!ok, ...details });
+  if (!mesh) {
+    add("mesh.active_attachment_has_mesh_data", "Active attachment has meshData", false);
+    return checks;
+  }
+  add("mesh.active_attachment_has_mesh_data", "Active attachment has meshData", true);
+  add("mesh.uv_count_matches_vertex_count", "UV count matches vertex count", mesh.uvCount === mesh.vertexCount, {
+    vertexCount: mesh.vertexCount,
+    uvCount: mesh.uvCount,
+  });
+  const indexLength = mesh.indices && Number(mesh.indices.length) || 0;
+  const indexSample = mesh.indices && Array.isArray(mesh.indices.sample) ? mesh.indices.sample : [];
+  const sampleInRange = indexSample.every((v) => Number(v) >= 0 && Number(v) < mesh.vertexCount);
+  add("mesh.sampled_indices_in_range", "Sampled indices are in range", sampleInRange, { sampled: indexSample.length, vertexCount: mesh.vertexCount });
+  add("mesh.triangle_count_nonzero", "Triangle count is nonzero", mesh.triangleCount > 0, { triangleCount: mesh.triangleCount, indexLength });
+  const timeline = Array.isArray(context.timeline) ? context.timeline : [];
+  const diffs = Array.isArray(context.diffs) ? context.diffs : [];
+  const topologyCommandCount = timeline.filter((e) => e && e.topologyCommand).length;
+  const changed = (id) => diffs.some((d) => d && d.id === id && d.changed);
+  const shouldCheckTopologyPreserve = hasAICaptureGridDrag(timeline) && topologyCommandCount === 0;
+  add(
+    "mesh.grid_drag_preserves_topology_without_topology_command",
+    "Grid drag preserves topology when no topology command ran",
+    !shouldCheckTopologyPreserve || (!changed("mesh.vertex_count_changed") && !changed("mesh.uv_hash_changed") && !changed("mesh.index_hash_changed")),
+    {
+      skipped: !shouldCheckTopologyPreserve,
+      topologyCommandCount,
+      vertexCountChanged: changed("mesh.vertex_count_changed"),
+      uvHashChanged: changed("mesh.uv_hash_changed"),
+      indexHashChanged: changed("mesh.index_hash_changed"),
+    }
+  );
+  return checks;
+}
+
+registerAICaptureDomain("mesh", {
+  label: "Slot Mesh Editor",
+  snapshot: buildMeshCaptureSnapshot,
+  diff: buildMeshCaptureDiffs,
+  invariants: runMeshCaptureInvariants,
+  suspicions: buildAICaptureSuspicions,
+  commands: [
+    "mesh.tool.toggle_add_vertex",
+    "mesh.edit_target.boundary",
+    "mesh.edit_target.grid",
+    "mesh.close_loop",
+    "mesh.triangulate_preview",
+    "mesh.grid_fill_preview",
+    "mesh.auto_foreground_preview",
+    "mesh.apply",
+    "mesh.create_slot_and_apply",
+    "mesh.link_edge",
+    "mesh.unlink_edge",
+    "mesh.reset_to_grid",
+    "mesh.hotkey.toggle_add_vertex",
+    "mesh.hotkey.triangulate_preview",
+    "mesh.hotkey.delete_vertex",
+  ],
+});
+
+function startAICapture(domain = "mesh") {
+  state.aiCapture.active = true;
+  state.aiCapture.domain = String(domain || "mesh");
+  state.aiCapture.startedAt = Date.now();
+  state.aiCapture.endedAt = 0;
+  state.aiCapture.events = [];
+  state.aiCapture.marks = [];
+  state.aiCapture.eventSeq = 0;
+  state.aiCapture.rawEventCount = 0;
+  state.aiCapture.rawDroppedCount = 0;
+  state.aiCapture.lastRawMoveAt = Object.create(null);
+  state.aiCapture.startSnapshot = getAICaptureDomainSnapshot(domain);
+  state.aiCapture.lastReportText = "";
+  pushAICaptureEvent("capture_start", { domain }, { category: "capture", domain, intent: "capture_start" });
+  setStatus("AI Capture started.");
+  return state.aiCapture;
+}
+
+function markAICaptureIssue(label = "Issue marked") {
+  if (!state.aiCapture.active) startAICapture("mesh");
+  const mark = {
+    t: Date.now() - (Number(state.aiCapture.startedAt) || Date.now()),
+    label: String(label || "Issue marked"),
+    snapshot: getAICaptureDomainSnapshot(state.aiCapture.domain || "mesh"),
+  };
+  state.aiCapture.marks.push(mark);
+  pushAICaptureEvent("capture_mark", { label: mark.label }, {
+    category: "capture",
+    domain: state.aiCapture.domain || "mesh",
+    intent: "capture_mark",
+  });
+  setStatus("AI Capture mark added.");
+  return mark;
+}
+
+function formatAICaptureTargetLabel(target = {}) {
+  const tag = target.tag || "unknown";
+  const id = target.id ? `#${target.id}` : "";
+  const text = target.text ? ` "${target.text}"` : "";
+  return `${tag}${id}${text}`;
+}
+
+function buildAICaptureGestureSummary(timeline = []) {
+  const gestures = [];
+  let current = null;
+  const raw = (Array.isArray(timeline) ? timeline : []).filter((ev) => ev && ev.category === "raw_input");
+  const point = (ev) => {
+    const p = ev && ev.data && ev.data.pointer || {};
+    return { x: Number(p.x) || 0, y: Number(p.y) || 0, t: Number(ev.t) || 0 };
+  };
+  const closeCurrent = (fallbackKind = "pointer_drag") => {
+    if (!current) return;
+    const dx = current.end.x - current.start.x;
+    const dy = current.end.y - current.start.y;
+    const distance = Math.round(Math.hypot(dx, dy));
+    gestures.push({
+      id: `raw.gesture.${distance > 3 ? fallbackKind : "pointer_click"}`,
+      kind: distance > 3 ? fallbackKind : "pointer_click",
+      target: current.target,
+      start: current.start,
+      end: current.end,
+      durationMs: Math.max(0, current.end.t - current.start.t),
+      distance,
+      sampleCount: current.sampleCount,
+      samples: current.samples,
+      ui: current.ui,
+    });
+    current = null;
+  };
+  for (const ev of raw) {
+    const intent = String(ev.intent || "");
+    if (intent === "pointerdown") {
+      closeCurrent();
+      current = {
+        target: ev.data && ev.data.target || {},
+        start: point(ev),
+        end: point(ev),
+        sampleCount: 1,
+        samples: [point(ev)],
+        ui: ev.data && ev.data.ui || {},
+      };
+      continue;
+    }
+    if (intent === "pointermove" && current) {
+      current.end = point(ev);
+      current.sampleCount += 1;
+      if (current.samples.length < 5) current.samples.push(point(ev));
+      continue;
+    }
+    if (intent === "pointerup" && current) {
+      current.end = point(ev);
+      current.sampleCount += 1;
+      closeCurrent();
+      continue;
+    }
+    if (intent === "click" && !current) {
+      gestures.push({
+        id: "raw.gesture.click",
+        kind: "click",
+        target: ev.data && ev.data.target || {},
+        at: point(ev),
+        durationMs: 0,
+        distance: 0,
+        sampleCount: 1,
+        ui: ev.data && ev.data.ui || {},
+      });
+    }
+  }
+  closeCurrent();
+  return gestures;
+}
+
+function buildAICaptureCompactMachineData(report, rawGestures = []) {
+  const changedDiffs = (report.diffs || []).filter((d) => d && d.changed);
+  return {
+    version: 3,
+    schemaVersion: 3,
+    domain: report.capture && report.capture.domain,
+    durationMs: report.captureHealth && report.captureHealth.durationMs,
+    health: report.captureHealth,
+    commandIds: (report.operationLog || []).map((op) => op.id),
+    gestureCount: rawGestures.length,
+    rawGestureCount: rawGestures.length,
+    rawDroppedCount: report.capture && report.capture.rawDroppedCount,
+    compressionRatio: report.capture && report.capture.rawEventCount
+      ? Number((rawGestures.length / report.capture.rawEventCount).toFixed(3))
+      : 0,
+    changedDiffs,
+    suspicionIds: (report.suspicions || []).map((s) => s.id),
+    invariantFailures: (report.invariants || []).filter((i) => i && !i.ok).map((i) => i.id),
+  };
+}
+
+function formatAICaptureSummaryReport(report, rawGestures = []) {
+  const health = report.captureHealth || {};
+  const startUi = report.startSnapshot && report.startSnapshot.ui || {};
+  const finalUi = report.finalSnapshot && report.finalSnapshot.ui || {};
+  const changedDiffs = (report.diffs || []).filter((d) => d && d.changed);
+  const machineData = buildAICaptureCompactMachineData(report, rawGestures);
+  const lines = [
+    "AI_DEBUG_CAPTURE v3",
+    "",
+    "SUMMARY",
+    `- Duration: ${Math.round(Number(health.durationMs) || 0)}ms`,
+    `- Domain: ${report.capture && report.capture.domain || ""}`,
+    `- UI: ${startUi.workspaceMode || "?"}/${startUi.editMode || "?"} -> ${finalUi.workspaceMode || "?"}/${finalUi.editMode || "?"}`,
+    `- Raw input: ${report.capture && report.capture.rawEventCount || 0} events compressed into ${rawGestures.length} gestures; dropped ${report.capture && report.capture.rawDroppedCount || 0}`,
+    `- Commands: ${report.capture && report.capture.commandCount || 0}`,
+    `- Semantic events: ${health.semanticEventCount || 0}`,
+    `- Likely useful: ${health.likelyUseful ? "yes" : "no"}`,
+    "",
+    "GESTURES",
+  ];
+  if (rawGestures.length === 0) {
+    lines.push("- none");
+  } else {
+    rawGestures.slice(0, 20).forEach((g, index) => {
+      const target = formatAICaptureTargetLabel(g.target);
+      if (g.kind === "click") {
+        lines.push(`${index + 1}. click ${target} at ${g.at.x},${g.at.y}`);
+      } else {
+        lines.push(`${index + 1}. ${g.kind} ${target} ${g.start.x},${g.start.y} -> ${g.end.x},${g.end.y}, ${g.durationMs}ms, distance ${g.distance}`);
+      }
+    });
+    if (rawGestures.length > 20) lines.push(`- ${rawGestures.length - 20} more gestures omitted`);
+  }
+  lines.push("", "SUSPICIONS");
+  if ((report.suspicions || []).length === 0) {
+    lines.push("- none");
+  } else {
+    for (const s of report.suspicions || []) lines.push(`- ${s.id}: ${s.label}`);
+  }
+  lines.push("", "STATE_DIFF");
+  if (changedDiffs.length === 0) {
+    lines.push("- no tracked state diffs changed");
+  } else {
+    for (const d of changedDiffs) lines.push(`- ${d.id}: ${d.before} -> ${d.after}`);
+  }
+  lines.push("", "MACHINE_DATA", JSON.stringify(machineData));
+  return lines.join("\n");
+}
+
+function buildAICaptureReport({ stop = true } = {}) {
+  if (!state.aiCapture.startedAt) startAICapture("mesh");
+  if (stop) {
+    state.aiCapture.active = false;
+    state.aiCapture.endedAt = Date.now();
+  }
+  const captureDomain = state.aiCapture.domain || "mesh";
+  const finalSnapshot = getAICaptureDomainSnapshot(captureDomain);
+  const timeline = state.aiCapture.events.slice();
+  const diffs = getAICaptureDomainDiffs(captureDomain, state.aiCapture.startSnapshot, finalSnapshot, timeline);
+  const captureHealth = buildAICaptureHealth(timeline, captureDomain, state.aiCapture.startSnapshot, finalSnapshot);
+  const suspicions = [
+    ...getAICaptureDomainSuspicions(captureDomain, { timeline, diffs, startSnapshot: state.aiCapture.startSnapshot, finalSnapshot }),
+    ...buildAICaptureHealthSuspicions(captureHealth, captureDomain),
+  ];
+  const invariants = getAICaptureDomainInvariants(captureDomain, finalSnapshot, {
+    timeline,
+    diffs,
+    startSnapshot: state.aiCapture.startSnapshot,
+    finalSnapshot,
+  });
+  const operationLog = timeline
+    .filter((ev) => ev && ev.category === "command")
+    .map((ev) => {
+      const entry = {
+        seq: ev.seq,
+        t: ev.t,
+        id: ev.id,
+        domain: ev.domain,
+        intent: ev.intent,
+        topologyCommand: ev.topologyCommand,
+        ok: ev.ok,
+      };
+      if (ev.duration !== undefined) entry.duration = ev.duration;
+      if (ev.error !== undefined) entry.error = ev.error;
+      if (ev.reason !== undefined) entry.reason = ev.reason;
+      if (ev.entity && Object.keys(ev.entity).length) entry.entity = ev.entity;
+      return entry;
+    });
+  const rawGestures = buildAICaptureGestureSummary(timeline);
+  captureHealth.rawGestureCount = rawGestures.length;
+  captureHealth.compressionRatio = captureHealth.rawEventCount
+    ? Number((rawGestures.length / captureHealth.rawEventCount).toFixed(3))
+    : 0;
+  const report = {
+    version: 3,
+    schemaVersion: 3,
+    header: "AI_DEBUG_CAPTURE v3",
+    project: "skeletal-editor",
+    capture: {
+      domain: captureDomain,
+      startedAt: new Date(Number(state.aiCapture.startedAt) || Date.now()).toISOString(),
+      endedAt: new Date(Number(state.aiCapture.endedAt) || Date.now()).toISOString(),
+      eventCount: state.aiCapture.events.length,
+      commandCount: operationLog.length,
+      markCount: state.aiCapture.marks.length,
+      rawEventCount: captureHealth.rawEventCount,
+      rawDroppedCount: captureHealth.rawDroppedCount,
+    },
+    environment: {
+      url: String(location && location.href || ""),
+      viewport: { w: window.innerWidth, h: window.innerHeight },
+      devicePixelRatio: Number(window.devicePixelRatio) || 1,
+    },
+    operationLog,
+    captureHealth,
+    rawGestures,
+    marks: state.aiCapture.marks.slice(),
+    domains: buildAICaptureDomainCoverage(timeline),
+    startSnapshot: state.aiCapture.startSnapshot,
+    finalSnapshot,
+    diffs,
+    suspicions,
+    invariants,
+  };
+  const text = formatAICaptureSummaryReport(report, rawGestures);
+  state.aiCapture.lastReportText = text;
+  return text;
+}
+
+async function copyAICaptureReport() {
+  const text = buildAICaptureReport({ stop: true });
+  if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+    setStatus("Clipboard API unavailable. AI Capture report built in memory.");
+    return false;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    setStatus("AI Capture report copied.");
+    return true;
+  } catch (err) {
+    console.warn("AI Capture report copy failed.", err);
+    setStatus("AI Capture report copy failed.");
+    return false;
+  }
+}
+
+window.__buildAICaptureReport = buildAICaptureReport;
+window.__copyAICaptureReport = copyAICaptureReport;
+window.__registerAICaptureDomain = registerAICaptureDomain;
+window.__listAICaptureDomains = listAICaptureDomains;
+installAICaptureRawInputRecorder();
 
 function collectWebGLSupportContextInfo(canvas, contextName) {
   const result = {
@@ -1976,6 +3145,10 @@ function setupApplicationMenuBar() {
       case "view.zoomreset":
         click(els.viewZoomResetBtn);
         return;
+      case "view.resetlayout":
+        resetDockLayout();
+        setStatus("Layout reset.");
+        return;
       case "tools.resetpose":
         click(els.resetPoseBtn);
         return;
@@ -2058,6 +3231,7 @@ function refreshVertexDeformUI() {
     const show = state.editMode === "mesh" && (state.uiPage === "rig" || state.uiPage === "anim");
     els.vertexDeformTools.style.display = show ? "" : "none";
   }
+  if (typeof refreshWeightOverlayQuickBtn === "function") refreshWeightOverlayQuickBtn();
 }
 
 function gatherVertexDragInfluences(anchorIndex, mx, my) {
@@ -2242,38 +3416,180 @@ function getWeightOverlayVertexInfo(weights, vertexIndex, boneCount, selectedBon
   };
 }
 
-function drawWeightTriangleGradient(ctx, points, paints, baseFillStyle) {
-  if (!ctx || !Array.isArray(points) || points.length !== 3 || !Array.isArray(paints) || paints.length !== 3) return;
-  const minX = Math.min(points[0].x, points[1].x, points[2].x);
-  const minY = Math.min(points[0].y, points[1].y, points[2].y);
-  const maxX = Math.max(points[0].x, points[1].x, points[2].x);
-  const maxY = Math.max(points[0].y, points[1].y, points[2].y);
-  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return;
-  const w = maxX - minX;
-  const h = maxY - minY;
-  if (w < 1 || h < 1) return;
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  ctx.lineTo(points[1].x, points[1].y);
-  ctx.lineTo(points[2].x, points[2].y);
-  ctx.closePath();
-  ctx.clip();
-  ctx.fillStyle = baseFillStyle;
-  ctx.fillRect(minX, minY, w, h);
-  for (let i = 0; i < 3; i += 1) {
-    const p = points[i];
-    const a = points[(i + 1) % 3];
-    const b = points[(i + 2) % 3];
-    const radius = Math.max(18, Math.max(Math.hypot(p.x - a.x, p.y - a.y), Math.hypot(p.x - b.x, p.y - b.y)) * 0.95);
-    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-    g.addColorStop(0, paints[i].hot);
-    g.addColorStop(0.58, paints[i].mid);
-    g.addColorStop(1, paints[i].soft);
-    ctx.fillStyle = g;
-    ctx.fillRect(minX, minY, w, h);
+function clampOverlayByte(value) {
+  return math.clamp(Math.round(Number(value) || 0), 0, 255);
+}
+
+function hslToRgbParts(h, s, l) {
+  const hue = ((((Number(h) || 0) % 360) + 360) % 360) / 360;
+  const sat = math.clamp(Number(s) || 0, 0, 100) / 100;
+  const light = math.clamp(Number(l) || 0, 0, 100) / 100;
+  if (sat <= 1e-6) {
+    const gray = clampOverlayByte(light * 255);
+    return { r: gray, g: gray, b: gray };
   }
-  ctx.restore();
+  const q = light < 0.5 ? light * (1 + sat) : light + sat - light * sat;
+  const p = 2 * light - q;
+  const hueToRgb = (t) => {
+    let tt = t;
+    if (tt < 0) tt += 1;
+    if (tt > 1) tt -= 1;
+    if (tt < 1 / 6) return p + (q - p) * 6 * tt;
+    if (tt < 1 / 2) return q;
+    if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
+    return p;
+  };
+  return {
+    r: clampOverlayByte(hueToRgb(hue + 1 / 3) * 255),
+    g: clampOverlayByte(hueToRgb(hue) * 255),
+    b: clampOverlayByte(hueToRgb(hue - 1 / 3) * 255),
+  };
+}
+
+function getWeightOverlayAlphaByte(value, alphaScale = 1) {
+  const scale = Number(alphaScale) || 0;
+  if (scale <= 0) return 0;
+  const clampedValue = math.clamp(Number(value) || 0, 0, 1);
+  const alpha = math.clamp((0.2 + 0.65 * clampedValue) * scale, 0.05, 1);
+  return clampOverlayByte(alpha * 255);
+}
+
+function getHeatmapColorRgba(t, alphaScale = 1) {
+  const parts = getHeatmapColorParts(t);
+  return {
+    r: parts.r,
+    g: parts.g,
+    b: parts.b,
+    a: getWeightOverlayAlphaByte(parts.value, alphaScale),
+  };
+}
+
+function getBoneVizColorRgba(index, alpha = 0.72, strength = 1) {
+  const parts = getBoneVizColorParts(index, strength);
+  const rgb = hslToRgbParts(parts.h, parts.s, parts.l);
+  return {
+    r: rgb.r,
+    g: rgb.g,
+    b: rgb.b,
+    a: clampOverlayByte(math.clamp(Number(alpha) || 0, 0, 1) * 255),
+  };
+}
+
+function getWeightHeatmapCanvas(width, height) {
+  const w = Math.max(1, Math.ceil(Number(width) || 1));
+  const h = Math.max(1, Math.ceil(Number(height) || 1));
+  if (!state.weightHeatmapCanvas) state.weightHeatmapCanvas = makeCanvas(w, h);
+  if (state.weightHeatmapCanvas.width !== w) state.weightHeatmapCanvas.width = w;
+  if (state.weightHeatmapCanvas.height !== h) state.weightHeatmapCanvas.height = h;
+  return state.weightHeatmapCanvas;
+}
+
+function rasterizeWeightHeatmapTriangle(imageData, stride, bounds, points, colorize) {
+  if (!imageData || !bounds || !Array.isArray(points) || points.length !== 3 || typeof colorize !== "function") return;
+  const edge = (ax, ay, bx, by, px, py) => (px - ax) * (by - ay) - (py - ay) * (bx - ax);
+  const p0 = points[0];
+  const p1 = points[1];
+  const p2 = points[2];
+  const area = edge(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
+  if (!Number.isFinite(area) || Math.abs(area) < 1e-6) return;
+  const invArea = 1 / area;
+  for (let y = bounds.minY; y <= bounds.maxY; y += 1) {
+    for (let x = bounds.minX; x <= bounds.maxX; x += 1) {
+      const px = x + 0.5;
+      const py = y + 0.5;
+      const w0 = edge(p1.x, p1.y, p2.x, p2.y, px, py) * invArea;
+      const w1 = edge(p2.x, p2.y, p0.x, p0.y, px, py) * invArea;
+      const w2 = edge(p0.x, p0.y, p1.x, p1.y, px, py) * invArea;
+      if (w0 < -1e-5 || w1 < -1e-5 || w2 < -1e-5) continue;
+      const rgba = colorize(w0, w1, w2, px, py);
+      if (!rgba) continue;
+      const alpha = clampOverlayByte(rgba.a);
+      if (alpha <= 0) continue;
+      const idx = (y * stride + x) * 4;
+      imageData[idx] = clampOverlayByte(rgba.r);
+      imageData[idx + 1] = clampOverlayByte(rgba.g);
+      imageData[idx + 2] = clampOverlayByte(rgba.b);
+      imageData[idx + 3] = alpha;
+    }
+  }
+}
+
+function drawContinuousWeightHeatmap(ctx, m, meshData, screenPoints, vertexInfos, mode, selectedBone, selectedValid, alphaBase) {
+  if (!ctx || !m || !meshData || !screenPoints || !Array.isArray(vertexInfos) || vertexInfos.length === 0) return;
+  const triIndices = getMeshTriangleIndexArray(meshData);
+  const weights = meshData.weights;
+  const boneCount = Array.isArray(m.rigBones) ? m.rigBones.length : 0;
+  const vCount = Math.floor((Number(screenPoints.length) || 0) / 2);
+  if (!triIndices || triIndices.length < 3 || !weights || boneCount <= 0 || vCount <= 0) return;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (let i = 0; i < vCount; i += 1) {
+    const sx = Number(screenPoints[i * 2]);
+    const sy = Number(screenPoints[i * 2 + 1]);
+    if (!Number.isFinite(sx) || !Number.isFinite(sy)) continue;
+    if (sx < minX) minX = sx;
+    if (sy < minY) minY = sy;
+    if (sx > maxX) maxX = sx;
+    if (sy > maxY) maxY = sy;
+  }
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) return;
+  const originX = Math.floor(minX);
+  const originY = Math.floor(minY);
+  const width = Math.max(1, Math.ceil(maxX) - originX + 1);
+  const height = Math.max(1, Math.ceil(maxY) - originY + 1);
+  const canvas = getWeightHeatmapCanvas(width, height);
+  const heatCtx = canvas && typeof canvas.getContext === "function" ? canvas.getContext("2d") : null;
+  if (!heatCtx || typeof heatCtx.createImageData !== "function") return;
+  const image = heatCtx.createImageData(width, height);
+  const data = image.data;
+  const isDominant = mode === "dominant" || !selectedValid;
+  for (let t = 0; t + 2 < triIndices.length; t += 3) {
+    const i0 = Number(triIndices[t]);
+    const i1 = Number(triIndices[t + 1]);
+    const i2 = Number(triIndices[t + 2]);
+    if (!Number.isFinite(i0) || !Number.isFinite(i1) || !Number.isFinite(i2)) continue;
+    if (i0 < 0 || i1 < 0 || i2 < 0 || i0 >= vCount || i1 >= vCount || i2 >= vCount) continue;
+    const points = [
+      { x: (Number(screenPoints[i0 * 2]) || 0) - originX, y: (Number(screenPoints[i0 * 2 + 1]) || 0) - originY },
+      { x: (Number(screenPoints[i1 * 2]) || 0) - originX, y: (Number(screenPoints[i1 * 2 + 1]) || 0) - originY },
+      { x: (Number(screenPoints[i2 * 2]) || 0) - originX, y: (Number(screenPoints[i2 * 2 + 1]) || 0) - originY },
+    ];
+    const bounds = {
+      minX: Math.max(0, Math.floor(Math.min(points[0].x, points[1].x, points[2].x))),
+      minY: Math.max(0, Math.floor(Math.min(points[0].y, points[1].y, points[2].y))),
+      maxX: Math.min(width - 1, Math.ceil(Math.max(points[0].x, points[1].x, points[2].x))),
+      maxY: Math.min(height - 1, Math.ceil(Math.max(points[0].y, points[1].y, points[2].y))),
+    };
+    if (bounds.maxX < bounds.minX || bounds.maxY < bounds.minY) continue;
+    if (isDominant) {
+      rasterizeWeightHeatmapTriangle(data, width, bounds, points, (w0, w1, w2) => {
+        let domBone = 0;
+        let domWeight = -1;
+        for (let b = 0; b < boneCount; b += 1) {
+          const weight =
+            (Number(weights[i0 * boneCount + b]) || 0) * w0 +
+            (Number(weights[i1 * boneCount + b]) || 0) * w1 +
+            (Number(weights[i2 * boneCount + b]) || 0) * w2;
+          if (weight > domWeight) {
+            domWeight = weight;
+            domBone = b;
+          }
+        }
+        const alpha = alphaBase * (0.16 + 0.56 * math.clamp(domWeight, 0, 1));
+        return getBoneVizColorRgba(domBone, alpha, domWeight);
+      });
+    } else {
+      const values = [vertexInfos[i0].selectedW, vertexInfos[i1].selectedW, vertexInfos[i2].selectedW];
+      rasterizeWeightHeatmapTriangle(data, width, bounds, points, (w0, w1, w2) => {
+        const value = values[0] * w0 + values[1] * w1 + values[2] * w2;
+        return getHeatmapColorRgba(value, alphaBase);
+      });
+    }
+  }
+  heatCtx.putImageData(image, 0, 0);
+  ctx.drawImage(canvas, originX, originY);
 }
 
 function drawWeightOverlayLegend(ctx, mode, selectedBone, selectedValid, m, alphaBase) {
@@ -2363,56 +3679,27 @@ function drawWeightOverlayForMesh(ctx, m, meshData, screenPoints) {
   for (let i = 0; i < vCount; i += 1) {
     vertexInfos[i] = getWeightOverlayVertexInfo(weights, i, boneCount, selectedBone);
   }
-  drawWeightMeshOutline(ctx, meshData, screenPoints);
-  const triIndices = getMeshTriangleIndexArray(meshData);
-  if (triIndices && triIndices.length >= 3) {
-    for (let t = 0; t + 2 < triIndices.length; t += 3) {
-      const i0 = Number(triIndices[t]);
-      const i1 = Number(triIndices[t + 1]);
-      const i2 = Number(triIndices[t + 2]);
-      if (!Number.isFinite(i0) || !Number.isFinite(i1) || !Number.isFinite(i2)) continue;
-      if (i0 < 0 || i1 < 0 || i2 < 0 || i0 >= vCount || i1 >= vCount || i2 >= vCount) continue;
-      const infos = [vertexInfos[i0], vertexInfos[i1], vertexInfos[i2]];
-      const pts = [
-        { x: Number(screenPoints[i0 * 2]) || 0, y: Number(screenPoints[i0 * 2 + 1]) || 0 },
-        { x: Number(screenPoints[i1 * 2]) || 0, y: Number(screenPoints[i1 * 2 + 1]) || 0 },
-        { x: Number(screenPoints[i2 * 2]) || 0, y: Number(screenPoints[i2 * 2 + 1]) || 0 },
-      ];
-      let paints;
-      let baseFillStyle;
-      if (mode === "dominant" || !selectedValid) {
-        const triScores = new Map();
-        let triBone = infos[0].domBone;
-        let triScore = -1;
-        let avgStrength = 0;
-        for (const info of infos) {
-          const next = (triScores.get(info.domBone) || 0) + info.domW;
-          triScores.set(info.domBone, next);
-          if (next > triScore) {
-            triScore = next;
-            triBone = info.domBone;
-          }
-          avgStrength += info.domW;
-        }
-        avgStrength /= 3;
-        paints = infos.map((info) => ({
-          hot: getBoneVizColor(info.domBone, alphaBase * (0.62 + 0.28 * info.domW), info.domW),
-          mid: getBoneVizColor(info.domBone, alphaBase * (0.34 + 0.22 * info.domW), info.domW),
-          soft: getBoneVizColor(info.domBone, 0, info.domW),
-        }));
-        baseFillStyle = getBoneVizColor(triBone, alphaBase * (0.18 + 0.22 * avgStrength), avgStrength);
-      } else {
-        const avgWeight = (infos[0].selectedW + infos[1].selectedW + infos[2].selectedW) / 3;
-        paints = infos.map((info) => ({
-          hot: getHeatmapColorWithAlpha(info.selectedW, alphaBase * 1.12),
-          mid: getHeatmapColorWithAlpha(info.selectedW, alphaBase * 0.5),
-          soft: getHeatmapColorWithAlpha(info.selectedW, 0),
-        }));
-        baseFillStyle = getHeatmapColorWithAlpha(avgWeight, alphaBase * 0.42);
-      }
-      drawWeightTriangleGradient(ctx, pts, paints, baseFillStyle);
+  // Prefer the GPU heatmap (dedicated #glOverlayCanvas). It handles both brush
+  // strokes and steady state at full resolution; the legacy CPU fallbacks
+  // remain only for the no-WebGL case.
+  let gpuOk = false;
+  if (typeof weightHeatmapGPU !== "undefined" && weightHeatmapGPU && typeof weightHeatmapGPU.draw === "function") {
+    try {
+      gpuOk = weightHeatmapGPU.draw(m, meshData, screenPoints, vertexInfos, mode, selectedBone, selectedValid, alphaBase);
+    } catch (err) {
+      console.warn("[weightHeatmapGPU] draw failed; falling back to CPU", err);
+      gpuOk = false;
     }
   }
+  if (!gpuOk) {
+    const stroking = !!(state.drag && state.drag.type === "weight_brush");
+    if (stroking) {
+      drawWeightOverlayFastTriangles(ctx, meshData, screenPoints, vertexInfos, mode, selectedValid, alphaBase);
+    } else {
+      drawContinuousWeightHeatmap(ctx, m, meshData, screenPoints, vertexInfos, mode, selectedBone, selectedValid, alphaBase);
+    }
+  }
+  drawWeightMeshOutline(ctx, meshData, screenPoints);
   for (let i = 0; i < vCount; i += 1) {
     const info = vertexInfos[i];
     const sx = Number(screenPoints[i * 2]) || 0;
@@ -2428,6 +3715,45 @@ function drawWeightOverlayForMesh(ctx, m, meshData, screenPoints) {
     ctx.fill();
   }
   drawWeightOverlayLegend(ctx, mode, selectedBone, selectedValid, m, alphaBase);
+}
+
+// Cheap fallback: one fill per triangle using averaged corner colour.
+// O(triangles), no per-pixel work. Used during brush strokes.
+function drawWeightOverlayFastTriangles(ctx, meshData, screenPoints, vertexInfos, mode, selectedValid, alphaBase) {
+  const triIndices = getMeshTriangleIndexArray(meshData);
+  const vCount = vertexInfos.length;
+  if (!triIndices || triIndices.length < 3) return;
+  const isDominant = mode === "dominant" || !selectedValid;
+  ctx.save();
+  for (let t = 0; t + 2 < triIndices.length; t += 3) {
+    const i0 = Number(triIndices[t]);
+    const i1 = Number(triIndices[t + 1]);
+    const i2 = Number(triIndices[t + 2]);
+    if (!Number.isFinite(i0) || !Number.isFinite(i1) || !Number.isFinite(i2)) continue;
+    if (i0 < 0 || i1 < 0 || i2 < 0 || i0 >= vCount || i1 >= vCount || i2 >= vCount) continue;
+    const a0 = vertexInfos[i0];
+    const a1 = vertexInfos[i1];
+    const a2 = vertexInfos[i2];
+    let fill;
+    if (isDominant) {
+      // Pick the dominant bone of the corner with the highest weight (cheap; biased toward strongest).
+      const winner = a0.domW >= a1.domW && a0.domW >= a2.domW ? a0 : a1.domW >= a2.domW ? a1 : a2;
+      const avgW = (a0.domW + a1.domW + a2.domW) / 3;
+      const alpha = alphaBase * (0.14 + 0.42 * avgW);
+      fill = getBoneVizColor(winner.domBone, alpha, avgW);
+    } else {
+      const avg = (a0.selectedW + a1.selectedW + a2.selectedW) / 3;
+      fill = getHeatmapColorWithAlpha(avg, alphaBase * 0.75);
+    }
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(Number(screenPoints[i0 * 2]) || 0, Number(screenPoints[i0 * 2 + 1]) || 0);
+    ctx.lineTo(Number(screenPoints[i1 * 2]) || 0, Number(screenPoints[i1 * 2 + 1]) || 0);
+    ctx.lineTo(Number(screenPoints[i2 * 2]) || 0, Number(screenPoints[i2 * 2 + 1]) || 0);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function sanitizeVertexIndexArray(list, vCount) {
@@ -2611,41 +3937,10 @@ let program = null;
 
 // ============================================================
 // SECTION: UI Refresh — Mode & Workspace
-// refreshContextUI: called on systemMode change (setup↔animate).
 // updateWorkspaceUI / refreshWorkspacePageUI: full UI state sync,
 //   controls workspace tab active state, left panel tab visibility,
 //   timeline/layer/state dock visibility.
 // ============================================================
-function refreshContextUI() {
-  const prevMode = state.boneMode;
-  const isSetup = els.systemMode && els.systemMode.value === "setup";
-  const isAnim = !isSetup;
-
-  // Workspace tabs are always visible; active state is set in refreshWorkspacePageUI.
-
-  if (isAnim) {
-    if (state.leftToolTab === "canvas" || state.leftToolTab === "setup" || state.leftToolTab === "rig") {
-      switchLeftToolTab("object");
-    }
-    // Setup Internal logic for Pose / Object mode
-    if (state.editMode === "object") {
-      state.boneMode = "object";
-    } else if (state.editMode === "skeleton") {
-      state.boneMode = "pose";
-    }
-  } else {
-    if (state.leftToolTab === "object" || state.leftToolTab === "animate") {
-      switchLeftToolTab("canvas");
-    }
-    // Setup Internal logic for Rig / Object mode
-    if (state.editMode === "object") {
-      state.boneMode = "object";
-    } else if (state.editMode === "skeleton") {
-      state.boneMode = "edit";
-    }
-  }
-  applyBoneModeTransition(prevMode, state.boneMode);
-}
 let loc = null;
 let vbo = null;
 let ibo = null;
@@ -2683,10 +3978,15 @@ if (hasGL) {
   uniform sampler2D uTex;
   uniform float uAlpha;
   uniform vec3 uTint;
+  uniform vec3 uDark;
   out vec4 outColor;
   void main() {
     vec4 c = texture(uTex, vUv);
-    outColor = vec4(c.rgb * uTint, c.a * uAlpha);
+    // Spine-style two-color tint: light*tex.rgb + (1-tex.rgb)*dark*tex.a
+    // When dark = (0,0,0) this collapses to tex.rgb * light, so legacy slots
+    // (no dark color set) render identically to the original single-color path.
+    vec3 rgb = c.rgb * uTint + (vec3(1.0) - c.rgb) * uDark * c.a;
+    outColor = vec4(rgb, c.a * uAlpha);
   }`
       : `
   precision highp float;
@@ -2694,9 +3994,11 @@ if (hasGL) {
   uniform sampler2D uTex;
   uniform float uAlpha;
   uniform vec3 uTint;
+  uniform vec3 uDark;
   void main() {
     vec4 c = texture2D(uTex, vUv);
-    gl_FragColor = vec4(c.rgb * uTint, c.a * uAlpha);
+    vec3 rgb = c.rgb * uTint + (vec3(1.0) - c.rgb) * uDark * c.a;
+    gl_FragColor = vec4(rgb, c.a * uAlpha);
   }`
   );
 
@@ -2709,6 +4011,7 @@ if (hasGL) {
     uTex: gl.getUniformLocation(program, "uTex"),
     uAlpha: gl.getUniformLocation(program, "uAlpha"),
     uTint: gl.getUniformLocation(program, "uTint"),
+    uDark: gl.getUniformLocation(program, "uDark"),
   };
 
   vbo = gl.createBuffer();
@@ -2737,6 +4040,7 @@ if (hasGL) {
   gl.uniform1i(loc.uTex, 0);
   gl.uniform1f(loc.uAlpha, 1);
   if (loc.uTint) gl.uniform3f(loc.uTint, 1, 1, 1);
+  if (loc.uDark) gl.uniform3f(loc.uDark, 0, 0, 0);
 }
 
 function bindGeometry() {

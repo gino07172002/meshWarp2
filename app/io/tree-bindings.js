@@ -73,6 +73,17 @@ if (els.boneTree) {
       }
       return;
     }
+    const lockBtn = ev.target.closest(".tree-bone-lock-toggle[data-bone-lock-toggle]");
+    if (lockBtn) {
+      ev.stopPropagation();
+      const bi = Number(lockBtn.dataset.boneLockToggle);
+      if (Number.isFinite(bi) && bi >= 0 && typeof toggleBrushBoneLock === "function") {
+        const nowLocked = toggleBrushBoneLock(bi);
+        const name = state.mesh && state.mesh.rigBones && state.mesh.rigBones[bi] ? state.mesh.rigBones[bi].name : `bone ${bi}`;
+        setStatus(nowLocked ? `Brush lock: ${name} protected.` : `Brush lock removed: ${name}.`);
+      }
+      return;
+    }
     const workHideBtn = ev.target.closest(".tree-bone-hide-toggle[data-bone-work-hide-toggle]");
     if (workHideBtn && state.mesh) {
       state.treeSlotLastClickIndex = -1;
@@ -135,6 +146,54 @@ if (els.boneTree) {
         slot.editorVisible = !isSlotEditorVisible(slot);
         renderBoneTree();
         refreshSlotUI();
+      }
+      return;
+    }
+    /* --- Hover quick actions (Spine-style) --- */
+    const slotAddAttBtn = ev.target.closest(".tree-row-action-btn[data-slot-add-attachment]");
+    if (slotAddAttBtn) {
+      ev.stopPropagation();
+      const si = Number(slotAddAttBtn.dataset.slotAddAttachment);
+      if (Number.isFinite(si) && si >= 0 && si < state.slots.length) {
+        setActiveSlot(si);
+        setRightPropsFocus("slot");
+        addAttachmentToActiveSlot();
+      }
+      return;
+    }
+    const slotRenameBtn = ev.target.closest(".tree-row-action-btn[data-slot-rename]");
+    if (slotRenameBtn) {
+      ev.stopPropagation();
+      const si = Number(slotRenameBtn.dataset.slotRename);
+      if (Number.isFinite(si) && si >= 0 && si < state.slots.length) {
+        setActiveSlot(si);
+        startBoneTreeInlineRename("slot", si);
+      }
+      return;
+    }
+    const attRenameBtn = ev.target.closest(".tree-row-action-btn[data-att-rename]");
+    if (attRenameBtn) {
+      ev.stopPropagation();
+      const si = Number(attRenameBtn.dataset.attRename);
+      const attName = attRenameBtn.dataset.attName;
+      if (Number.isFinite(si) && si >= 0 && si < state.slots.length && attName) {
+        setActiveSlot(si);
+        state.slots[si].activeAttachment = attName;
+        refreshSlotUI();
+        startBoneTreeInlineRename("attachment", si, attName);
+      }
+      return;
+    }
+    const attDeleteBtn = ev.target.closest(".tree-row-action-btn[data-att-delete]");
+    if (attDeleteBtn) {
+      ev.stopPropagation();
+      const si = Number(attDeleteBtn.dataset.attDelete);
+      const attName = attDeleteBtn.dataset.attName;
+      if (Number.isFinite(si) && si >= 0 && si < state.slots.length && attName) {
+        setActiveSlot(si);
+        state.slots[si].activeAttachment = attName;
+        refreshSlotUI();
+        deleteActiveAttachmentInSlot();
       }
       return;
     }
@@ -988,6 +1047,7 @@ function applyActiveSlotAttachmentMetaFromUI() {
   const att = getSlotAttachmentEntry(s, current);
   if (!att) return false;
   att.linkedParent = String(els.slotAttachmentLinkedParent ? els.slotAttachmentLinkedParent.value || "" : att.linkedParent || "");
+  att.inheritTimelines = !!(els.slotAttachmentInheritTimelines ? els.slotAttachmentInheritTimelines.checked : att.inheritTimelines);
   att.pointX = Number(els.slotAttachmentPointX ? els.slotAttachmentPointX.value : att.pointX) || 0;
   att.pointY = Number(els.slotAttachmentPointY ? els.slotAttachmentPointY.value : att.pointY) || 0;
   att.pointRot = Number(els.slotAttachmentPointRot ? els.slotAttachmentPointRot.value : att.pointRot) || 0;
@@ -1087,6 +1147,9 @@ if (els.slotAttachmentType) {
 }
 if (els.slotAttachmentLinkedParent) {
   els.slotAttachmentLinkedParent.addEventListener("change", applyActiveSlotAttachmentMetaFromUI);
+}
+if (els.slotAttachmentInheritTimelines) {
+  els.slotAttachmentInheritTimelines.addEventListener("change", applyActiveSlotAttachmentMetaFromUI);
 }
 if (els.slotAttachmentPointX) {
   els.slotAttachmentPointX.addEventListener("input", applyActiveSlotAttachmentMetaFromUI);
@@ -1204,22 +1267,67 @@ function openAttachmentTypePicker(initialType = ATTACHMENT_TYPES.REGION, title =
   });
 }
 
-/* Legacy sync shim — kept for any remaining call sites;
-   callers should migrate to openAttachmentTypePicker() */
-function openAttachmentTypeDialog(initialType = ATTACHMENT_TYPES.REGION) {
-  const fallback = normalizeAttachmentType(initialType);
-  const raw = window.prompt(
-    `Attachment type (${listAttachmentTypes().join(", ")})`,
-    fallback
-  );
-  if (raw == null) return null;
-  const nextType = normalizeAttachmentType(raw);
-  if (!listAttachmentTypes().includes(nextType)) {
-    setStatus(`Unknown attachment type: ${raw}`);
-    return null;
-  }
-  return nextType;
+/* Opens a slot-chooser popup reusing #attTypePickerWrap.
+   excludeSlotIndex: the slot index to omit from the list (usually the source slot).
+   Returns Promise<number|null> — the chosen slot index, or null if cancelled. */
+function openSlotPickerPopup(excludeSlotIndex, title = "Copy to Slot…") {
+  return new Promise((resolve) => {
+    const wrap = els.attTypePickerWrap;
+    const grid = els.attTypePickerGrid;
+    const titleEl = els.attTypePickerTitle;
+    const closeBtn = els.attTypePickerCloseBtn;
+    const backdrop = els.attTypePickerBackdrop;
+    if (!wrap || !grid) { resolve(null); return; }
+
+    if (titleEl) titleEl.textContent = title;
+
+    const origHTML = grid.innerHTML;
+
+    const slots = state.slots.filter((s, i) => s && i !== excludeSlotIndex);
+    if (slots.length === 0) { resolve(null); return; }
+
+    grid.innerHTML = "";
+    for (const s of slots) {
+      const idx = state.slots.indexOf(s);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "att-type-picker-btn";
+      btn.dataset.slotIndex = String(idx);
+      btn.textContent = s.name || `Slot ${idx}`;
+      grid.appendChild(btn);
+    }
+
+    wrap.classList.remove("collapsed");
+    wrap.setAttribute("aria-hidden", "false");
+
+    const cleanup = () => {
+      wrap.classList.add("collapsed");
+      wrap.setAttribute("aria-hidden", "true");
+      grid.innerHTML = origHTML;
+      grid.removeEventListener("click", onGridClick);
+      closeBtn && closeBtn.removeEventListener("click", onClose);
+      backdrop && backdrop.removeEventListener("click", onClose);
+      document.removeEventListener("keydown", onKey);
+    };
+
+    const onGridClick = (ev) => {
+      const btn = ev.target.closest(".att-type-picker-btn[data-slot-index]");
+      if (!btn) return;
+      const si = Number(btn.dataset.slotIndex);
+      cleanup();
+      resolve(Number.isFinite(si) ? si : null);
+    };
+
+    const onClose = () => { cleanup(); resolve(null); };
+    const onKey = (ev) => { if (ev.key === "Escape") { ev.preventDefault(); onClose(); } };
+
+    grid.addEventListener("click", onGridClick);
+    closeBtn && closeBtn.addEventListener("click", onClose);
+    backdrop && backdrop.addEventListener("click", onClose);
+    document.addEventListener("keydown", onKey);
+  });
 }
+
 
 function buildDefaultAttachmentContour(slot) {
   const rect = slot && slot.rect
@@ -1269,6 +1377,7 @@ function getAttachmentSeedData(slot, type, sourceAttachment = null) {
     meshData: current && current.meshData ? cloneSlotMeshData(current.meshData) : null,
     meshContour: attachmentHasMesh({ type: attType }) ? sourceContour : null,
     linkedParent: current && current.linkedParent ? String(current.linkedParent) : "",
+    inheritTimelines: !!(current && current.inheritTimelines),
     bboxSource: current && current.bboxSource === "contour" ? "contour" : "fill",
     pointX: current && Number.isFinite(Number(current.pointX)) ? Number(current.pointX) : pointCenter.x,
     pointY: current && Number.isFinite(Number(current.pointY)) ? Number(current.pointY) : pointCenter.y,
@@ -1283,7 +1392,7 @@ function getAttachmentSeedData(slot, type, sourceAttachment = null) {
     sequence: current && current.sequence ? { ...current.sequence } : { enabled: false, count: 1, start: 0, digits: 2 },
   };
   if (attType === ATTACHMENT_TYPES.LINKED_MESH && !data.linkedParent) {
-    const fallbackParent = ensureSlotAttachments(slot).find((att) => att && att.name !== (current && current.name) && isVisualAttachment(att));
+    const fallbackParent = ensureSlotAttachments(slot).find((att) => att && att.name !== (current && current.name) && isDeformableAttachment(att));
     data.linkedParent = fallbackParent ? String(fallbackParent.name) : "";
   }
   if (attType === ATTACHMENT_TYPES.BOUNDING_BOX) {
@@ -1328,6 +1437,7 @@ function addAttachmentOfType(slot, type, opts = {}) {
       name,
       placeholder,
       linkedParent: opts.linkedParent != null ? String(opts.linkedParent) : seed.linkedParent,
+      inheritTimelines: opts.inheritTimelines != null ? !!opts.inheritTimelines : !!seed.inheritTimelines,
     },
     name,
     placeholder,
@@ -1357,6 +1467,19 @@ function duplicateAttachment(slot, name) {
     placeholder: source.placeholder,
     sourceAttachment: source,
     linkedParent: source.linkedParent || "",
+    inheritTimelines: !!source.inheritTimelines,
+  });
+}
+
+function copyAttachmentToSlot(srcSlot, attName, destSlot) {
+  const source = getSlotAttachmentEntry(srcSlot, attName);
+  if (!source || !destSlot) return null;
+  return addAttachmentOfType(destSlot, source.type, {
+    baseName: source.name,
+    placeholder: source.placeholder,
+    sourceAttachment: source,
+    linkedParent: source.linkedParent || "",
+    inheritTimelines: !!source.inheritTimelines,
   });
 }
 
@@ -1443,8 +1566,14 @@ function renameActiveAttachmentInSlot() {
   if (s.activeAttachment === current) s.activeAttachment = nextName;
   if (s.id) {
     for (const skin of ensureSkinSets()) {
-      if (!skin || !skin.slotAttachments || typeof skin.slotAttachments !== "object") continue;
-      if (skin.slotAttachments[s.id] === current) skin.slotAttachments[s.id] = nextName;
+      if (!skin) continue;
+      if (skin.slotAttachments && skin.slotAttachments[s.id] === current) skin.slotAttachments[s.id] = nextName;
+      const phMap = skin.slotPlaceholderAttachments && skin.slotPlaceholderAttachments[s.id];
+      if (phMap && typeof phMap === "object") {
+        for (const [ph, val] of Object.entries(phMap)) {
+          if (val === current) phMap[ph] = nextName;
+        }
+      }
     }
   }
   const anim = getCurrentAnimation();
@@ -1492,9 +1621,15 @@ function deleteActiveAttachmentInSlot() {
   if (s.attachmentName === current) s.attachmentName = next ? next.name : "main";
   if (s.id) {
     for (const skin of ensureSkinSets()) {
-      if (!skin || !skin.slotAttachments || typeof skin.slotAttachments !== "object") continue;
-      if (skin.slotAttachments[s.id] === current) {
+      if (!skin) continue;
+      if (skin.slotAttachments && skin.slotAttachments[s.id] === current) {
         skin.slotAttachments[s.id] = next ? next.name : null;
+      }
+      const phMap = skin.slotPlaceholderAttachments && skin.slotPlaceholderAttachments[s.id];
+      if (phMap && typeof phMap === "object") {
+        for (const [ph, val] of Object.entries(phMap)) {
+          if (val === current) phMap[ph] = next ? next.name : null;
+        }
       }
     }
   }
