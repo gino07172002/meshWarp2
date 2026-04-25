@@ -1986,6 +1986,81 @@ function _getSlotEditingPointsAndIndices(slot) {
 
 // Subdivide every triangle whose 3 vertices are all in the active selection.
 // Centroid becomes a new fill point. Re-triangulates afterwards.
+// Spine "Generate" — auto-add fill vertices where they'll help deformation.
+// Heuristic: iteratively split any triangle whose area exceeds `maxAreaPx`
+// (default 1.5% of mesh bounding-box area) by inserting a centroid point.
+// Stops when all triangles are below threshold or maxIters reached.
+//
+// Returns { ok, addedVertices, finalTriangleCount, iters }.
+function generateMeshVerticesByArea(slot, opts = {}) {
+  if (!slot) return { ok: false, reason: "No slot." };
+  const ctx = _getSlotEditingPointsAndIndices(slot);
+  if (!ctx.points || ctx.points.length < 3) return { ok: false, reason: "Not enough vertices." };
+  if (!ctx.tris || ctx.tris.length < 3) return { ok: false, reason: "Mesh has no triangles. Triangulate first." };
+  // Bounding box for scale-relative threshold.
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of ctx.points) {
+    const x = Number(p && p.x) || 0; const y = Number(p && p.y) || 0;
+    if (x < minX) minX = x; if (y < minY) minY = y;
+    if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+  }
+  const bboxArea = Math.max(1, (maxX - minX) * (maxY - minY));
+  const ratio = Math.max(0.001, Math.min(0.5, Number(opts.areaRatio) || 0.015));
+  const maxArea = Number.isFinite(Number(opts.maxAreaPx)) && Number(opts.maxAreaPx) > 0
+    ? Number(opts.maxAreaPx)
+    : bboxArea * ratio;
+  const maxIters = Math.max(1, Math.min(20, Number(opts.maxIters) || 8));
+  const triArea = (i0, i1, i2) => {
+    const p0 = ctx.points[i0]; const p1 = ctx.points[i1]; const p2 = ctx.points[i2];
+    if (!p0 || !p1 || !p2) return 0;
+    return 0.5 * Math.abs((Number(p1.x) - Number(p0.x)) * (Number(p2.y) - Number(p0.y))
+                          - (Number(p2.x) - Number(p0.x)) * (Number(p1.y) - Number(p0.y)));
+  };
+  if (!Array.isArray(ctx.contour.fillPoints)) ctx.contour.fillPoints = [];
+  let added = 0;
+  let iter = 0;
+  for (; iter < maxIters; iter += 1) {
+    const tris = ctx.isFill
+      ? (Array.isArray(ctx.contour.fillTriangles) ? ctx.contour.fillTriangles : [])
+      : (Array.isArray(ctx.contour.triangles) ? ctx.contour.triangles : []);
+    let anyOver = false;
+    const seen = new Set();
+    for (let t = 0; t + 2 < tris.length; t += 3) {
+      const i0 = Number(tris[t]); const i1 = Number(tris[t + 1]); const i2 = Number(tris[t + 2]);
+      if (i0 < 0 || i1 < 0 || i2 < 0) continue;
+      const area = triArea(i0, i1, i2);
+      if (area <= maxArea) continue;
+      const key = [i0, i1, i2].sort((a, b) => a - b).join(",");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const p0 = ctx.points[i0]; const p1 = ctx.points[i1]; const p2 = ctx.points[i2];
+      if (!p0 || !p1 || !p2) continue;
+      ctx.contour.fillPoints.push({
+        x: (Number(p0.x) + Number(p1.x) + Number(p2.x)) / 3,
+        y: (Number(p0.y) + Number(p1.y) + Number(p2.y)) / 3,
+      });
+      added += 1;
+      anyOver = true;
+    }
+    if (!anyOver) break;
+    markSlotContourDirty(slot, true);
+    // Re-triangulate after each iteration so the new centroid points are
+    // incorporated into the next round's triangle list.
+    ctx.contour.fillTriangles = [];
+    ctx.contour.triangles = triangulateContourPoints(ctx.contour.points, ctx.contour.contourEdges, ctx.contour.manualEdges);
+    // Re-resolve points/tris references from the (possibly new) fill list.
+    const ctx2 = _getSlotEditingPointsAndIndices(slot);
+    ctx.points = ctx2.points; ctx.tris = ctx2.tris; ctx.isFill = ctx2.isFill;
+  }
+  return {
+    ok: added > 0,
+    addedVertices: added,
+    finalTriangleCount: Math.floor((ctx.isFill ? (ctx.contour.fillTriangles || []).length : (ctx.contour.triangles || []).length) / 3),
+    iters: iter,
+    reason: added > 0 ? null : "All triangles already under threshold.",
+  };
+}
+
 function subdivideSelectedTriangles(slot) {
   if (!slot) return { ok: false, reason: "No slot." };
   const ctx = _getSlotEditingPointsAndIndices(slot);

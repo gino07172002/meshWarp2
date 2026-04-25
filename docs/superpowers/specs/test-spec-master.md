@@ -203,6 +203,19 @@ Steps use:
   - fillPoints.length grew by 1
   - the new point's (x,y) ≈ average of selected vertex positions
 
+### mesh-generate-by-area
+- **summary**: Generate Vertices iteratively splits triangles whose area exceeds (areaRatio × bounding-box area) until none remain or maxIters hit.
+- **impl**: app/workspace/slots.js generateMeshVerticesByArea
+- **prereqs**: a triangulated mesh with at least one triangle larger than the threshold
+- **steps**:
+  1. record `contour.fillPoints.length` as N
+  2. `set_value:#slotMeshGenerateRatio=0.015`
+  3. `click:#slotMeshGenerateBtn`
+- **verify**:
+  - `function_returns` `(getActiveSlot()._slotContour || ensureSlotContour(getActiveSlot())).fillPoints.length > N` == `true`
+  - status text contains "Generated"
+- **manual_only**: true
+
 ### mesh-flip-edge
 - **summary**: Flip Edge swaps the diagonal of a quad formed by 2 triangles.
 - **impl**: app/workspace/slots.js flipSelectedEdge

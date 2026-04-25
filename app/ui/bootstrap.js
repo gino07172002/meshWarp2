@@ -129,6 +129,22 @@ function setupMeshTopologyButtons() {
       }
     });
   }
+  if (els.slotMeshGenerateBtn) {
+    els.slotMeshGenerateBtn.addEventListener("click", () => {
+      const slot = getActiveSlot();
+      if (!slot) { setStatus("Generate: no active slot."); return; }
+      const ratio = els.slotMeshGenerateRatio ? Number(els.slotMeshGenerateRatio.value) : 0.015;
+      if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+      const r = generateMeshVerticesByArea(slot, { areaRatio: ratio });
+      if (r.ok) {
+        setStatus(`Generated ${r.addedVertices} vertices (${r.iters} iter, ${r.finalTriangleCount} triangles).`);
+        if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+        if (typeof requestRender === "function") requestRender("generate-verts");
+      } else {
+        setStatus(`Generate: ${r.reason || "no change"}`);
+      }
+    });
+  }
 }
 
 function setupWeightBrushUI() {

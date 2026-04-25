@@ -445,7 +445,14 @@
               <div class="field">
                 <button id="slotMeshFlipEdgeBtn" type="button" title="With exactly 2 selected vertices forming a shared edge of 2 triangles, flip the diagonal">Flip Edge</button>
               </div>
-              <p class="muted">Subdivide and Add Centroid work on fill (interior) vertices. Flip Edge needs exactly 2 selected verts that share 2 triangles.</p>
+              <div class="field two-col">
+                <button id="slotMeshGenerateBtn" type="button" title="Auto-add fill vertices wherever a triangle is too large (Spine 'Generate')">Generate Vertices</button>
+                <label title="Max triangle area as a fraction of mesh bounding-box area">
+                  <span>Area ratio</span>
+                  <input id="slotMeshGenerateRatio" type="number" min="0.001" max="0.5" step="0.005" value="0.015" />
+                </label>
+              </div>
+              <p class="muted">Subdivide and Add Centroid work on fill (interior) vertices. Flip Edge needs exactly 2 selected verts that share 2 triangles. Generate keeps splitting big triangles until all are under the area ratio (max 8 iterations).</p>
             </details>
           </div>
         </details>
@@ -1932,12 +1939,12 @@
     </section>
   </div>
 
-  <script src="app/core/runtime.js?v=20260425-21"></script>
+  <script src="app/core/runtime.js?v=20260425-22"></script>
   <script src="app/render/gl-toolkit.js?v=20260425-2"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>
   <script src="app/core/bones.js?v=20260425-17"></script>
   <script src="app/workspace/workspace.js?v=20260425-1"></script>
-  <script src="app/workspace/slots.js?v=20260425-4"></script>
+  <script src="app/workspace/slots.js?v=20260425-5"></script>
   <script src="app/workspace/constraint-model.js?v=20260420-2"></script>
   <script src="app/render/constraints.js?v=20260425-4"></script>
   <script src="app/render/weight-brush.js?v=20260425-5"></script>
@@ -1955,7 +1962,7 @@
   <script src="app/ui/timeline-pointer.js?v=20260420-2"></script>
   <script src="app/ui/dock-layout.js?v=20260425-18"></script>
   <script src="app/ui/hotkeys.js?v=20260425-6"></script>
-  <script src="app/ui/bootstrap.js?v=20260425-12"></script>
+  <script src="app/ui/bootstrap.js?v=20260425-13"></script>
 </body>
 
 </html>

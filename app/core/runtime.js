@@ -516,6 +516,8 @@ const els = {
   slotMeshSubdivideBtn: document.getElementById("slotMeshSubdivideBtn"),
   slotMeshAddCentroidBtn: document.getElementById("slotMeshAddCentroidBtn"),
   slotMeshFlipEdgeBtn: document.getElementById("slotMeshFlipEdgeBtn"),
+  slotMeshGenerateBtn: document.getElementById("slotMeshGenerateBtn"),
+  slotMeshGenerateRatio: document.getElementById("slotMeshGenerateRatio"),
   slotMeshCopyWeightsBtn: document.getElementById("slotMeshCopyWeightsBtn"),
   slotMeshPasteWeightsBtn: document.getElementById("slotMeshPasteWeightsBtn"),
   slotMeshCaptureStartBtn: document.getElementById("slotMeshCaptureStartBtn"),
