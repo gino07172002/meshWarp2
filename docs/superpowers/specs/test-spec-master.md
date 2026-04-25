@@ -862,6 +862,30 @@ Steps use:
   - `function_returns` `state.mesh.physicsConstraints.length === 1 && state.mesh.physicsConstraints[0].state.reset === true` == `true`
 - **manual_only**: true
 
+## CPU skinning hot loop optimization (Phase 5)
+
+### skinning-bone-palette-cached
+- **summary**: After Phase 5, `mul(world[b], invBind[b])` is computed once per bone per frame (cached as a flat 6-float palette), not once per vertex × bone. The skinned output positions must remain bit-identical to the pre-optimization algorithm.
+- **impl**: app/render/constraints.js buildBonePalette(); updateDeformation + buildSlotGeometry inline matrix math
+- **prereqs**: 1 mesh with ≥3 bones, ≥10 vertices, weights present (auto-weighted is fine)
+- **steps**:
+  1. trigger render; record `state.mesh.deformedScreen[0..3]` as Sx0,Sy0,Sx1,Sy1
+  2. set bone[0].rot to math.degToRad(15); trigger render
+  3. set it back to 0; trigger render
+- **verify**:
+  - `function_returns` `Math.abs(state.mesh.deformedScreen[0] - Sx0) < 0.001 && Math.abs(state.mesh.deformedScreen[1] - Sy0) < 0.001` == `true`
+- **manual_only**: true
+
+### skinning-no-object-alloc-in-inner-loop
+- **summary**: The optimized inner loop inlines transformPoint to avoid `{x,y}` object allocation per vertex×bone. This is observable indirectly: a long deformation run shouldn't spike the heap.
+- **impl**: app/render/constraints.js updateDeformation + buildSlotGeometry inner loops (inline math vs transformPoint)
+- **prereqs**: large mesh (≥200 vertices, ≥10 bones)
+- **steps**:
+  1. (visual / profiler check; no scripted assertion)
+- **verify**:
+  - `function_returns` `typeof buildBonePalette === "function"` == `true`
+- **manual_only**: true
+
 ## GL base image reference (Phase 3 — reference image stays on GL)
 
 ### gl-base-reference-drawn-on-gl

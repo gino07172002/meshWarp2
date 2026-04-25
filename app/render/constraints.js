@@ -1474,20 +1474,27 @@ function buildSlotGeometry(slot, poseWorld) {
   if (!sm.interleaved || sm.interleaved.length !== vCount * 4) sm.interleaved = new Float32Array(vCount * 4);
   if (!sm.deformedScreen || sm.deformedScreen.length !== vCount * 2) sm.deformedScreen = new Float32Array(vCount * 2);
   if (!sm.deformedLocal || sm.deformedLocal.length !== vCount * 2) sm.deformedLocal = new Float32Array(vCount * 2);
+  // Build per-slot bone palette once. Different from _palette.mesh because
+  // poseWorld is the constraint-resolved pose (not the edit-aware variant).
+  _palette.slot = boneCount > 0 ? buildBonePalette(poseWorld, invBind, _palette.slot) : null;
+  const palette = _palette.slot;
   for (let i = 0; i < vCount; i += 1) {
     const x = sm.positions[i * 2];
     const y = sm.positions[i * 2 + 1];
     let sx = x;
     let sy = y;
-    if (boneCount > 0) {
+    if (boneCount > 0 && palette) {
       sx = 0;
       sy = 0;
+      const wRowBase = i * boneCount;
       for (let b = 0; b < boneCount; b += 1) {
-        const w = sm.weights[i * boneCount + b];
+        const w = sm.weights[wRowBase + b];
         if (w <= 0) continue;
-        const skinned = transformPoint(mul(poseWorld[b], invBind[b]), x, y);
-        sx += skinned.x * w;
-        sy += skinned.y * w;
+        const o = b * 6;
+        const px = palette[o] * x + palette[o + 1] * y + palette[o + 4];
+        const py = palette[o + 2] * x + palette[o + 3] * y + palette[o + 5];
+        sx += px * w;
+        sy += py * w;
       }
     }
     const lx = sx + (offsets[i * 2] || 0);
@@ -2157,6 +2164,34 @@ function drawBackdrop() {
   if (state.renderPerf) state.renderPerf.backdropSig = sig;
 }
 
+// Per-frame bone palette cache: precompute `mul(world[b], invBind[b])`
+// once per bone per frame. Without this, the inner skinning loop recomputes
+// the same 6-float matrix for every vertex × every bone, which is the
+// dominant cost for medium-to-large meshes.
+//
+// Layout: flat Float32Array of 6 floats per bone [a, b, c, d, tx, ty].
+// Caller passes their own scratch storage so updateDeformation and
+// buildSlotGeometry don't fight for one global.
+function buildBonePalette(world, invBind, scratch) {
+  const n = world ? world.length : 0;
+  const need = n * 6;
+  if (!scratch || scratch.length < need) scratch = new Float32Array(Math.max(need, 64));
+  for (let b = 0; b < n; b += 1) {
+    const m = mul(world[b], invBind[b]);
+    const o = b * 6;
+    scratch[o]     = m[0];
+    scratch[o + 1] = m[1];
+    scratch[o + 2] = m[2];
+    scratch[o + 3] = m[3];
+    scratch[o + 4] = m[4];
+    scratch[o + 5] = m[5];
+  }
+  return scratch;
+}
+
+// Cached bone palettes — one per skinning context. Reset/grown per frame.
+const _palette = { mesh: null, slot: null };
+
 function updateDeformation(offsetsOverride = null) {
   const m = state.mesh;
   if (!m) return;
@@ -2168,21 +2203,28 @@ function updateDeformation(offsetsOverride = null) {
   const invBind = getDisplayInvBind(m);
   const vCount = getVertexCount(m);
   const boneCount = bones.length;
+  // Build the bone palette once for this frame; reuse across all vertices.
+  _palette.mesh = boneCount > 0 ? buildBonePalette(world, invBind, _palette.mesh) : null;
+  const palette = _palette.mesh;
 
   for (let i = 0; i < vCount; i += 1) {
     const x = m.positions[i * 2];
     const y = m.positions[i * 2 + 1];
     let sx = x;
     let sy = y;
-    if (boneCount > 0) {
+    if (boneCount > 0 && palette) {
       sx = 0;
       sy = 0;
+      const wRowBase = i * boneCount;
       for (let b = 0; b < boneCount; b += 1) {
-        const w = m.weights[i * boneCount + b];
+        const w = m.weights[wRowBase + b];
         if (w <= 0) continue;
-        const skinned = transformPoint(mul(world[b], invBind[b]), x, y);
-        sx += skinned.x * w;
-        sy += skinned.y * w;
+        const o = b * 6;
+        // transformPoint inlined: avoids creating a {x,y} object per vertex×bone.
+        const px = palette[o] * x + palette[o + 1] * y + palette[o + 4];
+        const py = palette[o + 2] * x + palette[o + 3] * y + palette[o + 5];
+        sx += px * w;
+        sy += py * w;
       }
     }
 
