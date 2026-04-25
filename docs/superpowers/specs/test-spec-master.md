@@ -514,6 +514,22 @@ Steps use:
 - **impl**: app/animation/model.js / state.anim.onionSkin
 - **manual_only**: true
 
+### anim-onion-keyframes-only
+- **summary**: getOnionSkinFrameOffsets respects keyFramesOnly = true and returns only offsets that match a key time on any track.
+- **impl**: app/animation/model.js getOnionSkinFrameOffsets
+- **prereqs**: anim with keys at frames 5 and 10; current time at frame 5; prevFrames=2, nextFrames=2
+- **steps**:
+  1. set onionSkin.keyFramesOnly = true
+  2. call `getOnionSkinFrameOffsets(getCurrentAnimation())`
+- **verify**:
+  - returned offsets is `[5]` (frame 5 → 10 is +5)
+
+### anim-onion-px-per-frame
+- **summary**: pxPerFrameX shifts each ghost frame proportionally for in-place walk-cycle preview.
+- **impl**: app/render/canvas.js drawOnionSkins2D (ctx.translate)
+- **prereqs**: enabled onion skin, prev=2, next=2, pxPerFrameX = 16
+- **manual_only**: true
+
 ### anim-bezier-interp
 - **summary**: Curve editor changes a key's curve attribute.
 - **impl**: app/animation/timeline-ui.js

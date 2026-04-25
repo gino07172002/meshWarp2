@@ -110,24 +110,45 @@ function drawOnionSkins2D(ctx, slots) {
   const nextTint = { r: 0.58, g: 0.9, b: 1 };
   let drawn = false;
 
-  const drawGhost = (offset, tint, orderCount) => {
+  // Spine "Ghosting" px-per-frame offset: shifts the ghost so a walk-cycle
+  // previewed in-place can show forward locomotion. Applied as a 2D canvas
+  // translation (ghost canvas is the same surface as the main, so the
+  // translation only affects this draw call).
+  const px = Number(onion.pxPerFrameX) || 0;
+  const py = Number(onion.pxPerFrameY) || 0;
+  const offsets = typeof getOnionSkinFrameOffsets === "function" ? getOnionSkinFrameOffsets(anim) : null;
+  const fallbackOffsets = [];
+  if (!offsets || offsets.length === 0) {
+    for (let i = onion.prevFrames; i >= 1; i -= 1) fallbackOffsets.push(-i);
+    for (let i = onion.nextFrames; i >= 1; i -= 1) fallbackOffsets.push(i);
+  }
+  const useOffsets = offsets && offsets.length > 0 ? offsets : fallbackOffsets;
+  // Sort so "farthest in time" draws first (back), nearest last (front).
+  useOffsets.sort((a, b) => Math.abs(b) - Math.abs(a));
+  const orderCount = Math.max(onion.prevFrames, onion.nextFrames, 1);
+
+  const drawGhost = (offset, tint) => {
     const sampleTime = getOnionSampleTime(baseTime, offset, duration);
     samplePoseAtTime(state.mesh, sampleTime, { applyStateParamTracks: false });
     updateDeformation();
     const poseWorld = getSolvedPoseWorld(state.mesh);
     const fade = 1 - (Math.abs(offset) - 1) / Math.max(1, orderCount + 1);
+    const shiftX = px * offset;
+    const shiftY = py * offset;
+    if (shiftX !== 0 || shiftY !== 0) {
+      ctx.save();
+      ctx.translate(shiftX, shiftY);
+    }
     renderSlots2DWithClipping(ctx, slots, poseWorld, {
       alphaMul: math.clamp(onion.alpha * fade, 0, 1),
       tintMul: tint,
     });
+    if (shiftX !== 0 || shiftY !== 0) ctx.restore();
     drawn = true;
   };
 
-  for (let i = onion.prevFrames; i >= 1; i -= 1) {
-    drawGhost(-i, prevTint, onion.prevFrames);
-  }
-  for (let i = onion.nextFrames; i >= 1; i -= 1) {
-    drawGhost(i, nextTint, onion.nextFrames);
+  for (const off of useOffsets) {
+    drawGhost(off, off < 0 ? prevTint : nextTint);
   }
 
   samplePoseAtTime(state.mesh, baseTime);

@@ -1346,9 +1346,14 @@ function applyOnionSkinInputs(commitUndo = false) {
   if (els.onionPrev) onion.prevFrames = math.clamp(Math.round(Number(els.onionPrev.value) || 0), 0, 12);
   if (els.onionNext) onion.nextFrames = math.clamp(Math.round(Number(els.onionNext.value) || 0), 0, 12);
   if (els.onionAlpha) onion.alpha = math.clamp(Number(els.onionAlpha.value) || 0.22, 0.01, 1);
+  if (els.onionKeyFramesOnly) onion.keyFramesOnly = !!els.onionKeyFramesOnly.checked;
+  if (els.onionPxPerFrameX) onion.pxPerFrameX = Number(els.onionPxPerFrameX.value) || 0;
+  if (els.onionPxPerFrameY) onion.pxPerFrameY = Number(els.onionPxPerFrameY.value) || 0;
   if (els.onionPrev) els.onionPrev.value = String(onion.prevFrames);
   if (els.onionNext) els.onionNext.value = String(onion.nextFrames);
   if (els.onionAlpha) els.onionAlpha.value = String(onion.alpha);
+  if (els.onionPxPerFrameX) els.onionPxPerFrameX.value = String(onion.pxPerFrameX);
+  if (els.onionPxPerFrameY) els.onionPxPerFrameY.value = String(onion.pxPerFrameY);
   if (state.mesh) samplePoseAtTime(state.mesh, state.anim.time);
   if (commitUndo) pushUndoCheckpoint(true);
 }
@@ -1381,6 +1386,17 @@ if (els.onionAlpha) {
   els.onionAlpha.addEventListener("change", () => {
     applyOnionSkinInputs(true);
   });
+}
+if (els.onionKeyFramesOnly) {
+  els.onionKeyFramesOnly.addEventListener("change", () => applyOnionSkinInputs(true));
+}
+if (els.onionPxPerFrameX) {
+  els.onionPxPerFrameX.addEventListener("input", () => applyOnionSkinInputs(false));
+  els.onionPxPerFrameX.addEventListener("change", () => applyOnionSkinInputs(true));
+}
+if (els.onionPxPerFrameY) {
+  els.onionPxPerFrameY.addEventListener("input", () => applyOnionSkinInputs(false));
+  els.onionPxPerFrameY.addEventListener("change", () => applyOnionSkinInputs(true));
 }
 
 if (els.layerTrackSelect) {

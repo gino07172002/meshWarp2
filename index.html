@@ -1633,6 +1633,9 @@
             <label class="mini-flag">Next <input id="onionNext" type="number" min="0" max="12" step="1" value="2" /></label>
             <label class="mini-flag">A <input id="onionAlpha" type="number" min="0.01" max="1" step="0.01"
                 value="0.22" /></label>
+            <label class="mini-flag" title="Show ghosts only on frames that have a key on any track"><input id="onionKeyFramesOnly" type="checkbox" />Keys only</label>
+            <label class="mini-flag" title="Pixels-per-frame X offset; useful for in-place walk cycles">+X <input id="onionPxPerFrameX" type="number" step="0.5" value="0" /></label>
+            <label class="mini-flag" title="Pixels-per-frame Y offset">+Y <input id="onionPxPerFrameY" type="number" step="0.5" value="0" /></label>
           </div>
         </details>
         </div>
@@ -1929,7 +1932,7 @@
     </section>
   </div>
 
-  <script src="app/core/runtime.js?v=20260425-20"></script>
+  <script src="app/core/runtime.js?v=20260425-21"></script>
   <script src="app/render/gl-toolkit.js?v=20260425-2"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>
   <script src="app/core/bones.js?v=20260425-17"></script>
@@ -1938,9 +1941,9 @@
   <script src="app/workspace/constraint-model.js?v=20260420-2"></script>
   <script src="app/render/constraints.js?v=20260425-4"></script>
   <script src="app/render/weight-brush.js?v=20260425-5"></script>
-  <script src="app/render/canvas.js?v=20260425-4"></script>
+  <script src="app/render/canvas.js?v=20260425-5"></script>
   <script src="app/render/state-machine.js?v=20260420-2"></script>
-  <script src="app/animation/model.js?v=20260425-5"></script>
+  <script src="app/animation/model.js?v=20260425-6"></script>
   <script src="app/animation/timeline-ui.js?v=20260420-2"></script>
   <script src="app/animation/runtime.js?v=20260425-1"></script>
   <script src="app/io/tree-bindings.js?v=20260425-4"></script>
@@ -1948,7 +1951,7 @@
   <script src="app/io/project-actions.js?v=20260425-2"></script>
   <script src="app/ui/editor-panels.js?v=20260425-6"></script>
   <script src="app/ui/constraint-panels.js?v=20260425-3"></script>
-  <script src="app/ui/animation-panels.js?v=20260420-2"></script>
+  <script src="app/ui/animation-panels.js?v=20260425-1"></script>
   <script src="app/ui/timeline-pointer.js?v=20260420-2"></script>
   <script src="app/ui/dock-layout.js?v=20260425-18"></script>
   <script src="app/ui/hotkeys.js?v=20260425-6"></script>

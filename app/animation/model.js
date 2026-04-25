@@ -1215,7 +1215,49 @@ function ensureOnionSkinSettings() {
   o.prevFrames = math.clamp(Math.round(Number(o.prevFrames) || 0), 0, 12);
   o.nextFrames = math.clamp(Math.round(Number(o.nextFrames) || 0), 0, 12);
   o.alpha = math.clamp(Number(o.alpha) || 0.22, 0.01, 1);
+  // Spine "Ghosting" extensions:
+  //  - keyFramesOnly: sample only frames that have a deform/bone key, not
+  //    every Nth frame (default off).
+  //  - anchorMode: "none" (default) | "fixed" — when fixed, the ghost frames
+  //    are drawn relative to a chosen anchor frame, useful for in-place
+  //    walking cycles. Currently a UI-only flag; the offset compensation is
+  //    optional and we keep the simplest "no offset" behaviour.
+  //  - pxPerFrameX / pxPerFrameY: when nonzero, each ghost frame is shifted
+  //    by (offset * pxPerFrame) along that axis. Lets a walk cycle previewed
+  //    in-place show forward locomotion.
+  o.keyFramesOnly = !!o.keyFramesOnly;
+  o.anchorMode = o.anchorMode === "fixed" ? "fixed" : "none";
+  o.pxPerFrameX = Number.isFinite(Number(o.pxPerFrameX)) ? Number(o.pxPerFrameX) : 0;
+  o.pxPerFrameY = Number.isFinite(Number(o.pxPerFrameY)) ? Number(o.pxPerFrameY) : 0;
   return o;
+}
+
+// Returns the list of frame offsets (negative = past, positive = future) the
+// ghosting renderer should sample given current onion-skin settings. With
+// keyFramesOnly the offsets are filtered to those that hit a key on any
+// timeline track. Without it, returns the original [-prev..-1, 1..next].
+function getOnionSkinFrameOffsets(anim) {
+  const o = ensureOnionSkinSettings();
+  const out = [];
+  for (let i = -o.prevFrames; i <= o.nextFrames; i += 1) {
+    if (i === 0) continue;
+    out.push(i);
+  }
+  if (!o.keyFramesOnly || !anim || !anim.tracks) return out;
+  // Build a Set of "frames that have at least one key" using the project
+  // time step. A frame is the timeline time in time-step units.
+  const step = Math.max(TIMELINE_MIN_STEP, getTimelineTimeStep());
+  const keyFrames = new Set();
+  for (const trackId of Object.keys(anim.tracks)) {
+    const list = getTrackKeys(anim, trackId);
+    for (const k of list) {
+      const t = Number(k && k.time) || 0;
+      keyFrames.add(Math.round(t / step));
+    }
+  }
+  if (keyFrames.size === 0) return out;
+  const baseFrame = Math.round((Number(state.anim.time) || 0) / step);
+  return out.filter((off) => keyFrames.has(baseFrame + off));
 }
 
 function getOnionSampleTime(baseTime, frameOffset, duration) {
@@ -1779,6 +1821,9 @@ function refreshAnimationUI() {
   if (els.onionPrev) els.onionPrev.value = String(onion.prevFrames);
   if (els.onionNext) els.onionNext.value = String(onion.nextFrames);
   if (els.onionAlpha) els.onionAlpha.value = String(onion.alpha);
+  if (els.onionKeyFramesOnly) els.onionKeyFramesOnly.checked = !!onion.keyFramesOnly;
+  if (els.onionPxPerFrameX) els.onionPxPerFrameX.value = String(onion.pxPerFrameX || 0);
+  if (els.onionPxPerFrameY) els.onionPxPerFrameY.value = String(onion.pxPerFrameY || 0);
   els.animFps.value = String(Math.max(1, state.anim.fps || 30));
   if (els.animTimeStep) {
     els.animTimeStep.value = String(getTimelineTimeStep());
