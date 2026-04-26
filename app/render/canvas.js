@@ -1,13 +1,15 @@
-// Split from app.js
-// Part: Canvas rendering, selection, bone/object interaction helpers, animation/id factories
-// SECTION: Canvas Rendering
-//   - render(): WebGL is the primary path. Slot meshes, clip slots
-//     (via stencil buffer), and the imported base reference all draw
-//     through the main mesh shader.
-//   - renderSlots2DWithClipping(): used only by drawOnionSkins2D (ghost
-//     overlay drawn on a 2D scene canvas above GL) and by the no-WebGL
-//     safety-net branch.
-//   - drawOverlay(): handles, gizmos, weight overlay — Canvas2D.
+// ROLE: Per-frame render loop entry — orchestrates WebGL slot draw,
+// stencil clipping, base reference quad, onion skins, and the Canvas2D
+// overlay (handles/gizmos/weight overlay). render() is called by
+// requestRender() in runtime.js.
+// EXPORTS:
+//   - render (the per-frame entry; wired to rAF in runtime.js)
+//   - buildRenderableAttachmentGeometry, drawOverlay, drawOnionSkins2D
+//   - beginGLStencilClip, endGLStencilClip, drawBaseImageReferenceGL
+//   - renderSlots2DWithClipping (still used by onion overlay + no-GL
+//     fallback)
+//   - shouldRenderOnionSkin, shouldRenderBaseImageReference
+//   - pickVertex, pickHandleAtScreen (mouse hit testing)
 // ============================================================
 function buildRenderableAttachmentGeometry(slot, poseWorld) {
   if (!slot) return null;

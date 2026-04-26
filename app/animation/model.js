@@ -1,6 +1,17 @@
-// Split from app.js
-// Part: Persistence, autosave, animation/state data model, track/timeline helpers
-// Original source: app/04-persistence-animation-export.js (segment 1)
+// ROLE: Persistence + animation data model (autosave, undo, animation
+// records, track/keyframe helpers).
+// EXPORTS:
+//   - saveAutosaveSnapshot, startAutosaveLoop, pushUndoCheckpoint,
+//     undoRedoApply
+//   - getCurrentAnimation, ensureCurrentAnimation, createAnimation,
+//     normalizeAnimationRecord
+//   - ensureAnimLayerTracks, getSelectedLayerTrack
+//   - getTrackKeys, addOrUpdateKeyframeForTrack, deleteKeyframeForTrack
+//   - sampleTrackValueAtTime, getTimelineViewRange, timelineXForTime
+//   - migrateLegacyVertexTracksInAnimation (legacy upgrade)
+//   - EVENT_TRACK_ID, DRAWORDER_TRACK_ID (constants)
+// CONSUMERS: animation-panels.js, timeline-ui.js, runtime.js,
+//   project-actions.js (load), project-export.js (save).
 // ============================================================
 // SECTION: Project Persistence — Save, Load, Autosave
 // saveAutosave* functions: snapshot-based recovery.

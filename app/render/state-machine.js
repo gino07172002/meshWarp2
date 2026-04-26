@@ -1,6 +1,12 @@
-// Split from app.js
-// Part: State machine bridge export, bridge API, undo/autosave envelope helpers
-// Original source: app/03-constraints-render.js (segment 3)
+// ROLE: State machine bridge — export the editor's state-machine
+// graph as JSON + sample wrapper code for runtime integration. Also
+// houses transition condition evaluation used during animation playback.
+// EXPORTS:
+//   - exportStateMachineBridgeJson, exportStateMachineBridgeCode
+//   - installStateMachineBridgeApi
+//   - evaluateStateTransitionCondition, transitionIsTriggered
+//   - ensureStateMachine, getCurrentStateMachineState
+// EVENT WIRING: #smBridgeExportBtn, #smParam* / #smCond* in state dock.
 // SECTION: State Machine Export
 // Builds JSON + sample bridge code for runtime integration.
 // ============================================================

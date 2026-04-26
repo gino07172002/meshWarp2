@@ -1,6 +1,17 @@
-// Split from app.js
-// Part: Workspace switching, slot lifecycle, slot tree/context-menu helpers
-// Original source: app/02-workspace-slot-mesh.js (segment 1)
+// ROLE: Workspace switcher (Slot/Rig/Object/Animate × edit modes),
+// slot lifecycle (addSlotEntry, normalizeSlotCanvas, slot CRUD),
+// attachment state normalization, skin set normalization
+// (ensureSkinSets), legacy attachment upgrade.
+// EXPORTS:
+//   - applyWorkspace, setupWorkspaceTabs, setupAnimateSubTabs,
+//     mountAnimateAuxPanelsInLeftTools
+//   - getCurrentWsType, getCurrentWsMode, setActiveSlot
+//   - addSlotEntry, normalizeSlotCanvas
+//   - ensureSkinSets, addSkinSetFromCurrentState, duplicateSkinSet,
+//     captureSelectedSkinSetFromCurrentState, applySkinSetToSlots
+//   - ensureSlotAttachments, ensureSlotAttachmentState,
+//     ensureSlotClipState, getSlotClipPointsLocal
+//   - syncSourceCanvasToActiveAttachment
 // ============================================================
 // SECTION: Workspace Switcher — Type × Mode
 // Type buttons (Rig / Mesh / Object) and Mode select (Edit / Animate)

@@ -1,6 +1,13 @@
-// Split from app.js
-// Part: Animation runtime pose sampling, blending, playback, timeline event emission
-// Original source: app/04-persistence-animation-export.js (segment 3)
+// ROLE: Per-frame animation runtime — pose sampling, layer blending,
+// playback advance, timeline event emission, audio playback + waveform
+// peak extraction.
+// EXPORTS:
+//   - samplePoseAtTime, blendTwoAnimationSamples, updateAnimationPlayback
+//   - emitTimelineEventsBetween, playTimelineEventAudio
+//   - getTimelineAudioPeaks, decodeAudioToPeaks, renderWaveformSvg
+//     (audio waveform pipeline; cached per audio URL)
+// CONSUMERS: render() in canvas.js, animation-panels.js (play/stop),
+//   timeline-ui.js (waveform).
 // SECTION: Animation Runtime — Pose Sampling
 // samplePoseAtTime: evaluates all timeline tracks at time t,
 //   applies interpolated values to poseBones / slot state.

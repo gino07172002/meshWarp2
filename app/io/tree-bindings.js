@@ -1,6 +1,14 @@
-// Split from app.js
-// Part: File import, bone tree, slot/tree bindings
-// Original source: app/05-bindings-file-tree.js (segment 1)
+// ROLE: Image/PSD import, bone tree drag/drop wiring, slot row context
+// menus and quick-action buttons, attachment type picker popup.
+// EXPORTS:
+//   - openAttachmentTypePicker, openSlotPickerPopup
+//   - buildDefaultAttachmentContour, getAttachmentSeedData
+//   - cloneCanvas, makeUniqueAttachmentName
+//   - handleSlotTreeDragstart, handleSlotTreeDragover, etc. (drag/drop)
+// EVENT WIRING: #fileInput (image/PSD), bone tree rows, slot rows,
+//   attachment rows, slot drop targets.
+// CONSUMERS: tree row creation in bones.js (renderBoneTree) emits the
+//   data-* attributes this file's listeners react to.
 els.fileInput.addEventListener("change", async (e) => {
   const files = Array.from(e.target.files || []);
   if (files.length === 0) return;

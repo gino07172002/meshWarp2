@@ -1,6 +1,20 @@
-// Split from app.js
-// Part: DOM refs, canvas setup, shared state, math, UI core
-// Original lines: 1-3215
+// ROLE: Foundation — DOM ref registry (`els`), shared mutable state
+// object (`state`), math helpers, GL program/VBO/IBO setup, dock layout,
+// AI capture registry. Loaded first; everything else assumes its globals
+// exist.
+// EXPORTS (globals):
+//   - els: { [id]: HTMLElement }  — registered with getElementById per
+//     control. Add new ids here when wiring HTML.
+//   - state: object  — single source of truth for editor state
+//     (state.mesh, state.slots, state.anim, state.export, etc.)
+//   - gl, hasGL, isWebGL2, hasVAO, program, vbo, ibo, vao, loc
+//   - setStatus, requestRender, scheduleDraw, math.* (clamp, degToRad…)
+//   - createProgram, ensureGLTextureForCanvas, applyGLBlendMode,
+//     bindGeometry, setupVertexLayout, finishMainGLSetup,
+//     initMainGLResources
+//   - registerAICaptureDomain, runAICaptureCommand
+// HEAVY FILE (~5000 lines). Candidate split: els-registry,
+//   state-init, math, gl-setup, ai-capture.
 const els = {
   appRoot: document.getElementById("appRoot"),
   fileNewBtn: document.getElementById("fileNewBtn"),

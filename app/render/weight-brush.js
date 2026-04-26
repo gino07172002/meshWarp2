@@ -1,5 +1,15 @@
-// Weight Paint Brush — paint per-vertex bone weights by dragging on canvas.
+// ROLE: Weight Paint Brush — paint per-vertex bone weights by dragging
+// on canvas. 4 modes (add / remove / replace / smooth), bone-lock so
+// locked bones aren't touched, neighbor-graph cache for smooth mode.
 // Active when state.weightBrush.active is true and editMode === "mesh".
+// EXPORTS:
+//   - isWeightBrushActive, getWeightBrushScreenForActive,
+//     applyWeightBrushStrokeAt, drawWeightBrushCursor
+//   - setWeightBrushActive, setWeightBrushMode, toggleBrushBoneLock
+//   - getLockedBoneSet, isBoneLockedForBrush
+//   - renormalizeVertexRowWithLocks
+// CONSUMERS: hotkeys.js (W toggle, pointer intercept), bootstrap.js
+//   (UI wiring), drawOverlay (cursor preview).
 
 function isWeightBrushActive() {
   return !!(state && state.weightBrush && state.weightBrush.active && state.editMode === "mesh");

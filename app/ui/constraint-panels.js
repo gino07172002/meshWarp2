@@ -1,6 +1,14 @@
-// Split from app.js
-// Part: IK, transform/path constraints, slot mesh, bone property bindings
-// Original source: app/06-bindings-editor-panels.js (segment 2)
+// ROLE: Right-Properties panel handlers — IK / Transform / Path
+// constraint controls (Add/Remove/Move Up/Down/edit fields), bone
+// property fields (tx/ty/rot/length/scale/shear/color/parent/inherit),
+// relative numeric entry parser (+10 / *2 / etc).
+// EXPORTS:
+//   - resolveRelativeNumeric, initRelativeNumericInputs (numeric parser)
+//   - applyHeadTipFromInputs (commit numeric edits)
+// EVENT WIRING: every #ikXxxBtn / #tfcXxxBtn / #pathXxxBtn / #boneXxx
+//   input plus IK list / transform list / path list rows.
+// (Physics constraint UI lives in app/render/constraints.js, paired
+//  with the solver code there.)
 if (els.ikAdd1Btn) {
   els.ikAdd1Btn.addEventListener("click", () => {
     if (!addIKConstraint(false)) {

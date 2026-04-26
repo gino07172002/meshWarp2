@@ -1,10 +1,20 @@
-// Split from app.js
-// Part: Constraint solvers, slot geometry, viewport math, backdrop, deformation helpers
-// Original source: app/03-constraints-render.js (segment 1)
-// ============================================================
-// SECTION: Constraint Solvers — Path, Transform, IK
-// Applied each frame during pose evaluation.
-// Order: Path → Transform → IK (matches Spine runtime order).
+// ROLE: Constraint solvers (IK / Transform / Path), per-vertex mesh
+// skinning (updateDeformation, buildSlotGeometry, with bone-palette
+// cache), constraint UIs (refresh*UI + handlers), drawMeshOnContext for
+// 2D fallback, viewport math (localToScreen/screenToLocal), backdrop
+// grid/ruler, slot transform helpers.
+// EXPORTS:
+//   - applySingleIKConstraintToBones, applySingleTransformConstraintToBones
+//   - solveOneBoneIK, solveTwoBoneIK
+//   - getEditAwareWorld, getSolvedPoseWorld, computeWorld
+//   - updateDeformation, buildSlotGeometry, buildBonePalette
+//   - refreshIKUI, refreshTransformUI, refreshPathUI, refreshPhysicsUI
+//   - localToScreen, screenToLocal, drawBackdrop
+//   - drawMeshOnContext (Canvas2D triangle blit; used by onion + fallback)
+// CONSUMERS: render() in canvas.js, animation runtime, hotkeys/edit
+//   pointer handlers.
+// HEAVY FILE (~3850 lines).
+// Constraint apply order: Path → Transform → IK → Physics (matches Spine).
 // ============================================================
 function refreshPathUI() {
   const m = state.mesh;

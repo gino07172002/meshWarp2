@@ -1,6 +1,16 @@
-// Split from app.js
-// Part: Project payload, Spine export helpers, diagnostics
-// Original source: app/05-bindings-file-tree.js (segment 2)
+// ROLE: Native project export, Spine 4.x JSON / .skel binary / .atlas
+// builder, atlas advanced packer, pre-export diagnostics + auto-fix.
+// EXPORTS:
+//   - buildProjectPayload (native .json bundle)
+//   - buildSpineJsonData, exportSpineSkelBinary, validateSpineJsonForExport
+//   - packSlotsToAtlasPage (shelf packer; multi-page, rotation, trim,
+//     bleed) → returns { pages: [{canvas, name, ...}], atlas, scale }
+//   - trimTransparentEdges, drawAtlasRegion, drawBleedRing
+//   - exportSpineData (full pipeline: JSON + .atlas + N PNGs + .skel)
+//   - sanitizeExportName, downloadBlobFile, canvasToBlob
+//   - toSpineColor, colorHexToInt (color encoding helpers)
+// EVENT WIRING: #fileExportSpineBtn, atlas-options inputs.
+// HEAVY FILE (~3900 lines).
 function sanitizeExportName(name, fallback) {
   const raw = String(name || "").trim();
   const cleaned = raw.replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, "_");

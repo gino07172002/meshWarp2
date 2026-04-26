@@ -1,6 +1,11 @@
-// Split from app.js
-// Part: Setup, diagnostics, workspace, bone/skin/slot quick bindings
-// Original source: app/06-bindings-editor-panels.js (segment 1)
+// ROLE: Setup tab + skin panel + workspace tab UI bindings.
+// Skin add/dup/del/reorder, bone-compensation toggle, update-bindings
+// confirm dialog, weight overlay toggle, diagnostics auto-fix button.
+// EXPORTS:
+//   - reorderSelectedSkinSet
+// EVENT WIRING: #skinAddBtn/#skinDupBtn/#skinDeleteBtn/#skinMove*Btn,
+//   #activeSkinSelect, #updateBindingsBtn, #boneCompensation,
+//   #weightOverlayToggle, diagnostics auto-fix.
 if (els.projectLoadInput) {
   els.projectLoadInput.addEventListener("change", handleProjectLoadInputChange);
 }

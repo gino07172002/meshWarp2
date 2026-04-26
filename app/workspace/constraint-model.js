@@ -1,6 +1,21 @@
-// Split from app.js
-// Part: Constraint model normalization and execution-plan helpers
-// Original source: app/02-workspace-slot-mesh.js (segment 3)
+// ROLE: Constraint data model — normalize / ensure / add / remove for
+// IK, Transform, Path, Physics constraints. Owns the execution-plan
+// builder used by the render loop. Owns the Physics solver
+// (semi-implicit Euler) so the data model and solver stay co-located.
+// EXPORTS:
+//   - ensureIKConstraints, ensureTransformConstraints, ensurePathConstraints,
+//     ensurePhysicsConstraints
+//   - get*ConstrainedBoneSet, get*TargetBoneSet (bone visibility marker
+//     sources)
+//   - getActiveIK/Transform/Path/PhysicsConstraint (selection getters)
+//   - addPhysicsConstraint, removeSelectedPhysicsConstraint,
+//     resetAllPhysicsConstraintState
+//   - applySinglePhysicsConstraintToBones (the solver),
+//     applySinglePathConstraintToBones
+//   - buildConstraintExecutionPlan (called by getEditAwareWorld)
+//   - sortConstraintListByOrder, swapConstraintOrder, getConstraintOrder
+// CONSUMERS: render/constraints.js (apply step), bones.js (tree row
+//   markers), io/project-export.js (serialization).
 function ensureIKConstraints(m) {
   if (!m) return [];
   if (!Array.isArray(m.ikConstraints)) m.ikConstraints = [];

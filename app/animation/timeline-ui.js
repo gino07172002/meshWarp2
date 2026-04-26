@@ -1,6 +1,12 @@
-// Split from app.js
-// Part: Timeline UI rendering, curve editor, key editing, event editing
-// Original source: app/04-persistence-animation-export.js (segment 2)
+// ROLE: Timeline UI — DOM-based track rendering, keyframe markers,
+// curve editor, audio waveform overlay on event tracks.
+// EXPORTS:
+//   - renderTimelineTracks (main per-frame DOM rebuild)
+//   - addOrUpdateKeyframeAtCurrentTime, deleteKeyframeAtCurrentTimeForTrack
+//   - renderCurveEditor, ensureBezierCurveOnKey, getCurveEditTarget
+//   - applyTimelineSelectionClasses, refreshTrackSelect
+// CONSUMERS: animation-panels.js (refresh hooks), runtime.js (after
+//   animation playback advances time), audio waveform decode callback.
 // SECTION: Timeline UI — Track Rendering, Key Editing
 // renderTimelineTracks: DOM-based timeline track list.
 // Handles key insert, delete, bezier handle editing.

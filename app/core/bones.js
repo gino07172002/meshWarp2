@@ -1,6 +1,19 @@
-// Split from app.js
-// Part: Bone modes, CRUD, object transforms, slot core
-// Original lines: 3216-6852
+// ROLE: Bone system core — rig math, pose evaluation, edit-mode bone
+// CRUD, slot↔bone binding, weight allocation, the bone tree DOM render
+// (renderBoneTree), and per-mode tab visibility logic.
+// EXPORTS:
+//   - cloneBones, enforceConnectedHeads, getRigBones, getPoseBones,
+//     getActiveBones, applyBoneModeTransition
+//   - syncPoseFromRig, syncBindPose, computeWorld, getEditAwareWorld,
+//     getDisplayInvBind
+//   - allocWeights, autoWeightForPositions, pruneVertexWeights,
+//     weldBoneWeights, swapBoneWeights, applyUpdateBindings,
+//     renormalizeVertexRow
+//   - applyBoneCompensationAfterEdit, isBoneHiddenBySkin
+//   - renderBoneTree (DOM rebuild), updateWorkspaceUI tab visibility
+//   - addBoneAtPose, removeBoneAtIndex
+// CONSUMERS: nearly everything; this is the rig math + tree UI
+//   foundation. Heavy file (~4400 lines) — candidate for future split.
 // ============================================================
 // SECTION: Bone System — Mode Transitions & Pose
 // applyBoneModeTransition: handles edit↔pose↔object transitions,

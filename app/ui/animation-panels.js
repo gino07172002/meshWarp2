@@ -1,6 +1,13 @@
-// Split from app.js
-// Part: Animation, events, preview export, onion skin, state machine, layers
-// Original source: app/06-bindings-editor-panels.js (segment 3)
+// ROLE: Animation panel UI — anim list controls (add/dup/del/reorder),
+// onion skin / event dialog wiring, layer mixer track UI, preview
+// export (WebM/GIF), batch export.
+// EXPORTS:
+//   - reorderCurrentAnimation
+//   - applyInterpolationToPickedKeys, beginAnimationMix
+//   - encodeGifFrames, lzwEncode8 (GIF preview encoder)
+// EVENT WIRING: timeline toolbar (#playBtn, #stopBtn, #animActionBtn,
+//   #animTime, #animDuration), event dialog, onion-skin popover, batch
+//   export panel, state-machine bridge.
 els.animDuration.addEventListener("input", () => {
   const anim = getCurrentAnimation();
   if (!anim) return;

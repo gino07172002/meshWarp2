@@ -1,6 +1,16 @@
-// Split from app.js
-// Part: Slot attachment selection, binding helpers, contour/mesh tooling, renderable slot helpers
-// Original source: app/02-workspace-slot-mesh.js (segment 2)
+// ROLE: Slot attachments — active selection, contour generation,
+// mesh micro-tools (subdivide / centroid / flip-edge / generate),
+// sequence frame attachment runtime, slot weight mode helpers.
+// EXPORTS:
+//   - getPrimarySelectedBoneIndex, getActiveAttachment, getSlotCanvas
+//   - computeSequenceFrameIndex, getEffectiveAttachmentCanvas,
+//     getCurrentRenderTime (sequence runtime)
+//   - resolveLinkedMeshSource, getSlotDisplayNameByIndex
+//   - getRenderableSlots (filtered by visibility/skin)
+//   - subdivideSelectedTriangles, addCentroidVertex, flipSelectedEdge,
+//     generateMeshVerticesByArea (mesh micro-tools)
+//   - buildAutoForegroundContourForSlot (alpha-foreground tracer)
+//   - getSlotWeightMode, isSlotHiddenByBoneVisibility
 function getPrimarySelectedBoneIndex() {
   const m = state.mesh;
   if (!m || !Array.isArray(m.rigBones) || m.rigBones.length === 0) return -1;

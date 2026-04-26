@@ -1,5 +1,12 @@
-// Split from app.js
-// Part: Side dock layout — docked (left/right/bottom), floating panels, snap zones
+// ROLE: Side dock layout — manages docked panels (left/right/bottom),
+// floating drag-out, snap zones, collapse/expand state. Layout
+// preferences persisted to localStorage.
+// EXPORTS:
+//   - getDockSideHost, getDockSideResizer, getDockPanelEntry,
+//     isDockPanelFloating, getDockSideForPanel, getDockPanelsInOrder
+//   - setDockPanelFloat, setDockSideCollapsed, applyDockLayout
+// EVENT WIRING: panel headers (drag), snap zones, collapse buttons,
+//   resize handles.
 
 let dockDragPanelId = "";
 

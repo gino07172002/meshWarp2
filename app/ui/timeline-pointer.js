@@ -1,6 +1,9 @@
-// Split from app.js
-// Part: Timeline marquee and pointer drag bindings
-// Original source: app/06-bindings-editor-panels.js (segment 4)
+// ROLE: Timeline pointer interactions — marquee selection of keyframes,
+// keyframe drag (time scrub), playhead drag, ruler scrub.
+// EXPORTS:
+//   - ensureTimelineMarqueeEl, clearTimelineMarqueeEl, clearTimelineDrag
+//   - rectsOverlap (helper)
+// EVENT WIRING: timeline track lanes, ruler, playhead.
 function ensureTimelineMarqueeEl() {
   if (state.anim.timelineMarqueeEl && state.anim.timelineMarqueeEl.isConnected) return state.anim.timelineMarqueeEl;
   const el = document.createElement("div");

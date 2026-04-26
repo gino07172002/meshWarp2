@@ -1,6 +1,14 @@
-// Split from app.js
-// Part: Canvas pointer interactions and app bootstrap
-// Original lines: 29899-30158
+// ROLE: App bootstrap — runs once at end of script load. Wires up
+// remaining UI controls (mesh tools, weight brush, weight overlay,
+// fullscreen, atlas options), reads URL params, restores autosave,
+// schedules first render, sets initial workspace.
+// EXPORTS:
+//   - toggleFullscreen, setupFullscreenButton, setupMeshTopologyButtons,
+//     setupWeightBrushUI, setupWeightOverlayQuickToggle,
+//     setupWeightPruneUI, setupWeightWeldSwapUI, refreshWeightOverlayQuickBtn
+//   - dispatchMeshHotkey
+// SIDE EFFECTS: This file's top-level statements run on load and wire
+// listeners. Anything in here changes app behavior immediately.
 function toggleFullscreen() {
   const electronApi = typeof window !== "undefined" ? window.electronAPI : null;
   if (electronApi && typeof electronApi.toggleFullscreen === "function") {

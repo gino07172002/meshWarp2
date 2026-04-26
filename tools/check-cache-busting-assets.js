@@ -7,6 +7,7 @@ const html = fs.readFileSync(path.join(rootDir, "index.html"), "utf8");
 const checks = [
   'href="styles.css?v=',
   'src="app/core/runtime.js?v=',
+  'src="app/core/debug.js?v=',
   'src="app/core/bones.js?v=',
   'src="app/workspace/workspace.js?v=',
   'src="app/workspace/slots.js?v=',

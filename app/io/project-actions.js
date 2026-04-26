@@ -1,6 +1,14 @@
-// Split from app.js
-// Part: Save/load/export action bindings
-// Original source: app/05-bindings-file-tree.js (segment 3)
+// ROLE: File I/O action bindings — save/load native project JSON,
+// import Spine 4.x JSON skeletons, upgrade legacy project schemas.
+// EXPORTS:
+//   - upgradeLegacyProject (legacy schema migration)
+//   - importSpineJsonInto, applySpineAttachmentToSlot,
+//     importSpineAnimations, spineCurveToInterp (Spine import pipeline)
+//   - handleProjectLoadInputChange (native .json file input handler)
+// EVENT WIRING: #fileSaveBtn, #fileLoadBtn, #projectLoadInput,
+//   #spineImportBtn, #spineImportInput.
+// CONSUMERS: triggered via UI; produces side-effects on state.mesh,
+//   state.slots, state.anim. Calls rebuildMesh / scheduleDraw after.
 if (els.fileSaveBtn) {
   els.fileSaveBtn.addEventListener("click", () => {
     const payload = buildProjectPayload();

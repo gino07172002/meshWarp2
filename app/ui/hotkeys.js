@@ -1,6 +1,13 @@
-// Split from app.js
-// Part: Hotkeys, timeline drag interactions, keyboard control
-// Original lines: 28129-29898
+// ROLE: Global keyboard hotkeys + canvas pointer event dispatch (drag
+// start / move / end), pan/zoom, edit-mode interactions, weight brush
+// pointer intercept. Big file — most of it is per-mode pointer logic.
+// EXPORTS:
+//   - isMiddleMousePanEvent, isEditableHotkeyTarget, cycleActiveAttachment,
+//     clearResize, dispatchMeshHotkey
+// EVENT WIRING: window keydown/keyup, canvas pointerdown/move/up,
+//   wheel (zoom), F11 (fullscreen), W (weight brush toggle), A
+//   (select-all), arrow keys (nudge), etc.
+// CONSUMERS: every drag-driven editing flow runs through this file.
 window.addEventListener("keydown", (ev) => {
   if (String(ev.key || "").toLowerCase() !== "s") return;
   if (isEditableHotkeyTarget(ev.target)) return;

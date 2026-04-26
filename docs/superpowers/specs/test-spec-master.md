@@ -862,6 +862,47 @@ Steps use:
   - `function_returns` `state.mesh.physicsConstraints.length === 1 && state.mesh.physicsConstraints[0].state.reset === true` == `true`
 - **manual_only**: true
 
+## Debug namespace + per-file API headers
+
+### debug-namespace-installed
+- **summary**: window.debug exists with the documented method set after page load.
+- **impl**: app/core/debug.js (loaded right after runtime.js)
+- **prereqs**: page loaded
+- **steps**:
+  1. (no-op)
+- **verify**:
+  - `function_returns` `(typeof window.debug === "object" && typeof window.debug.snapshot === "function" && typeof window.debug.help === "function" && typeof window.debug.errors === "function")` == `true`
+
+### debug-snapshot-shape
+- **summary**: debug.snapshot() returns a stable JSON-friendly object with the documented keys.
+- **impl**: app/core/debug.js snapshot()
+- **prereqs**: project with at least one slot
+- **steps**:
+  1. (no-op)
+- **verify**:
+  - `function_returns` `(function(){ const s = window.debug.snapshot(); return typeof s.bones === "number" && typeof s.slots === "number" && typeof s.errors === "number"; })()` == `true`
+
+### debug-record-error-buffered
+- **summary**: debug.recordError(code, message) adds an entry to debug.errors() (most recent last) capped at 200.
+- **impl**: app/core/debug.js recordError + ring buffer
+- **prereqs**: page loaded
+- **steps**:
+  1. `call:debug.clear()`
+  2. `call:debug.recordError("TEST_CODE", "test message", {foo: 1})`
+- **verify**:
+  - `function_returns` `(function(){ const e = window.debug.errors(); return e.length === 1 && e[0].code === "TEST_CODE" && e[0].context && e[0].context.foo === 1; })()` == `true`
+
+### debug-find-slot-by-name
+- **summary**: debug.findSlot(name) returns the slot index, -1 if missing.
+- **impl**: app/core/debug.js findSlot
+- **prereqs**: project with a slot named "head"
+- **steps**:
+  1. (no-op)
+- **verify**:
+  - `function_returns` `window.debug.findSlot("head") >= 0` == `true`
+  - `function_returns` `window.debug.findSlot("__not_a_slot__") === -1` == `true`
+- **manual_only**: true
+
 ## Atlas advanced packing
 
 ### atlas-multipage-overflow
