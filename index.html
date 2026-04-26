@@ -1873,6 +1873,24 @@
         <button id="exportPreviewGifBtn" type="button" title="Export preview as GIF">Preview GIF</button>
         <button id="batchExportToggleBtn" type="button" title="Batch export multiple animations">Batch Export</button>
       </div>
+      <div class="field atlas-options" title="Spine atlas packing options (used by Export Spine)">
+        <span class="mini-label">Atlas</span>
+        <label>Max W
+          <input id="atlasMaxWidth" type="number" min="64" max="8192" step="64" value="2048" />
+        </label>
+        <label>Max H
+          <input id="atlasMaxHeight" type="number" min="64" max="8192" step="64" value="2048" />
+        </label>
+        <label>Pad
+          <input id="atlasPadding" type="number" min="0" max="64" step="1" value="2" />
+        </label>
+        <label>Bleed
+          <input id="atlasBleed" type="number" min="0" max="8" step="1" value="0" />
+        </label>
+        <label class="mini-flag" title="Allow rotating regions 90° to fit better"><input id="atlasAllowRotate" type="checkbox" />Rotate</label>
+        <label class="mini-flag" title="Strip fully-transparent edges (emits orig/offset)"><input id="atlasAllowTrim" type="checkbox" />Trim</label>
+        <label class="mini-flag" title="Spill onto extra pages when content overflows"><input id="atlasMultiPage" type="checkbox" checked />Multi-page</label>
+      </div>
       <div id="batchExportPanel" class="field batch-export-panel collapsed">
         <label>Format
           <select id="batchExportFormat">
@@ -2103,7 +2121,7 @@
     </section>
   </div>
 
-  <script src="app/core/runtime.js?v=20260426-2"></script>
+  <script src="app/core/runtime.js?v=20260426-3"></script>
   <script src="app/render/gl-toolkit.js?v=20260425-2"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>
   <script src="app/core/bones.js?v=20260425-20"></script>
@@ -2118,7 +2136,7 @@
   <script src="app/animation/timeline-ui.js?v=20260425-2"></script>
   <script src="app/animation/runtime.js?v=20260425-2"></script>
   <script src="app/io/tree-bindings.js?v=20260425-5"></script>
-  <script src="app/io/project-export.js?v=20260425-5"></script>
+  <script src="app/io/project-export.js?v=20260426-1"></script>
   <script src="app/io/project-actions.js?v=20260426-1"></script>
   <script src="app/ui/editor-panels.js?v=20260426-1"></script>
   <script src="app/ui/constraint-panels.js?v=20260425-5"></script>
@@ -2126,7 +2144,7 @@
   <script src="app/ui/timeline-pointer.js?v=20260420-2"></script>
   <script src="app/ui/dock-layout.js?v=20260425-18"></script>
   <script src="app/ui/hotkeys.js?v=20260425-7"></script>
-  <script src="app/ui/bootstrap.js?v=20260425-13"></script>
+  <script src="app/ui/bootstrap.js?v=20260426-1"></script>
 </body>
 
 </html>

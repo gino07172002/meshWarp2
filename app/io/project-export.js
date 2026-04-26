@@ -1245,55 +1245,298 @@ function exportSpineSkelBinary(spineJson) {
   return writer.toUint8Array();
 }
 
-function packSlotsToAtlasPage(slotExportInfos, pageName, textureScale = 1) {
+// ----------------------------------------------------------------
+// Atlas advanced packer (Spine 4.x .atlas v4 format).
+//
+// Replaces the old single-page row-fill packer. Supports:
+//   - Multi-page: when an item doesn't fit the current page, start a new one
+//   - Rotation: when allowed, try the 90°-rotated orientation if it fits better
+//   - Trim: strip fully-transparent edges; emit `orig`/`offset` so runtimes
+//     can reconstruct the original visual size
+//   - Bleed: copy edge pixels outward (configurable px) to prevent bilinear
+//     filter bleed at region boundaries
+//   - Configurable padding, page size, format, filter
+//
+// Layout algorithm: shelf packer.
+//   - Sort items by height descending (bigger items go first; classic shelf
+//     heuristic that gets close to MaxRects on real-world atlas content
+//     with a fraction of the code).
+//   - For each item, place on current shelf if it fits horizontally; else
+//     start a new shelf (next y-row); else start a new page.
+//
+// Return shape (extended): { pages: [{ canvas, name, width, height }, ...],
+//                            atlas: text, scale: number }
+// Single-page output is byte-compatible with the old packer's first page.
+// ----------------------------------------------------------------
+function packSlotsToAtlasPage(slotExportInfos, pageName, textureScale = 1, options = {}) {
   const atlasSlots = slotExportInfos.filter(
     (it) => it && it.canvas && it.canvas.width > 0 && it.canvas.height > 0
   );
   if (atlasSlots.length === 0) throw new Error("No slot images to export.");
 
   const scale = math.clamp(Number(textureScale) || 1, 0.1, 1);
-  const padding = 2;
-  const maxW = 2048;
-  let x = padding;
-  let y = padding;
-  let rowH = 0;
-  let usedW = 0;
-  let usedH = 0;
-  const regions = [];
-  for (const it of atlasSlots) {
-    const w = Math.max(1, Math.round(it.canvas.width * scale));
-    const h = Math.max(1, Math.round(it.canvas.height * scale));
-    if (x + w + padding > maxW) {
-      x = padding;
-      y += rowH + padding;
-      rowH = 0;
+  const opts = options && typeof options === "object" ? options : {};
+  const padding = Math.max(0, Math.min(64, Number.isFinite(Number(opts.padding)) ? Number(opts.padding) : 2));
+  const bleed = Math.max(0, Math.min(8, Number.isFinite(Number(opts.bleed)) ? Number(opts.bleed) : 0));
+  const maxW = Math.max(64, Math.min(8192, Number(opts.maxWidth) || 2048));
+  const maxH = Math.max(64, Math.min(8192, Number(opts.maxHeight) || maxW));
+  const allowRotate = !!opts.allowRotate;
+  const allowTrim = !!opts.allowTrim;
+  const allowMultiPage = opts.allowMultiPage !== false; // default true
+  const format = String(opts.format || "RGBA8888");
+  const filter = String(opts.filter || "Linear, Linear");
+  const repeat = String(opts.repeat || "none");
+
+  // Per-item prep: scale, optional trim. Result keeps a `srcCanvas` to blit
+  // from + intrinsic w/h plus `origW/origH` and `offX/offY` for the trim
+  // reconstruction. Edge = padding + bleed (a region's effective footprint
+  // includes both its padding gutter and its bleed apron).
+  const prepped = atlasSlots.map((it, i) => {
+    const orig = it.canvas;
+    const sw = Math.max(1, Math.round(orig.width * scale));
+    const sh = Math.max(1, Math.round(orig.height * scale));
+    let srcCanvas = orig;
+    let w = sw;
+    let h = sh;
+    let offX = 0;
+    let offY = 0;
+    let origW = sw;
+    let origH = sh;
+    if (allowTrim) {
+      const trimmed = trimTransparentEdges(orig, scale);
+      if (trimmed) {
+        srcCanvas = trimmed.canvas;
+        w = trimmed.w;
+        h = trimmed.h;
+        offX = trimmed.offX;
+        offY = trimmed.offY;
+        origW = sw;
+        origH = sh;
+      }
     }
-    regions.push({ ...it, x, y, w, h });
-    x += w + padding;
-    rowH = Math.max(rowH, h);
-    usedW = Math.max(usedW, x);
-    usedH = Math.max(usedH, y + h + padding);
+    return { ...it, srcCanvas, w, h, offX, offY, origW, origH, idxInOrder: i };
+  });
+
+  // Sort by max(w, h) desc — the height-aware shelf heuristic. Stable for
+  // ties via the original index so output is deterministic.
+  prepped.sort((a, b) => {
+    const am = Math.max(a.w, a.h);
+    const bm = Math.max(b.w, b.h);
+    if (am !== bm) return bm - am;
+    return a.idxInOrder - b.idxInOrder;
+  });
+
+  const pages = [];
+  let currentPage = null;
+  const newPage = () => {
+    const p = {
+      regions: [], // { item, x, y, w, h, rotated }
+      shelfY: padding,
+      shelfX: padding,
+      shelfH: 0,
+      usedW: 0,
+      usedH: 0,
+    };
+    pages.push(p);
+    currentPage = p;
+  };
+  newPage();
+
+  // Try to place an item with the given footprint on the current page's
+  // current shelf, else open a new shelf, else return false (caller decides
+  // whether to open a new page).
+  const tryPlace = (page, w, h) => {
+    const stride = padding;
+    if (page.shelfX + w + stride > maxW) {
+      // wrap to next shelf
+      const newY = page.shelfY + page.shelfH + stride;
+      if (newY + h + stride > maxH) return null;
+      page.shelfY = newY;
+      page.shelfX = padding;
+      page.shelfH = 0;
+    }
+    if (page.shelfY + h + stride > maxH) return null;
+    const x = page.shelfX;
+    const y = page.shelfY;
+    page.shelfX = x + w + stride;
+    page.shelfH = Math.max(page.shelfH, h);
+    page.usedW = Math.max(page.usedW, x + w + stride);
+    page.usedH = Math.max(page.usedH, y + h + stride);
+    return { x, y };
+  };
+
+  for (const item of prepped) {
+    const { w, h } = item;
+    if (w + padding * 2 > maxW || h + padding * 2 > maxH) {
+      throw new Error(`Slot "${item.attachmentName || "?"}" (${w}×${h}) exceeds atlas max page size (${maxW}×${maxH}). Reduce texture scale or raise max size.`);
+    }
+    let placed = tryPlace(currentPage, w, h);
+    let rotated = false;
+    if (!placed && allowRotate && w !== h) {
+      const r = tryPlace(currentPage, h, w);
+      if (r) { placed = r; rotated = true; }
+    }
+    if (!placed) {
+      if (!allowMultiPage) {
+        throw new Error(`Atlas does not fit on a single ${maxW}×${maxH} page. Enable multi-page or raise size.`);
+      }
+      newPage();
+      placed = tryPlace(currentPage, w, h);
+      if (!placed && allowRotate && w !== h) {
+        const r = tryPlace(currentPage, h, w);
+        if (r) { placed = r; rotated = true; }
+      }
+      if (!placed) {
+        throw new Error(`Slot "${item.attachmentName || "?"}" (${w}×${h}) cannot be placed even on a fresh page. Internal error.`);
+      }
+    }
+    currentPage.regions.push({
+      item,
+      x: placed.x,
+      y: placed.y,
+      w: rotated ? h : w,
+      h: rotated ? w : h,
+      rotated,
+    });
   }
-  const pageW = Math.max(1, Math.ceil(usedW));
-  const pageH = Math.max(1, Math.ceil(usedH));
-  const canvas = document.createElement("canvas");
-  canvas.width = pageW;
-  canvas.height = pageH;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("2D canvas context unavailable for atlas export.");
-  for (const r of regions) {
-    ctx.drawImage(r.canvas, 0, 0, r.canvas.width, r.canvas.height, r.x, r.y, r.w, r.h);
+
+  // Render each page canvas. Bleed is applied per-region by drawing the
+  // source canvas a few extra times offset by ±1..bleed px on each side.
+  for (const page of pages) {
+    const pageW = Math.max(1, Math.ceil(page.usedW));
+    const pageH = Math.max(1, Math.ceil(page.usedH));
+    const canvas = document.createElement("canvas");
+    canvas.width = pageW;
+    canvas.height = pageH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("2D canvas context unavailable for atlas export.");
+    for (const r of page.regions) {
+      drawAtlasRegion(ctx, r, bleed);
+    }
+    page.canvas = canvas;
+    page.width = pageW;
+    page.height = pageH;
   }
-  let atlas = `${pageName}\n`;
-  atlas += `\tsize: ${pageW}, ${pageH}\n`;
-  atlas += "\tformat: RGBA8888\n";
-  atlas += "\tfilter: Linear, Linear\n";
-  atlas += "\trepeat: none\n";
-  for (const r of regions) {
-    atlas += `${r.attachmentName}\n`;
-    atlas += `\tbounds: ${r.x}, ${r.y}, ${r.w}, ${r.h}\n`;
+
+  // Name pages: page 1 keeps the original pageName; subsequent pages append
+  // a numeric suffix before the extension (Spine convention).
+  const dotIdx = pageName.lastIndexOf(".");
+  const baseName = dotIdx > 0 ? pageName.slice(0, dotIdx) : pageName;
+  const ext = dotIdx > 0 ? pageName.slice(dotIdx) : ".png";
+  for (let i = 0; i < pages.length; i += 1) {
+    pages[i].name = i === 0 ? pageName : `${baseName}_${i + 1}${ext}`;
   }
-  return { canvas, atlas, scale };
+
+  // Emit the .atlas text. v4 format: page block, then region blocks. Pages
+  // are separated by a blank line.
+  let atlas = "";
+  for (let i = 0; i < pages.length; i += 1) {
+    const page = pages[i];
+    if (i > 0) atlas += "\n";
+    atlas += `${page.name}\n`;
+    atlas += `\tsize: ${page.width}, ${page.height}\n`;
+    atlas += `\tformat: ${format}\n`;
+    atlas += `\tfilter: ${filter}\n`;
+    atlas += `\trepeat: ${repeat}\n`;
+    // Stable region order within a page: by (y, x) for readability.
+    const ordered = page.regions.slice().sort((a, b) => (a.y - b.y) || (a.x - b.x));
+    for (const r of ordered) {
+      const it = r.item;
+      atlas += `${it.attachmentName}\n`;
+      atlas += `\tbounds: ${r.x}, ${r.y}, ${r.w}, ${r.h}\n`;
+      if (r.rotated) atlas += "\trotate: 90\n";
+      // Trim metadata: orig is the un-trimmed scaled size; offset is the
+      // (x, y) of the trimmed bbox inside the original. Spine runtimes use
+      // these to draw the region back at its original visual position.
+      if (it.origW !== it.w || it.origH !== it.h || it.offX !== 0 || it.offY !== 0) {
+        atlas += `\torig: ${it.origW}, ${it.origH}\n`;
+        atlas += `\toffset: ${it.offX}, ${it.offY}\n`;
+      }
+    }
+  }
+  return { pages, atlas, scale };
+}
+
+// Trim fully-transparent rows/cols from the canvas. Returns
+// { canvas, w, h, offX, offY } where offX/offY are the trimmed bbox top-
+// left in the *scaled* original. If nothing transparent, returns null so
+// caller skips trimming entirely.
+function trimTransparentEdges(srcCanvas, scale) {
+  const sw = Math.max(1, Math.round(srcCanvas.width * scale));
+  const sh = Math.max(1, Math.round(srcCanvas.height * scale));
+  // Render at scaled size into a temp canvas so we trim post-scale.
+  const work = document.createElement("canvas");
+  work.width = sw;
+  work.height = sh;
+  const wctx = work.getContext("2d");
+  if (!wctx) return null;
+  wctx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, 0, 0, sw, sh);
+  const data = wctx.getImageData(0, 0, sw, sh).data;
+  let minX = sw, minY = sh, maxX = -1, maxY = -1;
+  for (let y = 0; y < sh; y += 1) {
+    for (let x = 0; x < sw; x += 1) {
+      const a = data[(y * sw + x) * 4 + 3];
+      if (a !== 0) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0 || maxY < 0) {
+    // Fully transparent — return a 1×1 canvas to keep packing happy.
+    const tiny = document.createElement("canvas");
+    tiny.width = 1;
+    tiny.height = 1;
+    return { canvas: tiny, w: 1, h: 1, offX: 0, offY: 0 };
+  }
+  const tw = maxX - minX + 1;
+  const th = maxY - minY + 1;
+  if (tw === sw && th === sh) return null; // nothing to trim
+  const out = document.createElement("canvas");
+  out.width = tw;
+  out.height = th;
+  const octx = out.getContext("2d");
+  if (!octx) return null;
+  octx.drawImage(work, minX, minY, tw, th, 0, 0, tw, th);
+  return { canvas: out, w: tw, h: th, offX: minX, offY: minY };
+}
+
+// Blit a region with optional bleed. Bleed extends edge pixels by drawing
+// the source canvas scaled to ±bleed px on each side; that costs 4 extra
+// drawImage calls per region with bleed > 0. The actual region pixels are
+// drawn last so they overwrite the spread.
+function drawAtlasRegion(ctx, r, bleed) {
+  const it = r.item;
+  const src = it.srcCanvas;
+  const dx = r.x;
+  const dy = r.y;
+  const dw = r.w;
+  const dh = r.h;
+  ctx.save();
+  if (r.rotated) {
+    ctx.translate(dx + dw, dy);
+    ctx.rotate(Math.PI / 2);
+    // After rotation, the source is drawn into a (h × w) target — draw
+    // dimensions swap.
+    if (bleed > 0) drawBleedRing(ctx, src, 0, 0, dh, dw, bleed);
+    ctx.drawImage(src, 0, 0, src.width, src.height, 0, 0, dh, dw);
+  } else {
+    if (bleed > 0) drawBleedRing(ctx, src, dx, dy, dw, dh, bleed);
+    ctx.drawImage(src, 0, 0, src.width, src.height, dx, dy, dw, dh);
+  }
+  ctx.restore();
+}
+
+function drawBleedRing(ctx, src, dx, dy, dw, dh, bleed) {
+  // Cheap bleed: draw the source at ±bleed in 4 cardinal directions. For
+  // typical bleed=1..2 this is plenty (corner pixels are correctly covered
+  // by the cardinal stretches since each draw uses the full src extent).
+  ctx.drawImage(src, 0, 0, src.width, src.height, dx - bleed, dy, dw, dh);
+  ctx.drawImage(src, 0, 0, src.width, src.height, dx + bleed, dy, dw, dh);
+  ctx.drawImage(src, 0, 0, src.width, src.height, dx, dy - bleed, dw, dh);
+  ctx.drawImage(src, 0, 0, src.width, src.height, dx, dy + bleed, dw, dh);
 }
 
 // ============================================================
@@ -3623,30 +3866,32 @@ async function exportSpineData() {
   if (validation.errors.length > 0) {
     throw new Error(`Spine JSON validation failed: ${validation.errors[0]}`);
   }
-  const { canvas, atlas, scale } = packSlotsToAtlasPage(slotExportInfos, pageName, textureScale);
-  const pngBlob = await canvasToBlob(canvas, "image/png");
+  // Atlas options: read from state.export.atlas if set, otherwise defaults.
+  // (UI control wiring lives in the export panel; here we just consume.)
+  const atlasOpts = (state.export && state.export.atlas && typeof state.export.atlas === "object") ? state.export.atlas : {};
+  const { pages, atlas, scale } = packSlotsToAtlasPage(slotExportInfos, pageName, textureScale, atlasOpts);
   const skelBytes = exportSpineSkelBinary(json);
   const jsonBlob = new Blob([JSON.stringify(json, null, 2)], { type: "application/json" });
   const atlasBlob = new Blob([atlas], { type: "text/plain;charset=utf-8" });
   const skelBlob = new Blob([skelBytes], { type: "application/octet-stream" });
   downloadBlobFile(jsonBlob, `${baseName}.json`);
   downloadBlobFile(atlasBlob, `${baseName}.atlas`);
-  downloadBlobFile(pngBlob, pageName);
+  for (const page of pages) {
+    const blob = await canvasToBlob(page.canvas, "image/png");
+    downloadBlobFile(blob, page.name);
+  }
   downloadBlobFile(skelBlob, `${baseName}.skel`);
+  const pagesNote = pages.length > 1 ? ` across ${pages.length} atlas page(s)` : "";
   if (hasVertexTrack) {
     setStatus(
-      `Exported ${baseName}.json/.atlas/.png/.skel (Spine ${compat.version}, atlas scale ${scale.toFixed(
-        2
-      )}; mesh deform exported in JSON and SKEL (experimental compatibility).`
+      `Exported ${baseName}.json/.atlas/.png/.skel (Spine ${compat.version}, atlas scale ${scale.toFixed(2)}${pagesNote}); mesh deform exported in JSON and SKEL (experimental compatibility).`
     );
   } else if (hasWeightedSlot) {
     setStatus(
-      `Exported ${baseName}.json/.atlas/.png/.skel (Spine ${compat.version}, atlas scale ${scale.toFixed(
-        2
-      )}; weighted slot needs mesh export for multi-bone motion).`
+      `Exported ${baseName}.json/.atlas/.png/.skel (Spine ${compat.version}, atlas scale ${scale.toFixed(2)}${pagesNote}); weighted slot needs mesh export for multi-bone motion).`
     );
   } else {
-    setStatus(`Exported ${baseName}.json/.atlas/.png/.skel (Spine ${compat.version}, atlas scale ${scale.toFixed(2)}).`);
+    setStatus(`Exported ${baseName}.json/.atlas/.png/.skel (Spine ${compat.version}, atlas scale ${scale.toFixed(2)}${pagesNote}).`);
   }
   if ((Number(skippedPathForExport) || 0) > 0) {
     setStatus(

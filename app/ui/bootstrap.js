@@ -625,6 +625,27 @@ state.poseAutoRig.allowFallback = els.setupHumanoidFallback ? !!els.setupHumanoi
 syncPoseAutoRigOptionsToUI();
 state.export.spineCompat = getSpineCompatPreset(els.spineCompat && els.spineCompat.value).id;
 if (els.spineCompat) els.spineCompat.value = state.export.spineCompat;
+
+// Atlas option inputs: each writes back to state.export.atlas on change.
+// Initial DOM values mirror state.export.atlas defaults; we sync DOM →
+// state once on startup to be safe and then keep it in sync via change.
+function _syncAtlasOption(el, key, kind) {
+  if (!el) return;
+  // initial pull (DOM → state) so user-saved DOM values (if any) win.
+  if (kind === "bool") state.export.atlas[key] = !!el.checked;
+  else state.export.atlas[key] = Number(el.value) || state.export.atlas[key];
+  el.addEventListener("change", () => {
+    if (kind === "bool") state.export.atlas[key] = !!el.checked;
+    else state.export.atlas[key] = Number(el.value) || state.export.atlas[key];
+  });
+}
+_syncAtlasOption(els.atlasMaxWidth, "maxWidth", "num");
+_syncAtlasOption(els.atlasMaxHeight, "maxHeight", "num");
+_syncAtlasOption(els.atlasPadding, "padding", "num");
+_syncAtlasOption(els.atlasBleed, "bleed", "num");
+_syncAtlasOption(els.atlasAllowRotate, "allowRotate", "bool");
+_syncAtlasOption(els.atlasAllowTrim, "allowTrim", "bool");
+_syncAtlasOption(els.atlasMultiPage, "allowMultiPage", "bool");
 ensureCurrentAnimation();
 ensureOnionSkinSettings();
 installStateMachineBridgeApi();

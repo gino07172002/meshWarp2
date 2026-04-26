@@ -862,6 +862,59 @@ Steps use:
   - `function_returns` `state.mesh.physicsConstraints.length === 1 && state.mesh.physicsConstraints[0].state.reset === true` == `true`
 - **manual_only**: true
 
+## Atlas advanced packing
+
+### atlas-multipage-overflow
+- **summary**: When the total atlas content exceeds the configured page size, packSlotsToAtlasPage spills onto additional pages instead of erroring.
+- **impl**: app/io/project-export.js packSlotsToAtlasPage shelf packer, allowMultiPage gate
+- **prereqs**: 4 slot canvases each 600×600; atlas options `{maxWidth: 1024, maxHeight: 1024, allowMultiPage: true}`
+- **steps**:
+  1. call packSlotsToAtlasPage with the canvases
+- **verify**:
+  - `function_returns` `(function(){ const r = packSlotsToAtlasPage(window.__atlasFixtures, "spine_export.png", 1, {maxWidth:1024, maxHeight:1024, allowMultiPage:true}); return Array.isArray(r.pages) && r.pages.length >= 2; })()` == `true`
+- **manual_only**: true
+
+### atlas-rotation-emits-rotate-flag
+- **summary**: With allowRotate=true, regions that fit better rotated emit `rotate: 90` in the atlas text and have w/h swapped.
+- **impl**: app/io/project-export.js packSlotsToAtlasPage tryPlace + atlas text emit
+- **prereqs**: a tall canvas (e.g. 200×800) on a wide page (e.g. 1024×400) where rotation fits
+- **steps**:
+  1. pack with `{allowRotate: true, maxWidth: 1024, maxHeight: 400}`
+- **verify**:
+  - `function_returns` `(function(){ const r = packSlotsToAtlasPage([{attachmentName:"a", canvas: window.__tallCanvas}], "spine_export.png", 1, {allowRotate:true, maxWidth:1024, maxHeight:400}); return /rotate: 90/.test(r.atlas); })()` == `true`
+- **manual_only**: true
+
+### atlas-trim-emits-orig-offset
+- **summary**: With allowTrim=true, transparent edges are stripped and the .atlas text records the original size and trim offset.
+- **impl**: app/io/project-export.js trimTransparentEdges; atlas text emit `orig:` / `offset:`
+- **prereqs**: a canvas with 100×100 visible content centered in a 200×200 transparent canvas
+- **steps**:
+  1. pack with `{allowTrim: true}`
+- **verify**:
+  - `function_returns` `(function(){ const r = packSlotsToAtlasPage([{attachmentName:"a", canvas: window.__paddedCanvas}], "spine_export.png", 1, {allowTrim:true}); return /orig: 200, 200/.test(r.atlas) && /offset: 50, 50/.test(r.atlas); })()` == `true`
+- **manual_only**: true
+
+### atlas-page-naming
+- **summary**: Page 1 keeps the supplied page name; subsequent pages append `_2`, `_3`, ... before the extension (Spine convention).
+- **impl**: app/io/project-export.js page-naming loop after pack
+- **prereqs**: 3 canvases, page size that fits exactly one each
+- **steps**:
+  1. pack with multi-page enabled
+- **verify**:
+  - `function_returns` `(function(){ const r = packSlotsToAtlasPage(window.__threeCanvases, "spine_export.png", 1, {maxWidth:128, maxHeight:128, allowMultiPage:true}); return r.pages[0].name === "spine_export.png" && r.pages[1].name === "spine_export_2.png"; })()` == `true`
+- **manual_only**: true
+
+### atlas-options-persist-to-state
+- **summary**: Changing the atlas option inputs in the export panel writes to `state.export.atlas`.
+- **impl**: app/ui/bootstrap.js _syncAtlasOption change handlers
+- **prereqs**: export panel open with atlas inputs visible
+- **steps**:
+  1. `set_value:#atlasPadding=8`
+  2. fire change on `#atlasPadding`
+- **verify**:
+  - `function_returns` `state.export.atlas.padding === 8` == `true`
+- **manual_only**: true
+
 ## Drag-reorder coverage parity
 
 ### physics-move-down-symmetry
