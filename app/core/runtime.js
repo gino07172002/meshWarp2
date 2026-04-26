@@ -17,9 +17,9 @@
 //  runtime-ai-capture.js. Pose auto-rig is in runtime-pose-autorig.js.)
 
 const gl =
-  els.glCanvas.getContext("webgl2", { alpha: true, premultipliedAlpha: false, stencil: true }) ||
-  els.glCanvas.getContext("webgl", { alpha: true, premultipliedAlpha: false, stencil: true }) ||
-  els.glCanvas.getContext("experimental-webgl", { alpha: true, premultipliedAlpha: false, stencil: true });
+  els.glCanvas.getContext("webgl2", { alpha: true, premultipliedAlpha: false, stencil: true, powerPreference: "high-performance", failIfMajorPerformanceCaveat: false, preserveDrawingBuffer: false, antialias: false }) ||
+  els.glCanvas.getContext("webgl", { alpha: true, premultipliedAlpha: false, stencil: true, powerPreference: "high-performance", failIfMajorPerformanceCaveat: false, preserveDrawingBuffer: false, antialias: false }) ||
+  els.glCanvas.getContext("experimental-webgl", { alpha: true, premultipliedAlpha: false, stencil: true, powerPreference: "high-performance", failIfMajorPerformanceCaveat: false, preserveDrawingBuffer: false, antialias: false });
 const backdropCtx = els.backdropCanvas ? els.backdropCanvas.getContext("2d") : null;
 const overlayCtx = els.overlay.getContext("2d");
 const stage2dCtx = !gl ? els.glCanvas.getContext("2d") : null;
@@ -348,6 +348,7 @@ const state = {
     lastSig: "",
     timerId: 0,
     lastErrorAt: 0,
+    failing: false,
   },
   diagnostics: {
     issues: [],
@@ -472,6 +473,7 @@ const state = {
     enabled: false,
   },
   glTextureCache: hasGL ? new WeakMap() : null,
+  glTextureHandles: hasGL ? new Set() : null,
   export: {
     spineCompat: "4.2",
     atlas: {
@@ -1036,6 +1038,13 @@ function collectWebGLSupportContextInfo(canvas, contextName) {
       result.unmaskedVendor = String(ctx.getParameter(dbg.UNMASKED_VENDOR_WEBGL) || "");
       result.unmaskedRenderer = String(ctx.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || "");
     }
+    // Release the probe context immediately. Chromium caps WebGL contexts per
+    // page (~16) and force-loses the oldest when new ones are created — leaving
+    // probe contexts alive can knock out the main render context.
+    try {
+      const lose = ctx.getExtension("WEBGL_lose_context");
+      if (lose) lose.loseContext();
+    } catch { /* ignore */ }
     return result;
   } catch (err) {
     result.error = err && err.message ? err.message : String(err);
@@ -2634,7 +2643,7 @@ function rebuildMainGLAfterRestore() {
   try {
     initMainGLResources();
     finishMainGLSetup();
-    if (typeof resetGLTextureCache === "function") resetGLTextureCache();
+    if (typeof resetGLTextureCache === "function") resetGLTextureCache(true);
     console.info("[main-gl] resources rebuilt after context restore");
   } catch (err) {
     console.error("[main-gl] rebuild after restore failed", err);

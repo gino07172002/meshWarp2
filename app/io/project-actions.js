@@ -143,34 +143,66 @@ async function handleProjectLoadInputChange(e) {
     if (els.spineCompat) els.spineCompat.value = loadedCompat.id;
     const hasEmbeddedImages = Array.isArray(data.slotImages) && data.slotImages.length > 0;
     if (hasEmbeddedImages) {
+      // Decode each image individually; never let a single bad entry abort
+      // the entire restore. Bad entries become null so downstream
+      // imageIndex lookups can fall back to a placeholder canvas.
       const decoded = [];
+      let decodeFailures = 0;
       for (const src of data.slotImages) {
-        if (typeof src !== "string" || src.length === 0) continue;
-        decoded.push(await canvasFromDataUrl(src));
+        if (typeof src !== "string" || src.length === 0) {
+          decoded.push(null);
+          continue;
+        }
+        try {
+          decoded.push(await canvasFromDataUrl(src));
+        } catch (decodeErr) {
+          decodeFailures += 1;
+          console.warn("[load] failed to decode embedded image", decodeErr);
+          decoded.push(null);
+        }
       }
-      if (decoded.length === 0) throw new Error("Project has slotImages but none could be decoded.");
+      const okCount = decoded.filter((c) => !!c).length;
+      if (okCount === 0) throw new Error("Project has slotImages but none could be decoded.");
+      if (decodeFailures > 0) {
+        setStatus(`Warning: ${decodeFailures} embedded image(s) could not be decoded; affected attachments will be empty.`);
+      }
+      // Release GL textures for the previous project's slot canvases before
+      // we drop the references. Without this, repeatedly loading projects
+      // (or restoring autosaves) accumulates GPU textures and eventually
+      // pushes Edge over its WebGL context budget.
+      if (typeof resetGLTextureCache === "function") {
+        resetGLTextureCache();
+      } else if (typeof releaseGLTexturesForSlot === "function") {
+        for (const oldSlot of state.slots) releaseGLTexturesForSlot(oldSlot);
+      }
       state.mesh = null;
       state.slots = [];
       state.activeSlot = -1;
       state.sourceCanvas = null;
-      state.imageWidth = Number(data.imageWidth) || decoded[0].width;
-      state.imageHeight = Number(data.imageHeight) || decoded[0].height;
+      const firstDecoded = decoded.find((c) => !!c) || null;
+      state.imageWidth = Number(data.imageWidth) || (firstDecoded ? firstDecoded.width : 1);
+      state.imageHeight = Number(data.imageHeight) || (firstDecoded ? firstDecoded.height : 1);
       const srcSlots = Array.isArray(data.slots) ? data.slots : [];
       if (srcSlots.length === 0) {
         addSlotEntry(
           {
             name: "base",
-            canvas: decoded[0],
+            canvas: firstDecoded,
             docWidth: state.imageWidth,
             docHeight: state.imageHeight,
-            rect: { x: 0, y: 0, w: decoded[0].width, h: decoded[0].height },
+            rect: { x: 0, y: 0, w: firstDecoded ? firstDecoded.width : state.imageWidth, h: firstDecoded ? firstDecoded.height : state.imageHeight },
           },
           false
         );
       } else {
         for (const src of srcSlots) {
           const imgIdx = Number(src && src.imageIndex);
-          const c = Number.isFinite(imgIdx) && imgIdx >= 0 && imgIdx < decoded.length ? decoded[imgIdx] : decoded[0];
+          const slotHasOwnImageIndex = Number.isFinite(imgIdx) && imgIdx >= 0 && imgIdx < decoded.length;
+          // For the slot-level c: if the saved record explicitly references an
+          // imageIndex, use exactly that (null when decode failed -- don't lie
+          // to the user). Otherwise fall back to firstDecoded so legacy slots
+          // without imageIndex still get a sane canvas to display.
+          const c = slotHasOwnImageIndex ? decoded[imgIdx] : firstDecoded;
           addSlotEntry(
             {
               name: src && src.name ? src.name : undefined,
@@ -182,10 +214,14 @@ async function handleProjectLoadInputChange(e) {
                   ? src.attachments
                     .map((a) => {
                       const ai = Number(a && a.imageIndex);
-                      const ac =
-                        Number.isFinite(ai) && ai >= 0 && ai < decoded.length
-                          ? decoded[ai]
-                          : c;
+                      // Distinguish three cases:
+                      //  (1) attachment had a valid imageIndex AND decode succeeded -> use that canvas
+                      //  (2) attachment had a valid imageIndex BUT decode failed -> keep null
+                      //      (don't silently substitute the slot's primary canvas, which
+                      //       would mislead the user about which image is broken)
+                      //  (3) attachment had no imageIndex (legacy / non-visual) -> fall back to slot c
+                      const hasOwnImageIndex = Number.isFinite(ai) && ai >= 0 && ai < decoded.length;
+                      const ac = hasOwnImageIndex ? decoded[ai] : c;
                       return {
                         name: String(a && a.name ? a.name : "").trim(),
                         placeholder: String(a && a.placeholder ? a.placeholder : src && src.placeholderName ? src.placeholderName : src && src.attachmentName ? src.attachmentName : "main").trim(),
@@ -243,7 +279,11 @@ async function handleProjectLoadInputChange(e) {
                             : null,
                       };
                     })
-                    .filter((a) => a.name.length > 0 && (a.canvas || !isVisualAttachment(a)))
+                    // Keep visual-but-canvas:null entries so the user can
+                    // see exactly which attachment is broken (decode failed
+                    // upstream). Renderers / hasRenderableAttachment will
+                    // skip drawing them; UI can show a placeholder.
+                    .filter((a) => a.name.length > 0)
                   : undefined,
               activeAttachment:
                 src && Object.prototype.hasOwnProperty.call(src, "activeAttachment")
@@ -294,7 +334,14 @@ async function handleProjectLoadInputChange(e) {
                     w: Math.max(1, Number(src.rect.w) || 1),
                     h: Math.max(1, Number(src.rect.h) || 1),
                   }
-                  : { x: 0, y: 0, w: c.width, h: c.height },
+                  : {
+                    x: 0,
+                    y: 0,
+                    // c may be null when this slot's image failed to decode;
+                    // fall back to firstDecoded then to project image dims.
+                    w: Math.max(1, (c && c.width) || (firstDecoded && firstDecoded.width) || state.imageWidth || 1),
+                    h: Math.max(1, (c && c.height) || (firstDecoded && firstDecoded.height) || state.imageHeight || 1),
+                  },
               docWidth: Number(src && src.docWidth) || state.imageWidth,
               docHeight: Number(src && src.docHeight) || state.imageHeight,
             },
@@ -316,6 +363,35 @@ async function handleProjectLoadInputChange(e) {
         ? math.clamp(Number(data.activeSlot), 0, Math.max(0, state.slots.length - 1))
         : 0;
       setActiveSlot(targetSlot);
+      // Fallback: if the chosen active slot's active attachment has no
+      // canvas (e.g. it's a boundingbox/clipping/point, or its visual
+      // attachment was filtered out for missing canvas), source-canvas
+      // will be null and rebuildMesh() bails out, leaving state.mesh = null
+      // and the Object workspace tab disabled. Walk slots/attachments and
+      // pick the first one with a canvas so the mesh can be rebuilt.
+      if (!state.sourceCanvas) {
+        let recovered = false;
+        outer: for (let si = 0; si < state.slots.length; si += 1) {
+          const s = state.slots[si];
+          const list = s && Array.isArray(s.attachments) ? s.attachments : [];
+          for (const a of list) {
+            if (a && a.canvas) {
+              s.activeAttachment = a.name;
+              setActiveSlot(si);
+              if (!state.sourceCanvas && typeof syncSourceCanvasToActiveAttachment === "function") {
+                syncSourceCanvasToActiveAttachment(s);
+              }
+              if (state.sourceCanvas) {
+                recovered = true;
+                break outer;
+              }
+            }
+          }
+        }
+        if (!recovered) {
+          console.warn("[load] no slot attachment with a canvas found; mesh cannot be rebuilt");
+        }
+      }
     } else if (!state.sourceCanvas && state.slots.length === 0) {
       setStatus("No embedded images in file. Import image/PSD first, then load this legacy project json.");
       return;
@@ -799,6 +875,10 @@ async function handleProjectLoadInputChange(e) {
     refreshAnimationUI();
     refreshSlotUI();
     updateBoneUI();
+    // Re-sync workspace switcher (Rig/Mesh/Object tab disabled-state etc.).
+    // Without this, the Object tab's `disabled = !state.mesh` stays at its
+    // pre-load value until the user clicks any other tab.
+    if (typeof updateWorkspaceUI === "function") updateWorkspaceUI();
     const restoredWeightIssues = collectWeightedAttachmentIssues();
     if (restoredWeightIssues.length > 0) {
       console.warn("Weighted attachment restore issues:", restoredWeightIssues);
@@ -809,6 +889,23 @@ async function handleProjectLoadInputChange(e) {
     } else {
       setStatus(`Project loaded${hasEmbeddedImages ? " (with embedded images)" : ""}.`);
     }
+    // Diagnostic: count attachments that ended up without a usable canvas.
+    // Helps debug "restore but no images" reports -- if this prints non-zero
+    // after a restore, the project payload was already missing/broken
+    // images (autosave probably failed to write before reload).
+    try {
+      let totalAtt = 0;
+      let attWithCanvas = 0;
+      for (const s of state.slots) {
+        const list = Array.isArray(s && s.attachments) ? s.attachments : [];
+        for (const a of list) {
+          if (!a) continue;
+          totalAtt += 1;
+          if (a.canvas) attWithCanvas += 1;
+        }
+      }
+      console.info(`[load] slots=${state.slots.length} attachments=${totalAtt} withCanvas=${attWithCanvas} embeddedImages=${Array.isArray(data.slotImages) ? data.slotImages.length : 0}`);
+    } catch { /* ignore */ }
     if (!state.history.suspend) {
       state.history.undo = [];
       state.history.redo = [];

@@ -53,11 +53,15 @@ async function canvasFromDataUrl(dataUrl) {
   const res = await fetch(dataUrl);
   const blob = await res.blob();
   const bmp = await createImageBitmap(blob);
-  const c = makeCanvas(bmp.width, bmp.height);
-  const ctx = c.getContext("2d");
-  if (!ctx) throw new Error("Canvas context unavailable.");
-  ctx.drawImage(bmp, 0, 0);
-  return c;
+  try {
+    const c = makeCanvas(bmp.width, bmp.height);
+    const ctx = c.getContext("2d");
+    if (!ctx) throw new Error("Canvas context unavailable.");
+    ctx.drawImage(bmp, 0, 0);
+    return c;
+  } finally {
+    if (typeof bmp.close === "function") bmp.close();
+  }
 }
 
 function buildProjectPayload() {

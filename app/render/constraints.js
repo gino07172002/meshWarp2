@@ -1621,21 +1621,25 @@ async function loadFileSlots(file) {
   }
 
   const bmp = await createImageBitmap(file);
-  const c = makeCanvas(bmp.width, bmp.height);
-  c.width = bmp.width;
-  c.height = bmp.height;
-  c.getContext("2d").drawImage(bmp, 0, 0);
-  const base = file.name.replace(/\.[^.]+$/, "");
-  return [
-    {
-      name: base,
-      canvas: c,
-      ...buildImportedAttachmentDefaults(),
-      docWidth: c.width,
-      docHeight: c.height,
-      rect: { x: 0, y: 0, w: c.width, h: c.height },
-    },
-  ];
+  try {
+    const c = makeCanvas(bmp.width, bmp.height);
+    c.width = bmp.width;
+    c.height = bmp.height;
+    c.getContext("2d").drawImage(bmp, 0, 0);
+    const base = file.name.replace(/\.[^.]+$/, "");
+    return [
+      {
+        name: base,
+        canvas: c,
+        ...buildImportedAttachmentDefaults(),
+        docWidth: c.width,
+        docHeight: c.height,
+        rect: { x: 0, y: 0, w: c.width, h: c.height },
+      },
+    ];
+  } finally {
+    if (typeof bmp.close === "function") bmp.close();
+  }
 }
 
 function getCanvasRenderPixelRatio() {
@@ -1653,7 +1657,7 @@ function markStageResizeDirty() {
 
 function resize(force = false) {
   const perf = state.renderPerf || (state.renderPerf = {
-    maxPixelRatio: hasGL ? 1.5 : 2,
+    maxPixelRatio: hasGL ? 1 : 2,
     needsResize: true,
     stageCssWidth: 0,
     stageCssHeight: 0,

@@ -1961,6 +1961,7 @@ function deleteSlotsByIndices(indices) {
     if (!removed) continue;
     const removedId = removed && removed.id ? String(removed.id) : "";
     names.push(removed.name || `slot_${idx}`);
+    releaseGLTexturesForSlot(removed);
     state.slots.splice(idx, 1);
     removeSlotReferencesFromSkins(removedId);
     remapAnimationTracksForRemovedSlot(idx, removedId);
@@ -2089,6 +2090,24 @@ function deleteBoneWithSlotPolicy(slotPolicy = "to_staging") {
   if (slotPolicy === "delete_slots" && boundSlotIndices.length > 0) {
     deleteSlotsByIndices(boundSlotIndices);
   }
+  // Capture pre-delete world transforms for slots affected by this bone
+  // removal so we can restore their on-screen position after the bone /
+  // slot.bone remap. Only slots that will become unbound (slot.bone ===
+  // removed) actually need preservation; rebound-up-the-tree cases keep
+  // the same bone object after the splice + index shift, so their conjugate
+  // frame stays the same and tx/ty/rot remain valid.
+  const preWorldBefore = typeof getSolvedPoseWorld === "function" ? getSolvedPoseWorld(m) : null;
+  const slotsToPreserve = [];
+  if (typeof getSlotTransformMatrix === "function") {
+    for (const s of state.slots) {
+      if (!s || s.bone !== removed) continue;
+      let oldFullTm = null;
+      try {
+        oldFullTm = getSlotTransformMatrix(s, Array.isArray(preWorldBefore) ? preWorldBefore : []).slice(0, 6);
+      } catch { oldFullTm = null; }
+      if (oldFullTm) slotsToPreserve.push({ slot: s, oldFullTm });
+    }
+  }
   bones.splice(removed, 1);
 
   for (const b of bones) {
@@ -2125,6 +2144,14 @@ function deleteBoneWithSlotPolicy(slotPolicy = "to_staging") {
   syncPoseFromRig(m);
   syncBindPose(m);
   refreshWeightsForBoneCount();
+  // Now that the new pose is solved, rewrite tx/ty/rot for slots that
+  // became unbound so their on-screen position matches what it was
+  // before the bone deletion.
+  if (typeof reapplySlotWorldTransform === "function") {
+    for (const entry of slotsToPreserve) {
+      if (entry && entry.slot) reapplySlotWorldTransform(entry.slot, m, entry.oldFullTm);
+    }
+  }
   updateBoneUI();
   pushUndoCheckpoint(true);
   return true;
@@ -2141,6 +2168,22 @@ function deleteSelectedBoneTreeWithSlotPolicy(slotPolicy = "to_staging") {
   const removeSet = new Set(info.subtree);
   if (slotPolicy === "delete_slots" && info.slotIndices.length > 0) {
     deleteSlotsByIndices(info.slotIndices);
+  }
+
+  // Capture pre-delete world transforms for slots that will become unbound
+  // so we can preserve their on-screen position after the bone removal.
+  const preWorldBefore = typeof getSolvedPoseWorld === "function" ? getSolvedPoseWorld(m) : null;
+  const slotsToPreserve = [];
+  if (typeof getSlotTransformMatrix === "function") {
+    for (const slot of state.slots) {
+      if (!slot) continue;
+      if (!removeSet.has(Number(slot.bone))) continue;
+      let oldFullTm = null;
+      try {
+        oldFullTm = getSlotTransformMatrix(slot, Array.isArray(preWorldBefore) ? preWorldBefore : []).slice(0, 6);
+      } catch { oldFullTm = null; }
+      if (oldFullTm) slotsToPreserve.push({ slot, oldFullTm });
+    }
   }
 
   for (const slot of state.slots) {
@@ -2178,6 +2221,11 @@ function deleteSelectedBoneTreeWithSlotPolicy(slotPolicy = "to_staging") {
   syncPoseFromRig(m);
   syncBindPose(m);
   refreshWeightsForBoneCount();
+  if (typeof reapplySlotWorldTransform === "function") {
+    for (const entry of slotsToPreserve) {
+      if (entry && entry.slot) reapplySlotWorldTransform(entry.slot, m, entry.oldFullTm);
+    }
+  }
   updateBoneUI();
   pushUndoCheckpoint(true);
   return true;
@@ -2717,10 +2765,21 @@ function drawObjectModeTargetsOverlay(ctx, m, bones, world) {
   }
 }
 
+// We maintain TWO data structures for the slot/attachment texture cache:
+//   - state.glTextureCache: WeakMap<canvas, entry> — fast lookup, lets the
+//     entry get GC'd if the canvas itself is gone.
+//   - state.glTextureHandles: Set<entry> — strong ref so we can iterate and
+//     gl.deleteTexture() at reset time. WITHOUT this set, GPU-side textures
+//     leak forever (the WeakMap value is collected but the GL handle behind
+//     it is not), eventually starving the GPU process and triggering a
+//     webglcontextlost in Edge/Chromium. See debugging notes in changelog.
 function getGLTextureCache() {
   if (!hasGL) return null;
   if (!state.glTextureCache || typeof state.glTextureCache.get !== "function") {
     state.glTextureCache = new WeakMap();
+  }
+  if (!(state.glTextureHandles instanceof Set)) {
+    state.glTextureHandles = new Set();
   }
   return state.glTextureCache;
 }
@@ -2754,6 +2813,7 @@ function ensureGLTextureForCanvas(canvas) {
     entry = createGLTextureEntry(canvas);
     if (!entry) return null;
     cache.set(canvas, entry);
+    state.glTextureHandles.add(entry);
     return entry.texture;
   }
   if (entry.width !== width || entry.height !== height) {
@@ -2765,12 +2825,55 @@ function ensureGLTextureForCanvas(canvas) {
   return entry.texture;
 }
 
-function resetGLTextureCache() {
+// Drop GL textures owned by a single attachment: its current canvas plus any
+// sequence frame canvases. Call before discarding/replacing the attachment's
+// canvases so GPU memory is released promptly.
+function releaseGLTexturesForAttachment(att) {
+  if (!att) return;
+  if (att.canvas) releaseGLTextureForCanvas(att.canvas);
+  const frames = att.sequence && Array.isArray(att.sequence.frames) ? att.sequence.frames : null;
+  if (frames) {
+    for (const f of frames) {
+      if (f) releaseGLTextureForCanvas(f);
+    }
+  }
+}
+
+// Drop GL textures for every attachment owned by `slot`. Call this before
+// removing a slot so we don't leak its GPU textures.
+function releaseGLTexturesForSlot(slot) {
+  if (!slot || !Array.isArray(slot.attachments)) return;
+  for (const att of slot.attachments) releaseGLTexturesForAttachment(att);
+}
+
+// Drop the texture for a single canvas. Call this when the owning attachment
+// or slot canvas is being discarded so GPU memory is released promptly.
+function releaseGLTextureForCanvas(canvas) {
+  if (!hasGL || !canvas) return;
+  const cache = getGLTextureCache();
+  if (!cache) return;
+  const entry = cache.get(canvas);
+  if (!entry) return;
+  cache.delete(canvas);
+  if (state.glTextureHandles instanceof Set) state.glTextureHandles.delete(entry);
+  try { gl.deleteTexture(entry.texture); } catch { /* ignore */ }
+  if (state.texture === entry.texture) state.texture = null;
+}
+
+// `contextLost = true` means we're being called from the webglcontextlost
+// handler — GL handles are already invalid, so just drop refs.
+function resetGLTextureCache(contextLost = false) {
   if (!hasGL) {
     state.texture = null;
     return;
   }
+  if (!contextLost && state.glTextureHandles instanceof Set) {
+    for (const entry of state.glTextureHandles) {
+      try { gl.deleteTexture(entry.texture); } catch { /* ignore */ }
+    }
+  }
   state.glTextureCache = new WeakMap();
+  state.glTextureHandles = new Set();
   state.texture = null;
 }
 

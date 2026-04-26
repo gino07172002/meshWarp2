@@ -31,12 +31,14 @@ function saveAutosaveFromSnapshotText(snapshotText, reason = "checkpoint", force
     };
     localStorage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(envelope));
     state.autosave.lastSig = text;
+    state.autosave.failing = false;
     return true;
   } catch (err) {
+    state.autosave.failing = true;
     const now = Date.now();
     if (now - (Number(state.autosave.lastErrorAt) || 0) > 10000) {
       state.autosave.lastErrorAt = now;
-      setStatus(`Autosave failed: ${err && err.message ? err.message : "storage unavailable/quota exceeded"}`);
+      setStatus(`⚠ Autosave failed (quota?): ${err && err.message ? err.message : "storage unavailable"} — please File → Save manually.`);
     }
     return false;
   }
@@ -56,12 +58,14 @@ function saveAutosaveSnapshot(reason = "interval", force = false) {
     };
     localStorage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(envelope));
     state.autosave.lastSig = payloadText;
+    state.autosave.failing = false;
     return true;
   } catch (err) {
+    state.autosave.failing = true;
     const now = Date.now();
     if (now - (Number(state.autosave.lastErrorAt) || 0) > 10000) {
       state.autosave.lastErrorAt = now;
-      setStatus(`Autosave failed: ${err && err.message ? err.message : "storage unavailable/quota exceeded"}`);
+      setStatus(`⚠ Autosave failed (quota?): ${err && err.message ? err.message : "storage unavailable"} — please File → Save manually.`);
     }
     return false;
   }

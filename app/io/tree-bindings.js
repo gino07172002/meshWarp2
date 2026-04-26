@@ -1612,6 +1612,7 @@ function deleteActiveAttachmentInSlot() {
   }
   const idx = list.findIndex((a) => a.name === current);
   if (idx < 0) return false;
+  if (typeof releaseGLTexturesForAttachment === "function") releaseGLTexturesForAttachment(list[idx]);
   list.splice(idx, 1);
   const next = list[Math.max(0, Math.min(idx, list.length - 1))];
   s.activeAttachment = next ? next.name : null;
@@ -1686,8 +1687,9 @@ if (els.slotAttachmentLoadBtn && els.slotAttachmentFileInput) {
       setStatus("Select an attachment (not none) first.");
       return;
     }
+    let bmp = null;
     try {
-      const bmp = await createImageBitmap(f);
+      bmp = await createImageBitmap(f);
       const targetRect = s.rect || { w: bmp.width, h: bmp.height };
       const cv = makeCanvas(Math.max(1, Number(targetRect.w) || bmp.width), Math.max(1, Number(targetRect.h) || bmp.height));
       const cx = cv.getContext("2d");
@@ -1695,12 +1697,18 @@ if (els.slotAttachmentLoadBtn && els.slotAttachmentFileInput) {
       cx.drawImage(bmp, 0, 0, bmp.width, bmp.height, 0, 0, cv.width, cv.height);
       const att = getSlotAttachmentEntry(s, current);
       if (!att) return;
+      // Release the old canvas's GPU texture before replacing it.
+      if (att.canvas && typeof releaseGLTextureForCanvas === "function") {
+        releaseGLTextureForCanvas(att.canvas);
+      }
       att.canvas = cv;
       syncSourceCanvasToActiveAttachment(s);
       refreshSlotUI();
       setStatus(`Attachment image updated: ${current}`);
     } catch (err) {
       setStatus(`Load attachment image failed: ${err.message}`);
+    } finally {
+      if (bmp && typeof bmp.close === "function") bmp.close();
     }
   });
 }
@@ -1731,8 +1739,9 @@ if (els.slotSequenceLoadFramesBtn && els.slotSequenceFramesInput) {
     let firstW = 0;
     let firstH = 0;
     for (const f of files) {
+      let bmp = null;
       try {
-        const bmp = await createImageBitmap(f);
+        bmp = await createImageBitmap(f);
         if (firstW === 0) { firstW = bmp.width; firstH = bmp.height; }
         const tw = targetRect && Number(targetRect.w) > 0 ? Number(targetRect.w) : (firstW || bmp.width);
         const th = targetRect && Number(targetRect.h) > 0 ? Number(targetRect.h) : (firstH || bmp.height);
@@ -1743,11 +1752,23 @@ if (els.slotSequenceLoadFramesBtn && els.slotSequenceFramesInput) {
         frames.push(cv);
       } catch (err) {
         console.warn(`Load frame ${f.name} failed`, err);
+      } finally {
+        if (bmp && typeof bmp.close === "function") bmp.close();
       }
     }
     if (frames.length === 0) {
       setStatus("No sequence frames loaded.");
       return;
+    }
+    // Release textures for any pre-existing frames + the old att.canvas
+    // before swapping in the new ones. Without this, every Load Frames
+    // press leaks N texture objects on the GPU.
+    if (typeof releaseGLTextureForCanvas === "function") {
+      const oldFrames = att.sequence && Array.isArray(att.sequence.frames) ? att.sequence.frames : null;
+      if (oldFrames) {
+        for (const f of oldFrames) if (f) releaseGLTextureForCanvas(f);
+      }
+      if (att.canvas) releaseGLTextureForCanvas(att.canvas);
     }
     if (!att.sequence) {
       att.sequence = { enabled: true, count: frames.length, start: 0, digits: 2, setupIndex: 0, mode: 2, path: "", frames };
@@ -1781,6 +1802,9 @@ if (els.slotSequenceClearFramesBtn) {
     if (!att || !att.sequence || !Array.isArray(att.sequence.frames) || att.sequence.frames.length === 0) {
       setStatus("No sequence frames to clear.");
       return;
+    }
+    if (typeof releaseGLTextureForCanvas === "function") {
+      for (const f of att.sequence.frames) if (f) releaseGLTextureForCanvas(f);
     }
     att.sequence.frames = [];
     if (els.slotSequenceFramesHint) els.slotSequenceFramesHint.textContent = "No sequence frames loaded.";

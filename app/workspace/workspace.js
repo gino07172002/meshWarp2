@@ -298,7 +298,16 @@ function addSlotEntry(entry, activate = true) {
         .map((a) => ({
           name: String(a && a.name ? a.name : "").trim(),
           placeholder: String(a && a.placeholder ? a.placeholder : entry.placeholderName || entry.attachmentName || "main").trim(),
-          canvas: a && a.canvas ? normalizeSlotCanvas(a.canvas, Math.max(1, rect.w), Math.max(1, rect.h)) : canvas,
+          // Distinguish:
+          //  - a.canvas explicitly null  -> caller is signalling "this visual
+          //    attachment exists but its image failed to load"; keep null so
+          //    renderers skip it and the user sees it's broken.
+          //  - a.canvas undefined        -> not specified (import flow
+          //    constructing fresh attachments); fall back to slot canvas.
+          canvas:
+            a && a.canvas ? normalizeSlotCanvas(a.canvas, Math.max(1, rect.w), Math.max(1, rect.h))
+              : (a && Object.prototype.hasOwnProperty.call(a, "canvas") && a.canvas === null) ? null
+                : canvas,
           type: normalizeAttachmentType(a && a.type),
           linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
           inheritTimelines: !!(a && a.inheritTimelines),
@@ -339,7 +348,10 @@ function addSlotEntry(entry, activate = true) {
           meshData: a && a.meshData ? cloneSlotMeshData(a.meshData) : null,
           meshContour: a && a.meshContour ? JSON.parse(JSON.stringify(a.meshContour)) : null,
         }))
-        .filter((a) => a.name.length > 0 && (a.canvas || !isVisualAttachment(a)))
+        // Keep visual-but-canvas:null entries -- they represent attachments
+        // whose source image failed to decode. Renderers skip drawing them
+        // (hasRenderableAttachment); UI can show them as broken/empty.
+        .filter((a) => a.name.length > 0)
       : [
         {
           name: String(entry.attachmentName || "main"),
@@ -675,7 +687,13 @@ function duplicateActiveSlotQuick() {
     attachments: ensureSlotAttachments(source).map((a) => ({
       name: String(a && a.name ? a.name : "").trim(),
       placeholder: String(a && a.placeholder ? a.placeholder : source.placeholderName || source.attachmentName || "main").trim(),
-      canvas: getClonedCanvas(a && a.canvas) || sourceCanvasClone,
+      // If the source attachment is a broken visual (canvas: null), keep
+      // null in the duplicate so the user still sees the broken entry --
+      // don't silently substitute the slot's primary clone.
+      canvas:
+        a && a.canvas ? getClonedCanvas(a.canvas)
+          : (a && Object.prototype.hasOwnProperty.call(a, "canvas") && a.canvas === null) ? null
+            : sourceCanvasClone,
       type: normalizeAttachmentType(a && a.type),
       linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
       inheritTimelines: !!(a && a.inheritTimelines),
@@ -807,6 +825,7 @@ function deleteActiveSlotQuick() {
   const idx = Number.isFinite(idxRaw) && idxRaw >= 0 && idxRaw < state.slots.length ? idxRaw : state.slots.length - 1;
   const removed = state.slots[idx];
   const removedId = removed && removed.id ? String(removed.id) : "";
+  if (typeof releaseGLTexturesForSlot === "function") releaseGLTexturesForSlot(removed);
   state.slots.splice(idx, 1);
   removeSlotReferencesFromSkins(removedId);
   remapAnimationTracksForRemovedSlot(idx, removedId);
@@ -853,53 +872,70 @@ function applySlotBoneAssignment(slot, boneIndex, mesh = state.mesh) {
   if (!slot) return false;
   const att = getActiveAttachment(slot);
   if (bi === -1) {
-    slot.bone = -1;
-    if (!m) {
-      if (att) att.influenceBones = [];
-      return true;
-    }
-    const mode = getSlotWeightMode(slot);
-    if (mode === "single") {
-      setSlotSingleBoneWeight(slot, m, -1);
-      if (att) att.influenceBones = [];
-    } else if (mode === "weighted") {
-      if (att) {
-        att.weightMode = "weighted";
-        att.weightBindMode = "auto";
-        att.useWeights = true;
-        att.influenceBones = [];
+    // Unbind path: rewrite tx/ty/rot so the on-screen position stays put
+    // when slot.bone changes from a real bone to -1 (the coord space
+    // switches from bone-local conjugate to image-pivot conjugate).
+    const applyUnbind = () => {
+      slot.bone = -1;
+      if (!m) {
+        if (att) att.influenceBones = [];
+        return;
       }
-      rebuildSlotWeights(slot, m);
+      const mode = getSlotWeightMode(slot);
+      if (mode === "single") {
+        setSlotSingleBoneWeight(slot, m, -1);
+        if (att) att.influenceBones = [];
+      } else if (mode === "weighted") {
+        if (att) {
+          att.weightMode = "weighted";
+          att.weightBindMode = "auto";
+          att.useWeights = true;
+          att.influenceBones = [];
+        }
+        rebuildSlotWeights(slot, m);
+      } else {
+        if (att) {
+          att.weightMode = "free";
+          att.weightBindMode = "none";
+          att.useWeights = false;
+          att.influenceBones = [];
+        }
+        rebuildSlotWeights(slot, m);
+      }
+    };
+    if (typeof preserveSlotWorldTransformAcrossBind === "function") {
+      preserveSlotWorldTransformAcrossBind(slot, m, applyUnbind);
     } else {
-      if (att) {
-        att.weightMode = "free";
-        att.weightBindMode = "none";
-        att.useWeights = false;
-        att.influenceBones = [];
-      }
-      rebuildSlotWeights(slot, m);
+      applyUnbind();
     }
     return true;
   }
   if (!m || !Array.isArray(m.rigBones) || m.rigBones.length <= 0) return false;
   if (!Number.isFinite(bi) || bi < 0 || bi >= m.rigBones.length) return false;
-  slot.bone = bi;
-  const mode = getSlotWeightMode(slot);
-  if (mode === "single") {
-    if (att) {
-      att.weightMode = "single";
-      att.weightBindMode = "single";
-      att.useWeights = true;
-      att.influenceBones = [bi];
+  const applyBind = () => {
+    slot.bone = bi;
+    const mode = getSlotWeightMode(slot);
+    if (mode === "single") {
+      if (att) {
+        att.weightMode = "single";
+        att.weightBindMode = "single";
+        att.useWeights = true;
+        att.influenceBones = [bi];
+      }
+    } else if (mode === "weighted") {
+      if (att) {
+        att.weightMode = "weighted";
+        att.weightBindMode = "auto";
+        att.useWeights = true;
+        const current = Array.isArray(att.influenceBones) ? att.influenceBones.filter((v) => Number.isFinite(v)) : [];
+        att.influenceBones = current.length > 0 ? current : [bi];
+      }
     }
-  } else if (mode === "weighted") {
-    if (att) {
-      att.weightMode = "weighted";
-      att.weightBindMode = "auto";
-      att.useWeights = true;
-      const current = Array.isArray(att.influenceBones) ? att.influenceBones.filter((v) => Number.isFinite(v)) : [];
-      att.influenceBones = current.length > 0 ? current : [bi];
-    }
+  };
+  if (typeof preserveSlotWorldTransformAcrossBind === "function") {
+    preserveSlotWorldTransformAcrossBind(slot, m, applyBind);
+  } else {
+    applyBind();
   }
   rebuildSlotWeights(slot, m);
   return true;
@@ -1394,11 +1430,20 @@ function normalizeSlotAttachmentRecord(slot, a, fallbackName, fallbackPlaceholde
   const name = String(rec.name || fallbackName || "att").trim() || String(fallbackName || "att");
   const placeholder = String(rec.placeholder || fallbackPlaceholder || "main").trim() || "main";
   const type = normalizeAttachmentType(rec.type);
+  // Canvas resolution rules:
+  //   rec.canvas truthy            -> use it
+  //   rec.canvas === null AND
+  //   rec has own "canvas" prop    -> caller explicitly said "broken / no
+  //                                  image" -- keep null (don't lie with
+  //                                  fallbackCanvas)
+  //   otherwise (no own prop)      -> unspecified -> fall back
+  const recHasOwnCanvas = a && typeof a === "object" && Object.prototype.hasOwnProperty.call(a, "canvas");
+  const explicitlyNullCanvas = recHasOwnCanvas && rec.canvas === null;
   const out = {
     name,
     placeholder,
     type,
-    canvas: rec.canvas || fallbackCanvas || null,
+    canvas: rec.canvas || (explicitlyNullCanvas ? null : (fallbackCanvas || null)),
     linkedParent: rec && rec.linkedParent != null ? String(rec.linkedParent) : "",
     inheritTimelines: !!(rec && rec.inheritTimelines),
     pointX: Number(rec && rec.pointX) || 0,
@@ -1434,7 +1479,12 @@ function normalizeSlotAttachmentRecord(slot, a, fallbackName, fallbackPlaceholde
     clipEndSlotId: rec.clipEndSlotId || (legacy && legacy.clipEndSlotId ? legacy.clipEndSlotId : null),
     rect: rec.rect || (slot && slot.rect ? JSON.parse(JSON.stringify(slot.rect)) : null)
   };
-  if (isVisualAttachment(out) && !out.canvas) out.canvas = slot ? getSlotCanvas(slot) : null;
+  // Only synthesize a slot-canvas fallback when the caller didn't
+  // explicitly mark this attachment as broken (canvas: null). Broken
+  // visual attachments stay null so renderers / UI can flag them.
+  if (isVisualAttachment(out) && !out.canvas && !explicitlyNullCanvas) {
+    out.canvas = slot ? getSlotCanvas(slot) : null;
+  }
   if (!attachmentHasMesh(out)) {
     out.meshData = null;
     if (type === ATTACHMENT_TYPES.REGION || type === ATTACHMENT_TYPES.POINT) out.meshContour = null;
@@ -1483,7 +1533,10 @@ function ensureSlotAttachments(slot) {
     used.add(name);
     const rec = normalizeSlotAttachmentRecord(slot, a, name, basePh, slotCanvas);
     rec.name = name;
-    if (isVisualAttachment(rec) && !rec.canvas) continue;
+    // Keep visual-but-null-canvas attachments -- they represent broken
+    // images from a failed restore. hasRenderableAttachment / renderers
+    // skip drawing them; the UI shows them so the user knows what's
+    // missing. (Previously `continue` silently dropped them.)
     out.push(rec);
   }
   if (out.length === 0 && slotCanvas) {
@@ -1622,7 +1675,13 @@ function addContourSlotFromActiveSlot(sourceSlot) {
         .map((a) => ({
           name: String(a && a.name ? a.name : "").trim(),
           placeholder: String(a && a.placeholder ? a.placeholder : sourceSlot.placeholderName || sourceSlot.attachmentName || "main").trim(),
-          canvas: a && a.canvas ? a.canvas : sourceCanvas,
+          // Preserve explicitly-null canvas (broken attachment); only
+          // fall back to sourceCanvas when the attachment had no canvas
+          // property at all.
+          canvas:
+            a && a.canvas ? a.canvas
+              : (a && Object.prototype.hasOwnProperty.call(a, "canvas") && a.canvas === null) ? null
+                : sourceCanvas,
           type: normalizeAttachmentType(a && a.type),
           linkedParent: a && a.linkedParent != null ? String(a.linkedParent) : "",
           inheritTimelines: !!(a && a.inheritTimelines),
@@ -1640,7 +1699,9 @@ function addContourSlotFromActiveSlot(sourceSlot) {
               }
               : { enabled: false, count: 1, start: 0, digits: 2 },
         }))
-        .filter((a) => a.name.length > 0 && (a.canvas || !isVisualAttachment(a)))
+        // Keep visual-but-canvas:null entries (broken attachments visible
+        // to the user); renderers skip them via hasRenderableAttachment.
+        .filter((a) => a.name.length > 0)
       : [
         {
           name: String(sourceSlot.attachmentName || "main"),

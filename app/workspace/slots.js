@@ -186,9 +186,71 @@ function getBindSelectionState(m = state.mesh) {
   };
 }
 
+// When binding a slot to a bone (or rebinding to a different bone), the
+// interpretation of slot.tx/ty/rot changes coordinate spaces:
+//   unbound  → image-pivot-local conjugate ( pivot * TR * inv(pivot) )
+//   bound    → bone-local conjugate        ( bw * TR * inv(bw)       )
+// If we don't compensate, the slot's on-screen position jumps. This helper
+// captures the pre-bind world transform of the slot and rewrites tx/ty/rot
+// after `slot.bone` is updated so the visual position stays put.
+// Apply a previously-captured world transform (oldFullTm) onto `slot` after
+// its bone has been changed. Solves for slot.tx/ty/rot in the new conjugate
+// frame so the visible position stays put. Caller must capture oldFullTm
+// while slot.bone still points at its old bone.
+function reapplySlotWorldTransform(slot, m, oldFullTm) {
+  if (!slot || !m || !Array.isArray(oldFullTm) || oldFullTm.length < 6) return;
+  const newBoneIdx = typeof getSlotBaseSpaceBoneIndex === "function" ? getSlotBaseSpaceBoneIndex(slot, m) : -1;
+  const poseWorldAfter = typeof getSolvedPoseWorld === "function" ? getSolvedPoseWorld(m) : null;
+  let bw = null;
+  if (Array.isArray(poseWorldAfter) && Number.isFinite(newBoneIdx) && newBoneIdx >= 0 && newBoneIdx < poseWorldAfter.length) {
+    bw = poseWorldAfter[newBoneIdx];
+  } else {
+    const px = (Number(state.imageWidth) || 0) * 0.5;
+    const py = (Number(state.imageHeight) || 0) * 0.5;
+    bw = matFromTR(px, py, 0);
+  }
+  if (!Array.isArray(bw)) return;
+  let baseTmNew;
+  try {
+    baseTmNew = typeof getBaseImageTransformMatrix === "function"
+      ? getBaseImageTransformMatrix(slot, poseWorldAfter)
+      : createIdentity();
+  } catch { baseTmNew = createIdentity(); }
+  let local;
+  try {
+    const slotTmNew = mul(invert(baseTmNew), oldFullTm);
+    local = mul(mul(invert(bw), slotTmNew), bw);
+  } catch { return; }
+  if (!Array.isArray(local) || local.length < 6) return;
+  const a = Number(local[0]) || 0;
+  const c = Number(local[2]) || 0;
+  const tx = Number(local[4]) || 0;
+  const ty = Number(local[5]) || 0;
+  const rot = Math.atan2(c, a);
+  if (!Number.isFinite(tx) || !Number.isFinite(ty) || !Number.isFinite(rot)) return;
+  slot.tx = tx;
+  slot.ty = ty;
+  slot.rot = rot;
+}
+
+function preserveSlotWorldTransformAcrossBind(slot, m, fn) {
+  if (!slot || !m) { fn(); return; }
+  const poseWorldBefore = typeof getSolvedPoseWorld === "function" ? getSolvedPoseWorld(m) : null;
+  let oldFullTm = null;
+  try {
+    oldFullTm = typeof getSlotTransformMatrix === "function"
+      ? getSlotTransformMatrix(slot, Array.isArray(poseWorldBefore) ? poseWorldBefore : []).slice(0, 6)
+      : null;
+  } catch { oldFullTm = null; }
+  fn();
+  reapplySlotWorldTransform(slot, m, oldFullTm);
+}
+
 function bindSingleSlotToBone(slot, m, bone) {
   if (!slot || !m || !Number.isFinite(bone) || bone < 0 || bone >= m.rigBones.length) return false;
-  slot.bone = bone;
+  preserveSlotWorldTransformAcrossBind(slot, m, () => {
+    slot.bone = bone;
+  });
   const att = getActiveAttachment(slot);
   const mode = getSlotWeightMode(slot);
   if (att) {
@@ -218,14 +280,16 @@ function bindSingleSlotWeightedToBones(slot, m, picked) {
   if (!slot || !m) return false;
   const expandedPicked = expandSelectedBonesToSubtrees(m, picked);
   if (!Array.isArray(expandedPicked) || expandedPicked.length === 0) return false;
-  slot.bone = expandedPicked[0];
   const att = getActiveAttachment(slot);
-  if (att) {
-    att.weightMode = "weighted";
-    att.weightBindMode = "auto";
-    att.useWeights = true;
-    att.influenceBones = [...new Set(expandedPicked)];
-  }
+  preserveSlotWorldTransformAcrossBind(slot, m, () => {
+    slot.bone = expandedPicked[0];
+    if (att) {
+      att.weightMode = "weighted";
+      att.weightBindMode = "auto";
+      att.useWeights = true;
+      att.influenceBones = [...new Set(expandedPicked)];
+    }
+  });
   ensureSlotsHaveBoneBinding();
   rebuildSlotWeights(slot, m);
   return true;

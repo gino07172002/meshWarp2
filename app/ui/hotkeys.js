@@ -805,6 +805,52 @@ window.addEventListener("keydown", async (ev) => {
   }
 });
 
+// Hit-test slot attachment geometry by triangle. Walks slots from top to
+// bottom (later slots paint on top, so we iterate reversed) and uses each
+// renderable attachment's screen-space geometry. Returns the topmost slot
+// index whose triangulated mesh contains the screen point, or -1.
+function pickSlotByScreenPoint(mx, my, poseWorld) {
+  if (!Array.isArray(state.slots) || state.slots.length === 0) return -1;
+  const triHit = (px, py, ax, ay, bx, by, cx, cy) => {
+    const v0x = cx - ax, v0y = cy - ay;
+    const v1x = bx - ax, v1y = by - ay;
+    const v2x = px - ax, v2y = py - ay;
+    const dot00 = v0x * v0x + v0y * v0y;
+    const dot01 = v0x * v1x + v0y * v1y;
+    const dot02 = v0x * v2x + v0y * v2y;
+    const dot11 = v1x * v1x + v1y * v1y;
+    const dot12 = v1x * v2x + v1y * v2y;
+    const denom = dot00 * dot11 - dot01 * dot01;
+    if (Math.abs(denom) < 1e-9) return false;
+    const inv = 1 / denom;
+    const u = (dot11 * dot02 - dot01 * dot12) * inv;
+    const v = (dot00 * dot12 - dot01 * dot02) * inv;
+    return u >= 0 && v >= 0 && u + v <= 1;
+  };
+  for (let i = state.slots.length - 1; i >= 0; i -= 1) {
+    const slot = state.slots[i];
+    if (!slot) continue;
+    const att = typeof getActiveAttachment === "function" ? getActiveAttachment(slot) : null;
+    if (!att || !att.canvas) continue;
+    let geom = null;
+    try {
+      geom = buildRenderableAttachmentGeometry(slot, poseWorld || []);
+    } catch { /* ignore */ }
+    if (!geom || !geom.screen || !geom.indices) continue;
+    const screen = geom.screen;
+    const indices = geom.indices;
+    for (let t = 0; t + 2 < indices.length; t += 3) {
+      const ia = indices[t] * 2;
+      const ib = indices[t + 1] * 2;
+      const ic = indices[t + 2] * 2;
+      if (triHit(mx, my, screen[ia], screen[ia + 1], screen[ib], screen[ib + 1], screen[ic], screen[ic + 1])) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
 els.overlay.addEventListener("pointerdown", (ev) => {
   const panMode = !!(state.view && state.view.panMode);
   const middlePan = isMiddleMousePanEvent(ev);
@@ -1250,6 +1296,35 @@ els.overlay.addEventListener("pointerdown", (ev) => {
         hit = { type: "bone_joint", boneIndex: objectRoot };
       }
     }
+    // Fallback: if no bone was hit, see if the click landed on an unbound
+    // slot's image. Slots with no bone (slot.bone < 0) cannot be moved by
+    // dragging a bone, so we let users grab the image directly. Slots
+    // already bound to a bone keep the bone-driven behavior to avoid
+    // surprising the rig workflow.
+    if (!hit && ev.button === 0) {
+      const pickedSlot = pickSlotByScreenPoint(mx, my, poseWorldForGizmo);
+      if (pickedSlot >= 0) {
+        const slotObj = state.slots[pickedSlot];
+        const boneIdx = slotObj ? Number(slotObj.bone) : -1;
+        const isUnbound = !Number.isFinite(boneIdx) || boneIdx < 0;
+        if (isUnbound) {
+          ev.preventDefault();
+          state.activeSlot = pickedSlot;
+          if (typeof refreshSlotUI === "function") refreshSlotUI();
+          state.drag = {
+            type: "slot_transform_move",
+            pointerId: ev.pointerId,
+            slotIndex: pickedSlot,
+            startLocal: { x: local.x, y: local.y },
+            startTx: Number(slotObj.tx) || 0,
+            startTy: Number(slotObj.ty) || 0,
+            boneWorld: null,
+          };
+          els.overlay.setPointerCapture(ev.pointerId);
+          return;
+        }
+      }
+    }
   }
   if (state.ikPickArmed && hit) {
     const c = getActiveIKConstraint();
@@ -1527,6 +1602,7 @@ els.overlay.addEventListener("pointermove", (ev) => {
     (state.drag &&
       (String(state.drag.type || "").startsWith("base_transform_") ||
         String(state.drag.type || "").startsWith("slot_mesh_") ||
+        String(state.drag.type || "").startsWith("slot_transform_") ||
         state.drag.type === "view_pan"));
   if (!state.mesh && !allowNoMesh) return;
 

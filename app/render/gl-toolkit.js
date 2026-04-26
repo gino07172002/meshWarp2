@@ -323,6 +323,14 @@
       if (wrapper && typeof wrapper.resetCachedResources === "function") {
         wrapper.resetCachedResources();
       }
+      // Drop the slot/attachment texture cache too. Its GL handles are now
+      // invalid; without clearing, any render attempt before
+      // webglcontextrestored fires would try to bind dead textures. Pass
+      // contextLost=true so the helper does NOT call gl.deleteTexture on
+      // the dead handles.
+      if (label === "main" && typeof resetGLTextureCache === "function") {
+        try { resetGLTextureCache(true); } catch { /* ignore */ }
+      }
       dispatch(lostListeners, label);
     }, false);
     canvas.addEventListener("webglcontextrestored", () => {

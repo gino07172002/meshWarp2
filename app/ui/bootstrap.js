@@ -669,8 +669,62 @@ pushUndoCheckpoint(true);
 window.collectSlotBindingDebug = collectSlotBindingDebug;
 window.collectAutosaveWeightDebug = collectAutosaveWeightDebug;
 window.collectWeightedAttachmentIssues = collectWeightedAttachmentIssues;
-window.addEventListener("beforeunload", () => {
-  saveAutosaveSnapshot("beforeunload", true);
+// Quick GL / texture diagnostic. Call from DevTools console when
+// "context lost" happens or images are missing after a restore.
+window.dumpGLState = function dumpGLState() {
+  const lostMain = !!(typeof gl !== "undefined" && gl && gl.isContextLost && gl.isContextLost());
+  const handles = state.glTextureHandles instanceof Set ? state.glTextureHandles.size : -1;
+  let totalAtt = 0;
+  let withCanvas = 0;
+  let visualWithoutCanvas = 0;
+  for (const s of state.slots || []) {
+    const list = s && Array.isArray(s.attachments) ? s.attachments : [];
+    for (const a of list) {
+      if (!a) continue;
+      totalAtt += 1;
+      if (a.canvas) withCanvas += 1;
+      else if (typeof isVisualAttachment === "function" && isVisualAttachment(a)) visualWithoutCanvas += 1;
+    }
+  }
+  let envelopeBytes = 0;
+  let envelopeImages = -1;
+  try {
+    const raw = localStorage.getItem("meshDeformerAutosave");
+    if (raw) {
+      envelopeBytes = raw.length;
+      const env = JSON.parse(raw);
+      if (env && env.project && Array.isArray(env.project.slotImages)) {
+        envelopeImages = env.project.slotImages.length;
+      }
+    }
+  } catch { /* ignore */ }
+  const out = {
+    glContextLost: lostMain,
+    sourceCanvas: !!state.sourceCanvas,
+    mesh: !!state.mesh,
+    slots: (state.slots || []).length,
+    totalAttachments: totalAtt,
+    attachmentsWithCanvas: withCanvas,
+    visualAttachmentsBroken: visualWithoutCanvas,
+    glTextureHandles: handles,
+    autosaveFailing: !!(state.autosave && state.autosave.failing),
+    autosaveEnvelopeBytes: envelopeBytes,
+    autosaveEnvelopeImages: envelopeImages,
+  };
+  console.table(out);
+  return out;
+};
+window.addEventListener("beforeunload", (ev) => {
+  const ok = saveAutosaveSnapshot("beforeunload", true);
+  // If autosave is currently failing (quota etc.), warn the user before
+  // leaving so they don't lose work — the next reload would only see the
+  // last successful snapshot, which may not include their recent images.
+  if (!ok && state.autosave && state.autosave.failing) {
+    ev.preventDefault();
+    ev.returnValue = "Autosave is failing (storage quota?). Unsaved work may be lost. Use File → Save first.";
+    return ev.returnValue;
+  }
+  return undefined;
 });
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") saveAutosaveSnapshot("hidden", true);
