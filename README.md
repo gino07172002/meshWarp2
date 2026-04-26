@@ -1,5 +1,7 @@
 # Web Spine-like 2D Mesh & Animation Editor
 
+**English** · [中文](README.zh-TW.md)
+
 A browser-based 2D skeletal animation editor with workflow modeled on Spine 2D.
 Vanilla JavaScript + WebGL + HTML5 Canvas. No bundler, no build step — open
 `index.html` (over a local server) and you're running.
