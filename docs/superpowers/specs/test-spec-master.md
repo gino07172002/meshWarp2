@@ -862,6 +862,30 @@ Steps use:
   - `function_returns` `state.mesh.physicsConstraints.length === 1 && state.mesh.physicsConstraints[0].state.reset === true` == `true`
 - **manual_only**: true
 
+## Render perf instrumentation
+
+### timing-populated-after-frames
+- **summary**: After several render frames, debug.timing() reports a samples count > 0 and an avg.total > 0.
+- **impl**: app/render/canvas.js recordRenderTiming + render() bracketing; app/core/debug.js timing()
+- **prereqs**: project loaded with at least one slot; a few rAF ticks elapsed
+- **steps**:
+  1. (no-op — timing is rolled by the running render loop)
+- **verify**:
+  - `function_returns` `(function(){ const t = window.debug.timing(); return t && t.samples > 0 && t.avg && t.avg.total >= 0; })()` == `true`
+
+### timing-toggle
+- **summary**: debug.setTimingEnabled(false) disables instrumentation; subsequent frames don't update lastFrame.
+- **impl**: app/core/debug.js setTimingEnabled; app/render/canvas.js perfTimingEnabled gate
+- **prereqs**: project loaded
+- **steps**:
+  1. `call:debug.setTimingEnabled(false)`
+  2. record `debug.timing().last.total` as L0
+  3. (wait one frame)
+- **verify**:
+  - `function_returns` `Math.abs(window.debug.timing().last.total - L0) < 0.001` == `true`
+  - `call:debug.setTimingEnabled(true)`  (restore for other tests)
+- **manual_only**: true
+
 ## Debug namespace + per-file API headers
 
 ### debug-namespace-installed

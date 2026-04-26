@@ -330,9 +330,15 @@ function render(ts = 0) {
     state.history.lastCaptureTs = ts;
   }
   resize();
+  // Per-frame perf timing: bracket each major phase with performance.now()
+  // and roll into a 60-frame ring buffer. debug.timing() reads averages.
+  const perfTimingEnabled = !!(state.renderPerf && state.renderPerf.timing && state.renderPerf.timing.enabled);
+  const tFrameStart = perfTimingEnabled ? performance.now() : 0;
+  const tDeformStart = tFrameStart;
   if (state.mesh) {
     updateDeformation();
   }
+  const tDeformEnd = perfTimingEnabled ? performance.now() : 0;
   drawBackdrop();
 
   const slots = getRenderableSlots();
@@ -345,6 +351,7 @@ function render(ts = 0) {
     return;
   }
 
+  const tSlotStart = perfTimingEnabled ? performance.now() : 0;
   if (hasGL) {
     state.overlayScene.enabled = false;
     if (wantsOnion) {
@@ -468,9 +475,38 @@ function render(ts = 0) {
     const poseWorld = state.mesh ? getSolvedPoseWorld(state.mesh) : [];
     renderSlots2DWithClipping(ctx, slots, poseWorld);
   }
+  const tOverlayStart = perfTimingEnabled ? performance.now() : 0;
 
   drawOverlay();
+  if (perfTimingEnabled) {
+    const tOverlayEnd = performance.now();
+    recordRenderTiming(
+      tDeformEnd - tDeformStart,
+      tOverlayStart - tSlotStart,
+      tOverlayEnd - tOverlayStart,
+      tOverlayEnd - tFrameStart
+    );
+  }
   if (shouldKeepRenderLoopAlive()) requestRender("keepalive");
+}
+
+// Roll a frame's phase timings into the renderPerf ring buffer. The ring
+// stores 4 floats per slot [deform, slotDraw, overlay, total]; debug.timing()
+// reads it back as averages over the ring. Cheap (<1µs) so we don't need
+// a sample rate; instrument every frame.
+function recordRenderTiming(deformMs, slotDrawMs, overlayMs, totalMs) {
+  const t = state.renderPerf && state.renderPerf.timing;
+  if (!t || !t.ring) return;
+  t.lastFrame.deform = deformMs;
+  t.lastFrame.slotDraw = slotDrawMs;
+  t.lastFrame.overlay = overlayMs;
+  t.lastFrame.total = totalMs;
+  const off = (t.ringIdx % t.ringSize) * 4;
+  t.ring[off] = deformMs;
+  t.ring[off + 1] = slotDrawMs;
+  t.ring[off + 2] = overlayMs;
+  t.ring[off + 3] = totalMs;
+  t.ringIdx += 1;
 }
 
 function pickVertex(mx, my) {

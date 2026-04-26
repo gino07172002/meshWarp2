@@ -985,6 +985,17 @@ const state = {
     stageCssHeight: 0,
     stagePixelRatio: 1,
     backdropSig: "",
+    // Per-frame timing rolled up over a 60-frame ring buffer so we can
+    // report stable averages instead of per-frame jitter. Each phase
+    // measured with performance.now() bracketing.
+    timing: {
+      enabled: true, // cheap; can be turned off via debug.setTimingEnabled(false)
+      ringSize: 60,
+      ringIdx: 0,
+      // Each ring slot stores [deformMs, slotDrawMs, overlayMs, totalMs].
+      ring: new Float32Array(60 * 4),
+      lastFrame: { deform: 0, slotDraw: 0, overlay: 0, total: 0 },
+    },
   },
   renderLoop: {
     rafId: 0,

@@ -166,6 +166,62 @@
   function errors() { return errorBuf.slice(); }
   function warnings() { return warningBuf.slice(); }
 
+  // Render-phase timing summary. Reads the renderPerf.timing ring populated
+  // by canvas.js render(). Returns averages + last-frame snapshot in
+  // milliseconds so AI / humans can spot which phase regresses.
+  function timing() {
+    if (typeof state === "undefined" || !state.renderPerf || !state.renderPerf.timing) return null;
+    const t = state.renderPerf.timing;
+    if (!t.ring) return null;
+    const sampleCount = Math.min(t.ringIdx, t.ringSize);
+    if (sampleCount === 0) return { samples: 0, last: t.lastFrame };
+    let sumD = 0, sumS = 0, sumO = 0, sumT = 0;
+    let maxD = 0, maxS = 0, maxO = 0, maxT = 0;
+    for (let i = 0; i < sampleCount; i += 1) {
+      const off = i * 4;
+      const d = t.ring[off];
+      const s = t.ring[off + 1];
+      const o = t.ring[off + 2];
+      const tt = t.ring[off + 3];
+      sumD += d; sumS += s; sumO += o; sumT += tt;
+      if (d > maxD) maxD = d;
+      if (s > maxS) maxS = s;
+      if (o > maxO) maxO = o;
+      if (tt > maxT) maxT = tt;
+    }
+    return {
+      samples: sampleCount,
+      enabled: !!t.enabled,
+      avg: {
+        deform: +(sumD / sampleCount).toFixed(3),
+        slotDraw: +(sumS / sampleCount).toFixed(3),
+        overlay: +(sumO / sampleCount).toFixed(3),
+        total: +(sumT / sampleCount).toFixed(3),
+      },
+      max: {
+        deform: +maxD.toFixed(3),
+        slotDraw: +maxS.toFixed(3),
+        overlay: +maxO.toFixed(3),
+        total: +maxT.toFixed(3),
+      },
+      last: {
+        deform: +t.lastFrame.deform.toFixed(3),
+        slotDraw: +t.lastFrame.slotDraw.toFixed(3),
+        overlay: +t.lastFrame.overlay.toFixed(3),
+        total: +t.lastFrame.total.toFixed(3),
+      },
+      // Estimated max sustainable FPS from the average total frame time;
+      // useful as a quick "are we headroom-bound?" signal.
+      estFps: sumT > 0 ? Math.round(1000 / (sumT / sampleCount)) : 0,
+    };
+  }
+  function setTimingEnabled(on) {
+    if (typeof state !== "undefined" && state.renderPerf && state.renderPerf.timing) {
+      state.renderPerf.timing.enabled = !!on;
+    }
+    return !!on;
+  }
+
   function findSlot(name) {
     if (typeof state === "undefined") return -1;
     return safeArr(state.slots).findIndex((s) => s && s.name === name);
@@ -208,6 +264,8 @@
       "debug.bones()          — per-bone summary",
       "debug.constraints()    — IK/Transform/Path/Physics summary",
       "debug.animations()     — animation list",
+      "debug.timing()         — render phase ms (deform/slotDraw/overlay/total)",
+      "debug.setTimingEnabled(bool) — toggle perf timing instrumentation",
       "debug.errors()         — recent errors (most recent last)",
       "debug.warnings()       — recent warnings (most recent last)",
       "debug.findSlot(name)   — slot index by name",
@@ -228,6 +286,8 @@
     bones,
     constraints,
     animations,
+    timing,
+    setTimingEnabled,
     errors,
     warnings,
     findSlot,
