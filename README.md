@@ -1,129 +1,157 @@
-# Web Spine-like Mesh Deformer
+# Web Spine-like 2D Mesh & Animation Editor
 
-以 `WebGL + HTML + JavaScript` 實作的 2D 骨架/網格動畫編輯器，工作流接近 Spine 2D。
-支援骨架、Slot、Mesh、權重、三種約束（IK/Transform/Path）、時間軸動畫、狀態機與 Spine 資料匯出。
+A browser-based 2D skeletal animation editor with workflow modeled on Spine 2D.
+Vanilla JavaScript + WebGL + HTML5 Canvas. No bundler, no build step — open
+`index.html` (over a local server) and you're running.
 
-## 快速開始
+Supports the full Spine 4.x rigging pipeline: bones, slots, mesh attachments
+with weighted skinning, four constraint types (IK, Transform, Path, Physics),
+skins with bone scope, animation timeline with deform / event / draw-order
+tracks, and round-trip Spine JSON / .skel binary / .atlas export.
+
+## Quick start
 
 ```bash
 python -m http.server 5173
-# 開啟 http://localhost:5173
+# then open http://localhost:5173
 ```
 
-檔案操作（上方工具列）：`New` · `Import Image/PSD` · `Save` · `Load` · `Export Spine` · `Export...`
+That's it — no `npm install`, no bundler.
 
----
+## Project layout
 
-## 工作區說明
+```
+app/
+  core/            els registry, state, math, GL setup, rig math, debug surface
+  workspace/       slot data model, attachments, constraint normalization
+  render/          per-frame render loop, constraint solvers, weight tools
+  animation/       timeline UI, animation runtime, autosave/persistence
+  io/              project save/load, Spine import / export, atlas packer
+  ui/              panels, hotkeys, dock layout, bootstrap
+docs/
+  superpowers/
+    specs/         feature specs + the master test recipe list
+    runbooks/      operational guides (testing, AI capture)
+    plans/         design plans (kept for traceability)
+  legacy/          older handoff notes kept for git history context
+tools/             25+ Node static check tools (run with `node tools/check-*.js`)
+```
 
-頂端有四個工作區 tab，點擊後自動切換到對應模式：
+## What works
 
-| 工作區 | 用途 | 左側可用工具 |
-|---|---|---|
-| **Rig** | 骨架建置、IK、約束、蒙皮 | Bones · Rig · IK · Constraint · Path · Skin · Tools |
-| **Mesh** | 網格輪廓、頂點編輯、權重 | Mesh · Base Transform |
-| **Object** | 整體物件平移/縮放/旋轉 | Object · Tools |
-| **Animate** | 時間軸動畫、圖層、狀態機 | Bones · IK · Constraint · Path · Skin · Tools · Base Transform |
+**Skeleton**: bones with all 5 inheritance modes, all transform channels,
+hierarchical parenting, drag-drop reordering.
 
-頂端工具列右側會顯示目前所在工作區的名稱標籤（如 `Rig — Edit`、`Animate — Pose`）。
+**Slots & attachments**: 6 attachment types — Region, Mesh, Linked Mesh,
+Bounding Box, Clipping, Point. Two-color tint (light + dark). 4 blend modes.
+Skin scope with skin-level bone visibility.
 
----
+**Mesh editing**: vertex editing with proportional and mirror modes,
+auto-foreground tracing from alpha, auto-triangulation, grid fill,
+subdivide / centroid / flip-edge / generate-by-area micro-tools, weighted
+binding, weight paint brush (4 modes + bone lock + smooth), prune / weld /
+swap / update bindings.
 
-## 功能對照表（Spine 2D 視角）
+**Constraints**: IK 1-bone & 2-bone, Transform, Path (drawn / slot / bone-chain
+sources), and Spine 4.2 Physics constraints (semi-implicit Euler solver with
+spring + damping + wind/gravity + per-bone state reset).
 
-### ✅ 已實作
+**Animation**: timeline with bone / slot / constraint / deform / drawOrder /
+event tracks. Linear, stepped, and bezier interpolation. Auto-key. Onion
+skin with keyframe-only mode and pixels-per-frame motion vectors. Animation
+layers with bone masking. State machine with parameters and conditions plus
+runtime bridge code export. Audio events with **waveform rendering on the
+event track lane**.
 
-**骨架系統**
-- 多層骨骼階層（拖放重排、rename、delete）
-- 全 5 種繼承模式：`normal` / `onlyTranslation` / `noRotationOrReflection` / `noScale` / `noScaleOrReflection`
-- 全通道：position (x/y)、rotation、length、scaleX/Y、shearX/Y
+**Rendering** (WebGL primary path):
+- Stencil-based clip-slot masking — no Canvas2D fallback
+- Base reference image as a textured quad
+- Two-color tint shader
+- GPU weight heatmap
 
-**Slot / Attachment**
-- Slot 建立、刪除、z-order 管理
-- Alpha、Color、Dark Color（兩色 tint）
-- 4 種 Blend Mode：normal / additive / multiply / screen
-- 6 種 Attachment 類型：Image、Mesh、Weighted Mesh、Clipping Path、Bounding Box、Point
+**Import / export**:
+- Native project JSON (with embedded image data URLs)
+- Spine 4.x JSON export — bones, slots, weighted meshes, all 4 constraint
+  types, deform timelines, two-color tint, sequence frames
+- Spine SKEL binary export
+- Atlas advanced packing — multi-page, rotation, trim, bleed, configurable
+  padding (shelf packer)
+- Spine 4.x JSON import (v1) — bones, slots, weighted meshes, animations
+- WebM / GIF / PNG sequence preview export, batch export
 
-**網格 / FFD**
-- 頂點編輯、Proportional Edit、Mirror Edit
-- 自動三角化、Grid Fill、Auto Foreground Mesh
-- Weighted binding（多骨權重）；Auto Weight（single/multi bone）
-- 權重 Heatmap 視覺化
+**Diagnostics** (open browser console, type `debug.help()`):
+- `debug.snapshot()` — major state at a glance
+- `debug.timing()` — per-frame phase timing (deform / slotDraw / overlay)
+- `debug.actionLog()` — last N user-visible actions for bug repro
+- `debug.errors()` — auto-captured exceptions + manual reports
+- `debug.findSlot(name)` / `debug.findBone(name)` — quick lookups
 
-**約束（Constraints）**
-- IK：1-bone / 2-bone；mix / softness / compress / stretch / uniform
-- Transform Constraint：rotate/translate/scale/shear mix 與 offset
-- Path Constraint：Bezier path；position/spacing/rotation mix
+## Known caveats
 
-**動畫 / Timeline**
-- 全軌道類型：bone / slot / constraint / deform / drawOrder / event
-- 插值：linear / stepped / bezier（含控制把手）
-- Auto-key、Onion Skin、Loop helper（seam / ping-pong）
-- Animation Layers（含骨骼遮罩混合）
-- 狀態機（State / Transition / Parameter / Condition）+ export bridge code
+- **Spine import v1** matches slots by name onto an existing project — it
+  doesn't create slots from atlas refs. Linked-mesh inheritance, IK /
+  Transform / Path / Physics constraint import, and skins other than
+  `default` log warnings rather than fully importing.
+- **Audio waveform** uses Web Audio's `decodeAudioData` — first-frame
+  decode is async, the SVG appears once decode completes.
+- **Constraint Move Up / Down** uses an `order` field; the runtime resolve
+  order matches Spine's (Path → Transform → IK → Physics) but UI ordering
+  is per-list within each type.
+- **Pose Auto-Rig** (humanoid template builder) requires fetching
+  TensorFlow.js / MediaPipe at runtime — first run downloads ~5 MB.
 
-**Skins**
-- 建立、刪除、apply、capture
+## Testing
 
-**匯出**
-- Spine JSON（4.1 / 4.2）、SKEL binary、ATLAS、PNG
-- 預覽：WebM、GIF、PNG 序列
-- Export 前驗證與 auto-fix
+See [TESTING.md](TESTING.md) for the full validation flow.
 
-**其他**
-- Undo / Redo、Autosave + 啟動復原
-- PSD 匯入（ag-psd）
-- Humanoid Auto-Rig（TensorFlow.js + MediaPipe pose detection）
-- Command Palette（Ctrl/Cmd+K）
+Quick version:
 
-### ❌ 缺少（尚未實作）
+```bash
+# 25 static checks, all must pass
+for f in tools/check-*.js; do node "$f"; done
 
-- **Spine Import（round-trip）** — 無法讀入 .json/.skel/.atlas
-- **Physics Constraints** — Spine 4.0+ 的布料/彈性物理
-- **Audio Track** — 音訊波形 / lip-sync 工具
-- **Multi-page Atlas** — 目前只支援單頁
-- **Atlas 進階選項** — 無 trim/padding/rotation 控制
+# Test recipe spec validates (115 recipes across 31 sections)
+node tools/test-spec-runner.js --validate
+```
 
-### ⚠️ 已知問題
+Browser-side test runner DSL is documented in [TESTING.md](TESTING.md) §
+"Running test recipes".
 
-- Clipping Path + Mesh 同時作用時，世界座標轉換有 edge case
-- SKEL binary export：大量頂點 deform 時 offset buffer 有已知問題
-- State Machine 只能 export JSON，無法在工具內模擬執行
-- Auto-key 在 mode 切換時偶有漏 key
-- Constraint 排序：UI 排序與 runtime resolve 順序可能不一致
-- Path Constraint mix 插值在 Animate 播放時偶有不連續
+## Documentation map
 
----
-
-## 建議工作流
-
-1. `Import Image/PSD` 匯入素材
-2. 切到 **Mesh** 工作區建立網格輪廓
-3. 切到 **Rig** 建立骨架、設定 IK / Constraint / Skin
-4. 右側 `Bone / Slot Tree` 整理層級與 Slot
-5. 切到 **Object** 微調整體姿態（可選）
-6. 切到 **Animate** 製作 key、分層動畫、狀態機
-7. `Export Spine` 輸出到遊戲引擎
-
----
-
-## 常用快捷鍵
-
-| 分類 | 按鍵 |
+| Audience | Read this |
 |---|---|
-| 視圖 zoom | `+` / `-` / `0` |
-| 骨架操作 | `G` (move head) · `T` (move tail) · `R` (rotate) · `C` (connect) · `P` (pick parent) |
-| 新增骨骼 | `Shift+A` |
-| 動畫 key | `I` (insert key) · `K` (delete key) · `Space` (play) |
-| 時間軸移動 | `,` / `.` (prev/next frame) |
-| 網格編輯 | `V` (select/add mode toggle) · `L`/`U` (link/unlink edge) · `Del`/`X` (delete vertex) |
-| 頂點調整 | `O` (proportional) · `H` (mirror) · `P` (pin) · `M` (relax) |
-| 全域 | `Ctrl+Z` / `Ctrl+Y` (undo/redo) · `Ctrl+K` (command palette) |
+| AI agents working on the code | [AGENTS.md](AGENTS.md) |
+| Contributors | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Testing & validation | [TESTING.md](TESTING.md) |
+| Spine feature parity tracking | [SPINE_FEATURE_GAP.md](SPINE_FEATURE_GAP.md) |
+| Feature specs + test recipes | [docs/superpowers/specs/](docs/superpowers/specs/) |
+| Architectural decisions | [docs/superpowers/plans/](docs/superpowers/plans/) |
+| Older handoff notes | [docs/legacy/](docs/legacy/) |
 
----
+## Suggested workflow
 
-## 開發文件
+1. **Import** an image or PSD (`Import Image/PSD` in the topbar)
+2. **Mesh** workspace — outline + auto-triangulate the slot meshes
+3. **Rig** workspace — build the bone hierarchy, set up IK / constraints
+4. **Object** workspace — global pose adjustments (optional)
+5. **Animate** workspace — timeline, layers, state machine
+6. **Export Spine** — JSON / .skel / .atlas / PNG bundle
 
-- 功能差距追蹤：`SPINE_FEATURE_GAP.md`
-- 驗證流程：`DEVELOPMENT_VERIFICATION_GUIDE.md`
-- Pose Runtime 設定：`POSE_RUNTIME_SETUP.md`
+## Hotkeys
+
+| Category | Keys |
+|---|---|
+| View | `+` / `-` / `0` zoom · middle-mouse drag pan |
+| Bone edit | `G` move head · `T` move tail · `R` rotate · `C` connect · `P` parent picker |
+| Add bone | `Shift+A` |
+| Mesh edit | `V` select/add toggle · `L` link edge · `U` unlink · `Del` / `X` delete vertex |
+| Vertex tweak | `O` proportional · `H` mirror · `P` pin · `M` relax |
+| Animation | `I` insert key · `K` delete key · `Space` play/pause · `,` `.` prev/next frame |
+| Weight brush | `W` toggle |
+| Global | `Ctrl+Z` / `Ctrl+Y` · `Ctrl+K` command palette · `F11` fullscreen |
+| Selection | `A` select-all (Blender style) |
+
+## License
+
+See [LICENSE](LICENSE).

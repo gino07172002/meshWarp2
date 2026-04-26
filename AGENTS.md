@@ -1,15 +1,25 @@
-# AGENTS.md — AI/MCP Agent Reference
+# AGENTS.md — AI agent quick reference
 
-This file is the authoritative quick-reference for any AI agent (Claude Code, Codex, MCP tool, etc.) working on this codebase.
-Read this before touching any slot/attachment/render/animation code.
+Authoritative reference for any AI agent (Claude Code, Codex, MCP tool, etc.)
+working on this codebase. Read this before touching slot / attachment / render /
+animation / constraint code.
 
 ---
 
-## 1. Project Overview
+## 1. Project overview
 
-A browser-based 2D skeletal animation editor (Spine2D-compatible).
-Stack: vanilla JS ES modules (no bundler), HTML5 Canvas 2D, WebGL (in progress).
-Entry: `index.html` → loads scripts in order via `<script type="module">`.
+A browser-based 2D skeletal animation editor (Spine 4.x compatible).
+Stack: vanilla JavaScript loaded via `<script>` tags (no modules, no bundler,
+no build step). HTML5 Canvas 2D for overlay + WebGL for the main render path.
+Entry: `index.html` loads scripts in dependency order.
+
+**Critical**: every `function foo() {}` at top level in any file becomes a
+global, accessible to every later script. There are no imports. Cross-file
+references work because everything is in the same window scope.
+
+**Diagnostics**: open the browser console and type `debug.help()` for the
+full surface. Use `debug.snapshot()` before reasoning about state. Use
+`debug.timing()` for render perf. Use `debug.actionLog()` for bug repro.
 
 ---
 
@@ -71,25 +81,78 @@ getActiveAttachment(slot).meshData = ...
 
 ---
 
-## 3. Key Files & Responsibilities
+## 3. Key files and responsibilities
 
-| File | Responsibility |
+Every file's first ~20 lines is a `// ROLE: ... // EXPORTS: ...` header
+listing what it owns. **Read that header first** — it answers "what does this
+file do" without grepping.
+
+### Core (foundation, loaded before everything)
+
+| File | What it owns |
 |------|---------------|
-| `app/workspace/workspace.js` | Slot & attachment data model, normalization, ATTACHMENT_TYPES, helpers |
-| `app/workspace/slots.js` | Slot operations: ensureSlotMeshData, getActiveAttachment, weight helpers |
-| `app/core/bones.js` | UI refresh: `refreshSlotUI()`, `refreshSlotPanel()`, `refreshAttachmentPanel()`, bone tree render, inline rename |
-| `app/core/runtime.js` | DOM element refs (`els`), global `state` object, initial state values |
-| `app/io/tree-bindings.js` | Bone tree event handlers: click, dblclick, contextmenu, drag (slot + attachment), attachment CRUD |
-| `app/io/project-export.js` | Save/export, schema v2 |
-| `app/io/project-actions.js` | Load, legacy upgrade |
-| `app/render/canvas.js` | Main 2D render loop: `renderSlots2DWithClipping`, `buildRenderableAttachmentGeometry` |
-| `app/render/constraints.js` | `buildSlotGeometry` (mesh deform), `buildRegionAttachmentGeometry`, weight skinning |
-| `app/animation/model.js` | Track ID format: `slot:<idx>:attachment:<name>:deform` |
-| `app/animation/timeline-ui.js` | Timeline track labels |
-| `app/ui/editor-panels.js` | Attachment context menu button bindings |
-| `app/ui/hotkeys.js` | Keyboard shortcuts: A=add att, Shift+A=dup, Tab=cycle, Del=delete |
-| `index.html` | Panel HTML: `#slotPropsGroup` (slot) + `#attachmentPropsGroup` (attachment) |
-| `styles.css` | CSS type-gating: `#attachmentPropsGroup.att-type-<type> [data-att-type~="<type>"]` |
+| `app/core/runtime-els.js` | `const els = {...}` — DOM ref registry. Add new ids here when wiring HTML. |
+| `app/core/runtime.js` | `state` object, GL setup, math helpers, dock layout, command palette, status bar, rig math (`computeWorld`, `getEditAwareWorld`, `transformPoint`, `mul`, etc). |
+| `app/core/runtime-ai-capture.js` | `registerAICaptureDomain`, `runAICaptureCommand`, AI capture report builder. |
+| `app/core/runtime-pose-autorig.js` | BlazePose / MediaPipe humanoid auto-rig (loads TF.js / MediaPipe at runtime). |
+| `app/core/debug.js` | `window.debug.*` diagnostic namespace. Action log + error/warning ring buffers. |
+| `app/core/bones.js` | Rig math, pose evaluation, weight ops (alloc/prune/weld/swap), bone CRUD, constraint remapping after bone removal. |
+| `app/core/bones-tree-ui.js` | `renderBoneTree` (DOM build), inline rename, `updateBoneSelectors`/`updateBoneUI`/`updateWorkspaceUI` workspace tab visibility. |
+
+### Workspace (slot data model)
+
+| File | What it owns |
+|------|---------------|
+| `app/workspace/workspace.js` | Slot + attachment data model, `ATTACHMENT_TYPES`, normalization, skin sets, legacy slot-meshData upgrade path. |
+| `app/workspace/slots.js` | Slot operations: `getActiveAttachment`, `ensureSlotMeshData`, sequence frame runtime, mesh micro-tools (subdivide/centroid/flip/generate). |
+| `app/workspace/constraint-model.js` | IK / Transform / Path / **Physics** constraint data + ensureXxxConstraints + the Physics solver + `buildConstraintExecutionPlan`. |
+
+### Render
+
+| File | What it owns |
+|------|---------------|
+| `app/render/canvas.js` | Per-frame `render()` entry. WebGL slot draw, stencil clipping (`beginGLStencilClip`/`endGLStencilClip`), base ref textured quad, onion skin overlay, `drawOverlay`. |
+| `app/render/constraints.js` | IK / Transform / Path solvers, `updateDeformation` + `buildSlotGeometry` (CPU skinning with per-frame bone-palette cache), constraint UI (refreshIKUI/TransformUI/PathUI/PhysicsUI), localToScreen / screenToLocal. |
+| `app/render/weight-brush.js` | Weight paint brush (4 modes + bone lock + smooth). |
+| `app/render/weight-heatmap-gpu.js` | GPU weight visualization fragment shader. |
+| `app/render/gl-toolkit.js` | Phase 0 WebGL infra (context lost/restored, shader cache, fullscreen quad). |
+| `app/render/state-machine.js` | State machine bridge JSON / sample code export. |
+
+### Animation
+
+| File | What it owns |
+|------|---------------|
+| `app/animation/model.js` | Persistence, autosave, animation/track data model, track keyframe helpers, `EVENT_TRACK_ID` etc. |
+| `app/animation/timeline-ui.js` | DOM-based timeline track render, keyframe markers, curve editor, **audio waveform overlay** on event tracks. |
+| `app/animation/runtime.js` | `samplePoseAtTime`, layer blending, playback advance, timeline event emission, audio playback, **audio peak decode + cache**. |
+
+### IO
+
+| File | What it owns |
+|------|---------------|
+| `app/io/project-actions.js` | Native project load (`handleProjectLoadInputChange`), legacy v1→v2 upgrade, **Spine JSON import** (`importSpineJsonInto`). |
+| `app/io/project-export.js` | Native project save, atlas advanced packer (`packSlotsToAtlasPage` — multi-page / rotation / trim / bleed), Spine SKEL binary writer, diagnostics auto-fix, `exportSpineData` entry. |
+| `app/io/project-export-spine-json.js` | `buildSpineJsonData` (the full Spine 4.x JSON tree builder, ~1500 lines) + `validateSpineJsonForExport`. |
+| `app/io/tree-bindings.js` | Image/PSD import, bone tree drag-drop wiring, slot row context menus, attachment type picker, attachment CRUD. |
+
+### UI
+
+| File | What it owns |
+|------|---------------|
+| `app/ui/editor-panels.js` | Setup tab + skin panel (add/dup/del/reorder), bone-compensation toggle, weight overlay toggle, diagnostics auto-fix. |
+| `app/ui/constraint-panels.js` | Right-Properties IK / Transform / Path constraint controls + bone property fields + relative numeric entry parser (`+10`, `*2`). Note: Physics UI lives next to its solver in `render/constraints.js`. |
+| `app/ui/animation-panels.js` | Animation list controls (add/dup/del/**reorder**), onion skin / event dialog wiring, layer mixer, preview export (WebM/GIF), batch export. |
+| `app/ui/timeline-pointer.js` | Timeline marquee selection, keyframe drag, playhead/ruler scrub. |
+| `app/ui/dock-layout.js` | Side dock panels (left/right/bottom), floating drag-out, snap zones, collapse, localStorage persistence. |
+| `app/ui/hotkeys.js` | Global keyboard hotkeys + canvas pointer event dispatch (drag start/move/end), pan/zoom, weight brush intercept. |
+| `app/ui/bootstrap.js` | App bootstrap — runs once at script-load tail. Wires final UI controls (mesh tools, weight brush, fullscreen, atlas options), restores autosave, schedules first render. |
+
+### Static assets
+
+| File | What it owns |
+|------|---------------|
+| `index.html` | Markup + script load order. Atlas options panel, every constraint panel, the export dock. |
+| `styles.css` | All styles. CSS type-gating for `#attachmentPropsGroup.att-type-<type>`. |
 
 ---
 
@@ -222,43 +285,59 @@ All three call `refreshAttachmentPanel(slot)` on move, and `pushUndoCheckpoint(t
 
 ---
 
-## 10. Validation Tools
+## 10. Validation tools
 
-Run after any change to verify no regressions:
+Run before committing. All 25 checks must pass.
 
 ```bash
-node tools/check-legacy-slot-mesh.js         # no direct slot.meshData access
-node tools/check-legacy-project-upgrade.js   # v1→v2 upgrade works
-node tools/check-region-attachment-render-path.js
-node tools/check-import-default-mesh.js
-node tools/check-stale-dom-hooks.js
-node tools/check-cache-busting-assets.js
-node --check app/core/bones.js               # (repeat for any modified JS)
+# All checks at once:
+for f in tools/check-*.js; do node "$f"; done
+
+# Test recipe spec (115 recipes across 31 sections):
+node tools/test-spec-runner.js --validate
+
+# Syntax for any JS file you edited:
+node --check app/<path>/<file>.js
 ```
 
-All of the above must pass before committing.
+The check tools live in `tools/check-*.js`. Several read multiple source
+files concatenated (so post-split function name lookups still work) — see
+`tools/check-cache-busting-assets.js` for the canonical asset list.
+
+If you add a new top-level `app/**/*.js` file, you must also:
+1. Add a `<script src="...?v=...">` tag to `index.html`
+2. Add the path to the asset list in `tools/check-cache-busting-assets.js`
+3. Bump the cache-buster query when changing the file
+
+See [TESTING.md](TESTING.md) for the full validation flow.
 
 ---
 
-## 11. Remaining Work (as of 2026-04-21)
+## 11. Diagnostic surface (`window.debug.*`)
 
-| Area | Status | Notes |
-|------|--------|-------|
-| Phase 4: panel split | Done | `refreshAttachmentPanel` + CSS type-gating |
-| Phase 5: attachment tree UX | Done | inline rename, drag reorder (same+cross slot) |
-| Phase 6: hotkeys | Done | A/Shift+A/Tab/Delete |
-| Phase 7: deform tracks | Done | `slot:<i>:attachment:<n>:deform` format |
-| `openAttachmentTypePicker` | Done | async modal popup with 6 button grid |
-| LinkedMesh cross-slot parent | Done | `slotId::attachmentName` format, backward-compat |
-| BoundingBox/Clipping gizmos | Done | draggable vertex handles on contour.points |
-| Point attachment gizmo | Done | move handle + rotation tip handle |
-| Ghost attachment outlines | Done | non-active attachments shown as dashed outlines |
-| Rename (ctx menu) | Done | Right-click attachment → "Rename Attachment" → triggers inline rename |
-| Set as Active (ctx menu) | Done | Right-click attachment → "Set as Active" → switches `slot.activeAttachment` |
-| Copy to Slot (ctx menu) | Done | Right-click attachment → "Copy to Slot…" → slot picker popup → `copyAttachmentToSlot()` |
-| Load Image (attachment ctx) | Done | Right-click region/mesh attachment → "Load Image" → same file-input flow as slot Load Image |
-| Browser smoke test | Not done | Must manually verify mesh display, attachment switching, linkedmesh, clipping, timeline sync |
-| WebGL render path | Separate spec | See `docs/superpowers/specs/2026-04-20-webgl-support-diagnostics-design.md` |
+Live in `app/core/debug.js`. Use these in the browser console — and in bug
+repros, copy-paste `debug.actionLogText()` output.
+
+| Method | Returns |
+|---|---|
+| `debug.snapshot()` | Major state at a glance (bone count, slot count, gl status, timing, etc) |
+| `debug.mesh()` | Current `state.mesh` stats (vertex count, constraint counts) |
+| `debug.slots()` | Per-slot summary `[{i, name, bone, attachments, ...}]` |
+| `debug.bones()` | Per-bone summary `[{i, name, parent, tx, ty, rot, color}]` |
+| `debug.constraints()` | IK / Transform / Path / Physics counts + names |
+| `debug.animations()` | Animation list `[{id, name, duration, tracks}]` |
+| `debug.timing()` | Render phase ms `{avg, max, last, estFps}` (60-frame ring) |
+| `debug.actionLog(n=50)` | Last N user-visible actions (`status` + `command`) |
+| `debug.actionLogText(n)` | Same, formatted for copy-paste |
+| `debug.errors()` | Auto-captured exceptions + manual `recordError` |
+| `debug.findSlot(name)` / `debug.findBone(name)` | Index by name (-1 if missing) |
+| `debug.recordError(code, msg, ctx?)` | Manual error log |
+| `debug.help()` | Print all of the above |
+
+**AI tip**: prefer `debug.snapshot()` before reasoning; everything else is
+a drill-down. For bug repros, ask the user for `debug.actionLogText()` —
+that's a chronological replay of "what they clicked + what status messages
+fired" with `+S.SSs` deltas.
 
 ---
 
