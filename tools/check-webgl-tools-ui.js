@@ -4,6 +4,7 @@ const path = require("path");
 const rootDir = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(rootDir, "index.html"), "utf8");
 const runtime = [
+  fs.readFileSync(path.join(rootDir, "app/core/runtime-els.js"), "utf8"),
   fs.readFileSync(path.join(rootDir, "app/core/runtime.js"), "utf8"),
   fs.readFileSync(path.join(rootDir, "app/core/runtime-ai-capture.js"), "utf8"),
   fs.readFileSync(path.join(rootDir, "app/core/runtime-pose-autorig.js"), "utf8"),

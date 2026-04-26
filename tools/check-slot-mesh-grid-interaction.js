@@ -5,6 +5,7 @@ const { runInteractionChecks } = require("./lib/slot-mesh-grid-live-edit-checks"
 const rootDir = path.resolve(__dirname, "..");
 const failures = runInteractionChecks(rootDir);
 const runtimeSource = [
+  fs.readFileSync(path.join(rootDir, "app", "core", "runtime-els.js"), "utf8"),
   fs.readFileSync(path.join(rootDir, "app", "core", "runtime.js"), "utf8"),
   fs.readFileSync(path.join(rootDir, "app", "core", "runtime-ai-capture.js"), "utf8"),
 ].join("\n");

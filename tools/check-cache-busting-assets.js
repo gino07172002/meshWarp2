@@ -6,6 +6,7 @@ const html = fs.readFileSync(path.join(rootDir, "index.html"), "utf8");
 
 const checks = [
   'href="styles.css?v=',
+  'src="app/core/runtime-els.js?v=',
   'src="app/core/runtime.js?v=',
   'src="app/core/runtime-ai-capture.js?v=',
   'src="app/core/runtime-pose-autorig.js?v=',
@@ -23,6 +24,7 @@ const checks = [
   'src="app/animation/runtime.js?v=',
   'src="app/io/tree-bindings.js?v=',
   'src="app/io/project-export.js?v=',
+  'src="app/io/project-export-spine-json.js?v=',
   'src="app/io/project-actions.js?v=',
   'src="app/ui/editor-panels.js?v=',
   'src="app/ui/constraint-panels.js?v=',

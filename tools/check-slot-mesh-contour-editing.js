@@ -12,7 +12,10 @@ const stylesPath = path.join(rootDir, "styles.css");
 
 const slotsSource = fs.readFileSync(slotsPath, "utf8");
 const constraintsSource = fs.readFileSync(constraintsPath, "utf8");
-const runtimeSource = fs.readFileSync(runtimePath, "utf8");
+const runtimeSource = [
+  fs.readFileSync(path.join(rootDir, "app", "core", "runtime-els.js"), "utf8"),
+  fs.readFileSync(runtimePath, "utf8"),
+].join("\n");
 const constraintPanelsSource = fs.readFileSync(constraintPanelsPath, "utf8");
 const hotkeysSource = fs.readFileSync(hotkeysPath, "utf8");
 const indexSource = fs.readFileSync(indexPath, "utf8");
