@@ -31,9 +31,11 @@
   const MAX_BUFFER = 200;
 
   // Internal ring buffers. Owned only by this file; everything else
-  // pushes to them via debug.recordError / debug.recordWarning.
+  // pushes to them via debug.recordError / debug.recordWarning /
+  // debug.recordAction.
   const errorBuf = [];
   const warningBuf = [];
+  const actionBuf = [];
 
   function pushBuffered(buf, entry) {
     buf.push(entry);
@@ -253,7 +255,39 @@
   function clear() {
     errorBuf.length = 0;
     warningBuf.length = 0;
-    return { errors: 0, warnings: 0 };
+    actionBuf.length = 0;
+    return { errors: 0, warnings: 0, actions: 0 };
+  }
+
+  // Action log — appended to by setStatus + runAICaptureCommand hooks
+  // (see runtime.js) and any site calling debug.recordAction directly.
+  // Each entry: { ts, source, name, args?, status? }.
+  // Goal: enable bug repro by reading the last 50-200 actions before a
+  // glitch. Cheap (no JSON.stringify until read), capped at 200 entries.
+  function recordAction(source, name, args) {
+    pushBuffered(actionBuf, {
+      ts: Date.now(),
+      source: String(source || "manual"),
+      name: String(name || ""),
+      args: args == null ? null : args,
+    });
+  }
+  function actionLog(limit) {
+    const n = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(MAX_BUFFER, Number(limit))) : 50;
+    return actionBuf.slice(-n);
+  }
+  // Convenience: dump the action log as a formatted string for easy
+  // copy-paste from console into a bug report.
+  function actionLogText(limit) {
+    const log = actionLog(limit);
+    if (log.length === 0) return "(action log empty)";
+    const t0 = log[0].ts;
+    return log.map((e) => {
+      const dt = ((e.ts - t0) / 1000).toFixed(2).padStart(7);
+      const src = e.source.padEnd(10);
+      const args = e.args ? " " + JSON.stringify(e.args).slice(0, 120) : "";
+      return `${dt}s [${src}] ${e.name}${args}`;
+    }).join("\n");
   }
 
   function help() {
@@ -268,6 +302,8 @@
       "debug.setTimingEnabled(bool) — toggle perf timing instrumentation",
       "debug.errors()         — recent errors (most recent last)",
       "debug.warnings()       — recent warnings (most recent last)",
+      "debug.actionLog(n=50)  — recent actions (status / commands / manual)",
+      "debug.actionLogText(n) — same, formatted for copy-paste",
       "debug.findSlot(name)   — slot index by name",
       "debug.findBone(name)   — bone index by name",
       "debug.recordError(code, message, context?) — log an error",
@@ -290,10 +326,13 @@
     setTimingEnabled,
     errors,
     warnings,
+    actionLog,
+    actionLogText,
     findSlot,
     findBone,
     recordError,
     recordWarning,
+    recordAction,
     clear,
     help,
   };

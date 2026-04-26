@@ -862,6 +862,50 @@ Steps use:
   - `function_returns` `state.mesh.physicsConstraints.length === 1 && state.mesh.physicsConstraints[0].state.reset === true` == `true`
 - **manual_only**: true
 
+## Action log
+
+### action-log-captures-status
+- **summary**: setStatus("...") writes a row into debug.actionLog with source "status".
+- **impl**: app/core/runtime.js setStatus + app/core/debug.js recordAction
+- **prereqs**: page loaded
+- **steps**:
+  1. `call:debug.clear()`
+  2. `call:setStatus("test status row")`
+- **verify**:
+  - `function_returns` `(function(){ const a = window.debug.actionLog(); return a.length === 1 && a[0].source === "status" && a[0].name === "test status row"; })()` == `true`
+
+### action-log-captures-runaicapture
+- **summary**: runAICaptureCommand("foo.bar", {x:1}, …) writes a row into debug.actionLog with source "command".
+- **impl**: app/core/runtime.js runAICaptureCommand hook
+- **prereqs**: page loaded; an AI capture domain registered with at least one command
+- **steps**:
+  1. `call:debug.clear()`
+  2. invoke any registered AI capture command (e.g. via timeline.add_keyframe pathway)
+- **verify**:
+  - `function_returns` `(function(){ const a = window.debug.actionLog(); return a.some(e => e.source === "command"); })()` == `true`
+- **manual_only**: true
+
+### action-log-text-format
+- **summary**: debug.actionLogText() returns a copy-pastable string with "+0.00s [source    ] name args".
+- **impl**: app/core/debug.js actionLogText
+- **prereqs**: ≥1 action recorded
+- **steps**:
+  1. `call:debug.clear()`
+  2. `call:debug.recordAction("test", "demo_action", {a: 1})`
+- **verify**:
+  - `function_returns` `/\[test\s*\] demo_action/.test(window.debug.actionLogText())` == `true`
+
+### action-log-ring-cap
+- **summary**: The action log holds at most 200 entries; older entries are evicted FIFO.
+- **impl**: app/core/debug.js pushBuffered ring eviction
+- **prereqs**: page loaded
+- **steps**:
+  1. `call:debug.clear()`
+  2. (push 250 entries via `for(let i=0;i<250;i++) debug.recordAction("loop", "row_"+i)`)
+- **verify**:
+  - `function_returns` `(function(){ const a = window.debug.actionLog(200); return a.length === 200 && a[0].name === "row_50"; })()` == `true`
+- **manual_only**: true
+
 ## Render perf instrumentation
 
 ### timing-populated-after-frames

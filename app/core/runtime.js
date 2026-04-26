@@ -1570,6 +1570,11 @@ function drawCanvasTransformGizmos(ctx, poseWorld = null) {
 function setStatus(text) {
   els.status.textContent = text;
   if (typeof requestRender === "function") requestRender("status");
+  // Mirror to the action log so bug repros include the user-visible
+  // status messages in chronological context.
+  if (typeof window !== "undefined" && window.debug && typeof window.debug.recordAction === "function") {
+    window.debug.recordAction("status", String(text || ""));
+  }
 }
 
 const AI_CAPTURE_DOMAIN_REGISTRY = {};
@@ -1887,6 +1892,12 @@ function beginAICaptureCommand(command, details = {}, options = {}) {
 function runAICaptureCommand(command, details = {}, options = {}, action = null) {
   const run = typeof action === "function" ? action : options;
   const captureOptions = typeof action === "function" ? options : {};
+  // Action log: every named command flows through here, so this is a
+  // good central hook. Records before the action runs (so we see "this
+  // happened" even if the action throws).
+  if (typeof window !== "undefined" && window.debug && typeof window.debug.recordAction === "function") {
+    window.debug.recordAction("command", String(command || "?"), details && typeof details === "object" ? details : null);
+  }
   const finishCapture = beginAICaptureCommand(command, details, captureOptions);
   try {
     const result = typeof run === "function" ? run() : undefined;
