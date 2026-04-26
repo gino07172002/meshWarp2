@@ -862,6 +862,43 @@ Steps use:
   - `function_returns` `state.mesh.physicsConstraints.length === 1 && state.mesh.physicsConstraints[0].state.reset === true` == `true`
 - **manual_only**: true
 
+## Drag-reorder coverage parity
+
+### physics-move-down-symmetry
+- **summary**: Physics constraints have a Move Down button mirroring Move Up — parity with IK / Transform / Path. Clicking it swaps the selected constraint with the one after it.
+- **impl**: app/render/constraints.js physicsMoveDownBtn handler; refreshPhysicsUI disabled-state; index.html `#physicsMoveDownBtn`
+- **prereqs**: 2+ physics constraints, the first selected
+- **steps**:
+  1. record `state.mesh.physicsConstraints[0].name` as N0
+  2. `click:#physicsMoveDownBtn`
+- **verify**:
+  - `function_returns` `state.mesh.physicsConstraints[1].name === N0` == `true`
+- **manual_only**: true
+
+### animation-reorder-up-down
+- **summary**: The animation action dropdown gained "Move Up" / "Move Down". Reorders state.anim.animations without losing the current selection.
+- **impl**: app/ui/animation-panels.js reorderCurrentAnimation
+- **prereqs**: 2+ animations, first one selected as currentAnimId
+- **steps**:
+  1. record `state.anim.animations[0].id` as ID0
+  2. set `els.animActionSelect.value = "moveDown"`; `click:#animActionBtn`
+- **verify**:
+  - `function_returns` `state.anim.animations[1].id === ID0` == `true`
+  - `function_returns` `state.anim.currentAnimId === ID0` == `true`  (selection preserved across reorder)
+- **manual_only**: true
+
+### skin-set-reorder-up-down
+- **summary**: The skin panel has Move Up / Move Down buttons. Reorders skinSets without altering contents or the active skin.
+- **impl**: app/ui/editor-panels.js reorderSelectedSkinSet
+- **prereqs**: 2+ skins; the first selected
+- **steps**:
+  1. record `ensureSkinSets()[0].id` as SID0
+  2. `click:#skinMoveDownBtn`
+- **verify**:
+  - `function_returns` `ensureSkinSets()[1].id === SID0` == `true`
+  - `function_returns` `state.selectedSkinSet === 1` == `true`  (selection follows the moved skin)
+- **manual_only**: true
+
 ## Spine JSON import (4.x)
 
 ### spine-import-bones-roundtrip

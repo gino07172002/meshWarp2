@@ -1500,8 +1500,11 @@
                 <button id="physicsRemoveBtn" type="button">Remove</button>
               </div>
               <div class="field two-col">
-                <button id="physicsResetBtn" type="button">Reset State</button>
                 <button id="physicsMoveUpBtn" type="button">Move Up</button>
+                <button id="physicsMoveDownBtn" type="button">Move Down</button>
+              </div>
+              <div class="field">
+                <button id="physicsResetBtn" type="button">Reset State</button>
               </div>
               <div id="physicsList" class="bone-tree"></div>
             </div>
@@ -1648,6 +1651,10 @@
                 <button id="skinDupBtn" type="button">Dup</button>
                 <button id="skinDeleteBtn" type="button">Del</button>
               </div>
+              <div class="field two-col">
+                <button id="skinMoveUpBtn" type="button">Move Up</button>
+                <button id="skinMoveDownBtn" type="button">Move Down</button>
+              </div>
               <label class="field">
                 <span>Skin</span>
                 <select id="skinSelect"></select>
@@ -1732,6 +1739,8 @@
           <option value="new" selected>New Anim</option>
           <option value="duplicate">Duplicate</option>
           <option value="delete">Delete</option>
+          <option value="moveUp">Move Up</option>
+          <option value="moveDown">Move Down</option>
         </select>
         <button id="animActionBtn" type="button">Anim</button>
         <input id="animTime" type="number" min="0" step="0.1" value="0" title="Time" />
@@ -2094,14 +2103,14 @@
     </section>
   </div>
 
-  <script src="app/core/runtime.js?v=20260426-1"></script>
+  <script src="app/core/runtime.js?v=20260426-2"></script>
   <script src="app/render/gl-toolkit.js?v=20260425-2"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>
   <script src="app/core/bones.js?v=20260425-20"></script>
   <script src="app/workspace/workspace.js?v=20260425-2"></script>
   <script src="app/workspace/slots.js?v=20260425-5"></script>
   <script src="app/workspace/constraint-model.js?v=20260425-1"></script>
-  <script src="app/render/constraints.js?v=20260425-7"></script>
+  <script src="app/render/constraints.js?v=20260426-1"></script>
   <script src="app/render/weight-brush.js?v=20260425-5"></script>
   <script src="app/render/canvas.js?v=20260425-8"></script>
   <script src="app/render/state-machine.js?v=20260420-2"></script>
@@ -2111,9 +2120,9 @@
   <script src="app/io/tree-bindings.js?v=20260425-5"></script>
   <script src="app/io/project-export.js?v=20260425-5"></script>
   <script src="app/io/project-actions.js?v=20260426-1"></script>
-  <script src="app/ui/editor-panels.js?v=20260425-7"></script>
+  <script src="app/ui/editor-panels.js?v=20260426-1"></script>
   <script src="app/ui/constraint-panels.js?v=20260425-5"></script>
-  <script src="app/ui/animation-panels.js?v=20260425-1"></script>
+  <script src="app/ui/animation-panels.js?v=20260426-1"></script>
   <script src="app/ui/timeline-pointer.js?v=20260420-2"></script>
   <script src="app/ui/dock-layout.js?v=20260425-18"></script>
   <script src="app/ui/hotkeys.js?v=20260425-7"></script>

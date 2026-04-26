@@ -337,6 +337,34 @@ if (els.skinDeleteBtn) {
     setStatus(`Skin deleted: ${removed && removed.name ? removed.name : "skin"}`);
   });
 }
+if (els.skinMoveUpBtn) {
+  els.skinMoveUpBtn.addEventListener("click", () => {
+    reorderSelectedSkinSet(-1);
+  });
+}
+if (els.skinMoveDownBtn) {
+  els.skinMoveDownBtn.addEventListener("click", () => {
+    reorderSelectedSkinSet(1);
+  });
+}
+
+// Move the selected skin up/down in the skinSets list. Skin order is what
+// the dropdown shows and (for export) the order written into the project
+// file; reorder doesn't affect skin contents or the active selection.
+function reorderSelectedSkinSet(delta) {
+  const list = ensureSkinSets();
+  if (!Array.isArray(list) || list.length < 2) return;
+  const i = Number(state.selectedSkinSet) || 0;
+  const j = i + delta;
+  if (i < 0 || i >= list.length || j < 0 || j >= list.length) return;
+  const tmp = list[i];
+  list[i] = list[j];
+  list[j] = tmp;
+  state.selectedSkinSet = j;
+  refreshSkinUI();
+  setStatus(`Skin moved ${delta < 0 ? "up" : "down"}.`);
+}
+
 if (els.skinCaptureBtn) {
   els.skinCaptureBtn.addEventListener("click", () => {
     const skin = captureSelectedSkinSetFromCurrentState();

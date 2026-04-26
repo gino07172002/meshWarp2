@@ -3526,6 +3526,7 @@ function refreshPhysicsUI() {
   if (els.physicsRemoveBtn) els.physicsRemoveBtn.disabled = !c;
   if (els.physicsResetBtn) els.physicsResetBtn.disabled = !c;
   if (els.physicsMoveUpBtn) els.physicsMoveUpBtn.disabled = !c || state.selectedPhysics <= 0;
+  if (els.physicsMoveDownBtn) els.physicsMoveDownBtn.disabled = !c || state.selectedPhysics >= list.length - 1;
   const fields = [
     els.physicsName, els.physicsBone, els.physicsEnabled,
     els.physicsX, els.physicsY, els.physicsRotate, els.physicsScaleX, els.physicsShearX,
@@ -3598,6 +3599,20 @@ if (els.physicsMoveUpBtn) {
     if (i <= 0 || i >= list.length) return;
     const curr = list[i];
     swapConstraintOrder(list, i, i - 1);
+    sortConstraintListByOrder(list);
+    state.selectedPhysics = list.indexOf(curr);
+    _physicsBumpAndRefresh();
+  });
+}
+if (els.physicsMoveDownBtn) {
+  els.physicsMoveDownBtn.addEventListener("click", () => {
+    const m = state.mesh;
+    if (!m) return;
+    const list = ensurePhysicsConstraints(m);
+    const i = state.selectedPhysics;
+    if (i < 0 || i >= list.length - 1) return;
+    const curr = list[i];
+    swapConstraintOrder(list, i, i + 1);
     sortConstraintListByOrder(list);
     state.selectedPhysics = list.indexOf(curr);
     _physicsBumpAndRefresh();

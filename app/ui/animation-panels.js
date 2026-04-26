@@ -72,8 +72,27 @@ if (els.animActionBtn) {
       if (els.deleteAnimBtn) els.deleteAnimBtn.click();
       return;
     }
+    if (action === "moveUp" || action === "moveDown") {
+      reorderCurrentAnimation(action === "moveUp" ? -1 : 1);
+      return;
+    }
     if (els.addAnimBtn) els.addAnimBtn.click();
   });
+}
+
+// Reorders the current animation up/down in state.anim.animations.
+// Animation order is the order shown in the dropdown and (when iterated)
+// any "next animation" semantics; reordering doesn't affect track data.
+function reorderCurrentAnimation(delta) {
+  const list = state.anim.animations;
+  if (!Array.isArray(list) || list.length < 2) return;
+  const i = list.findIndex((a) => a && a.id === state.anim.currentAnimId);
+  const j = i + delta;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  const tmp = list[i];
+  list[i] = list[j];
+  list[j] = tmp;
+  refreshAnimationUI();
 }
 els.addAnimBtn.addEventListener("click", () => {
   const idx = state.anim.animations.length + 1;
