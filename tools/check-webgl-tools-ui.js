@@ -3,8 +3,15 @@ const path = require("path");
 
 const rootDir = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(rootDir, "index.html"), "utf8");
-const runtime = fs.readFileSync(path.join(rootDir, "app/core/runtime.js"), "utf8");
-const bones = fs.readFileSync(path.join(rootDir, "app/core/bones.js"), "utf8");
+const runtime = [
+  fs.readFileSync(path.join(rootDir, "app/core/runtime.js"), "utf8"),
+  fs.readFileSync(path.join(rootDir, "app/core/runtime-ai-capture.js"), "utf8"),
+  fs.readFileSync(path.join(rootDir, "app/core/runtime-pose-autorig.js"), "utf8"),
+].join("\n");
+const bones = [
+  fs.readFileSync(path.join(rootDir, "app/core/bones.js"), "utf8"),
+  fs.readFileSync(path.join(rootDir, "app/core/bones-tree-ui.js"), "utf8"),
+].join("\n");
 const editorPanels = fs.readFileSync(path.join(rootDir, "app/ui/editor-panels.js"), "utf8");
 const styles = fs.readFileSync(path.join(rootDir, "styles.css"), "utf8");
 

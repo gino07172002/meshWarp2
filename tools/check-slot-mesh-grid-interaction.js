@@ -4,7 +4,10 @@ const { runInteractionChecks } = require("./lib/slot-mesh-grid-live-edit-checks"
 
 const rootDir = path.resolve(__dirname, "..");
 const failures = runInteractionChecks(rootDir);
-const runtimeSource = fs.readFileSync(path.join(rootDir, "app", "core", "runtime.js"), "utf8");
+const runtimeSource = [
+  fs.readFileSync(path.join(rootDir, "app", "core", "runtime.js"), "utf8"),
+  fs.readFileSync(path.join(rootDir, "app", "core", "runtime-ai-capture.js"), "utf8"),
+].join("\n");
 const slotsSource = fs.readFileSync(path.join(rootDir, "app", "workspace", "slots.js"), "utf8");
 
 if (!/toolRestoreTarget:\s*"/.test(runtimeSource)) {

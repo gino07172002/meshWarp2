@@ -2,7 +2,10 @@ const fs = require("fs");
 const path = require("path");
 
 const rootDir = path.resolve(__dirname, "..");
-const runtimeSource = fs.readFileSync(path.join(rootDir, "app", "core", "runtime.js"), "utf8");
+const runtimeSource = [
+  fs.readFileSync(path.join(rootDir, "app", "core", "runtime.js"), "utf8"),
+  fs.readFileSync(path.join(rootDir, "app", "core", "runtime-ai-capture.js"), "utf8"),
+].join("\n");
 const slotsSource = fs.readFileSync(path.join(rootDir, "app", "workspace", "slots.js"), "utf8");
 const hotkeysSource = fs.readFileSync(path.join(rootDir, "app", "ui", "hotkeys.js"), "utf8");
 const bootstrapSource = fs.readFileSync(path.join(rootDir, "app", "ui", "bootstrap.js"), "utf8");

@@ -2,7 +2,10 @@ const fs = require("fs");
 const path = require("path");
 
 const rootDir = path.resolve(__dirname, "..");
-const runtimeSource = fs.readFileSync(path.join(rootDir, "app", "core", "runtime.js"), "utf8");
+const runtimeSource = [
+  fs.readFileSync(path.join(rootDir, "app", "core", "runtime.js"), "utf8"),
+  fs.readFileSync(path.join(rootDir, "app", "core", "runtime-ai-capture.js"), "utf8"),
+].join("\n");
 const indexSource = fs.readFileSync(path.join(rootDir, "index.html"), "utf8");
 const runbookSource = fs.readFileSync(path.join(rootDir, "docs", "superpowers", "runbooks", "ai-capture-domain-checklist.md"), "utf8");
 const failures = [];
