@@ -814,3 +814,371 @@ async function handleProjectLoadInputChange(e) {
     e.target.value = "";
   }
 }
+
+// ----------------------------------------------------------------
+// Spine JSON import (4.x format).
+//
+// Scope (v1):
+//   - bones, slots, weighted/unweighted mesh + region attachments,
+//     bone animations (rotate / translate / scale), deform timelines.
+//   - Round-trip with our exporter is the primary supported case:
+//     detects the synthetic `__export_root_yup` root and unwraps it,
+//     so coords come back into our Y-down space verbatim.
+//   - For 3rd-party Spine projects without that root, we Y-negate
+//     every bone's y on import (rough Y-up→down conversion).
+//
+// Out of scope for v1 (logged as warnings, not errors):
+//   - Linkedmesh inheritance (parent/skin lookup chain)
+//   - Clipping / boundingbox / point attachments
+//   - IK / Transform / Path / Physics constraint import
+//   - Events, drawOrder timelines, slot color timelines
+//   - Atlas references (we expect the user to have already created
+//     slots; we match Spine slot names to existing slots by name).
+//
+// Returns { ok: true, warnings: [...] } or { ok: false, error: "..." }.
+function importSpineJsonInto(spineJson) {
+  if (!spineJson || typeof spineJson !== "object") {
+    return { ok: false, error: "Not a JSON object." };
+  }
+  const skel = spineJson.skeleton || {};
+  const srcBones = Array.isArray(spineJson.bones) ? spineJson.bones : [];
+  if (srcBones.length === 0) return { ok: false, error: "No bones in skeleton." };
+
+  const warnings = [];
+  // Detect the synthetic root our exporter inserts. If present, drop it
+  // and reparent its direct children to "no parent". Spine y-flip is
+  // already encoded as scaleY=-1 on that root; once removed, child bone
+  // coords are already in our Y-down space.
+  const EXPORT_ROOT_NAME = "__export_root_yup";
+  const hasSyntheticRoot = !!srcBones.find((b) => b && b.name === EXPORT_ROOT_NAME);
+  const filteredBones = srcBones.filter((b) => b && b.name !== EXPORT_ROOT_NAME);
+
+  // Build name→index map and convert each bone. parent is by name in
+  // Spine, by index in our model.
+  const nameToIndex = new Map();
+  for (let i = 0; i < filteredBones.length; i += 1) {
+    nameToIndex.set(String(filteredBones[i].name), i);
+  }
+  const yFlip = hasSyntheticRoot ? 1 : -1; // 3rd-party Spine: invert Y
+  const newBones = filteredBones.map((b, i) => {
+    const parentName = b.parent && b.parent !== EXPORT_ROOT_NAME ? String(b.parent) : null;
+    const parentIdx = parentName != null && nameToIndex.has(parentName) ? nameToIndex.get(parentName) : -1;
+    return {
+      name: String(b.name || `bone_${i}`),
+      parent: parentIdx,
+      length: Math.max(0, Number(b.length) || 0),
+      tx: Number(b.x) || 0,
+      ty: (Number(b.y) || 0) * yFlip,
+      rot: math.degToRad(Number(b.rotation) || 0),
+      sx: Number.isFinite(Number(b.scaleX)) ? Number(b.scaleX) : 1,
+      sy: Number.isFinite(Number(b.scaleY)) ? Number(b.scaleY) : 1,
+      shx: math.degToRad(Number(b.shearX) || 0),
+      shy: math.degToRad(Number(b.shearY) || 0),
+      inherit: b.inherit === "onlyTranslation" || b.inherit === "noScale" || b.inherit === "noScaleOrReflection" || b.inherit === "noRotationOrReflection" ? b.inherit : "normal",
+      connected: false,
+      poseLenEditable: false,
+    };
+  });
+
+  // Apply onto the mesh. We require state.mesh to exist (slots created).
+  if (!state.mesh) {
+    return { ok: false, error: "Import requires an existing project (open or import an image first)." };
+  }
+  state.mesh.rigBones = newBones;
+  enforceConnectedHeads(state.mesh.rigBones);
+  syncPoseFromRig(state.mesh);
+  syncBindPose(state.mesh);
+
+  // Map slot names → existing internal slot indices. Skip Spine slots
+  // that don't have a matching internal slot.
+  const slotNameToIndex = new Map();
+  for (let i = 0; i < state.slots.length; i += 1) {
+    const s = state.slots[i];
+    if (s && s.name) slotNameToIndex.set(String(s.name), i);
+  }
+  const srcSlots = Array.isArray(spineJson.slots) ? spineJson.slots : [];
+  let slotsMatched = 0;
+  for (const ss of srcSlots) {
+    if (!ss || !ss.name) continue;
+    const idx = slotNameToIndex.get(String(ss.name));
+    if (idx == null) {
+      warnings.push(`Slot "${ss.name}" in Spine JSON has no matching internal slot; skipped.`);
+      continue;
+    }
+    const s = state.slots[idx];
+    if (ss.bone && nameToIndex.has(String(ss.bone))) s.bone = nameToIndex.get(String(ss.bone));
+    if (typeof ss.attachment === "string") s.attachmentName = ss.attachment;
+    if (typeof ss.color === "string" && ss.color.length >= 6) {
+      const r = parseInt(ss.color.slice(0, 2), 16) / 255;
+      const g = parseInt(ss.color.slice(2, 4), 16) / 255;
+      const b2 = parseInt(ss.color.slice(4, 6), 16) / 255;
+      if (Number.isFinite(r)) s.r = r;
+      if (Number.isFinite(g)) s.g = g;
+      if (Number.isFinite(b2)) s.b = b2;
+      if (ss.color.length >= 8) {
+        const a = parseInt(ss.color.slice(6, 8), 16) / 255;
+        if (Number.isFinite(a)) s.alpha = a;
+      }
+    }
+    if (typeof ss.dark === "string" && ss.dark.length >= 6) {
+      s.darkEnabled = true;
+      s.dark = ss.dark.slice(0, 6);
+    }
+    if (typeof ss.blend === "string") s.blend = ss.blend;
+    slotsMatched += 1;
+  }
+
+  // Skin attachments: walk { skinName: { slotName: { attName: def } } }
+  // and update mesh geometry on matching slot+attachment pairs.
+  // Spine 4.x uses an array of skins each with `attachments`; pre-4.x
+  // uses an object keyed by skin name. Handle both.
+  const skinsRaw = spineJson.skins;
+  let skinList = [];
+  if (Array.isArray(skinsRaw)) {
+    skinList = skinsRaw;
+  } else if (skinsRaw && typeof skinsRaw === "object") {
+    skinList = Object.entries(skinsRaw).map(([name, attachments]) => ({ name, attachments }));
+  }
+  let attachmentsApplied = 0;
+  for (const skin of skinList) {
+    if (skin.name !== "default") {
+      warnings.push(`Skin "${skin.name}" import is not yet supported (only "default" is applied); skipped.`);
+      continue;
+    }
+    const atts = skin.attachments || {};
+    for (const [slotName, slotAtts] of Object.entries(atts)) {
+      const sIdx = slotNameToIndex.get(slotName);
+      if (sIdx == null || !slotAtts || typeof slotAtts !== "object") continue;
+      for (const [attName, def] of Object.entries(slotAtts)) {
+        if (!def || typeof def !== "object") continue;
+        const result = applySpineAttachmentToSlot(state.slots[sIdx], attName, def, nameToIndex);
+        if (result.applied) attachmentsApplied += 1;
+        if (result.warning) warnings.push(result.warning);
+      }
+    }
+  }
+
+  // Animations.
+  const animSrc = spineJson.animations;
+  if (animSrc && typeof animSrc === "object") {
+    importSpineAnimations(animSrc, slotNameToIndex, nameToIndex, warnings);
+  }
+
+  return {
+    ok: true,
+    warnings,
+    summary: { bones: newBones.length, slotsMatched, attachmentsApplied, animations: animSrc ? Object.keys(animSrc).length : 0 },
+  };
+}
+
+// Apply a Spine attachment definition onto a slot's matching attachment
+// entry. Handles region (no geometry change beyond position/size) and
+// mesh (vertices + uvs + triangles, weighted or not). Returns
+// { applied: bool, warning: string | null }.
+function applySpineAttachmentToSlot(slot, attName, def, boneNameToIndex) {
+  if (!slot) return { applied: false, warning: null };
+  const type = String(def.type || "region").toLowerCase();
+  // Find the matching attachment by name on this slot. We don't create
+  // new attachment entries on import — caller must have set them up.
+  const attList = Array.isArray(slot.attachments) ? slot.attachments : [];
+  const target = attList.find((a) => a && String(a.name) === String(attName));
+  if (!target) return { applied: false, warning: `Slot "${slot.name}": no attachment "${attName}"; skipped.` };
+
+  if (type === "region") {
+    // Spine region: x, y, scaleX, scaleY, rotation, width, height. We
+    // don't have a comparable "region transform" field in our model
+    // (regions are placed by the slot's bone), so we just record name.
+    // No-op beyond the existing entry.
+    return { applied: true, warning: null };
+  }
+  if (type === "mesh") {
+    const uvsArr = Array.isArray(def.uvs) ? def.uvs : null;
+    const trisArr = Array.isArray(def.triangles) ? def.triangles : null;
+    const versArr = Array.isArray(def.vertices) ? def.vertices : null;
+    if (!uvsArr || !trisArr || !versArr) {
+      return { applied: false, warning: `Mesh "${attName}" missing uvs/triangles/vertices; skipped.` };
+    }
+    const vCount = uvsArr.length / 2;
+    const positions = new Float32Array(vCount * 2);
+    const isWeighted = versArr.length !== uvsArr.length; // unweighted = same length as uvs (just x,y pairs)
+    let weights = null;
+    const boneCount = state.mesh && Array.isArray(state.mesh.rigBones) ? state.mesh.rigBones.length : 0;
+    if (isWeighted && boneCount > 0) {
+      weights = new Float32Array(vCount * boneCount);
+      let p = 0;
+      for (let i = 0; i < vCount; i += 1) {
+        const n = Number(versArr[p++]) | 0;
+        let acc = 0;
+        for (let k = 0; k < n; k += 1) {
+          const bi = Number(versArr[p++]) | 0;
+          const bx = Number(versArr[p++]) || 0;
+          const by = Number(versArr[p++]) || 0;
+          const w = Number(versArr[p++]) || 0;
+          if (bi >= 0 && bi < boneCount) {
+            // Spine packs bind-space coords per bone influence; we
+            // store the vertex's authoritative position as the
+            // weighted sum (matches how our exporter went the other way).
+            const bone = state.mesh.rigBones[bi];
+            const cosR = Math.cos(bone.rot || 0);
+            const sinR = Math.sin(bone.rot || 0);
+            const wx = (bone.tx || 0) + cosR * bx - sinR * by;
+            const wy = (bone.ty || 0) + sinR * bx + cosR * by;
+            positions[i * 2] += wx * w;
+            positions[i * 2 + 1] += wy * w;
+            weights[i * boneCount + bi] += w;
+            acc += w;
+          }
+        }
+        if (acc <= 0) {
+          // No valid influence — leave at origin to avoid NaN.
+          positions[i * 2] = 0;
+          positions[i * 2 + 1] = 0;
+        }
+      }
+    } else {
+      // Unweighted: vertices array is just x,y pairs in slot-local space.
+      for (let i = 0; i < vCount; i += 1) {
+        positions[i * 2] = Number(versArr[i * 2]) || 0;
+        positions[i * 2 + 1] = Number(versArr[i * 2 + 1]) || 0;
+      }
+    }
+    // Apply onto the attachment's meshData.
+    if (!target.meshData || typeof target.meshData !== "object") target.meshData = {};
+    target.meshData.positions = positions;
+    target.meshData.uvs = new Float32Array(uvsArr);
+    target.meshData.indices = new Uint16Array(trisArr);
+    if (weights) target.meshData.weights = weights;
+    return { applied: true, warning: null };
+  }
+  if (type === "linkedmesh" || type === "clipping" || type === "boundingbox" || type === "point") {
+    return { applied: false, warning: `Attachment type "${type}" import is not yet supported; skipped.` };
+  }
+  return { applied: false, warning: `Unknown attachment type "${type}"; skipped.` };
+}
+
+// Animations: convert each Spine animation into our internal
+// {id, name, length, tracks{}} record. Tracks live as flat arrays of
+// keyframes keyed by track id strings (e.g. `bone:N:rot`).
+function importSpineAnimations(animSrc, slotNameToIndex, boneNameToIndex, warnings) {
+  if (!Array.isArray(state.anim.animations)) state.anim.animations = [];
+  for (const [animName, animDef] of Object.entries(animSrc)) {
+    if (!animDef || typeof animDef !== "object") continue;
+    const tracks = Object.create(null);
+    let maxTime = 0;
+    const noteTime = (t) => { if (t > maxTime) maxTime = t; };
+    // Bone animations.
+    const boneAnims = animDef.bones && typeof animDef.bones === "object" ? animDef.bones : {};
+    for (const [boneName, channels] of Object.entries(boneAnims)) {
+      const bi = boneNameToIndex.get(String(boneName));
+      if (bi == null) continue;
+      if (Array.isArray(channels.rotate)) {
+        const rows = channels.rotate.map((k) => ({
+          time: Number(k.time) || 0,
+          value: math.degToRad(Number(k.value != null ? k.value : k.angle) || 0),
+          interp: spineCurveToInterp(k.curve),
+        }));
+        rows.forEach((r) => noteTime(r.time));
+        tracks[`bone:${bi}:rot`] = rows;
+      }
+      if (Array.isArray(channels.translate)) {
+        const xs = [];
+        const ys = [];
+        for (const k of channels.translate) {
+          const t = Number(k.time) || 0;
+          const interp = spineCurveToInterp(k.curve);
+          xs.push({ time: t, value: Number(k.x) || 0, interp });
+          ys.push({ time: t, value: Number(k.y) || 0, interp });
+          noteTime(t);
+        }
+        tracks[`bone:${bi}:tx`] = xs;
+        tracks[`bone:${bi}:ty`] = ys;
+      }
+      if (Array.isArray(channels.scale)) {
+        const xs = [];
+        const ys = [];
+        for (const k of channels.scale) {
+          const t = Number(k.time) || 0;
+          const interp = spineCurveToInterp(k.curve);
+          xs.push({ time: t, value: Number(k.x != null ? k.x : 1), interp });
+          ys.push({ time: t, value: Number(k.y != null ? k.y : 1), interp });
+          noteTime(t);
+        }
+        tracks[`bone:${bi}:sx`] = xs;
+        tracks[`bone:${bi}:sy`] = ys;
+      }
+    }
+    // Deform timelines: { skinName: { slotName: { attName: [{time, vertices: [...]}] } } }
+    const deformAll = animDef.deform && typeof animDef.deform === "object" ? animDef.deform : {};
+    for (const [skinName, slotsByName] of Object.entries(deformAll)) {
+      if (skinName !== "default") {
+        warnings.push(`Animation "${animName}" deform under skin "${skinName}" not imported (only "default").`);
+        continue;
+      }
+      for (const [slotName, attsByName] of Object.entries(slotsByName || {})) {
+        const sIdx = slotNameToIndex.get(slotName);
+        if (sIdx == null) continue;
+        for (const [attName, frames] of Object.entries(attsByName || {})) {
+          if (!Array.isArray(frames)) continue;
+          const rows = frames.map((k) => ({
+            time: Number(k.time) || 0,
+            vertices: Array.isArray(k.vertices) ? k.vertices.slice() : [],
+            offset: Number(k.offset) || 0,
+            interp: spineCurveToInterp(k.curve),
+          }));
+          rows.forEach((r) => noteTime(r.time));
+          tracks[`deform:${sIdx}:${attName}`] = rows;
+        }
+      }
+    }
+    state.anim.animations.push({
+      id: `anim_${state.anim.animations.length}`,
+      name: animName,
+      length: maxTime,
+      tracks,
+    });
+  }
+}
+
+function spineCurveToInterp(curve) {
+  if (curve === "stepped") return "stepped";
+  if (Array.isArray(curve)) return "bezier"; // we don't import the cps yet; visual only
+  return "linear";
+}
+
+if (els.spineImportInput) {
+  els.spineImportInput.addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    try {
+      const text = await f.text();
+      const json = JSON.parse(text);
+      const result = importSpineJsonInto(json);
+      if (!result.ok) {
+        setStatus(`Spine import failed: ${result.error}`);
+        return;
+      }
+      const s = result.summary;
+      const warnCount = result.warnings.length;
+      setStatus(
+        `Spine JSON imported: ${s.bones} bones, ${s.slotsMatched} slots matched, ${s.attachmentsApplied} attachments, ${s.animations} animations${warnCount > 0 ? ` (${warnCount} warnings — see console)` : ""}.`
+      );
+      if (warnCount > 0 && typeof console !== "undefined") {
+        console.warn("Spine import warnings:", result.warnings);
+      }
+      pushUndoCheckpoint(true);
+      if (typeof rebuildMesh === "function") rebuildMesh();
+      if (typeof scheduleDraw === "function") scheduleDraw();
+      if (typeof renderTimelineTracks === "function") renderTimelineTracks();
+      if (typeof refreshTrackSelect === "function") refreshTrackSelect();
+    } catch (err) {
+      setStatus(`Spine import failed: ${err.message}`);
+    } finally {
+      e.target.value = "";
+    }
+  });
+}
+if (els.spineImportBtn) {
+  els.spineImportBtn.addEventListener("click", () => {
+    if (els.spineImportInput) els.spineImportInput.click();
+  });
+}

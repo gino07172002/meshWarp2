@@ -8,6 +8,8 @@ const els = {
   fileSaveBtn: document.getElementById("fileSaveBtn"),
   fileLoadBtn: document.getElementById("fileLoadBtn"),
   fileExportSpineBtn: document.getElementById("fileExportSpineBtn"),
+  spineImportBtn: document.getElementById("spineImportBtn"),
+  spineImportInput: document.getElementById("spineImportInput"),
   openExportPanelBtn: document.getElementById("openExportPanelBtn"),
   commandPaletteBtn: document.getElementById("commandPaletteBtn"),
   fileInput: document.getElementById("fileInput"),

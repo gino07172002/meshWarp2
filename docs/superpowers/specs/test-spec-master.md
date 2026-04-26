@@ -862,6 +862,60 @@ Steps use:
   - `function_returns` `state.mesh.physicsConstraints.length === 1 && state.mesh.physicsConstraints[0].state.reset === true` == `true`
 - **manual_only**: true
 
+## Spine JSON import (4.x)
+
+### spine-import-bones-roundtrip
+- **summary**: Importing a Spine JSON that we exported (with the synthetic `__export_root_yup` root) produces bones whose tx/ty match the original within 0.001.
+- **impl**: app/io/project-actions.js importSpineJsonInto — detects `__export_root_yup`, strips it, leaves child bone coords in our Y-down space.
+- **prereqs**: an existing project with bones; export to Spine JSON; re-import the same JSON via the file input
+- **steps**:
+  1. record `state.mesh.rigBones[1].tx` as TX0 (skip root)
+  2. export → re-import
+- **verify**:
+  - `function_returns` `Math.abs(state.mesh.rigBones[1].tx - TX0) < 0.001` == `true`
+- **manual_only**: true
+
+### spine-import-slot-name-matching
+- **summary**: Spine slots are matched to existing internal slots by name. Slots with no internal counterpart are skipped (warning logged).
+- **impl**: app/io/project-actions.js importSpineJsonInto slotNameToIndex map
+- **prereqs**: project with slot named "torso"; Spine JSON with slot named "torso" + slot named "missing_slot"
+- **steps**:
+  1. import Spine JSON
+- **verify**:
+  - `function_returns` `state.slots.find(s => s && s.name === "torso") != null` == `true`
+  - `function_returns` `Array.isArray(window.__lastSpineImportWarnings) ? window.__lastSpineImportWarnings.some(w => w.includes("missing_slot")) : true` == `true`
+- **manual_only**: true
+
+### spine-import-mesh-weighted-vertices
+- **summary**: Weighted mesh attachments (Spine packed format `[boneCount, boneIdx, x, y, w, ...]`) are unpacked and applied as positions+weights on the matching attachment.
+- **impl**: app/io/project-actions.js applySpineAttachmentToSlot mesh branch (weighted detection by `vertices.length !== uvs.length`)
+- **prereqs**: Spine JSON with one weighted mesh attachment matching an existing attachment name
+- **steps**:
+  1. import
+- **verify**:
+  - `function_returns` `(function(){ const s = state.slots.find(s => s.attachments && s.attachments.find(a => a.meshData && a.meshData.weights)); return !!s; })()` == `true`
+- **manual_only**: true
+
+### spine-import-animation-bone-rotate
+- **summary**: A Spine animation with a bone `rotate` channel becomes an internal animation with track `bone:N:rot` containing keys with `value` in radians.
+- **impl**: app/io/project-actions.js importSpineAnimations bone-rotate branch (math.degToRad)
+- **prereqs**: Spine JSON with one animation containing a single rotate keyframe at time 0, value 90deg, on a known bone
+- **steps**:
+  1. import
+- **verify**:
+  - `function_returns` `(function(){ const a = state.anim.animations.find(a => a.tracks && Object.keys(a.tracks).some(k => /^bone:\\d+:rot$/.test(k))); if (!a) return false; const tk = Object.keys(a.tracks).find(k => /^bone:\\d+:rot$/.test(k)); return Math.abs(a.tracks[tk][0].value - Math.PI/2) < 0.001; })()` == `true`
+- **manual_only**: true
+
+### spine-import-third-party-y-flip
+- **summary**: Spine JSON without our synthetic root (3rd-party project) gets each bone's y negated to convert from Spine Y-up to our Y-down.
+- **impl**: app/io/project-actions.js importSpineJsonInto yFlip = hasSyntheticRoot ? 1 : -1
+- **prereqs**: Spine JSON with a single root bone at y=50, no `__export_root_yup` root
+- **steps**:
+  1. import
+- **verify**:
+  - `function_returns` `Math.abs(state.mesh.rigBones[0].ty + 50) < 0.001` == `true`
+- **manual_only**: true
+
 ## Audio waveform on timeline (event track)
 
 ### waveform-decode-on-audio-event

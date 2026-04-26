@@ -105,6 +105,7 @@
           <button id="fileSaveBtn">Save</button>
           <button id="fileLoadBtn">Load</button>
           <button id="fileExportSpineBtn">Export Spine</button>
+          <button id="spineImportBtn" type="button" title="Import a Spine 4.x JSON skeleton onto the current project">Import Spine</button>
           <button id="openExportPanelBtn" type="button">Export...</button>
           <button id="commandPaletteBtn" type="button" title="Commands (Ctrl/Cmd+K)">Commands</button>
           <div class="topbar-global-actions" aria-label="Global edit actions">
@@ -113,6 +114,7 @@
           </div>
           <input id="fileInput" type="file" accept=".psd,image/*" multiple hidden />
           <input id="projectLoadInput" type="file" accept="application/json,.json" hidden />
+          <input id="spineImportInput" type="file" accept="application/json,.json" hidden />
         </div>
         <div class="topbar-mid">
           <label id="slotSelectWrap">
@@ -2092,7 +2094,7 @@
     </section>
   </div>
 
-  <script src="app/core/runtime.js?v=20260425-25"></script>
+  <script src="app/core/runtime.js?v=20260426-1"></script>
   <script src="app/render/gl-toolkit.js?v=20260425-2"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>
   <script src="app/core/bones.js?v=20260425-20"></script>
@@ -2108,7 +2110,7 @@
   <script src="app/animation/runtime.js?v=20260425-2"></script>
   <script src="app/io/tree-bindings.js?v=20260425-5"></script>
   <script src="app/io/project-export.js?v=20260425-5"></script>
-  <script src="app/io/project-actions.js?v=20260425-3"></script>
+  <script src="app/io/project-actions.js?v=20260426-1"></script>
   <script src="app/ui/editor-panels.js?v=20260425-7"></script>
   <script src="app/ui/constraint-panels.js?v=20260425-5"></script>
   <script src="app/ui/animation-panels.js?v=20260425-1"></script>
