@@ -64,12 +64,44 @@ async function canvasFromDataUrl(dataUrl) {
   }
 }
 
-function buildProjectPayload() {
+// Sentinel string thrown by registerCanvas when a slot canvas reads as
+// fully transparent (signals that the browser has dropped the backing
+// store, e.g. background-tab GPU reclamation in Edge). Caught by
+// saveAutosaveSnapshot to abort the write rather than persisting blanks.
+const BLANK_CANVAS_SENTINEL = "__autosave_blank_canvas__";
+function _isCanvasBlank(canvas) {
+  if (!canvas || !canvas.width || !canvas.height) return true;
+  try {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return false;
+    // Sample 4 corners + center. If all 5 pixels are fully transparent
+    // (alpha=0), treat the canvas as blank. Real attachment canvases
+    // with content typically have at least one non-zero alpha at the
+    // sampled positions.
+    const w = canvas.width, h = canvas.height;
+    const pts = [
+      [0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1],
+      [Math.floor(w / 2), Math.floor(h / 2)],
+    ];
+    for (const [x, y] of pts) {
+      const d = ctx.getImageData(x, y, 1, 1).data;
+      if (d[3] !== 0) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+function buildProjectPayload(opts) {
+  const failOnBlankCanvas = !!(opts && opts.failOnBlankCanvas);
   const canvasIndexMap = new Map();
   const slotImages = [];
   const registerCanvas = (canvas) => {
     if (!canvas) return -1;
     if (!canvasIndexMap.has(canvas)) {
+      if (failOnBlankCanvas && _isCanvasBlank(canvas)) {
+        throw new Error(BLANK_CANVAS_SENTINEL);
+      }
       canvasIndexMap.set(canvas, slotImages.length);
       slotImages.push(canvas.toDataURL("image/png"));
     }

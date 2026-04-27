@@ -30,6 +30,28 @@ const AUTOSAVE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 if (!backdropCtx || !overlayCtx || (!gl && !stage2dCtx)) {
   throw new Error("2D canvas context unavailable.");
 }
+if (!gl) {
+  console.warn("[runtime] main WebGL context unavailable on startup; running 2D fallback. GPU process may be exhausted -- close other WebGL tabs / try a fresh browser session.");
+}
+
+// Cache the WEBGL_lose_context extension so we can attempt to force a
+// restore if Edge keeps the context in the lost state for too long
+// (e.g. background tab GPU reclamation that never fires the
+// webglcontextrestored event on its own).
+const _glLoseExt = gl && gl.getExtension ? gl.getExtension("WEBGL_lose_context") : null;
+function tryForceRestoreMainGL() {
+  if (!gl) return false;
+  if (!gl.isContextLost || !gl.isContextLost()) return false;
+  if (!_glLoseExt || typeof _glLoseExt.restoreContext !== "function") return false;
+  try {
+    _glLoseExt.restoreContext();
+    console.info("[main-gl] forced restoreContext() on stuck-lost context");
+    return true;
+  } catch (err) {
+    console.warn("[main-gl] forced restoreContext failed", err);
+    return false;
+  }
+}
 
 const hasGL = !!gl;
 const isWebGL2 = hasGL && typeof WebGL2RenderingContext !== "undefined" && gl instanceof WebGL2RenderingContext;
@@ -2638,29 +2660,88 @@ finishMainGLSetup();
 // Rebuild path on context restore — runs after webglcontextrestored fires and
 // the toolkit has cleared its caches. The texture cache is invalidated too,
 // so subsequent ensureGLTextureForCanvas() calls will re-upload.
+// Set to true on webglcontextlost; render() consults it before drawing so
+// that even if the restored-listener hasn't fired/wasn't registered yet,
+// the very next frame after restore self-heals by rebuilding GL handles.
+let _mainGLNeedsRebuild = false;
+function markMainGLNeedsRebuild() {
+  _mainGLNeedsRebuild = true;
+}
+function isMainGLNeedingRebuild() {
+  return _mainGLNeedsRebuild;
+}
 function rebuildMainGLAfterRestore() {
   if (!hasGL) return;
+  if (gl.isContextLost && gl.isContextLost()) {
+    // Context still lost -- can't rebuild yet. Retry on next render.
+    _mainGLNeedsRebuild = true;
+    return;
+  }
   try {
     initMainGLResources();
     finishMainGLSetup();
     if (typeof resetGLTextureCache === "function") resetGLTextureCache(true);
+    // Force a backdrop redraw: the gl-lost fallback renders slot images
+    // straight onto the backdrop canvas. Without invalidating the
+    // backdrop signature, that stale fallback content would linger after
+    // the GL path resumes.
+    if (state.renderPerf) state.renderPerf.backdropSig = "";
+    // Re-upload the active source-canvas texture immediately. Without
+    // this, ensureGLTextureForCanvas() lazily uploads on the next render
+    // call, which is fine in most cases -- but pre-warming avoids a
+    // one-frame blank flash and makes recovery deterministic.
+    if (state.sourceCanvas && typeof ensureGLTextureForCanvas === "function") {
+      try {
+        const tex = ensureGLTextureForCanvas(state.sourceCanvas);
+        if (tex) state.texture = tex;
+      } catch { /* ignore */ }
+    }
+    _mainGLNeedsRebuild = false;
     console.info("[main-gl] resources rebuilt after context restore");
+    // Schedule a render so the freshly-restored context is used right
+    // away, regardless of whether anything else is driving the loop.
+    if (typeof requestRender === "function") requestRender("gl-rebuild");
   } catch (err) {
     console.error("[main-gl] rebuild after restore failed", err);
   }
 }
-// Register the restore callback once gl-toolkit (which loads AFTER this file)
-// has populated window.glToolkit. We use the next macrotask so toolkit's IIFE
-// has run by then.
-if (typeof window !== "undefined" && hasGL) {
-  setTimeout(() => {
+// Register the restore callback. gl-toolkit.js loads AFTER this file, so
+// window.glToolkit isn't populated yet when this code runs. We poll: try
+// every macrotask until it appears (and don't lose any restored events
+// that happen in the meantime, by also installing a direct canvas listener
+// as a backup).
+function _installGLRestoreListener() {
+  if (typeof window === "undefined" || !hasGL) return;
+  const tryAttach = () => {
     if (window.glToolkit && typeof window.glToolkit.onContextRestored === "function") {
       window.glToolkit.onContextRestored((label) => {
         if (label === "main") rebuildMainGLAfterRestore();
       });
+      return true;
     }
-  }, 0);
+    return false;
+  };
+  if (!tryAttach()) {
+    // Backup: direct canvas listener so we never miss a restored event
+    // even if gl-toolkit somehow fails to load. This fires alongside
+    // toolkit dispatch when both are wired up; rebuildMainGLAfterRestore
+    // is idempotent on its own state and only rebuilds GL handles.
+    if (els && els.glCanvas && els.glCanvas.addEventListener) {
+      els.glCanvas.addEventListener("webglcontextrestored", () => {
+        rebuildMainGLAfterRestore();
+      }, false);
+    }
+    // Keep retrying until toolkit shows up (it loads next on the page).
+    let attempts = 0;
+    const retry = () => {
+      if (tryAttach()) return;
+      attempts += 1;
+      if (attempts < 50) setTimeout(retry, 20);
+    };
+    setTimeout(retry, 0);
+  }
 }
+_installGLRestoreListener();
 
 function bindGeometry() {
   if (!hasGL) return;

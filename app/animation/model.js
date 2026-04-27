@@ -23,11 +23,24 @@ function saveAutosaveFromSnapshotText(snapshotText, reason = "checkpoint", force
   if (!text) return false;
   if (!force && text === state.autosave.lastSig) return false;
   try {
+    const project = JSON.parse(text);
+    // Mirror the safety net in saveAutosaveSnapshot: if any embedded
+    // image is the empty PNG marker (data:,) or 0-length, refuse the
+    // write so we don't clobber a good envelope with a snapshot that
+    // was captured while the tab's canvases were dropped.
+    if (Array.isArray(project && project.slotImages)) {
+      for (const url of project.slotImages) {
+        if (typeof url !== "string" || url.length < 32 || url === "data:," || url === "data:image/png;base64,") {
+          console.warn(`[autosave-checkpoint] skipped (${reason}): snapshot contains empty embedded image. Existing envelope preserved.`);
+          return false;
+        }
+      }
+    }
     const envelope = {
       version: 1,
       savedAt: Date.now(),
       reason: String(reason || "checkpoint"),
-      project: JSON.parse(text),
+      project,
     };
     localStorage.setItem(AUTOSAVE_STORAGE_KEY, JSON.stringify(envelope));
     state.autosave.lastSig = text;
@@ -47,7 +60,12 @@ function saveAutosaveFromSnapshotText(snapshotText, reason = "checkpoint", force
 function saveAutosaveSnapshot(reason = "interval", force = false) {
   if (state.history.suspend) return false;
   try {
-    const project = buildProjectPayload();
+    // Refuse to persist a snapshot whose attachment canvases have gone
+    // blank -- this happens when Edge drops the canvas backing store for
+    // a backgrounded tab. Without this guard, autosave would overwrite
+    // a perfectly good envelope with empty PNGs and the user would lose
+    // their image on the next reload/restore.
+    const project = buildProjectPayload({ failOnBlankCanvas: true });
     const payloadText = JSON.stringify(project);
     if (!force && payloadText === state.autosave.lastSig) return false;
     const envelope = {
@@ -61,6 +79,13 @@ function saveAutosaveSnapshot(reason = "interval", force = false) {
     state.autosave.failing = false;
     return true;
   } catch (err) {
+    if (err && err.message === BLANK_CANVAS_SENTINEL) {
+      // Common during background tab reclamation -- the previously-good
+      // envelope is preserved. Don't flip autosave.failing for this; it
+      // will resume normally once the canvas content is restored.
+      console.warn(`[autosave] skipped (${reason}): attachment canvas backing store empty (browser may have reclaimed it). Existing envelope preserved.`);
+      return false;
+    }
     state.autosave.failing = true;
     const now = Date.now();
     if (now - (Number(state.autosave.lastErrorAt) || 0) > 10000) {

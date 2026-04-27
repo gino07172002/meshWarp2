@@ -589,7 +589,20 @@ if (els.overlay) {
   }
 }
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) requestRenderFromUI();
+  if (!document.hidden) {
+    // Returning from background: Edge may have reclaimed GPU memory
+    // while we were hidden, putting our WebGL context into a stuck-lost
+    // state where webglcontextrestored never fires on its own. Try to
+    // force a restore via WEBGL_lose_context.restoreContext(), then
+    // schedule several render attempts so self-heal kicks in as the GPU
+    // process comes back online.
+    if (typeof tryForceRestoreMainGL === "function") tryForceRestoreMainGL();
+    requestRenderFromUI();
+    setTimeout(() => { if (typeof tryForceRestoreMainGL === "function") tryForceRestoreMainGL(); requestRenderFromUI(); }, 100);
+    setTimeout(() => { if (typeof tryForceRestoreMainGL === "function") tryForceRestoreMainGL(); requestRenderFromUI(); }, 300);
+    setTimeout(() => { if (typeof tryForceRestoreMainGL === "function") tryForceRestoreMainGL(); requestRenderFromUI(); }, 800);
+    setTimeout(() => { if (typeof tryForceRestoreMainGL === "function") tryForceRestoreMainGL(); requestRenderFromUI(); }, 2000);
+  }
 });
 markStageResizeDirty();
 
@@ -666,6 +679,23 @@ refreshVertexDeformUI();
 updatePlaybackButtons();
 renderDiagnosticsUI();
 pushUndoCheckpoint(true);
+// Re-arm the one-shot render diagnostic so the next render() prints a
+// "[render-diag] examined=... drawn=... firstSkip=..." line. Call from
+// console: __renderDiag()
+window.__renderDiag = function __renderDiag() {
+  window.__renderDiagOnce = true;
+  if (typeof requestRender === "function") requestRender("diag");
+};
+// Manually try to recover from a stuck-lost WebGL context.
+window.__forceRestoreGL = function __forceRestoreGL() {
+  if (typeof tryForceRestoreMainGL === "function") {
+    const ok = tryForceRestoreMainGL();
+    console.info("[forceRestoreGL]", ok ? "issued" : "skipped (not lost or no extension)");
+    if (typeof requestRender === "function") requestRender("force-restore");
+    return ok;
+  }
+  return false;
+};
 window.collectSlotBindingDebug = collectSlotBindingDebug;
 window.collectAutosaveWeightDebug = collectAutosaveWeightDebug;
 window.collectWeightedAttachmentIssues = collectWeightedAttachmentIssues;
@@ -673,6 +703,7 @@ window.collectWeightedAttachmentIssues = collectWeightedAttachmentIssues;
 // "context lost" happens or images are missing after a restore.
 window.dumpGLState = function dumpGLState() {
   const lostMain = !!(typeof gl !== "undefined" && gl && gl.isContextLost && gl.isContextLost());
+  const toolkitLost = !!(typeof window !== "undefined" && window.glToolkit && typeof window.glToolkit.isMainContextLost === "function" && window.glToolkit.isMainContextLost());
   const handles = state.glTextureHandles instanceof Set ? state.glTextureHandles.size : -1;
   let totalAtt = 0;
   let withCanvas = 0;
@@ -689,7 +720,7 @@ window.dumpGLState = function dumpGLState() {
   let envelopeBytes = 0;
   let envelopeImages = -1;
   try {
-    const raw = localStorage.getItem("meshDeformerAutosave");
+    const raw = localStorage.getItem(typeof AUTOSAVE_STORAGE_KEY === "string" ? AUTOSAVE_STORAGE_KEY : "mesh_deformer_autosave_v1");
     if (raw) {
       envelopeBytes = raw.length;
       const env = JSON.parse(raw);
@@ -698,11 +729,29 @@ window.dumpGLState = function dumpGLState() {
       }
     }
   } catch { /* ignore */ }
+  // Active slot / attachment specifics
+  const activeSlot = (typeof getActiveSlot === "function") ? getActiveSlot() : null;
+  const activeAtt = activeSlot && typeof getActiveAttachment === "function" ? getActiveAttachment(activeSlot) : null;
+  const activeHasCanvas = !!(activeAtt && activeAtt.canvas);
+  const activeAttName = activeAtt ? activeAtt.name : null;
+  const activeAttType = activeAtt ? activeAtt.type : null;
+  // Detect whether the main GL got created at all (gl can be null when
+  // browser couldn't allocate a context on startup -- the 2D fallback
+  // path is engaged in that case).
+  const hasMainGL = typeof gl !== "undefined" && !!gl;
+
   const out = {
+    hasMainGL,
     glContextLost: lostMain,
+    toolkitContextLost: toolkitLost,
     sourceCanvas: !!state.sourceCanvas,
     mesh: !!state.mesh,
+    rigBones: state.mesh && Array.isArray(state.mesh.rigBones) ? state.mesh.rigBones.length : 0,
     slots: (state.slots || []).length,
+    activeSlotIndex: typeof state.activeSlot === "number" ? state.activeSlot : -1,
+    activeAttachmentName: activeAttName,
+    activeAttachmentType: activeAttType,
+    activeAttachmentHasCanvas: activeHasCanvas,
     totalAttachments: totalAtt,
     attachmentsWithCanvas: withCanvas,
     visualAttachmentsBroken: visualWithoutCanvas,

@@ -344,10 +344,129 @@ function render(ts = 0) {
   const slots = getRenderableSlots();
   const wantsOnion = shouldRenderOnionSkin();
 
-  // Skip GPU draw while the context is lost. webglcontextrestored fires
-  // initMainGLResources + finishMainGLSetup (runtime.js) and re-requests
-  // a render frame.
-  if (hasGL && gl.isContextLost && gl.isContextLost()) {
+  // Self-heal viewport: if state.view is stuck at the default (0,0,1)
+  // but we have a real image, auto-fit so the loaded content shows up.
+  // This catches the autosave-restore path where state.view didn't get
+  // reset to fit even after load (the explicit resetViewToFit call may
+  // run before resize() expands the canvas to its real CSS size).
+  if (state.imageWidth > 0 && state.imageHeight > 0
+      && (Number(state.view.cx) || 0) === 0
+      && (Number(state.view.cy) || 0) === 0
+      && Math.abs((Number(state.view.scale) || 1) - 1) < 1e-6
+      && typeof resetViewToFit === "function") {
+    resetViewToFit();
+  }
+
+  // Authoritative lost-state: prefer the sticky toolkit flag because
+  // gl.isContextLost() can flip back to false transiently in Edge while
+  // the GPU process is recovering, before webglcontextrestored actually
+  // fires. Trusting that transient false would cause GL commands to
+  // silently fail.
+  const toolkitSaysLost = !!(typeof window !== "undefined" && window.glToolkit && typeof window.glToolkit.isMainContextLost === "function" && window.glToolkit.isMainContextLost());
+  const glLost = hasGL && (toolkitSaysLost || (gl.isContextLost && gl.isContextLost()));
+
+  // Self-heal path: if the GL context was lost and is now restored but
+  // the rebuild listener didn't fire (timing/registration race), rebuild
+  // GL handles here before any draw call uses them. Without this, render
+  // would call useProgram/bindVertexArray on dead objects from the old
+  // context and emit a flood of "object does not belong to this context"
+  // errors, leaving the canvas blank.
+  if (hasGL && !glLost) {
+    let needsRebuild = typeof isMainGLNeedingRebuild === "function" && isMainGLNeedingRebuild();
+    // Belt and braces: even if the lost-flag wasn't set (e.g. the lost
+    // event was missed somehow), validate the program belongs to the
+    // current context. After a lost/restored cycle, the old program
+    // handle becomes invalid; gl.isProgram returns false for it.
+    if (!needsRebuild && program && typeof gl.isProgram === "function" && !gl.isProgram(program)) {
+      needsRebuild = true;
+    }
+    if (needsRebuild && typeof rebuildMainGLAfterRestore === "function") {
+      rebuildMainGLAfterRestore();
+    }
+  }
+
+  // While the GL context is lost (Edge GPU process under pressure, driver
+  // reset, etc.), the GL canvas can't be drawn to. Render slots into the
+  // backdrop 2D canvas (a separate DOM element below the GL canvas) so the
+  // user still sees their image instead of a blank stage. The GL canvas
+  // is hidden via the lost-event handler so the backdrop shows through.
+  if (glLost) {
+    if (backdropCtx) {
+      try {
+        // Clear backdrop every frame during the outage. drawBackdrop()'s
+        // signature cache won't necessarily clear it for us (the sig
+        // doesn't change while the user pans/moves), so without an
+        // explicit clear here, slot images smear across the canvas as
+        // they move. Re-paint the grid afterwards so the stage doesn't
+        // look empty.
+        backdropCtx.setTransform(1, 0, 0, 1, 0, 0);
+        backdropCtx.clearRect(0, 0, els.backdropCanvas.width, els.backdropCanvas.height);
+        if (typeof drawBackdropGridAndRuler === "function") {
+          drawBackdropGridAndRuler(backdropCtx, { drawGrid: true, drawRuler: true });
+        }
+        // First try the regular skinned/mesh path. If the slot is a mesh
+        // attachment with no bones (rigBones.length === 0), this still
+        // works -- buildSlotGeometry uses raw positions when boneCount=0.
+        const poseWorld = state.mesh ? getSolvedPoseWorld(state.mesh) : [];
+        renderSlots2DWithClipping(backdropCtx, slots, poseWorld);
+        // Belt-and-braces: a flat drawImage of every slot's attachment
+        // canvas at its rect, transformed to screen space via the slot's
+        // composite transform (so it lands where the GL path would put
+        // it). 50% alpha so the user knows it's the fallback view.
+        for (const s of slots) {
+          if (!s) continue;
+          const att = typeof getActiveAttachment === "function" ? getActiveAttachment(s) : null;
+          if (!att || !att.canvas) continue;
+          const rect = att.rect || s.rect;
+          if (!rect) {
+            // No rect -- draw at image origin to at least show something
+            const tl = localToScreen(0, 0);
+            const w = att.canvas.width;
+            const h = att.canvas.height;
+            if (w > 0 && h > 0) {
+              backdropCtx.save();
+              backdropCtx.globalAlpha = 0.5;
+              const scale = Math.max(1e-6, Number(state.view.scale) || 1);
+              backdropCtx.drawImage(att.canvas, tl.x, tl.y, w * scale, h * scale);
+              backdropCtx.restore();
+            }
+            continue;
+          }
+          try {
+            const x0 = Number(rect.x) || 0;
+            const y0 = Number(rect.y) || 0;
+            const rw = Number(rect.w) || att.canvas.width;
+            const rh = Number(rect.h) || att.canvas.height;
+            const tl = localToScreen(x0, y0);
+            const br = localToScreen(x0 + rw, y0 + rh);
+            const w = br.x - tl.x;
+            const h = br.y - tl.y;
+            if (w > 0 && h > 0) {
+              backdropCtx.save();
+              backdropCtx.globalAlpha = 0.5;
+              backdropCtx.drawImage(att.canvas, tl.x, tl.y, w, h);
+              backdropCtx.restore();
+            }
+          } catch { /* per-slot ignore */ }
+        }
+      } catch (err) {
+        console.warn("[render] gl-lost fallback draw failed", err);
+      }
+    }
+    drawOverlay();
+    // Force backdrop to redraw next frame (otherwise its sig-cache could
+    // skip the redraw and we'd lose the fallback content).
+    if (state.renderPerf) state.renderPerf.backdropSig = "";
+    // During the outage we still need responsive frame updates -- if the
+    // user is dragging or panning we want the fallback to follow without
+    // stutter. Use RAF-pacing (matches the keepalive loop), then a longer
+    // timeout poll as backstop in case neither RAF nor an event drives
+    // us once the user stops interacting.
+    if (shouldKeepRenderLoopAlive() || state.drag) {
+      requestRender("gl-lost-active");
+    } else {
+      setTimeout(() => requestRender("gl-lost-poll"), 250);
+    }
     return;
   }
 
@@ -380,8 +499,13 @@ function render(ts = 0) {
     if (state.mesh) {
       const poseWorld = getSolvedPoseWorld(state.mesh);
       const renderTime = typeof getCurrentRenderTime === "function" ? getCurrentRenderTime() : 0;
+      const _diag = window.__renderDiagOnce !== false;
+      let _slotsExamined = 0;
+      let _slotsDrawn = 0;
+      let _firstSkipReason = null;
       for (const slot of slots) {
         if (!slot) continue;
+        _slotsExamined += 1;
         ensureSlotClipState(slot);
         const activeAttachment = getActiveAttachment(slot);
         // 1) Clip-start slot: write the polygon to the stencil buffer
@@ -394,6 +518,7 @@ function render(ts = 0) {
               activeAttachment.clipEndSlotId ? String(activeAttachment.clipEndSlotId) : null
             );
           }
+          if (_diag && !_firstSkipReason) _firstSkipReason = "clip-start";
           continue;
         }
         const baseCanvas = (activeAttachment || {}).canvas;
@@ -405,19 +530,28 @@ function render(ts = 0) {
           && slot.id && String(slot.id) === _glStencilClip.endSlotId);
         if (!attachmentCanvas || !hasRenderableAttachment(slot)) {
           if (isClipEnd) endGLStencilClip();
+          if (_diag && !_firstSkipReason) _firstSkipReason = !attachmentCanvas ? "no-attachment-canvas" : "not-renderable";
           continue;
         }
         const texture = ensureGLTextureForCanvas(attachmentCanvas);
         if (!texture) {
           if (isClipEnd) endGLStencilClip();
+          if (_diag && !_firstSkipReason) _firstSkipReason = "no-texture";
           continue;
         }
         ensureSlotVisualState(slot);
         const geom = buildRenderableAttachmentGeometry(slot, poseWorld);
         if (!geom || !geom.interleaved || !geom.indices || geom.indices.length <= 0) {
           if (isClipEnd) endGLStencilClip();
+          if (_diag && !_firstSkipReason) {
+            if (!geom) _firstSkipReason = "geom-null";
+            else if (!geom.interleaved) _firstSkipReason = "no-interleaved";
+            else if (!geom.indices) _firstSkipReason = "no-indices";
+            else _firstSkipReason = "indices-empty";
+          }
           continue;
         }
+        _slotsDrawn += 1;
         gl.bufferData(gl.ARRAY_BUFFER, geom.interleaved, gl.DYNAMIC_DRAW);
         const drawIndices = geom.indices || state.mesh.indices;
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, drawIndices, gl.DYNAMIC_DRAW);
@@ -456,6 +590,59 @@ function render(ts = 0) {
       // tear it down so the next frame starts clean.
       if (_glStencilClip.active) endGLStencilClip();
       applyGLBlendMode("normal");
+      if (_diag) {
+        // Sample the screen-space bounds of the first drawn slot so we
+        // can tell whether "no image" really means "drawn off-screen".
+        let bbox = "n/a";
+        let canvasInfo = "n/a";
+        let alphaInfo = "n/a";
+        let pixelSample = "n/a";
+        try {
+          const s0 = slots && slots[0];
+          if (s0) {
+            const g = buildRenderableAttachmentGeometry(s0, poseWorld);
+            if (g && g.screen && g.screen.length >= 2) {
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              for (let i = 0; i < g.screen.length; i += 2) {
+                const x = g.screen[i], y = g.screen[i + 1];
+                if (x < minX) minX = x; if (x > maxX) maxX = x;
+                if (y < minY) minY = y; if (y > maxY) maxY = y;
+              }
+              bbox = `[${minX.toFixed(1)},${minY.toFixed(1)} -> ${maxX.toFixed(1)},${maxY.toFixed(1)}]`;
+            }
+            const att0 = getActiveAttachment(s0);
+            if (att0 && att0.canvas) {
+              canvasInfo = `${att0.canvas.width}x${att0.canvas.height}`;
+              // Read a center pixel to verify the canvas isn't blank
+              try {
+                const cv = att0.canvas;
+                const cx2d = cv.getContext && cv.getContext("2d", { willReadFrequently: true });
+                if (cx2d) {
+                  const cx = Math.floor(cv.width / 2);
+                  const cy = Math.floor(cv.height / 2);
+                  const data = cx2d.getImageData(cx, cy, 1, 1).data;
+                  pixelSample = `rgba(${data[0]},${data[1]},${data[2]},${data[3]})`;
+                }
+              } catch (e) { pixelSample = "read-failed:" + (e && e.message); }
+            }
+            alphaInfo = `slotAlpha=${Number(s0.alpha) || 1} blend=${s0.blend || "normal"} visible=${s0.visible !== false}`;
+          }
+        } catch { /* ignore */ }
+        const cw = els.glCanvas ? els.glCanvas.width : 0;
+        const ch = els.glCanvas ? els.glCanvas.height : 0;
+        // Read back a pixel from the GL canvas at the slot center to confirm
+        // whether GL really emitted color (vs a silent draw failure).
+        let glPixel = "n/a";
+        try {
+          if (gl && !gl.isContextLost()) {
+            const buf = new Uint8Array(4);
+            gl.readPixels(Math.floor(cw / 2), Math.floor(ch / 2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+            glPixel = `rgba(${buf[0]},${buf[1]},${buf[2]},${buf[3]})`;
+          }
+        } catch (e) { glPixel = "read-failed:" + (e && e.message); }
+        console.info(`[render-diag] examined=${_slotsExamined} drawn=${_slotsDrawn} firstSkip=${_firstSkipReason || "none"} rigBones=${state.mesh.rigBones.length} canvas=${cw}x${ch} slot0Screen=${bbox} viewScale=${(Number(state.view.scale) || 0).toFixed(3)} viewC=(${Math.round(state.view.cx)},${Math.round(state.view.cy)}) attCanvas=${canvasInfo} ${alphaInfo} attPixelCenter=${pixelSample} glPixelCenter=${glPixel}`);
+        window.__renderDiagOnce = false;
+      }
     }
   } else {
     // No-WebGL fallback: browser doesn't support WebGL at all. Draw

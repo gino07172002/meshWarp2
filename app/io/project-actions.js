@@ -879,6 +879,21 @@ async function handleProjectLoadInputChange(e) {
     // Without this, the Object tab's `disabled = !state.mesh` stays at its
     // pre-load value until the user clicks any other tab.
     if (typeof updateWorkspaceUI === "function") updateWorkspaceUI();
+    // Reset the viewport so the loaded image is centred and fit to the
+    // canvas. Without this, state.view can be stuck at (0,0) with
+    // scale=1 from before the load (e.g. when restoring from autosave),
+    // leaving the image drawn off-screen even though render() succeeded.
+    if (state.imageWidth > 0 && state.imageHeight > 0) {
+      if (typeof markStageResizeDirty === "function") markStageResizeDirty();
+      if (typeof resize === "function") resize(true);
+      const overlayW = els.overlay ? els.overlay.width : 0;
+      const overlayH = els.overlay ? els.overlay.height : 0;
+      console.info(`[load] before resetViewToFit: imageW=${state.imageWidth} imageH=${state.imageHeight} overlayW=${overlayW} overlayH=${overlayH}`);
+      if (typeof resetViewToFit === "function") resetViewToFit();
+      console.info(`[load] after resetViewToFit: viewC=(${Math.round(state.view.cx)},${Math.round(state.view.cy)}) viewScale=${(Number(state.view.scale) || 0).toFixed(3)}`);
+    } else {
+      console.warn(`[load] skipped resetViewToFit: imageW=${state.imageWidth} imageH=${state.imageHeight}`);
+    }
     const restoredWeightIssues = collectWeightedAttachmentIssues();
     if (restoredWeightIssues.length > 0) {
       console.warn("Weighted attachment restore issues:", restoredWeightIssues);

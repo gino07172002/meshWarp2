@@ -302,6 +302,12 @@
   // on lost and rebuild lazily on restored.
   const lostListeners = new Set();
   const restoredListeners = new Set();
+  // Sticky flag: true between webglcontextlost and webglcontextrestored.
+  // gl.isContextLost() can return false transiently in Edge while the GPU
+  // process is recovering, but we must NOT trust the context until the
+  // restored event fires (otherwise GL commands silently fail and the
+  // canvas goes blank). Renderers should consult this flag.
+  let mainContextLost = false;
 
   function onContextLost(fn) { if (typeof fn === "function") lostListeners.add(fn); }
   function offContextLost(fn) { lostListeners.delete(fn); }
@@ -320,6 +326,7 @@
       // Calling preventDefault tells the browser we'll restore the context.
       ev.preventDefault();
       console.warn(`[glToolkit:${label}] context lost`);
+      if (label === "main") mainContextLost = true;
       if (wrapper && typeof wrapper.resetCachedResources === "function") {
         wrapper.resetCachedResources();
       }
@@ -331,10 +338,25 @@
       if (label === "main" && typeof resetGLTextureCache === "function") {
         try { resetGLTextureCache(true); } catch { /* ignore */ }
       }
+      // Mark that the main render path's program/vbo/vao are now invalid.
+      // The next render will see this flag and call rebuildMainGLAfterRestore
+      // even if the explicit restored-listener wasn't registered in time.
+      if (label === "main" && typeof markMainGLNeedsRebuild === "function") {
+        markMainGLNeedsRebuild();
+      }
+      // Hide the GL canvas while it's lost so the backdrop fallback below
+      // (in render()) can be seen through. Otherwise the GL canvas keeps
+      // showing its last frame -- and if that frame is opaque (e.g. an
+      // implementation-specific lost-state fill), the user sees a blank
+      // black/white rectangle instead of the 2D fallback.
+      if (canvas && canvas.style) canvas.style.visibility = "hidden";
       dispatch(lostListeners, label);
     }, false);
     canvas.addEventListener("webglcontextrestored", () => {
       console.info(`[glToolkit:${label}] context restored`);
+      if (label === "main") mainContextLost = false;
+      // Make the GL canvas visible again now that it can be drawn to.
+      if (canvas && canvas.style) canvas.style.visibility = "";
       dispatch(restoredListeners, label);
       // Trigger a render so the screen comes back without user input.
       if (typeof window !== "undefined" && typeof window.requestRender === "function") {
@@ -359,6 +381,7 @@
     offContextLost,
     onContextRestored,
     offContextRestored,
+    isMainContextLost: () => mainContextLost,
     report() {
       const out = {};
       if (mainWrapper) out.main = mainWrapper.report();
