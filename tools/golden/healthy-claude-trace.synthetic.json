@@ -1,0 +1,33 @@
+{
+  "_comment": "Synthetic minimal trace representing the healthy workspaceTabObject path: pointerdown then pointerup THEN click, with disabled=false in DOM probe. Used as the negative control for fingerprint regression — if this ever matches the dead-end pattern, the detector has gone too eager.",
+  "version": 1,
+  "session": {
+    "id": "synthetic-healthy",
+    "targetName": "claude",
+    "proxyUrl": "synthetic://"
+  },
+  "events": [
+    {"type":"pointerdown","time":1000,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":400,"y":22,"button":0}},
+    {"type":"pointerup","time":1080,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":400,"y":22,"button":0}},
+    {"type":"click","time":1081,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":400,"y":22,"button":0}}
+  ],
+  "snapshots": [
+    {
+      "time": 900,
+      "reason": "capture:start",
+      "passive": {
+        "dom": {
+          "value": {
+            "elements": [
+              {"selector":"#workspaceTabObject","tag":"button","disabled":false,"classes":["ws-type-btn"]}
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "console": [],
+  "errors": [],
+  "screenshots": [],
+  "replay": null
+}

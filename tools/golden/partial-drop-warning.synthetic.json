@@ -1,0 +1,26 @@
+{
+  "_comment": "Synthetic minimal trace replicating the partial-drop pattern (4 pointerdowns, 4 pointerups, only 2 clicks fired). This is the early-warning shape of the disabled-button bug class — same root cause, less extreme. Real-world example: harness trace 20260501T024533859151Z.json had #workspaceTabObject 4/4/2.",
+  "version": 1,
+  "session": {
+    "id": "synthetic-partial-drop",
+    "targetName": "claude",
+    "proxyUrl": "synthetic://"
+  },
+  "events": [
+    {"type":"pointerdown","time":1000,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":400,"y":22,"button":0}},
+    {"type":"pointerup","time":1080,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":400,"y":22,"button":0}},
+    {"type":"click","time":1081,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":400,"y":22,"button":0}},
+    {"type":"pointerdown","time":1200,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":401,"y":22,"button":0}},
+    {"type":"pointerup","time":1280,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":401,"y":22,"button":0}},
+    {"type":"pointerdown","time":1400,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":402,"y":22,"button":0}},
+    {"type":"pointerup","time":1480,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":402,"y":22,"button":0}},
+    {"type":"pointerdown","time":1600,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":403,"y":22,"button":0}},
+    {"type":"pointerup","time":1680,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":403,"y":22,"button":0}},
+    {"type":"click","time":1681,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":403,"y":22,"button":0}}
+  ],
+  "snapshots": [],
+  "console": [],
+  "errors": [],
+  "screenshots": [],
+  "replay": null
+}

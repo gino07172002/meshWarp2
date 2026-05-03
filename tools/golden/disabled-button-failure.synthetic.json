@@ -1,0 +1,49 @@
+{
+  "_comment": "Synthetic minimal trace replicating the workspaceTabObject failure mode (pointerdown 6 / pointerup 6 / click 0 on a disabled tab). Hand-written to be small enough for git; the live d:\\harness trace 20260501T060902560215Z.json is the original. Do not reformat or extend without updating disabled-button-failure.fingerprint.json.",
+  "version": 1,
+  "session": {
+    "id": "synthetic-disabled-button",
+    "targetName": "claude",
+    "proxyUrl": "synthetic://"
+  },
+  "events": [
+    {"type":"pointerdown","time":1000,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":400,"y":22,"button":0}},
+    {"type":"pointerup","time":1080,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":400,"y":22,"button":0}},
+    {"type":"pointerdown","time":1200,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":401,"y":22,"button":0}},
+    {"type":"pointerup","time":1280,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":401,"y":22,"button":0}},
+    {"type":"pointerdown","time":1400,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":402,"y":22,"button":0}},
+    {"type":"pointerup","time":1480,"target":{"id":"workspaceTabObject","selectorHint":"#workspaceTabObject"},"pointer":{"x":402,"y":22,"button":0}}
+  ],
+  "snapshots": [
+    {
+      "time": 900,
+      "reason": "capture:start",
+      "passive": {
+        "dom": {
+          "value": {
+            "elements": [
+              {"selector":"#workspaceTabObject","tag":"button","disabled":true,"classes":["ws-type-btn"]}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "time": 1500,
+      "reason": "after:pointerup",
+      "passive": {
+        "dom": {
+          "value": {
+            "elements": [
+              {"selector":"#workspaceTabObject","tag":"button","disabled":true,"classes":["ws-type-btn"]}
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "console": [],
+  "errors": [],
+  "screenshots": [],
+  "replay": null
+}

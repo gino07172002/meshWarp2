@@ -1,0 +1,15 @@
+{
+  "_comment": "Negative-control fingerprint: the healthy trace must NOT trip the dead-end detector and #workspaceTabObject must be probed as enabled.",
+  "trace": "tools/golden/healthy-claude-trace.synthetic.json",
+  "expect": {
+    "deadEndClicks": [],
+    "domStateAtCapture": [
+      {
+        "selector": "#workspaceTabObject",
+        "field": "disabled",
+        "value": false
+      }
+    ]
+  },
+  "rationale": "Without a known-healthy fixture, the failure fingerprint alone can't prove the detector isn't over-eager. If this fingerprint starts failing, our dead-end detection has become too aggressive and would false-positive on real recordings."
+}

@@ -1,0 +1,17 @@
+{
+  "_comment": "Fingerprint for the partial-drop click pattern (early-warning shape of the disabled-button bug class). Asserts trace-inspect --partial-drops still recognizes 4/4/2-style drops on this fixture. Note: the fixture deliberately does NOT trigger --dead-end-clicks (click > 0), so this fingerprint also serves as a negative control for that detector.",
+  "trace": "tools/golden/partial-drop-warning.synthetic.json",
+  "expect": {
+    "deadEndClicks": [],
+    "partialDrops": [
+      {
+        "selector": "#workspaceTabObject",
+        "pointerdownAtLeast": 4,
+        "pointerupAtLeast": 4,
+        "clickExactly": 2,
+        "droppedAtLeast": 2
+      }
+    ]
+  },
+  "rationale": "Partial drops are the early-warning version of dead-end clicks. If this fingerprint stops matching, our detector either over-tightened (filtered out a legitimate partial-drop pattern) or missed the case entirely."
+}

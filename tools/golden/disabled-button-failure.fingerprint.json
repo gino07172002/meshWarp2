@@ -1,0 +1,22 @@
+{
+  "_comment": "Fingerprint for the workspaceTabObject failure trace pattern. Asserts that trace-inspect.js still recognizes the dead-end click signature (pointerdown/up >= 3, click = 0) on the disabled tab. If this stops matching, either the synthetic trace was edited without updating this fingerprint, or trace-inspect.js's detection regressed.",
+  "trace": "tools/golden/disabled-button-failure.synthetic.json",
+  "expect": {
+    "deadEndClicks": [
+      {
+        "selector": "#workspaceTabObject",
+        "pointerdownAtLeast": 3,
+        "pointerupAtLeast": 3,
+        "clickExactly": 0
+      }
+    ],
+    "domStateAtCapture": [
+      {
+        "selector": "#workspaceTabObject",
+        "field": "disabled",
+        "value": true
+      }
+    ]
+  },
+  "rationale": "This fingerprint locks in the failure-trace shape that motivated the wave-1 tooling. If a future change makes trace-inspect.js stop reporting dead-end clicks on this fixture, that's a regression in our diagnostic ability, not a bug in the trace."
+}
