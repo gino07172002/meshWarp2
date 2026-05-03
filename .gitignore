@@ -13,3 +13,6 @@ warrior_*/
 *.webm
 codex-smoke-*.png
 warrior-*.png
+
+# Harness-engineering tool artifacts (tools/run-checks --runlog, etc.)
+runs/
