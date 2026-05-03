@@ -37,6 +37,12 @@
     el.dispatchEvent(ev);
   }
 
+  // Per-recipe scratchpad. Set by runRecipe before calling execStep / execVerify
+  // and reset at the start of each recipe. Recipes can stash values across
+  // lines via `set:NAME=expr` and read them back as `scratch.NAME` in any
+  // later step or verify expression.
+  let currentScratch = Object.create(null);
+
   async function execStep(step) {
     const m = String(step).match(/^(\w+):(.*)$/);
     if (!m) throw new Error(`bad step: ${step}`);
@@ -93,15 +99,28 @@
         return;
       }
       case "call": {
-        // arg is a JS expression like "myFn(1,2)" — evaluate in current scope.
-        // eslint-disable-next-line no-new-func
-        const f = new Function(`return (${arg});`);
-        f();
+        // arg is a JS expression like "myFn(1,2)" — evaluate in the recipe's
+        // scratch scope so it can read/write scratch.X.
+        evalExpression(arg);
+        return;
+      }
+      case "set": {
+        // Format: "NAME=expr". Evaluates expr in scratch scope and stashes
+        // the result as scratch[NAME]. Lets a recipe record a "before" value
+        // and reference it from a later verify line as `scratch.NAME`.
+        const eq = arg.indexOf("=");
+        if (eq < 0) throw new Error(`set step needs NAME=expr, got: ${arg}`);
+        const name = arg.slice(0, eq).trim();
+        const expr = arg.slice(eq + 1).trim();
+        if (!/^[A-Za-z_][\w]*$/.test(name)) throw new Error(`set: NAME must be an identifier, got "${name}"`);
+        currentScratch[name] = evalExpression(expr);
         return;
       }
       case "pointer": {
         // Format: "overlay@x,y" or "overlay@x,y:drag@x2,y2"
         // Synthesises pointerdown/move/up on #overlay with coordinates in CSS px.
+        // x/y can be literal numbers OR cx/cy (overlay center) with optional
+        // +N / -N offsets, e.g. "overlay@cx,cy:drag@cx+50,cy".
         return execPointerStep(arg);
       }
       default:
@@ -109,15 +128,39 @@
     }
   }
 
+  // Resolve one pointer-step coordinate token. Accepts:
+  //   "120"        → 120
+  //   "-15.5"      → -15.5
+  //   "cx" / "cy"  → overlay center (in overlay-local CSS px)
+  //   "cx+50"      → overlay center + 50
+  //   "cy-30"      → overlay center - 30
+  // Offsets are integer or decimal; only one +/- term allowed.
+  function resolvePointerCoord(token, axis, overlay) {
+    const t = String(token).trim();
+    if (/^-?\d+(?:\.\d+)?$/.test(t)) return Number(t);
+    const rect = overlay.getBoundingClientRect();
+    const center = axis === "x" ? rect.width / 2 : rect.height / 2;
+    const m = t.match(/^c([xy])\s*(?:([+-])\s*(\d+(?:\.\d+)?))?$/);
+    if (!m) throw new Error(`bad pointer coord "${token}" (expected number, cx, cy, cx+N, cy-N)`);
+    if (m[1] !== axis) throw new Error(`pointer coord "${token}" used for ${axis} axis but names c${m[1]}`);
+    if (!m[2]) return center;
+    const off = Number(m[3]);
+    return m[2] === "+" ? center + off : center - off;
+  }
+
   async function execPointerStep(arg) {
     // arg = "overlay@x,y"  or  "overlay@x,y:drag@x2,y2"
+    // x/y tokens may be: literal number, "cx", "cy", or "cx±N" / "cy±N".
     const overlay = document.getElementById("overlay");
     if (!overlay) throw new Error("#overlay not found");
-    const m1 = arg.match(/^overlay@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)(?::drag@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?))?$/);
+    // Split into landing point and optional drag target. Coords are still
+    // tokenized by the resolver, so we just pull out comma-separated halves.
+    const m1 = arg.match(/^overlay@([^,]+),\s*([^:]+?)(?::drag@([^,]+),\s*(.+?))?$/);
     if (!m1) throw new Error(`bad pointer step: ${arg}`);
-    const x0 = Number(m1[1]); const y0 = Number(m1[2]);
-    const x1 = m1[3] != null ? Number(m1[3]) : null;
-    const y1 = m1[4] != null ? Number(m1[4]) : null;
+    const x0 = resolvePointerCoord(m1[1], "x", overlay);
+    const y0 = resolvePointerCoord(m1[2], "y", overlay);
+    const x1 = m1[3] != null ? resolvePointerCoord(m1[3], "x", overlay) : null;
+    const y1 = m1[4] != null ? resolvePointerCoord(m1[4], "y", overlay) : null;
     const rect = overlay.getBoundingClientRect();
     const toClient = (x, y) => ({ clientX: rect.left + x, clientY: rect.top + y });
     const pointerId = 9999; // arbitrary synthetic id
@@ -149,8 +192,14 @@
   }
 
   function evalExpression(expr) {
+    // `scratch` is exposed as a local so `set:NAME=expr` and later
+    // `function_returns \`scratch.NAME\`` lines can talk to each other
+    // across recipe lines (each line otherwise evaluates in its own
+    // function scope and can't see local variables from earlier lines).
+    // The script-level `state` / `els` consts are still reachable as
+    // identifiers because new Function()'s body runs in global scope.
     // eslint-disable-next-line no-new-func
-    return new Function(`return (${expr});`)();
+    return new Function("scratch", `return (${expr});`)(currentScratch);
   }
 
   function execVerify(v) {
@@ -162,8 +211,8 @@
     const txt = String(v).trim();
     const stripBackticks = (s) => s.trim().replace(/^`|`$/g, "").trim();
     let kind, target, op, expected;
-    // Try "X Y contains Z"
-    let m = txt.match(/^`?(\w+)`?\s+`?([^`]+?)`?\s+(contains)\s+`?(.+?)`?$/);
+    // Try "X Y contains Z" (and "has Z" for dom_class — it accepts has).
+    let m = txt.match(/^`?(\w+)`?\s+`?([^`]+?)`?\s+(contains|has)\s+`?(.+?)`?$/);
     if (m) { kind = m[1]; target = stripBackticks(m[2]); op = m[3]; expected = stripBackticks(m[4]); }
     if (!m) {
       m = txt.match(/^`?(\w+)`?\s+`?([^`]+?)`?\s+(==)\s+`?(.+?)`?$/);
@@ -175,6 +224,17 @@
       if (m) { kind = m[1]; target = stripBackticks(m[2]); op = "exists"; expected = "true"; }
     }
     if (!m) return { ok: false, reason: `unparseable verify: ${txt}` };
+    // Spec authors often write `contains \`"ON"\`` or `has \`"active"\`` with
+    // double-quotes around the literal for emphasis. Strip a single matching
+    // pair of surrounding quotes off `expected` before any compare runs.
+    const stripQuotes = (s) => {
+      if (typeof s !== "string") return s;
+      const t = s.trim();
+      if (t.length >= 2 && ((t[0] === '"' && t[t.length - 1] === '"') || (t[0] === "'" && t[t.length - 1] === "'"))) {
+        return t.slice(1, -1);
+      }
+      return s;
+    };
     let actual;
     try {
       switch (kind) {
@@ -190,7 +250,8 @@
         case "dom_class": {
           actual = (document.querySelector(target) || { classList: { contains: () => false } }).classList;
           if (op === "contains" || op === "has") {
-            return actual.contains(expected) ? { ok: true } : { ok: false, reason: `class "${expected}" not on ${target}` };
+            const wanted = stripQuotes(expected);
+            return actual.contains(wanted) ? { ok: true } : { ok: false, reason: `class "${wanted}" not on ${target}` };
           }
           return { ok: false, reason: `dom_class needs "contains" / "has" op` };
         }
@@ -218,14 +279,18 @@
       return { ok: false, reason: `eval threw: ${err.message}` };
     }
     if (op === "contains") {
-      const ok = String(actual).indexOf(expected) >= 0;
-      return ok ? { ok: true } : { ok: false, reason: `actual="${actual}" does not contain "${expected}"` };
+      const wanted = stripQuotes(expected);
+      const ok = String(actual).indexOf(wanted) >= 0;
+      return ok ? { ok: true } : { ok: false, reason: `actual="${actual}" does not contain "${wanted}"` };
     }
     if (op === "==") {
       // Compare loose equality after JSON-ifying expected for primitives.
+      // JSON.parse("\"foo\"") → "foo", JSON.parse("42") → 42, JSON.parse("true") → true.
+      // For barewords like `mode` JSON.parse throws and we fall back to a
+      // (quote-stripped) string compare.
       let cmp;
       try { cmp = JSON.parse(expected); }
-      catch { cmp = expected; }
+      catch { cmp = stripQuotes(expected); }
       const ok = actual === cmp || String(actual) === String(cmp);
       return ok ? { ok: true } : { ok: false, reason: `actual=${JSON.stringify(actual)} expected=${JSON.stringify(cmp)}` };
     }
@@ -242,13 +307,18 @@
       result.skipped = "manual_only";
       return result;
     }
+    // Each recipe gets a fresh scratch object so values don't bleed across.
+    currentScratch = Object.create(null);
     try {
-      // Steps: arrays of strings, may include "1." prefixes already stripped by parser
+      // Steps: arrays of strings, may include "1." prefixes already stripped
+      // by parser. Spec authors often write `click:#foo` with markdown
+      // backticks, so strip those before classifying.
       const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
-      for (const s of steps) {
+      for (const sRaw of steps) {
+        const s = String(sRaw).trim().replace(/^`+|`+$/g, "").trim();
         // Skip prose lines that don't match step DSL (allow plain English steps to be no-ops in phase 1)
         if (!/^[a-z_]+:/.test(s)) {
-          result.errors.push(`SKIPPED (prose only): ${s.slice(0, 80)}`);
+          result.errors.push(`SKIPPED (prose only): ${sRaw.slice(0, 80)}`);
           continue;
         }
         await execStep(s);

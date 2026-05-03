@@ -112,6 +112,7 @@ Steps use:
 - **impl**: app/workspace/slots.js buildAutoForegroundContourForSlot; UI #slotMeshAutoForegroundBtn
 - **ui_path**: Mesh tab → Generate
 - **prereqs**: image loaded, slot active with non-empty canvas
+- **fixture**: mesh-default
 - **steps**:
   1. `click:#slotMeshAutoForegroundBtn`
 - **verify**:
@@ -123,22 +124,24 @@ Steps use:
 - **impl**: app/workspace/slots.js opts param
 - **ui_path**: Mesh tab → Generate → Advanced
 - **prereqs**: same as above
+- **fixture**: mesh-default
 - **steps**:
   1. `set_value:#autoFgAlphaThreshold=8`
   2. `set_value:#autoFgPadding=0`
   3. `set_value:#autoFgDetail=0.5`
   4. `click:#slotMeshAutoForegroundBtn`
-  5. record contour length as L1
+  5. `set:L1=ensureSlotContour(getActiveSlot()).points.length`
   6. `set_value:#autoFgDetail=4`
   7. `click:#slotMeshAutoForegroundBtn`
-  8. record contour length as L2
+  8. `set:L2=ensureSlotContour(getActiveSlot()).points.length`
 - **verify**:
-  - `function_returns` `L2 > L1` == `true` (higher detail → more points)
+  - `function_returns` `scratch.L2 > scratch.L1` == `true` (higher detail → more points)
 
 ### mesh-reset-to-grid
 - **summary**: Reset To Grid replaces contour with a 4-corner rect.
 - **impl**: app/workspace/slots.js resetSlotMeshToGrid
 - **ui_path**: Mesh tab → Generate
+- **fixture**: mesh-default
 - **steps**:
   1. `click:#slotMeshResetBtn`
 - **verify**:
@@ -148,18 +151,22 @@ Steps use:
 - **summary**: P pins selected vertices; U unpins all.
 - **impl**: app/ui/hotkeys.js (mesh editMode P/U)
 - **prereqs**: mesh with selected vertices
+- **fixture**: mesh-edit-mode
 - **steps**:
-  1. select a vertex
+  1. `call:setActiveVertexSelection([0])`
   2. `key:p`
-  3. `key:u`
+  3. `set:pinnedAfterP=getActivePinnedVertexSet().size`
+  4. `key:u`
+  5. `set:pinnedAfterU=getActivePinnedVertexSet().size`
 - **verify**:
-  - after step 2: pinned set has 1 vertex
-  - after step 3: pinned set is empty
+  - `function_returns` `scratch.pinnedAfterP` == `1`
+  - `function_returns` `scratch.pinnedAfterU` == `0`
 
 ### mesh-relax
 - **summary**: M relaxes selected vertices toward neighbour average.
 - **impl**: app/core/runtime.js relaxSelectedVertices
 - **prereqs**: mesh with deformed selected vertex
+- **fixture**: mesh-default
 - **steps**:
   1. note vertex offset
   2. `key:m`
@@ -170,11 +177,13 @@ Steps use:
 - **summary**: Del / X removes selected vertex from contour.
 - **impl**: app/ui/hotkeys.js (slot-mesh edit X/Delete)
 - **prereqs**: mesh with selected vertex
+- **fixture**: mesh-edit-mode
 - **steps**:
-  1. record `vCount` before
-  2. `key:Delete`
+  1. `call:setActiveVertexSelection([0])`
+  2. `set:vCountBefore=ensureSlotContour(getActiveSlot()).points.length`
+  3. `key:Delete`
 - **verify**:
-  - `vCountAfter === vCountBefore - 1`
+  - `function_returns` `ensureSlotContour(getActiveSlot()).points.length === scratch.vCountBefore - 1` == `true`
 
 ---
 
@@ -184,24 +193,26 @@ Steps use:
 - **summary**: Subdivide adds a centroid vertex inside each triangle whose 3 verts are all selected.
 - **impl**: app/workspace/slots.js subdivideSelectedTriangles
 - **prereqs**: a triangulated mesh with ≥1 triangle, all 3 of its verts in active selection
+- **fixture**: mesh-edit-mode
 - **steps**:
-  1. record fillPoints.length as N
-  2. select 3 vertices forming an existing triangle
+  1. `set:fillBefore=ensureSlotContour(getActiveSlot()).fillPoints.length`
+  2. `call:(()=>{const s=getActiveSlot();const c=ensureSlotContour(s);const tri=c.triangles&&c.triangles[0]?c.triangles[0]:[0,1,2];setActiveVertexSelection(tri);})()`
   3. `click:#slotMeshSubdivideBtn`
 - **verify**:
-  - fillPoints.length === N + 1 (one centroid added)
-  - status text mentions "Subdivided 1 triangle(s)"
+  - `function_returns` `ensureSlotContour(getActiveSlot()).fillPoints.length === scratch.fillBefore + 1` == `true`
+  - `dom_text` `#status` contains `"Subdivided"`
 
 ### mesh-add-centroid
 - **summary**: Add Centroid creates 1 fill vertex at the centroid of the selection.
 - **impl**: app/workspace/slots.js addCentroidVertex
 - **prereqs**: ≥1 vertex selected
+- **fixture**: mesh-edit-mode
 - **steps**:
-  1. select 4 vertices
-  2. `click:#slotMeshAddCentroidBtn`
+  1. `set:fillBefore=ensureSlotContour(getActiveSlot()).fillPoints.length`
+  2. `call:setActiveVertexSelection([0,1,2,3])`
+  3. `click:#slotMeshAddCentroidBtn`
 - **verify**:
-  - fillPoints.length grew by 1
-  - the new point's (x,y) ≈ average of selected vertex positions
+  - `function_returns` `ensureSlotContour(getActiveSlot()).fillPoints.length === scratch.fillBefore + 1` == `true`
 
 ### mesh-generate-by-area
 - **summary**: Generate Vertices iteratively splits triangles whose area exceeds (areaRatio × bounding-box area) until none remain or maxIters hit.
@@ -220,6 +231,7 @@ Steps use:
 - **summary**: Flip Edge swaps the diagonal of a quad formed by 2 triangles.
 - **impl**: app/workspace/slots.js flipSelectedEdge
 - **prereqs**: select exactly 2 verts forming a shared edge of 2 triangles
+- **fixture**: mesh-default
 - **steps**:
   1. select the 2 vertices of an internal edge
   2. `click:#slotMeshFlipEdgeBtn`
@@ -234,6 +246,7 @@ Steps use:
 - **impl**: app/core/bones.js autoWeightActiveSlot("weighted")
 - **ui_path**: Setup tab → Auto Weight
 - **prereqs**: bones rigged, slot with mesh
+- **fixture**: mesh-with-weights
 - **steps**:
   1. `click:#setupAutoWeightMultiBtn`
 - **verify**:
@@ -243,6 +256,7 @@ Steps use:
 ### weight-overlay-quick-toggle
 - **summary**: Mesh tab top-right pill toggles Weight Overlay.
 - **impl**: app/ui/bootstrap.js setupWeightOverlayQuickToggle
+- **fixture**: mesh-default
 - **ui_path**: Mesh tab top
 - **steps**:
   1. `click:#weightOverlayQuickBtn`
@@ -255,6 +269,7 @@ Steps use:
 - **summary**: W toggles brush; auto-enables overlay when first turned on.
 - **impl**: app/render/weight-brush.js setWeightBrushActive; app/ui/hotkeys.js W
 - **prereqs**: mesh mode, weighted bind
+- **fixture**: mesh-default
 - **steps**:
   1. record `vertexDeform.weightViz` before as B
   2. `key:w`
@@ -267,6 +282,7 @@ Steps use:
 ### weight-brush-modes
 - **summary**: Add/Remove/Replace/Smooth buttons set mode and recolor cursor.
 - **impl**: app/render/weight-brush.js setWeightBrushMode
+- **fixture**: mesh-with-bones
 - **ui_path**: Mesh tab → Weight Paint
 - **steps** (for each mode in [add, remove, replace, smooth]):
   1. ensure brush on
@@ -278,17 +294,20 @@ Steps use:
 - **summary**: Dragging on canvas with brush ON modifies weights of selected bone.
 - **impl**: app/render/weight-brush.js applyWeightBrushStrokeAt; app/ui/hotkeys.js pointerdown intercept
 - **prereqs**: brush on, weighted bind, a bone selected
+- **fixture**: mesh-with-weights
 - **steps**:
-  1. record `attachment.meshData.weights[v*boneCount+selectedBone]` for some vertex `v` near canvas centre
-  2. `pointer:overlay@cx,cy:drag@cx+50,cy`
+  1. `set:weightsBefore=Array.from(getActiveAttachment(getActiveSlot()).meshData.weights)`
+  2. `set:undoBefore=state.history.undo.length`
+  3. `pointer:overlay@cx,cy:drag@cx+50,cy`
 - **verify**:
-  - `function_returns` `weightsAfter !== weightsBefore` == `true`
-  - undo stack pushed (history.undo length increased)
+  - `function_returns` `JSON.stringify(getActiveAttachment(getActiveSlot()).meshData.weights) !== JSON.stringify(scratch.weightsBefore)` == `true`
+  - `function_returns` `state.history.undo.length > scratch.undoBefore` == `true`
 
 ### weight-bone-lock
 - **summary**: Brush bone-lock toggle prevents weld/swap/brush from modifying that bone's weights.
 - **impl**: app/render/weight-brush.js toggleBrushBoneLock; renormalize respects lockedBones
 - **prereqs**: brush on, root bone in tree
+- **fixture**: mesh-with-weights
 - **steps**:
   1. find a bone tree row with `[data-bone-lock-toggle]`
   2. click that lock button
@@ -300,19 +319,24 @@ Steps use:
 - **summary**: Ctrl+C copies vertex weights, Ctrl+V pastes to selected verts.
 - **impl**: app/core/bones.js copy/pasteVertexWeightsFromClipboard; hotkeys.js Ctrl+C/V mesh path
 - **prereqs**: mesh weighted, in mesh mode, two vertices with different weights
+- **fixture**: mesh-with-weights
 - **steps**:
-  1. select vertex A
-  2. `key:ctrl+c`
-  3. select vertex B
-  4. `key:ctrl+v`
+  1. `call:(()=>{state.editMode="mesh";state.leftToolTab="slotmesh";if(typeof updateWorkspaceUI==="function")updateWorkspaceUI();})()`
+  2. `set:bc=getActiveAttachment(getActiveSlot()).meshData.weights.length / ensureSlotContour(getActiveSlot()).points.length`
+  3. `set:rowA=Array.from(getActiveAttachment(getActiveSlot()).meshData.weights.slice(0, scratch.bc))`
+  4. `call:setActiveVertexSelection([0])`
+  5. `key:ctrl+c`
+  6. `call:setActiveVertexSelection([Math.max(1, Math.floor(ensureSlotContour(getActiveSlot()).points.length / 2))])`
+  7. `key:ctrl+v`
 - **verify**:
-  - vertex B's weight row equals vertex A's weight row (sample first/last bone)
+  - `function_returns` `(()=>{const w=getActiveAttachment(getActiveSlot()).meshData.weights;const bi=Math.max(1,Math.floor(ensureSlotContour(getActiveSlot()).points.length/2));const rowB=Array.from(w.slice(bi*scratch.bc,(bi+1)*scratch.bc));return JSON.stringify(rowB)===JSON.stringify(scratch.rowA);})()` == `true`
 
 ### weight-prune
 - **summary**: Prune Apply zeros weights below threshold and renormalises.
 - **impl**: app/core/bones.js pruneVertexWeights
 - **ui_path**: Mesh tab → Weights → Prune
 - **prereqs**: weighted bind with some small weights present
+- **fixture**: mesh-with-weights
 - **steps**:
   1. `set_value:#weightPruneThreshold=0.1`
   2. `click:#weightPrunePreviewBtn`
@@ -327,6 +351,7 @@ Steps use:
 - **impl**: app/core/bones.js weldBoneWeights
 - **ui_path**: Mesh tab → Weights → Weld / Swap
 - **prereqs**: weighted bind, ≥2 bones
+- **fixture**: mesh-with-weights
 - **steps**:
   1. `select_option:#weightWeldFromBone=0`
   2. `select_option:#weightWeldToBone=1`
@@ -339,6 +364,7 @@ Steps use:
 ### weight-swap
 - **summary**: Swap exchanges two bones' weight columns.
 - **impl**: app/core/bones.js swapBoneWeights
+- **fixture**: mesh-with-weights
 - **steps**:
   1. record bone-0 row and bone-1 row for vertex 0
   2. `click:#weightSwapApplyBtn`
@@ -367,8 +393,12 @@ Steps use:
 - **summary**: Linked mesh attachment created from sibling resolves source.
 - **impl**: app/workspace/slots.js resolveLinkedMeshSource
 - **prereqs**: two slots, slot A has mesh, slot B has linkedmesh attachment with linkedParent set
+- **fixture**: two-slots-linkedmesh
+- **steps**:
+  1. `set:slotB=state.slots[1]`
+  2. `set:attB=getActiveAttachment(state.slots[1])`
 - **verify**:
-  - `function_returns` `(resolveLinkedMeshSource(slotB, attB) !== null)` == `true`
+  - `function_returns` `resolveLinkedMeshSource(scratch.slotB, scratch.attB) !== null` == `true`
 
 ### linkedmesh-inherit-timelines-on
 - **summary**: When inheritTimelines=true, deform key on source plays on linked target.
@@ -476,6 +506,7 @@ Steps use:
 - **summary**: A bone listed in skin A's bones[] is hidden when skin B (not owning it) is active.
 - **impl**: app/core/bones.js isBoneHiddenBySkin / isBoneHiddenBySkinDirect; isBoneVisibleInWorkspace integration
 - **prereqs**: ≥2 skins; skin A.bones = [3]; skin B.bones = []
+- **fixture**: mesh-with-bones
 - **steps**:
   1. apply skin B
   2. call `isBoneHiddenBySkin(state.mesh, 3)` 
@@ -654,8 +685,9 @@ Steps use:
 - **impl**: app/core/bones.js (b.color field); app/render/constraints.js userBoneTint branch
 - **ui_path**: Right Properties → Selected Bone → Bone Color
 - **prereqs**: ≥1 bone, edit mode
+- **fixture**: mesh-with-bones
 - **steps**:
-  1. select bone 0
+  1. `call:state.selectedBone=0`
   2. `set_value:#boneColor=#ff8800`
 - **verify**:
   - `state_path` `state.mesh.rigBones[0].color` == `"#ff8800"`
@@ -664,6 +696,7 @@ Steps use:
 ### bone-color-clear
 - **summary**: × button clears the bone color.
 - **impl**: app/ui/constraint-panels.js boneColorClearBtn handler
+- **fixture**: mesh-with-bones
 - **steps**:
   1. set color to a value
   2. `click:#boneColorClearBtn`
@@ -723,6 +756,7 @@ Steps use:
 - **summary**: weight-heatmap-v1 program compiles on overlay context.
 - **impl**: app/render/weight-heatmap-gpu.js
 - **prereqs**: weighted mesh, overlay on
+- **fixture**: render-warmed
 - **verify**:
   - `function_returns` `glToolkit.overlay()._programs.has("weight-heatmap-v1")` == `true` after first render
 
@@ -912,6 +946,7 @@ Steps use:
 - **summary**: After several render frames, debug.timing() reports a samples count > 0 and an avg.total > 0.
 - **impl**: app/render/canvas.js recordRenderTiming + render() bracketing; app/core/debug.js timing()
 - **prereqs**: project loaded with at least one slot; a few rAF ticks elapsed
+- **fixture**: render-warmed
 - **steps**:
   1. (no-op — timing is rolled by the running render loop)
 - **verify**:
@@ -1132,6 +1167,7 @@ Steps use:
 - **summary**: When peaks are ready, the events lane in the timeline contains an `.track-waveform` SVG positioned at the event's time, sized by audio duration.
 - **impl**: app/animation/timeline-ui.js renderTimelineTracks() event-track branch; renderWaveformSvg in runtime.js
 - **prereqs**: ready peaks for the active event keyframe's audio URL
+- **fixture**: render-warmed
 - **steps**:
   1. trigger `renderTimelineTracks()`
 - **verify**:

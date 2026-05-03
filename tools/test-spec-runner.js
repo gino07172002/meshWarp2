@@ -24,6 +24,7 @@ const FIELD_KEYS = new Set([
   "impl",
   "ui_path",
   "prereqs",
+  "fixture",
   "steps",
   "verify",
   "cleanup",
