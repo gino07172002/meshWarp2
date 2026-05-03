@@ -11,6 +11,7 @@ const checks = [
   'src="app/core/runtime-ai-capture.js?v=',
   'src="app/core/runtime-pose-autorig.js?v=',
   'src="app/core/debug.js?v=',
+  'src="app/core/runtime-ai-bridge.js?v=',
   'src="app/core/bones.js?v=',
   'src="app/core/bones-tree-ui.js?v=',
   'src="app/workspace/workspace.js?v=',
