@@ -100,6 +100,28 @@ function setupWorkspaceTabs() {
     els.workspaceTabObject.addEventListener("click", () => applyWorkspace("object", getCurrentWsMode()));
   }
 
+  // Self-healing fallback for the "disabled tab swallows click" failure mode:
+  // disabled <button> elements still receive pointerdown/pointerup but never
+  // dispatch 'click'. If the user lands a pointerup on a workspace tab whose
+  // disabled flag is stale (state actually permits the switch), refresh the UI
+  // and synthesize the workspace change instead of silently doing nothing.
+  const wsTabFallback = (btn, type) => {
+    if (!btn) return;
+    btn.addEventListener("pointerup", (ev) => {
+      if (ev.button !== 0) return;
+      if (!btn.disabled) return;
+      if (!state.mesh) {
+        setStatus("匯入專案後才能使用 Object workspace。");
+        return;
+      }
+      // disabled flag is stale (state.mesh exists). Resync and apply.
+      updateWorkspaceUI();
+      if (!btn.disabled) applyWorkspace(type, getCurrentWsMode());
+    });
+  };
+  wsTabFallback(els.workspaceTabSlot, "mesh");
+  wsTabFallback(els.workspaceTabObject, "object");
+
   // Mode dropdown
   if (els.wsModeSelect) {
     els.wsModeSelect.addEventListener("change", () => {

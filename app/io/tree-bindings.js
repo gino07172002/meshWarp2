@@ -41,6 +41,12 @@ els.fileInput.addEventListener("change", async (e) => {
     if (state.activeSlot >= 0) {
       setActiveSlot(state.activeSlot);
     }
+    // Re-sync workspace tab enabled/active state so #workspaceTabObject (and any
+    // other widget gated on state.mesh) reflects the import. Without this, the
+    // tab keeps the disabled=true it had at first paint, swallowing clicks
+    // without producing 'click' events even though pointerdown/pointerup land
+    // on the tab.
+    updateWorkspaceUI();
     const modeText = hadProject || hadSlots ? "Added" : "Imported";
     setStatus(`${modeText} ${added} slot(s). Current slot: ${state.slots[state.activeSlot]?.name || "-"}`);
   } catch (err) {
