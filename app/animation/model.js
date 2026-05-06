@@ -262,6 +262,98 @@ const VERTEX_TRACK_ID = "vertex:deform";
 const EVENT_TRACK_ID = "event:timeline";
 const DRAWORDER_TRACK_ID = "draworder:timeline";
 
+function getPuppetPinTrackId(slotIndex, attachmentName, pinId) {
+  return `slot:${Number(slotIndex)}:attachment:${String(attachmentName || "")}:puppetpin:${String(pinId || "")}`;
+}
+
+function parsePuppetPinTrackId(trackId) {
+  const m = /^slot:(\d+):attachment:([^:]+):puppetpin:(.+)$/.exec(String(trackId || ""));
+  if (!m) return null;
+  return { slotIndex: Number(m[1]), attachmentName: m[2], pinId: m[3] };
+}
+
+function isPuppetPinTrackId(trackId) {
+  return /^slot:\d+:attachment:[^:]+:puppetpin:/.test(String(trackId || ""));
+}
+
+// Linear-interp sampler for {x, y} keyframe values. Returns {x, y} or
+// null if the track has no keys.
+function samplePuppetPinTrack(anim, trackId, time) {
+  if (!anim || !anim.tracks) return null;
+  const keys = anim.tracks[trackId];
+  if (!Array.isArray(keys) || keys.length === 0) return null;
+  // Sorted in-place when written; do a defensive sort if needed.
+  const sorted = keys.slice().sort((a, b) => (Number(a.time) || 0) - (Number(b.time) || 0));
+  const t = Number(time) || 0;
+  if (t <= (Number(sorted[0].time) || 0)) {
+    const v = sorted[0].value || {};
+    return { x: Number(v.x) || 0, y: Number(v.y) || 0 };
+  }
+  if (t >= (Number(sorted[sorted.length - 1].time) || 0)) {
+    const v = sorted[sorted.length - 1].value || {};
+    return { x: Number(v.x) || 0, y: Number(v.y) || 0 };
+  }
+  for (let i = 0; i < sorted.length - 1; i += 1) {
+    const a = sorted[i], b = sorted[i + 1];
+    const ta = Number(a.time) || 0;
+    const tb = Number(b.time) || 0;
+    if (t < ta || t > tb) continue;
+    const span = tb - ta;
+    const u = span > 0 ? (t - ta) / span : 0;
+    const va = a.value || {};
+    const vb = b.value || {};
+    return {
+      x: (Number(va.x) || 0) * (1 - u) + (Number(vb.x) || 0) * u,
+      y: (Number(va.y) || 0) * (1 - u) + (Number(vb.y) || 0) * u,
+    };
+  }
+  return null;
+}
+
+function writePuppetPinKeyframe(slotIndex, attachmentName, pinId, time, x, y) {
+  if (typeof getCurrentAnimation !== "function") return null;
+  const anim = getCurrentAnimation();
+  if (!anim) return null;
+  const trackId = getPuppetPinTrackId(slotIndex, attachmentName, pinId);
+  const keys = getTrackKeys(anim, trackId);
+  const t = Number(time) || 0;
+  const value = { x: Number(x) || 0, y: Number(y) || 0 };
+  // Replace existing key at same time, else append
+  const epsilon = 1e-6;
+  const existing = keys.findIndex((k) => Math.abs((Number(k.time) || 0) - t) < epsilon);
+  const id = `pwk_${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-4)}`;
+  if (existing >= 0) {
+    keys[existing] = { ...keys[existing], time: t, value };
+  } else {
+    keys.push({ id, time: t, value });
+  }
+  sortTrackKeys(anim, trackId);
+  // Queue the attachment for re-bake
+  if (window.PuppetWarpRuntime && typeof window.PuppetWarpRuntime.queueBake === "function") {
+    window.PuppetWarpRuntime.queueBake(slotIndex, attachmentName);
+  }
+  return trackId;
+}
+
+function deletePuppetPinKeyframe(slotIndex, attachmentName, pinId, time) {
+  if (typeof getCurrentAnimation !== "function") return false;
+  const anim = getCurrentAnimation();
+  if (!anim) return false;
+  const trackId = getPuppetPinTrackId(slotIndex, attachmentName, pinId);
+  const keys = anim.tracks[trackId];
+  if (!Array.isArray(keys)) return false;
+  const t = Number(time) || 0;
+  const epsilon = 1e-6;
+  const i = keys.findIndex((k) => Math.abs((Number(k.time) || 0) - t) < epsilon);
+  if (i < 0) return false;
+  keys.splice(i, 1);
+  if (keys.length === 0) delete anim.tracks[trackId];
+  if (window.PuppetWarpRuntime && typeof window.PuppetWarpRuntime.queueBake === "function") {
+    window.PuppetWarpRuntime.queueBake(slotIndex, attachmentName);
+  }
+  return true;
+}
+
 function migrateLegacyVertexTracksInAnimation(anim) {
   if (!anim || !anim.tracks || !Array.isArray(anim.tracks[VERTEX_TRACK_ID])) return;
   const legacy = anim.tracks[VERTEX_TRACK_ID];

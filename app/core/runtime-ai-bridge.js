@@ -117,6 +117,31 @@
         { name: "slotName", type: "string", required: false },
       ],
     },
+    "ai.puppetwarp_set_pin_keyframe": {
+      args: [
+        { name: "slotIndex", type: "integer", required: false },
+        { name: "slotName", type: "string", required: false },
+        { name: "pinId", type: "string", required: true },
+        { name: "time", type: "number", required: true },
+        { name: "x", type: "number", required: true },
+        { name: "y", type: "number", required: true },
+      ],
+    },
+    "ai.puppetwarp_delete_pin_keyframe": {
+      args: [
+        { name: "slotIndex", type: "integer", required: false },
+        { name: "slotName", type: "string", required: false },
+        { name: "pinId", type: "string", required: true },
+        { name: "time", type: "number", required: true },
+      ],
+    },
+    "ai.puppetwarp_list_pin_keyframes": {
+      args: [
+        { name: "slotIndex", type: "integer", required: false },
+        { name: "slotName", type: "string", required: false },
+        { name: "pinId", type: "string", required: false, description: "Optional: list keys for one pin only" },
+      ],
+    },
   };
 
   // -- Lightweight write-side commands the AI bridge owns directly ---------
@@ -366,6 +391,47 @@
     return { ok: true, slotIndex: r.slotIndex, pinId: args.pinId, target: { x: args.x, y: args.y } };
   }
 
+  function aiPuppetWarpSetPinKeyframe(args) {
+    if (typeof writePuppetPinKeyframe !== "function") return { ok: false, error: "writePuppetPinKeyframe unavailable" };
+    const r = resolveSlotAndAttachment(args);
+    if (!r.ok) return r;
+    const pin = r.att.puppetWarp ? r.att.puppetWarp.pins.find((p) => p.id === args.pinId) : null;
+    if (!pin) return { ok: false, error: `pin not found: ${args.pinId}` };
+    const trackId = writePuppetPinKeyframe(r.slotIndex, r.att.name, args.pinId, args.time, args.x, args.y);
+    if (!trackId) return { ok: false, error: "no current animation" };
+    return { ok: true, trackId, time: args.time, value: { x: args.x, y: args.y } };
+  }
+
+  function aiPuppetWarpDeletePinKeyframe(args) {
+    if (typeof deletePuppetPinKeyframe !== "function") return { ok: false, error: "deletePuppetPinKeyframe unavailable" };
+    const r = resolveSlotAndAttachment(args);
+    if (!r.ok) return r;
+    const ok = deletePuppetPinKeyframe(r.slotIndex, r.att.name, args.pinId, args.time);
+    if (!ok) return { ok: false, error: "no keyframe to delete at that time" };
+    return { ok: true };
+  }
+
+  function aiPuppetWarpListPinKeyframes(args) {
+    const r = resolveSlotAndAttachment(args);
+    if (!r.ok) return r;
+    if (!r.att.puppetWarp) return { ok: true, tracks: [] };
+    if (typeof getCurrentAnimation !== "function") return { ok: false, error: "no animation" };
+    const anim = getCurrentAnimation();
+    if (!anim) return { ok: true, tracks: [] };
+    const out = [];
+    const pins = args.pinId ? r.att.puppetWarp.pins.filter((p) => p.id === args.pinId) : r.att.puppetWarp.pins;
+    for (const pin of pins) {
+      const trackId = getPuppetPinTrackId(r.slotIndex, r.att.name, pin.id);
+      const keys = anim.tracks[trackId] || [];
+      out.push({
+        pinId: pin.id,
+        trackId,
+        keyframes: keys.map((k) => ({ time: Number(k.time) || 0, value: k.value || {} })),
+      });
+    }
+    return { ok: true, tracks: out };
+  }
+
   function aiPuppetWarpGetState(args) {
     const r = resolveSlotAndAttachment(args);
     if (!r.ok) return r;
@@ -520,6 +586,30 @@
       group: "AI",
       domain: "mesh",
       action: aiPuppetWarpGetState,
+      mutates: false,
+    },
+    {
+      id: "ai.puppetwarp_set_pin_keyframe",
+      label: "AI: Puppet Warp - Set Pin Keyframe",
+      group: "AI",
+      domain: "timeline",
+      action: aiPuppetWarpSetPinKeyframe,
+      mutates: true,
+    },
+    {
+      id: "ai.puppetwarp_delete_pin_keyframe",
+      label: "AI: Puppet Warp - Delete Pin Keyframe",
+      group: "AI",
+      domain: "timeline",
+      action: aiPuppetWarpDeletePinKeyframe,
+      mutates: true,
+    },
+    {
+      id: "ai.puppetwarp_list_pin_keyframes",
+      label: "AI: Puppet Warp - List Pin Keyframes",
+      group: "AI",
+      domain: "timeline",
+      action: aiPuppetWarpListPinKeyframes,
       mutates: false,
     },
   ];

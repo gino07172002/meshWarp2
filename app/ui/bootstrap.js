@@ -386,6 +386,22 @@ function clearDrag(ev) {
     pushUndoCheckpoint(true);
     return;
   }
+  if (drag.type === "puppet_warp_pin") {
+    const si = Number(drag.slotIndex);
+    const slot = Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : null;
+    const att = slot ? getActiveAttachment(slot) : null;
+    if (att && window.PuppetWarpRuntime) {
+      window.PuppetWarpRuntime.commitDrag(slot, att, drag.pinId);
+      // Phase 2: also push a pin-track keyframe at the current animation
+      // time, then queue a re-bake of the attachment's deform offsets.
+      const lastT = att.puppetWarp && att.puppetWarp.lastTargets && att.puppetWarp.lastTargets[drag.pinId];
+      if (lastT && typeof writePuppetPinKeyframe === "function") {
+        writePuppetPinKeyframe(si, att.name, drag.pinId, state.anim ? state.anim.time : 0, lastT.x, lastT.y);
+      }
+    }
+    pushUndoCheckpoint(true);
+    return;
+  }
   if (drag.type === "path_point" || drag.type === "path_handle") {
     pushUndoCheckpoint(true);
     return;

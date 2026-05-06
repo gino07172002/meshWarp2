@@ -3320,6 +3320,48 @@ function drawAttachmentGizmos(ctx, poseWorld) {
     }
     ctx.restore();
   }
+
+  if (att.puppetWarp && Array.isArray(att.puppetWarp.pins) && att.puppetWarp.pins.length > 0) {
+    drawPuppetWarpPins(ctx, slot, att, poseWorld);
+  }
+}
+
+function drawPuppetWarpPins(ctx, slot, att, poseWorld) {
+  const pins = att.puppetWarp.pins;
+  const md = att.meshData;
+  if (!md || !md.deformedScreen || md.deformedScreen.length < 2) return;
+  const drag = state.drag;
+  const draggingPin = drag && drag.type === "puppet_warp_pin" ? drag.pinId : null;
+  const selectedPin = state.puppetWarp && state.puppetWarp.selectedPinId;
+  const R = 6;
+  ctx.save();
+  for (const pin of pins) {
+    const vi = pin.vertexIndex;
+    if (!Number.isFinite(vi) || vi * 2 + 1 >= md.deformedScreen.length) continue;
+    const sx = md.deformedScreen[vi * 2];
+    const sy = md.deformedScreen[vi * 2 + 1];
+    const isDragging = pin.id === draggingPin;
+    const isSelected = pin.id === selectedPin;
+    ctx.fillStyle = isDragging ? "#ffe46e" : isSelected ? "#ffaa44" : "#ff7733";
+    ctx.strokeStyle = isDragging || isSelected ? "#ffffff" : "#1a1a1a";
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - R);
+    ctx.lineTo(sx + R, sy);
+    ctx.lineTo(sx, sy + R);
+    ctx.lineTo(sx - R, sy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    if (isSelected) {
+      ctx.strokeStyle = "rgba(255, 170, 68, 0.7)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(sx, sy, R + 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 function pickAttachmentGizmoHandle(mx, my, poseWorld) {
@@ -3361,7 +3403,49 @@ function pickAttachmentGizmoHandle(mx, my, poseWorld) {
     return null;
   }
 
+  if (att.puppetWarp && Array.isArray(att.puppetWarp.pins) && att.puppetWarp.pins.length > 0) {
+    const md = att.meshData;
+    if (md && md.deformedScreen) {
+      for (const pin of att.puppetWarp.pins) {
+        const vi = pin.vertexIndex;
+        if (!Number.isFinite(vi) || vi * 2 + 1 >= md.deformedScreen.length) continue;
+        const sx = md.deformedScreen[vi * 2];
+        const sy = md.deformedScreen[vi * 2 + 1];
+        if (Math.abs(mx - sx) <= HIT_R && Math.abs(my - sy) <= HIT_R) {
+          return { kind: "puppet_warp_pin", pinId: pin.id, vertexIndex: vi };
+        }
+      }
+    }
+  }
+
   return null;
+}
+
+function pickPuppetWarpVertex(mx, my, poseWorld) {
+  // Used for alt-click "add pin" — pick the nearest mesh vertex within
+  // a hit radius. Returns { vertexIndex, x, y } in slot-local coords.
+  const slot = getActiveSlot();
+  if (!slot) return null;
+  const att = getActiveAttachment(slot);
+  if (!att || !att.meshData || !att.meshData.deformedScreen) return null;
+  const md = att.meshData;
+  const HIT_R = 14;
+  const HIT_R2 = HIT_R * HIT_R;
+  let bestI = -1;
+  let bestD2 = Infinity;
+  const n = md.positions.length / 2;
+  for (let i = 0; i < n; i += 1) {
+    const sx = md.deformedScreen[i * 2];
+    const sy = md.deformedScreen[i * 2 + 1];
+    const dx = mx - sx, dy = my - sy;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestD2 && d2 <= HIT_R2) {
+      bestD2 = d2;
+      bestI = i;
+    }
+  }
+  if (bestI < 0) return null;
+  return { vertexIndex: bestI, x: md.positions[bestI * 2], y: md.positions[bestI * 2 + 1] };
 }
 
 function drawMeshOnContext(ctx, drawCanvas = state.sourceCanvas, alpha = 1, tint = null, screen = null, indices = null, uvs = null, blendMode = "normal") {

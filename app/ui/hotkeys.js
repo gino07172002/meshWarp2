@@ -707,10 +707,29 @@ window.addEventListener("keydown", async (ev) => {
     ev.preventDefault();
     return;
   }
-  if (key === "i" && state.boneMode === "pose") {
-    addAutoKeyframeFromDirty();
-    ev.preventDefault();
-    return;
+  if (key === "i") {
+    // Puppet-warp pin: if a pin is selected on the active attachment,
+    // I writes a keyframe for that pin's current target.
+    const slot = getActiveSlot();
+    const att = slot ? getActiveAttachment(slot) : null;
+    const selPin = state.puppetWarp && state.puppetWarp.selectedPinId;
+    if (att && att.puppetWarp && selPin && typeof writePuppetPinKeyframe === "function") {
+      const pin = att.puppetWarp.pins.find((p) => p.id === selPin);
+      const target = (att.puppetWarp.lastTargets && att.puppetWarp.lastTargets[selPin]) || (pin ? { x: pin.restX, y: pin.restY } : null);
+      if (pin && target) {
+        const si = Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1;
+        writePuppetPinKeyframe(si, att.name, selPin, state.anim ? state.anim.time : 0, target.x, target.y);
+        if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+        setStatus(`Puppet pin keyframed at t=${(state.anim ? state.anim.time : 0).toFixed(3)}.`);
+        ev.preventDefault();
+        return;
+      }
+    }
+    if (state.boneMode === "pose") {
+      addAutoKeyframeFromDirty();
+      ev.preventDefault();
+      return;
+    }
   }
   if (key === "k" && ev.shiftKey && ev.altKey) {
     if (state.activeSlot >= 0) {
@@ -1218,6 +1237,61 @@ els.overlay.addEventListener("pointerdown", (ev) => {
             origPt: { ...contour.points[attGizmoHit.pointIndex] },
           };
           els.overlay.setPointerCapture(ev.pointerId);
+          return;
+        }
+        if (attGizmoHit.kind === "puppet_warp_pin") {
+          if (ev.shiftKey) {
+            // Shift-click on a pin removes it
+            if (window.PuppetWarpRuntime) {
+              window.PuppetWarpRuntime.removePin(att, attGizmoHit.pinId);
+              if (state.puppetWarp && state.puppetWarp.selectedPinId === attGizmoHit.pinId) {
+                state.puppetWarp.selectedPinId = null;
+              }
+              if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+              if (typeof requestRender === "function") requestRender("puppet_warp_remove_pin");
+              setStatus("Puppet pin removed.");
+            }
+            return;
+          }
+          // Otherwise: drag to deform
+          if (!state.puppetWarp) state.puppetWarp = {};
+          state.puppetWarp.selectedPinId = attGizmoHit.pinId;
+          const startLocal = screenToSlotMeshLocal(slot, mx, my, poseWorldForGizmo);
+          const pin = att.puppetWarp.pins.find((p) => p.id === attGizmoHit.pinId);
+          const lastT = (att.puppetWarp.lastTargets && att.puppetWarp.lastTargets[attGizmoHit.pinId]) || null;
+          state.drag = {
+            type: "puppet_warp_pin",
+            pointerId: ev.pointerId,
+            slotIndex,
+            pinId: attGizmoHit.pinId,
+            startLocal,
+            startTarget: lastT ? { x: lastT.x, y: lastT.y } : { x: pin ? pin.restX : 0, y: pin ? pin.restY : 0 },
+          };
+          els.overlay.setPointerCapture(ev.pointerId);
+          return;
+        }
+      }
+    }
+
+    // Alt-click on mesh vertex (puppet-warp tool): add a pin at the
+    // closest mesh vertex. Requires puppet-warp already enabled on this
+    // attachment (or use ai.puppetwarp_enable first).
+    if (ev.altKey && !ev.shiftKey && !ev.ctrlKey) {
+      const slot = getActiveSlot();
+      const att = slot ? getActiveAttachment(slot) : null;
+      if (slot && att && att.puppetWarp && window.PuppetWarpRuntime && typeof pickPuppetWarpVertex === "function") {
+        const hit = pickPuppetWarpVertex(mx, my, poseWorldForGizmo);
+        if (hit) {
+          const pin = window.PuppetWarpRuntime.addPin(att, hit.vertexIndex);
+          if (pin) {
+            if (!state.puppetWarp) state.puppetWarp = {};
+            state.puppetWarp.selectedPinId = pin.id;
+            if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+            if (typeof requestRender === "function") requestRender("puppet_warp_add_pin");
+            setStatus(`Puppet pin added on vertex ${hit.vertexIndex}.`);
+            return;
+          }
+          setStatus("Puppet pin not added (duplicate or out of range).");
           return;
         }
       }
@@ -2008,6 +2082,24 @@ els.overlay.addEventListener("pointermove", (ev) => {
       y: (Number(orig.y) || 0) + (slotLocal.y - startSL.y),
     };
     markSlotContourDirty(slot, false);
+    return;
+  }
+
+  if (state.drag.type === "puppet_warp_pin") {
+    const si = Number(state.drag.slotIndex);
+    const slot = Number.isFinite(si) && si >= 0 && si < state.slots.length ? state.slots[si] : null;
+    if (!slot) return;
+    const att = getActiveAttachment(slot);
+    if (!att || !att.puppetWarp) return;
+    const pinId = state.drag.pinId;
+    const slotLocal = screenToSlotMeshLocal(slot, mx, my, getSolvedPoseWorld(state.mesh));
+    const startSL = state.drag.startLocal || slotLocal;
+    const startTarget = state.drag.startTarget || { x: 0, y: 0 };
+    const targetX = (Number(startTarget.x) || 0) + (slotLocal.x - startSL.x);
+    const targetY = (Number(startTarget.y) || 0) + (slotLocal.y - startSL.y);
+    if (window.PuppetWarpRuntime) {
+      window.PuppetWarpRuntime.dragPin(slot, att, pinId, targetX, targetY);
+    }
     return;
   }
 

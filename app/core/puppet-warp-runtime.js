@@ -164,6 +164,100 @@
     return applyTargetsToOffsets(att, att.puppetWarp.lastTargets || {});
   }
 
+  // -- Bake driver (Phase 2) -------------------------------------------------
+  //
+  // When pin tracks change, the deform offsets need to be regenerated for
+  // the affected attachment at every keyed time. We don't bake into a deform
+  // track yet (Phase 1 writes offsets directly for the current frame); for
+  // playback the runtime samples pin tracks live and resolves ARAP each
+  // frame the pose is sampled. That's expensive but in Phase 2 we accept
+  // it — the optimisation (bake into deform track) is a Phase 3 task.
+  //
+  // queueBake(slotIndex, attName) marks an attachment dirty; a microtask /
+  // idle callback flushes by re-applying the current animation time's pin
+  // targets to offsets so the editor preview is correct.
+
+  const bakeQueue = new Set();
+  let bakeFlushScheduled = false;
+
+  function bakeKey(slotIndex, attName) { return `${slotIndex}::${String(attName || "")}`; }
+
+  function queueBake(slotIndex, attName) {
+    bakeQueue.add(bakeKey(slotIndex, attName));
+    scheduleBakeFlush();
+  }
+
+  function scheduleBakeFlush() {
+    if (bakeFlushScheduled) return;
+    bakeFlushScheduled = true;
+    const fire = () => {
+      bakeFlushScheduled = false;
+      flushBakeQueue();
+    };
+    if (typeof requestIdleCallback === "function") requestIdleCallback(fire, { timeout: 100 });
+    else setTimeout(fire, 0);
+  }
+
+  function flushBakeQueue() {
+    if (bakeQueue.size === 0) return;
+    const keys = Array.from(bakeQueue);
+    bakeQueue.clear();
+    for (const key of keys) {
+      const sep = key.indexOf("::");
+      if (sep < 0) continue;
+      const slotIndex = Number(key.slice(0, sep));
+      const attName = key.slice(sep + 2);
+      bakeAttachmentForCurrentTime(slotIndex, attName);
+    }
+    if (typeof requestRender === "function") requestRender("puppet_warp_bake_flush");
+  }
+
+  function bakeAttachmentForCurrentTime(slotIndex, attName) {
+    const slot = state.slots[slotIndex];
+    if (!slot) return;
+    const att = (typeof getActiveAttachment === "function") ? getActiveAttachment(slot) : null;
+    if (!att || (attName && att.name !== attName) || !att.puppetWarp) return;
+    samplePuppetPinTracksAtTime(slotIndex, att, state.anim ? state.anim.time : 0);
+  }
+
+  function samplePuppetPinTracksAtTime(slotIndex, att, time) {
+    if (!att || !att.puppetWarp) return;
+    if (typeof getCurrentAnimation !== "function" || typeof samplePuppetPinTrack !== "function") return;
+    const anim = getCurrentAnimation();
+    if (!anim) return;
+    const overrides = {};
+    let anyKeyed = false;
+    for (const pin of att.puppetWarp.pins) {
+      const trackId = (typeof getPuppetPinTrackId === "function")
+        ? getPuppetPinTrackId(slotIndex, att.name, pin.id)
+        : null;
+      const sampled = trackId ? samplePuppetPinTrack(anim, trackId, time) : null;
+      if (sampled) {
+        overrides[pin.id] = sampled;
+        anyKeyed = true;
+      }
+    }
+    if (!anyKeyed) {
+      // No keyframes yet: keep manual lastTargets (e.g. mid-drag preview)
+      return applyTargetsToOffsets(att, att.puppetWarp.lastTargets || {});
+    }
+    if (!att.puppetWarp.lastTargets) att.puppetWarp.lastTargets = {};
+    Object.assign(att.puppetWarp.lastTargets, overrides);
+    return applyTargetsToOffsets(att, overrides);
+  }
+
+  // Called by the global animation playback loop on every frame.
+  function onAnimationFrame() {
+    const slots = state.slots || [];
+    for (let i = 0; i < slots.length; i += 1) {
+      const slot = slots[i];
+      if (!slot) continue;
+      const att = (typeof getActiveAttachment === "function") ? getActiveAttachment(slot) : null;
+      if (!att || !att.puppetWarp || !Array.isArray(att.puppetWarp.pins) || att.puppetWarp.pins.length === 0) continue;
+      samplePuppetPinTracksAtTime(i, att, state.anim ? state.anim.time : 0);
+    }
+  }
+
   window.PuppetWarpRuntime = {
     __installed: true,
     version: 1,
@@ -175,5 +269,9 @@
     dragPin,
     commitDrag,
     rebakeOffsets,
+    queueBake,
+    flushBakeQueue,
+    samplePuppetPinTracksAtTime,
+    onAnimationFrame,
   };
 })();

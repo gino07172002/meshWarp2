@@ -17,6 +17,9 @@ function samplePoseAtTime(m, t, opts = null) {
   const anim = getCurrentAnimation();
   if (!m || !anim) return;
   applyAnimationLayersToModelAtTime(m, anim, t, opts);
+  if (window.PuppetWarpRuntime && typeof window.PuppetWarpRuntime.onAnimationFrame === "function") {
+    try { window.PuppetWarpRuntime.onAnimationFrame(); } catch (_) { /* tolerate */ }
+  }
 }
 
 function blendTwoAnimationSamples(m, fromAnim, fromTime, toAnim, toTime, alpha) {
