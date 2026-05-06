@@ -257,7 +257,10 @@
   function aiExportSpineJson() {
     if (typeof buildSpineJsonData !== "function") return { ok: false, error: "buildSpineJsonData unavailable" };
     try {
-      const data = buildSpineJsonData();
+      const built = buildSpineJsonData();
+      // buildSpineJsonData returns an envelope; the actual Spine JSON is .json.
+      // Older callers expect the whole envelope, so return both for compat.
+      const data = built && built.json ? built.json : built;
       return { ok: true, data };
     } catch (e) {
       return { ok: false, error: e && e.message || String(e) };

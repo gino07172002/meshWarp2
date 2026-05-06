@@ -332,6 +332,11 @@ function writePuppetPinKeyframe(slotIndex, attachmentName, pinId, time, x, y) {
   if (window.PuppetWarpRuntime && typeof window.PuppetWarpRuntime.queueBake === "function") {
     window.PuppetWarpRuntime.queueBake(slotIndex, attachmentName);
   }
+  // Bake into a parallel deform track so Spine export sees ARAP results.
+  if (window.PuppetWarpRuntime && typeof window.PuppetWarpRuntime.bakeDeformKeyframeForTime === "function") {
+    try { window.PuppetWarpRuntime.bakeDeformKeyframeForTime(slotIndex, attachmentName, t); }
+    catch (_) { /* tolerate */ }
+  }
   return trackId;
 }
 

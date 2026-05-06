@@ -937,6 +937,34 @@
               <input id="slotRot" type="range" min="-180" max="180" step="1" value="0" />
             </label>
           </div>
+
+          <section id="puppetWarpGroup" class="group" data-att-type="mesh linkedmesh">
+            <h4>Puppet Warp <small style="opacity:0.6">(ARAP)</small></h4>
+            <div class="field">
+              <label class="slot-inline-check">
+                <input id="puppetWarpEnabled" type="checkbox" />
+                <span>Enable on this attachment</span>
+              </label>
+            </div>
+            <div id="puppetWarpControls">
+              <label class="field">
+                <span>Mode</span>
+                <select id="puppetWarpMode">
+                  <option value="standalone">Standalone (replace bones)</option>
+                  <option value="post_skin">Post-skin (after bones)</option>
+                </select>
+              </label>
+              <div class="field">
+                <span>Pins</span>
+                <div id="puppetWarpPinList" style="font-size:11px;line-height:1.5;max-height:120px;overflow-y:auto;border:1px solid var(--border, #444);padding:4px;border-radius:3px;"></div>
+              </div>
+              <div class="field two-col">
+                <button id="puppetWarpClearPinsBtn" type="button">Clear All Pins</button>
+                <button id="puppetWarpRebakeBtn" type="button">Rebake</button>
+              </div>
+              <div id="puppetWarpStatus" style="font-size:11px;opacity:0.7;margin-top:4px;"></div>
+            </div>
+          </section>
         </section>
         <section id="bonePropsGroup" class="group">
           <h3>Bone</h3>
@@ -2128,8 +2156,8 @@
   <script src="app/core/debug.js?v=20260426-3"></script>
   <script src="vendor/sparse-cholesky.js?v=20260506-1"></script>
   <script src="app/core/puppet-warp.js?v=20260506-1"></script>
-  <script src="app/core/puppet-warp-runtime.js?v=20260506-2"></script>
-  <script src="app/core/runtime-ai-bridge.js?v=20260506-4"></script>
+  <script src="app/core/puppet-warp-runtime.js?v=20260506-3"></script>
+  <script src="app/core/runtime-ai-bridge.js?v=20260506-5"></script>
   <script src="app/render/gl-toolkit.js?v=20260426-19"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>
   <script src="app/core/bones.js?v=20260426-19"></script>

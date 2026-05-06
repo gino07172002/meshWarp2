@@ -597,4 +597,12 @@ const els = {
   glCanvas: document.getElementById("glCanvas"),
   glOverlayCanvas: document.getElementById("glOverlayCanvas"),
   overlay: document.getElementById("overlay"),
+  puppetWarpGroup: document.getElementById("puppetWarpGroup"),
+  puppetWarpEnabled: document.getElementById("puppetWarpEnabled"),
+  puppetWarpControls: document.getElementById("puppetWarpControls"),
+  puppetWarpMode: document.getElementById("puppetWarpMode"),
+  puppetWarpPinList: document.getElementById("puppetWarpPinList"),
+  puppetWarpClearPinsBtn: document.getElementById("puppetWarpClearPinsBtn"),
+  puppetWarpRebakeBtn: document.getElementById("puppetWarpRebakeBtn"),
+  puppetWarpStatus: document.getElementById("puppetWarpStatus"),
 };

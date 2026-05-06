@@ -99,14 +99,20 @@
     return targets;
   }
 
-  // Solve and write into meshData.offsets at current pose. This is what
-  // the live drag preview calls. The "offsets" interpretation depends on
-  // mode:
+  // Solve and write into meshData.offsets at current pose.
+  //
+  // The "offsets" interpretation depends on mode:
   //   standalone: offsets[i] = arapDeformed[i] - rest_position[i]
-  //   post_skin:  offsets[i] = arapDeformed[i] - rest_position[i]
-  //     (post-skin path uses the same offsets layer; runtime adds offsets
-  //     on top of skinned position. For Phase 1 we treat both the same —
-  //     post_skin's bone-pose-aware variant is Phase 3.)
+  //               render: getSlotWeightMode short-circuits to "free", so
+  //               final = positions[i] + offsets[i] = arapDeformed[i].
+  //   post_skin:  offsets[i] = arapDeformed[i] - skinned_position[i]
+  //               render: leaves bone skinning intact; final = skinned[i]
+  //               + offsets[i] = arapDeformed[i] (composed atop the
+  //               bone-driven pose).
+  //
+  // For post_skin we need the current per-frame skinned positions. We
+  // rely on the most recent buildSlotGeometry pass (available as
+  // meshData.deformedLocal). If unavailable we fall back to rest.
   function applyTargetsToOffsets(att, overrides) {
     if (!att || !att.puppetWarp || !att.meshData) return false;
     const md = att.meshData;
@@ -120,6 +126,13 @@
     const deformed = window.PuppetWarp.solve(att, targets, 2);
     const n = (md.positions.length / 2) | 0;
     if (!md.offsets || md.offsets.length !== n * 2) md.offsets = new Float32Array(n * 2);
+    // Offset = arapDeformed - rest. The render-side composition differs
+    // by mode:
+    //   standalone: getSlotWeightMode → "free" → final = rest + offset
+    //   post_skin:  bone palette stays in play → final = skinned + offset
+    // Same offset value, different composition. The mode toggle is
+    // therefore purely a render-layer decision (already wired in
+    // getSlotWeightMode).
     for (let i = 0; i < n; i += 1) {
       md.offsets[i * 2] = deformed[i * 2] - md.positions[i * 2];
       md.offsets[i * 2 + 1] = deformed[i * 2 + 1] - md.positions[i * 2 + 1];
@@ -246,6 +259,51 @@
     return applyTargetsToOffsets(att, overrides);
   }
 
+  // Bake the current ARAP solution at `time` into a deform-track keyframe.
+  // This is what Spine sees on export — pin tracks are editor-only, but
+  // deform tracks are first-class Spine animation timelines. We resolve
+  // pin targets at `time`, run ARAP, capture the resulting offsets, and
+  // write them as a deform keyframe.
+  function bakeDeformKeyframeForTime(slotIndex, attName, time) {
+    const slot = state.slots[slotIndex];
+    if (!slot) return;
+    const att = (typeof getActiveAttachment === "function") ? getActiveAttachment(slot) : null;
+    if (!att || (attName && att.name !== attName) || !att.puppetWarp) return;
+    if (typeof getCurrentAnimation !== "function") return;
+    const anim = getCurrentAnimation();
+    if (!anim) return;
+    if (typeof getVertexTrackId !== "function" || typeof getTrackKeys !== "function") return;
+    // Resolve all pin targets at this time
+    const overrides = {};
+    for (const pin of att.puppetWarp.pins) {
+      const trackId = getPuppetPinTrackId(slotIndex, att.name, pin.id);
+      const sampled = samplePuppetPinTrack(anim, trackId, time);
+      if (sampled) overrides[pin.id] = sampled;
+      else overrides[pin.id] = { x: pin.restX, y: pin.restY };
+    }
+    applyTargetsToOffsets(att, overrides);
+    // Snapshot current offsets to a deform-track keyframe
+    const md = att.meshData;
+    if (!md || !md.offsets) return;
+    const offsetsCopy = new Float32Array(md.offsets.length);
+    offsetsCopy.set(md.offsets);
+    const deformTrackId = getVertexTrackId(slotIndex, att.name);
+    const keys = getTrackKeys(anim, deformTrackId);
+    const epsilon = 1e-4;
+    const existing = keys.findIndex((k) => Math.abs((Number(k.time) || 0) - time) < epsilon && (!Number.isFinite(k.slotIndex) || Number(k.slotIndex) === slotIndex));
+    const id = `pwd_${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-4)}`;
+    const keyframe = {
+      id: existing >= 0 ? keys[existing].id : id,
+      time,
+      value: offsetsCopy,
+      interp: "linear",
+      slotIndex,
+    };
+    if (existing >= 0) keys[existing] = keyframe;
+    else keys.push(keyframe);
+    keys.sort((a, b) => (Number(a.time) || 0) - (Number(b.time) || 0));
+  }
+
   // Called by the global animation playback loop on every frame.
   function onAnimationFrame() {
     const slots = state.slots || [];
@@ -255,6 +313,146 @@
       const att = (typeof getActiveAttachment === "function") ? getActiveAttachment(slot) : null;
       if (!att || !att.puppetWarp || !Array.isArray(att.puppetWarp.pins) || att.puppetWarp.pins.length === 0) continue;
       samplePuppetPinTracksAtTime(i, att, state.anim ? state.anim.time : 0);
+    }
+  }
+
+  // -- Property panel UI ----------------------------------------------------
+  function refreshPuppetWarpPanel() {
+    if (!els.puppetWarpGroup) return;
+    const slot = (typeof getActiveSlot === "function") ? getActiveSlot() : null;
+    const att = slot ? getActiveAttachment(slot) : null;
+    const isMesh = att && (att.type === "mesh" || att.type === "linkedmesh");
+    if (!isMesh) {
+      els.puppetWarpGroup.style.display = "none";
+      return;
+    }
+    els.puppetWarpGroup.style.display = "";
+    const enabled = !!(att && att.puppetWarp);
+    if (els.puppetWarpEnabled) els.puppetWarpEnabled.checked = enabled;
+    if (els.puppetWarpControls) els.puppetWarpControls.style.display = enabled ? "" : "none";
+    if (!enabled) return;
+    const pw = att.puppetWarp;
+    if (els.puppetWarpMode) els.puppetWarpMode.value = pw.mode === "post_skin" ? "post_skin" : "standalone";
+    if (els.puppetWarpPinList) {
+      if (pw.pins.length === 0) {
+        els.puppetWarpPinList.innerHTML = '<div style="opacity:0.6">No pins. Alt-click on a vertex to add.</div>';
+      } else {
+        const selectedId = state.puppetWarp && state.puppetWarp.selectedPinId;
+        els.puppetWarpPinList.innerHTML = pw.pins.map((p) => {
+          const isSel = p.id === selectedId;
+          return `<div data-pin-id="${p.id}" style="padding:2px 4px;cursor:pointer;${isSel ? "background:rgba(255,170,68,0.2);" : ""}">
+            <span style="color:#ff9966">●</span>
+            v${p.vertexIndex} <small style="opacity:0.5">(${Math.round(p.restX)}, ${Math.round(p.restY)})</small>
+            <button data-pin-del="${p.id}" type="button" style="float:right;font-size:10px;padding:0 6px">×</button>
+          </div>`;
+        }).join("");
+      }
+    }
+    if (els.puppetWarpStatus) {
+      els.puppetWarpStatus.textContent = `${pw.pins.length} pin${pw.pins.length === 1 ? "" : "s"} · mode: ${pw.mode}`;
+    }
+  }
+
+  function wirePuppetWarpPanel() {
+    if (!els.puppetWarpGroup || els.puppetWarpGroup.dataset.wired === "1") return;
+    els.puppetWarpGroup.dataset.wired = "1";
+
+    if (els.puppetWarpEnabled) {
+      els.puppetWarpEnabled.addEventListener("change", () => {
+        const slot = getActiveSlot();
+        const att = slot ? getActiveAttachment(slot) : null;
+        if (!att) return;
+        if (els.puppetWarpEnabled.checked) {
+          enableForAttachment(att, "standalone");
+        } else {
+          disableForAttachment(att);
+        }
+        if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+        refreshPuppetWarpPanel();
+        if (typeof requestRender === "function") requestRender("puppet_warp_toggle");
+      });
+    }
+
+    if (els.puppetWarpMode) {
+      els.puppetWarpMode.addEventListener("change", () => {
+        const slot = getActiveSlot();
+        const att = slot ? getActiveAttachment(slot) : null;
+        if (!att || !att.puppetWarp) return;
+        const newMode = els.puppetWarpMode.value === "post_skin" ? "post_skin" : "standalone";
+        att.puppetWarp.mode = newMode;
+        att.puppetWarp.bake.dirty = true;
+        if (window.PuppetWarp) window.PuppetWarp.invalidate(att, "mode_change");
+        rebakeOffsets(att);
+        if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+        refreshPuppetWarpPanel();
+        if (typeof requestRender === "function") requestRender("puppet_warp_mode");
+      });
+    }
+
+    if (els.puppetWarpClearPinsBtn) {
+      els.puppetWarpClearPinsBtn.addEventListener("click", () => {
+        const slot = getActiveSlot();
+        const att = slot ? getActiveAttachment(slot) : null;
+        if (!att || !att.puppetWarp) return;
+        att.puppetWarp.pins = [];
+        att.puppetWarp.lastTargets = null;
+        att.puppetWarp.bake.dirty = true;
+        if (window.PuppetWarp) window.PuppetWarp.invalidate(att, "clear_pins");
+        rebakeOffsets(att);
+        if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+        refreshPuppetWarpPanel();
+        if (typeof requestRender === "function") requestRender("puppet_warp_clear");
+      });
+    }
+
+    if (els.puppetWarpRebakeBtn) {
+      els.puppetWarpRebakeBtn.addEventListener("click", () => {
+        const slot = getActiveSlot();
+        const att = slot ? getActiveAttachment(slot) : null;
+        if (!att || !att.puppetWarp) return;
+        if (window.PuppetWarp) window.PuppetWarp.invalidate(att, "manual_rebake");
+        rebakeOffsets(att);
+        refreshPuppetWarpPanel();
+        if (typeof requestRender === "function") requestRender("puppet_warp_rebake");
+      });
+    }
+
+    if (els.puppetWarpPinList) {
+      els.puppetWarpPinList.addEventListener("click", (ev) => {
+        const target = ev.target;
+        if (!target) return;
+        const delId = target.getAttribute && target.getAttribute("data-pin-del");
+        if (delId) {
+          const slot = getActiveSlot();
+          const att = slot ? getActiveAttachment(slot) : null;
+          if (att) {
+            removePin(att, delId);
+            if (state.puppetWarp && state.puppetWarp.selectedPinId === delId) state.puppetWarp.selectedPinId = null;
+            if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+            refreshPuppetWarpPanel();
+            if (typeof requestRender === "function") requestRender("puppet_warp_remove_pin_panel");
+          }
+          return;
+        }
+        // Click row → select pin
+        const row = target.closest && target.closest("[data-pin-id]");
+        if (row) {
+          const pinId = row.getAttribute("data-pin-id");
+          if (!state.puppetWarp) state.puppetWarp = {};
+          state.puppetWarp.selectedPinId = pinId;
+          refreshPuppetWarpPanel();
+          if (typeof requestRender === "function") requestRender("puppet_warp_select_pin");
+        }
+      });
+    }
+  }
+
+  // Wire on next tick so els is fully populated
+  if (typeof window !== "undefined") {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", wirePuppetWarpPanel);
+    } else {
+      setTimeout(wirePuppetWarpPanel, 0);
     }
   }
 
@@ -273,5 +471,7 @@
     flushBakeQueue,
     samplePuppetPinTracksAtTime,
     onAnimationFrame,
+    bakeDeformKeyframeForTime,
+    refreshPanel: refreshPuppetWarpPanel,
   };
 })();

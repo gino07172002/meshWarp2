@@ -392,3 +392,66 @@ Validation:
 node tools/check-ai-capture-registry.js
 node tools/check-ai-capture-mesh.js
 ```
+
+---
+
+## 15. Puppet Warp (ARAP)
+
+Adobe Photoshop / OpenToonz / After Effects-style puppet warp. Pin a mesh
+vertex, drag it; rest of the mesh follows in an as-rigid-as-possible
+deformation.
+
+### Files
+
+| File | Owns |
+|---|---|
+| `vendor/sparse-cholesky.js` | Float64 LDLᵀ solver (analyze / factor / solve) |
+| `app/core/puppet-warp.js` | ARAP solver. Cot-Laplacian + pin penalty + 2-iter local-global. WeakMap cache by attachment. |
+| `app/core/puppet-warp-runtime.js` | Editor glue: enable / addPin / dragPin / commitDrag, bake driver, panel UI |
+
+### Data invariants
+
+- `att.puppetWarp` shape:
+  ```
+  { mode: "standalone" | "post_skin",
+    pins: [{ id, vertexIndex, restX, restY, label }],
+    bake: { dirty, lastTopologyHash },
+    lastTargets: { [pinId]: { x, y } } | null }
+  ```
+- `att.puppetWarp.pins[i].vertexIndex` MUST be < `att.meshData.positions.length / 2`.
+- Pin id format: `pin_<short>` — used as the suffix of the timeline track id.
+- Pin track id format: `slot:<slotIndex>:attachment:<attName>:puppetpin:<pinId>`. Track value = `{ x, y }`.
+
+### Rendering invariants
+
+- `getSlotWeightMode(slot, att)` short-circuits to `"free"` when `att.puppetWarp.mode === "standalone"`. This bypasses the bone palette in `buildSlotGeometry`. The render path is otherwise unchanged: `final = positions[i] + offsets[i]`.
+- Post-skin mode leaves bone skinning intact; offsets compose on top.
+- `meshData.offsets` is the only cross-cutting surface — Spine deform export reads it, runtime composes it, animation tracks bake into it.
+
+### Animation flow
+
+1. User adds a pin (alt-click or `ai.puppetwarp_add_pin`).
+2. User drags the pin (gizmo drag or `ai.puppetwarp_drag_pin`). ARAP solves; `meshData.offsets` updated for live preview.
+3. On pointerup or `ai.puppetwarp_set_pin_keyframe`: pin track gets a `{x, y}` keyframe at the current animation time. **Also** `bakeDeformKeyframeForTime` writes the corresponding deform track keyframe.
+4. Playback: `samplePoseAtTime` calls `PuppetWarpRuntime.onAnimationFrame()` → samples pin tracks at current time → re-solves ARAP → writes `offsets` for the live frame.
+
+### Spine export contract
+
+- Spine JSON output MUST NOT contain `"puppetWarp"` or `"puppetpin"` substrings.
+- Pin metadata is editor-only. The deformation travels via standard Spine deform timelines (the `bakeDeformKeyframeForTime` path).
+- Native project JSON DOES preserve pins and pin tracks — round-trip is lossless editor↔editor, lossy editor→Spine.
+
+### AI bridge tools (under `window.ai`)
+
+- `ai.puppetwarp_enable / disable / add_pin / remove_pin / drag_pin / get_state`
+- `ai.puppetwarp_set_pin_keyframe / delete_pin_keyframe / list_pin_keyframes`
+
+### Validation
+
+```bash
+node tools/check-sparse-cholesky.js
+node tools/check-puppet-warp-arap.js
+node tools/demo-puppet-warp.js              # Phase 1 (pins + drag + native round-trip)
+node tools/demo-puppet-warp-phase2.js       # Phase 2 (animated pins, ARAP playback)
+node tools/demo-puppet-warp-spine-roundtrip.js  # Phase 3 (Spine export contract)
+```

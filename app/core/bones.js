@@ -3156,6 +3156,9 @@ function refreshAttachmentPanel(s) {
   if (els.slotClipComboSetKeyBtn) els.slotClipComboSetKeyBtn.disabled = !s || state.activeSlot < 0;
   if (els.slotClipEndSetKeyBtn) els.slotClipEndSetKeyBtn.disabled = !s || state.activeSlot < 0;
   if (els.slotClipEndDelKeyBtn) els.slotClipEndDelKeyBtn.disabled = !s || state.activeSlot < 0;
+  if (window.PuppetWarpRuntime && typeof window.PuppetWarpRuntime.refreshPanel === "function") {
+    window.PuppetWarpRuntime.refreshPanel();
+  }
 }
 
 function refreshSlotPanel(s) {

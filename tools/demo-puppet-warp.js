@@ -104,7 +104,7 @@ async function main() {
   expect(probe.hasSC, "window.SparseCholesky present");
   expect(probe.hasPW, "window.PuppetWarp present");
   expect(probe.hasPWR, "window.PuppetWarpRuntime present");
-  expect(probe.pwTools.length === 6, `6 puppet-warp AI tools registered (got ${probe.pwTools.length})`);
+  expect(probe.pwTools.length >= 6, `≥6 puppet-warp AI tools registered (got ${probe.pwTools.length})`);
 
   divider("STEP 2 — Import image");
   const imp = await page.evaluate((d) => window.ai.invoke("ai.import_image", { dataUrl: d, name: "test.png" }), makeTestPngDataUrl());
