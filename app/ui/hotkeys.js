@@ -1246,7 +1246,7 @@ els.overlay.addEventListener("pointerdown", (ev) => {
           if (ev.shiftKey) {
             // Shift-click on a pin removes it
             if (window.PuppetWarpRuntime) {
-              window.PuppetWarpRuntime.removePin(att, attGizmoHit.pinId);
+              window.PuppetWarpRuntime.removePin(att, attGizmoHit.pinId, slotIndex);
               if (state.puppetWarp && state.puppetWarp.selectedPinId === attGizmoHit.pinId) {
                 state.puppetWarp.selectedPinId = null;
               }

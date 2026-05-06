@@ -360,7 +360,7 @@
     if (!window.PuppetWarpRuntime) return { ok: false, error: "PuppetWarpRuntime not loaded" };
     const r = resolveSlotAndAttachment(args);
     if (!r.ok) return r;
-    window.PuppetWarpRuntime.disableForAttachment(r.att);
+    window.PuppetWarpRuntime.disableForAttachment(r.att, r.slotIndex);
     if (typeof requestRender === "function") requestRender("ai.puppetwarp_disable");
     return { ok: true, slotIndex: r.slotIndex };
   }
@@ -379,7 +379,7 @@
     if (!window.PuppetWarpRuntime) return { ok: false, error: "PuppetWarpRuntime not loaded" };
     const r = resolveSlotAndAttachment(args);
     if (!r.ok) return r;
-    const removed = window.PuppetWarpRuntime.removePin(r.att, args.pinId);
+    const removed = window.PuppetWarpRuntime.removePin(r.att, args.pinId, r.slotIndex);
     if (!removed) return { ok: false, error: `pin not found: ${args.pinId}` };
     if (typeof requestRender === "function") requestRender("ai.puppetwarp_remove_pin");
     return { ok: true, slotIndex: r.slotIndex, pinId: args.pinId };

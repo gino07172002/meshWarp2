@@ -43,8 +43,19 @@
     return ensurePuppetWarp(att, mode);
   }
 
-  function disableForAttachment(att) {
+  function disableForAttachment(att, slotIndex) {
     if (!att) return;
+    // Clean up any pin tracks before nulling out puppetWarp
+    if (att.puppetWarp && Number.isFinite(slotIndex) && slotIndex >= 0
+        && typeof getCurrentAnimation === "function" && typeof getPuppetPinTrackId === "function") {
+      const anim = getCurrentAnimation();
+      if (anim && anim.tracks) {
+        for (const pin of att.puppetWarp.pins) {
+          const trackId = getPuppetPinTrackId(slotIndex, att.name, pin.id);
+          if (anim.tracks[trackId]) delete anim.tracks[trackId];
+        }
+      }
+    }
     att.puppetWarp = null;
     if (window.PuppetWarp) window.PuppetWarp.invalidate(att, "disable");
     // Clear any baked offsets so the mesh returns to rest visually
@@ -74,13 +85,22 @@
     return pin;
   }
 
-  function removePin(att, pinId) {
+  function removePin(att, pinId, slotIndex) {
     if (!att || !att.puppetWarp) return false;
     const i = att.puppetWarp.pins.findIndex((p) => p.id === pinId);
     if (i < 0) return false;
     att.puppetWarp.pins.splice(i, 1);
+    if (att.puppetWarp.lastTargets) delete att.puppetWarp.lastTargets[pinId];
     att.puppetWarp.bake.dirty = true;
     if (window.PuppetWarp) window.PuppetWarp.invalidate(att, "remove_pin");
+    // Clean up the pin's timeline track if we know which slot/attachment.
+    if (Number.isFinite(slotIndex) && slotIndex >= 0 && typeof getCurrentAnimation === "function" && typeof getPuppetPinTrackId === "function") {
+      const anim = getCurrentAnimation();
+      if (anim && anim.tracks) {
+        const trackId = getPuppetPinTrackId(slotIndex, att.name, pinId);
+        if (anim.tracks[trackId]) delete anim.tracks[trackId];
+      }
+    }
     return true;
   }
 
@@ -130,26 +150,54 @@
   // rely on the most recent buildSlotGeometry pass (available as
   // meshData.deformedLocal). If unavailable we fall back to rest.
   // For post_skin we need the current per-frame skinned positions. They
-  // live in meshData.deformedLocal — the bone-skinned + previous-offsets
-  // result from the most recent buildSlotGeometry pass. To get a clean
-  // "skinned only" reference we'd have to subtract previous offsets, but
-  // for typical bone motion the difference is small enough that using
-  // deformedLocal directly is fine (the solver converges in 2 iterations
-  // anyway). Falls back to mesh.positions if no skinned cache.
-  function getDynamicRest(att) {
-    const md = att && att.meshData;
-    if (!md) return null;
-    if (att.puppetWarp && att.puppetWarp.mode === "post_skin"
-        && md.deformedLocal && md.deformedLocal.length === md.positions.length) {
-      // Subtract previous offsets to recover pure skinned position
-      const n = md.positions.length / 2;
-      const out = new Float32Array(md.positions.length);
-      for (let i = 0; i < md.positions.length; i += 1) {
-        out[i] = md.deformedLocal[i] - (md.offsets ? md.offsets[i] : 0);
-      }
-      return out;
+  // live in meshData.deformedLocal, populated by buildSlotGeometry every
+  // render frame. If the cache is stale (e.g. before the first render)
+  // we proactively build it once. We then subtract previous offsets to
+  // recover the pure-skinned-only reference (without our own ARAP layer).
+  // Find which slot owns this attachment. O(slots × atts) but slots are
+  // usually < 50 in practice. Used to populate deformedLocal lazily for
+  // post_skin's getDynamicRest.
+  function findSlotIndexForAttachment(att) {
+    if (!att) return -1;
+    const slots = state.slots || [];
+    for (let i = 0; i < slots.length; i += 1) {
+      const s = slots[i];
+      if (!s || !Array.isArray(s.attachments)) continue;
+      if (s.attachments.indexOf(att) >= 0) return i;
     }
-    return md.positions;
+    return -1;
+  }
+
+  function getDynamicRest(att, slotIndex) {
+    if (!Number.isFinite(slotIndex)) slotIndex = findSlotIndexForAttachment(att);
+    if (!att || !att.meshData) return null;
+    if (!att.puppetWarp || att.puppetWarp.mode !== "post_skin") return att.meshData.positions;
+
+    // Lazy populate deformedLocal if missing. buildSlotGeometry may write
+    // to a different attachment object than `att` if state.slots got
+    // re-normalized between calls; re-read after building.
+    const needsLen = att.meshData.positions.length;
+    let md = att.meshData;
+    const stale = !md.deformedLocal || md.deformedLocal.length !== needsLen;
+    if (stale && Number.isFinite(slotIndex) && slotIndex >= 0
+        && typeof buildSlotGeometry === "function" && typeof getSolvedPoseWorld === "function") {
+      const slot = state.slots[slotIndex];
+      if (slot && state.mesh) {
+        try {
+          const poseWorld = getSolvedPoseWorld(state.mesh);
+          buildSlotGeometry(slot, Array.isArray(poseWorld) ? poseWorld : []);
+        } catch (_) { /* tolerate */ }
+        // Re-fetch in case slot.attachments was rebuilt during the call.
+        const freshAtt = (typeof getActiveAttachment === "function") ? getActiveAttachment(slot) : null;
+        if (freshAtt && freshAtt.meshData) md = freshAtt.meshData;
+      }
+    }
+    if (!md.deformedLocal || md.deformedLocal.length !== needsLen) return att.meshData.positions;
+    const out = new Float32Array(needsLen);
+    for (let i = 0; i < needsLen; i += 1) {
+      out[i] = md.deformedLocal[i] - (md.offsets ? md.offsets[i] : 0);
+    }
+    return out;
   }
 
   function applyTargetsToOffsets(att, overrides) {
@@ -431,7 +479,7 @@
         if (els.puppetWarpEnabled.checked) {
           enableForAttachment(att, "standalone");
         } else {
-          disableForAttachment(att);
+          disableForAttachment(att, Number(state.activeSlot));
         }
         if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
         refreshPuppetWarpPanel();
@@ -460,6 +508,18 @@
         const slot = getActiveSlot();
         const att = slot ? getActiveAttachment(slot) : null;
         if (!att || !att.puppetWarp) return;
+        const slotIdx = Number(state.activeSlot);
+        // Drop pin tracks so they don't dangle
+        if (Number.isFinite(slotIdx) && slotIdx >= 0
+            && typeof getCurrentAnimation === "function" && typeof getPuppetPinTrackId === "function") {
+          const anim = getCurrentAnimation();
+          if (anim && anim.tracks) {
+            for (const pin of att.puppetWarp.pins) {
+              const trackId = getPuppetPinTrackId(slotIdx, att.name, pin.id);
+              if (anim.tracks[trackId]) delete anim.tracks[trackId];
+            }
+          }
+        }
         att.puppetWarp.pins = [];
         att.puppetWarp.lastTargets = null;
         att.puppetWarp.bake.dirty = true;
@@ -492,7 +552,7 @@
           const slot = getActiveSlot();
           const att = slot ? getActiveAttachment(slot) : null;
           if (att) {
-            removePin(att, delId);
+            removePin(att, delId, Number(state.activeSlot));
             if (state.puppetWarp && state.puppetWarp.selectedPinId === delId) state.puppetWarp.selectedPinId = null;
             if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
             refreshPuppetWarpPanel();
