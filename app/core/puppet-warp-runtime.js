@@ -84,17 +84,33 @@
     return true;
   }
 
-  // Build a target map for the solver: for any pin without an explicit
-  // target in `overrides`, its current target is its rest position.
-  function buildTargets(pw, overrides) {
+  // Resolve a "pin target" to absolute slot-local coordinates given the
+  // current dynamic-rest reference (skinned vertex positions for post_skin,
+  // mesh.positions for standalone). A target may be:
+  //   { x, y } — absolute, always.
+  //   { dx, dy } — relative to dynamicRest[vertexIndex].
+  function resolveTargetAbs(target, vertexIndex, dynamicRest, fallbackX, fallbackY) {
+    if (!target) return { x: fallbackX, y: fallbackY };
+    if (typeof target.x === "number" && typeof target.y === "number") return { x: target.x, y: target.y };
+    if (typeof target.dx === "number" && typeof target.dy === "number") {
+      const baseX = dynamicRest ? dynamicRest[vertexIndex * 2] : fallbackX;
+      const baseY = dynamicRest ? dynamicRest[vertexIndex * 2 + 1] : fallbackY;
+      return { x: baseX + target.dx, y: baseY + target.dy };
+    }
+    return { x: fallbackX, y: fallbackY };
+  }
+
+  // Build a target map for the solver. For any pin without an explicit
+  // target in `overrides`, its current target is its rest position
+  // (standalone) or its skinned position (post_skin: zero relative offset).
+  function buildTargets(pw, overrides, dynamicRest) {
     const targets = {};
     for (const pin of pw.pins) {
+      const vi = pin.vertexIndex;
+      const fallbackX = dynamicRest ? dynamicRest[vi * 2] : pin.restX;
+      const fallbackY = dynamicRest ? dynamicRest[vi * 2 + 1] : pin.restY;
       const o = overrides && overrides[pin.id];
-      if (o) {
-        targets[pin.vertexIndex] = { x: o.x, y: o.y };
-      } else {
-        targets[pin.vertexIndex] = { x: pin.restX, y: pin.restY };
-      }
+      targets[vi] = resolveTargetAbs(o, vi, dynamicRest, fallbackX, fallbackY);
     }
     return targets;
   }
@@ -113,31 +129,82 @@
   // For post_skin we need the current per-frame skinned positions. We
   // rely on the most recent buildSlotGeometry pass (available as
   // meshData.deformedLocal). If unavailable we fall back to rest.
+  // For post_skin we need the current per-frame skinned positions. They
+  // live in meshData.deformedLocal — the bone-skinned + previous-offsets
+  // result from the most recent buildSlotGeometry pass. To get a clean
+  // "skinned only" reference we'd have to subtract previous offsets, but
+  // for typical bone motion the difference is small enough that using
+  // deformedLocal directly is fine (the solver converges in 2 iterations
+  // anyway). Falls back to mesh.positions if no skinned cache.
+  function getDynamicRest(att) {
+    const md = att && att.meshData;
+    if (!md) return null;
+    if (att.puppetWarp && att.puppetWarp.mode === "post_skin"
+        && md.deformedLocal && md.deformedLocal.length === md.positions.length) {
+      // Subtract previous offsets to recover pure skinned position
+      const n = md.positions.length / 2;
+      const out = new Float32Array(md.positions.length);
+      for (let i = 0; i < md.positions.length; i += 1) {
+        out[i] = md.deformedLocal[i] - (md.offsets ? md.offsets[i] : 0);
+      }
+      return out;
+    }
+    return md.positions;
+  }
+
   function applyTargetsToOffsets(att, overrides) {
     if (!att || !att.puppetWarp || !att.meshData) return false;
     const md = att.meshData;
     const pw = att.puppetWarp;
     if (pw.pins.length === 0) {
-      // No pins → clear
       if (md.offsets) for (let i = 0; i < md.offsets.length; i += 1) md.offsets[i] = 0;
       return true;
     }
-    const targets = buildTargets(pw, overrides);
-    const deformed = window.PuppetWarp.solve(att, targets, 2);
+    const dynamicRest = getDynamicRest(att);
+    const targets = buildTargets(pw, overrides, dynamicRest);
+    let deformed;
+    if (pw.mode === "post_skin" && dynamicRest !== md.positions) {
+      // Adaptive: solve in skinned-space. Output is in skinned-space.
+      deformed = window.PuppetWarp.solveAdaptive(att, dynamicRest, targets, 2);
+    } else {
+      // Standalone (or post_skin fallback when no skinned cache): solve
+      // against rest mesh.
+      deformed = window.PuppetWarp.solve(att, targets, 2);
+    }
     const n = (md.positions.length / 2) | 0;
     if (!md.offsets || md.offsets.length !== n * 2) md.offsets = new Float32Array(n * 2);
-    // Offset = arapDeformed - rest. The render-side composition differs
-    // by mode:
-    //   standalone: getSlotWeightMode → "free" → final = rest + offset
-    //   post_skin:  bone palette stays in play → final = skinned + offset
-    // Same offset value, different composition. The mode toggle is
-    // therefore purely a render-layer decision (already wired in
-    // getSlotWeightMode).
-    for (let i = 0; i < n; i += 1) {
-      md.offsets[i * 2] = deformed[i * 2] - md.positions[i * 2];
-      md.offsets[i * 2 + 1] = deformed[i * 2 + 1] - md.positions[i * 2 + 1];
+    if (pw.mode === "post_skin" && dynamicRest !== md.positions) {
+      // post_skin offsets: render does final = skinned + offset.
+      // We want final = arapDeformed (in skinned-space).
+      // So offset = arapDeformed - skinned.
+      for (let i = 0; i < n; i += 1) {
+        md.offsets[i * 2] = deformed[i * 2] - dynamicRest[i * 2];
+        md.offsets[i * 2 + 1] = deformed[i * 2 + 1] - dynamicRest[i * 2 + 1];
+      }
+    } else {
+      // standalone offsets: render does final = positions + offset.
+      // We want final = arapDeformed (in rest-space).
+      // So offset = arapDeformed - positions.
+      for (let i = 0; i < n; i += 1) {
+        md.offsets[i * 2] = deformed[i * 2] - md.positions[i * 2];
+        md.offsets[i * 2 + 1] = deformed[i * 2 + 1] - md.positions[i * 2 + 1];
+      }
     }
     return true;
+  }
+
+  // Convert a drag-target in slot-local absolute coords to the right
+  // target shape for the current mode:
+  //   standalone: { x, y }
+  //   post_skin:  { dx, dy } relative to the current skinned vertex pos
+  function makeTarget(att, pin, targetX, targetY) {
+    if (att.puppetWarp.mode === "post_skin") {
+      const dr = getDynamicRest(att);
+      const baseX = dr ? dr[pin.vertexIndex * 2] : pin.restX;
+      const baseY = dr ? dr[pin.vertexIndex * 2 + 1] : pin.restY;
+      return { dx: Number(targetX) - baseX, dy: Number(targetY) - baseY };
+    }
+    return { x: Number(targetX), y: Number(targetY) };
   }
 
   function dragPin(slot, att, pinId, targetX, targetY) {
@@ -145,18 +212,14 @@
     const pin = att.puppetWarp.pins.find((p) => p.id === pinId);
     if (!pin) return false;
     const overrides = {};
-    overrides[pinId] = { x: Number(targetX), y: Number(targetY) };
-    // Also keep all OTHER pins at whatever target they were last solved for.
-    // For Phase 1 (no animation) the "last target" is the pin's rest position
-    // unless this drag has previously moved them. We track the active drag
-    // offsets transiently on att.puppetWarp.lastTargets.
+    overrides[pinId] = makeTarget(att, pin, targetX, targetY);
     if (att.puppetWarp.lastTargets) {
       for (const [otherId, t] of Object.entries(att.puppetWarp.lastTargets)) {
         if (otherId !== pinId && !overrides[otherId]) overrides[otherId] = t;
       }
     }
     if (!att.puppetWarp.lastTargets) att.puppetWarp.lastTargets = {};
-    att.puppetWarp.lastTargets[pinId] = { x: Number(targetX), y: Number(targetY) };
+    att.puppetWarp.lastTargets[pinId] = overrides[pinId];
     return applyTargetsToOffsets(att, overrides);
   }
 
@@ -273,12 +336,15 @@
     const anim = getCurrentAnimation();
     if (!anim) return;
     if (typeof getVertexTrackId !== "function" || typeof getTrackKeys !== "function") return;
-    // Resolve all pin targets at this time
+    // Resolve all pin targets at this time. If a pin has no keyframe,
+    // fall back to "no displacement" — represented as rest absolute for
+    // standalone, or zero relative for post_skin.
     const overrides = {};
     for (const pin of att.puppetWarp.pins) {
       const trackId = getPuppetPinTrackId(slotIndex, att.name, pin.id);
       const sampled = samplePuppetPinTrack(anim, trackId, time);
       if (sampled) overrides[pin.id] = sampled;
+      else if (att.puppetWarp.mode === "post_skin") overrides[pin.id] = { dx: 0, dy: 0 };
       else overrides[pin.id] = { x: pin.restX, y: pin.restY };
     }
     applyTargetsToOffsets(att, overrides);

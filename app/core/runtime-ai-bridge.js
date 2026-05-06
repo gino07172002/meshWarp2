@@ -123,8 +123,10 @@
         { name: "slotName", type: "string", required: false },
         { name: "pinId", type: "string", required: true },
         { name: "time", type: "number", required: true },
-        { name: "x", type: "number", required: true },
-        { name: "y", type: "number", required: true },
+        { name: "x", type: "number", required: false, description: "Absolute slot-local X (for standalone or legacy)" },
+        { name: "y", type: "number", required: false, description: "Absolute slot-local Y" },
+        { name: "dx", type: "number", required: false, description: "Skinned-relative dX (for post_skin adaptive)" },
+        { name: "dy", type: "number", required: false, description: "Skinned-relative dY" },
       ],
     },
     "ai.puppetwarp_delete_pin_keyframe": {
@@ -400,9 +402,17 @@
     if (!r.ok) return r;
     const pin = r.att.puppetWarp ? r.att.puppetWarp.pins.find((p) => p.id === args.pinId) : null;
     if (!pin) return { ok: false, error: `pin not found: ${args.pinId}` };
-    const trackId = writePuppetPinKeyframe(r.slotIndex, r.att.name, args.pinId, args.time, args.x, args.y);
+    let value;
+    if (typeof args.dx === "number" && typeof args.dy === "number") {
+      value = { dx: args.dx, dy: args.dy };
+    } else if (typeof args.x === "number" && typeof args.y === "number") {
+      value = { x: args.x, y: args.y };
+    } else {
+      return { ok: false, error: "must provide either (x, y) or (dx, dy)" };
+    }
+    const trackId = writePuppetPinKeyframe(r.slotIndex, r.att.name, args.pinId, args.time, value);
     if (!trackId) return { ok: false, error: "no current animation" };
-    return { ok: true, trackId, time: args.time, value: { x: args.x, y: args.y } };
+    return { ok: true, trackId, time: args.time, value };
   }
 
   function aiPuppetWarpDeletePinKeyframe(args) {

@@ -715,10 +715,13 @@ window.addEventListener("keydown", async (ev) => {
     const selPin = state.puppetWarp && state.puppetWarp.selectedPinId;
     if (att && att.puppetWarp && selPin && typeof writePuppetPinKeyframe === "function") {
       const pin = att.puppetWarp.pins.find((p) => p.id === selPin);
-      const target = (att.puppetWarp.lastTargets && att.puppetWarp.lastTargets[selPin]) || (pin ? { x: pin.restX, y: pin.restY } : null);
+      const isPostSkin = att.puppetWarp.mode === "post_skin";
+      const lastT = att.puppetWarp.lastTargets && att.puppetWarp.lastTargets[selPin];
+      const fallback = isPostSkin ? { dx: 0, dy: 0 } : (pin ? { x: pin.restX, y: pin.restY } : null);
+      const target = lastT || fallback;
       if (pin && target) {
         const si = Number.isFinite(state.activeSlot) ? Number(state.activeSlot) : -1;
-        writePuppetPinKeyframe(si, att.name, selPin, state.anim ? state.anim.time : 0, target.x, target.y);
+        writePuppetPinKeyframe(si, att.name, selPin, state.anim ? state.anim.time : 0, target);
         if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
         setStatus(`Puppet pin keyframed at t=${(state.anim ? state.anim.time : 0).toFixed(3)}.`);
         ev.preventDefault();

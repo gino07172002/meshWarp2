@@ -276,23 +276,36 @@ function isPuppetPinTrackId(trackId) {
   return /^slot:\d+:attachment:[^:]+:puppetpin:/.test(String(trackId || ""));
 }
 
-// Linear-interp sampler for {x, y} keyframe values. Returns {x, y} or
-// null if the track has no keys.
+// Linear-interp sampler for keyframe values. Returns the same shape as
+// the keyframe's value field — {x, y} for absolute targets or {dx, dy}
+// for skinned-relative targets. If keyframes mix shapes (rare, but
+// possible during a mode switch) we fall back to absolute by treating
+// dx/dy as x/y on the rest mesh.
 function samplePuppetPinTrack(anim, trackId, time) {
   if (!anim || !anim.tracks) return null;
   const keys = anim.tracks[trackId];
   if (!Array.isArray(keys) || keys.length === 0) return null;
-  // Sorted in-place when written; do a defensive sort if needed.
   const sorted = keys.slice().sort((a, b) => (Number(a.time) || 0) - (Number(b.time) || 0));
   const t = Number(time) || 0;
-  if (t <= (Number(sorted[0].time) || 0)) {
-    const v = sorted[0].value || {};
+  function val(v) {
+    if (!v) return null;
+    if ("dx" in v && "dy" in v) return { dx: Number(v.dx) || 0, dy: Number(v.dy) || 0 };
     return { x: Number(v.x) || 0, y: Number(v.y) || 0 };
   }
-  if (t >= (Number(sorted[sorted.length - 1].time) || 0)) {
-    const v = sorted[sorted.length - 1].value || {};
-    return { x: Number(v.x) || 0, y: Number(v.y) || 0 };
+  function lerp(va, vb, u) {
+    const aRel = "dx" in va, bRel = "dx" in vb;
+    if (aRel && bRel) {
+      return { dx: va.dx * (1 - u) + vb.dx * u, dy: va.dy * (1 - u) + vb.dy * u };
+    }
+    if (!aRel && !bRel) {
+      return { x: va.x * (1 - u) + vb.x * u, y: va.y * (1 - u) + vb.y * u };
+    }
+    // Mixed: prefer the second keyframe's shape, project the first onto it.
+    if (bRel) return { dx: (va.x || 0) * (1 - u) + vb.dx * u, dy: (va.y || 0) * (1 - u) + vb.dy * u };
+    return { x: (va.dx || 0) * (1 - u) + vb.x * u, y: (va.dy || 0) * (1 - u) + vb.y * u };
   }
+  if (t <= (Number(sorted[0].time) || 0)) return val(sorted[0].value);
+  if (t >= (Number(sorted[sorted.length - 1].time) || 0)) return val(sorted[sorted.length - 1].value);
   for (let i = 0; i < sorted.length - 1; i += 1) {
     const a = sorted[i], b = sorted[i + 1];
     const ta = Number(a.time) || 0;
@@ -300,24 +313,30 @@ function samplePuppetPinTrack(anim, trackId, time) {
     if (t < ta || t > tb) continue;
     const span = tb - ta;
     const u = span > 0 ? (t - ta) / span : 0;
-    const va = a.value || {};
-    const vb = b.value || {};
-    return {
-      x: (Number(va.x) || 0) * (1 - u) + (Number(vb.x) || 0) * u,
-      y: (Number(va.y) || 0) * (1 - u) + (Number(vb.y) || 0) * u,
-    };
+    return lerp(val(a.value), val(b.value), u);
   }
   return null;
 }
 
-function writePuppetPinKeyframe(slotIndex, attachmentName, pinId, time, x, y) {
+// Last arg can be either (x, y) for absolute slot-local target, or
+// ({dx, dy}, undefined) for skinned-relative target (post_skin mode).
+function writePuppetPinKeyframe(slotIndex, attachmentName, pinId, time, xOrValue, y) {
   if (typeof getCurrentAnimation !== "function") return null;
   const anim = getCurrentAnimation();
   if (!anim) return null;
   const trackId = getPuppetPinTrackId(slotIndex, attachmentName, pinId);
   const keys = getTrackKeys(anim, trackId);
   const t = Number(time) || 0;
-  const value = { x: Number(x) || 0, y: Number(y) || 0 };
+  let value;
+  if (xOrValue && typeof xOrValue === "object") {
+    if ("dx" in xOrValue && "dy" in xOrValue) {
+      value = { dx: Number(xOrValue.dx) || 0, dy: Number(xOrValue.dy) || 0 };
+    } else {
+      value = { x: Number(xOrValue.x) || 0, y: Number(xOrValue.y) || 0 };
+    }
+  } else {
+    value = { x: Number(xOrValue) || 0, y: Number(y) || 0 };
+  }
   // Replace existing key at same time, else append
   const epsilon = 1e-6;
   const existing = keys.findIndex((k) => Math.abs((Number(k.time) || 0) - t) < epsilon);

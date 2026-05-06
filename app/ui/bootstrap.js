@@ -396,7 +396,7 @@ function clearDrag(ev) {
       // time, then queue a re-bake of the attachment's deform offsets.
       const lastT = att.puppetWarp && att.puppetWarp.lastTargets && att.puppetWarp.lastTargets[drag.pinId];
       if (lastT && typeof writePuppetPinKeyframe === "function") {
-        writePuppetPinKeyframe(si, att.name, drag.pinId, state.anim ? state.anim.time : 0, lastT.x, lastT.y);
+        writePuppetPinKeyframe(si, att.name, drag.pinId, state.anim ? state.anim.time : 0, lastT);
       }
     }
     pushUndoCheckpoint(true);

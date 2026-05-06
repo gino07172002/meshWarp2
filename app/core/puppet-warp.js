@@ -364,6 +364,119 @@
     bY[j] -= w * ry;
   }
 
+  // ---------- adaptive solve ----------------------------------------------
+  // Same as solve(), but the "rest" reference is a dynamic mesh (typically
+  // the bone-skinned vertices for the current frame). The Cholesky factor
+  // (built from cot weights of the static rest mesh) stays valid because
+  // ARAP's local-global formulation only uses Laplacian as a stiffness
+  // operator — the rest edge vectors enter via the RHS, not the matrix.
+  // This is the same trick Sorkine 2007 uses for "ARAP energy with hard
+  // constraints" and is what After Effects' puppet pin uses to track
+  // bone motion.
+  //
+  // dynamicRest: Float32Array of length vCount*2 in slot-local coords.
+  //              Pass the current bone-skinned vertex positions.
+  // pinTargets:  same as solve() — { vertexIndex: { x, y } } in slot-local.
+  function solveAdaptive(att, dynamicRest, pinTargets, iters) {
+    const cache = precompute(att);
+    if (!cache || !cache.factor) {
+      const positions = att.meshData.positions;
+      return new Float32Array(positions);
+    }
+    const iterations = Math.max(1, iters | 0 || 2);
+    const n = cache.vCount;
+    const triCount = cache.triCount;
+    const triA = cache.triA, triB = cache.triB, triC = cache.triC;
+    const cotA = cache.triCotA, cotB = cache.triCotB, cotC = cache.triCotC;
+    // Use dynamic rest as the reference instead of cache.restX/restY
+    const restX = new Float64Array(n);
+    const restY = new Float64Array(n);
+    for (let i = 0; i < n; i += 1) {
+      restX[i] = dynamicRest[i * 2];
+      restY[i] = dynamicRest[i * 2 + 1];
+    }
+
+    const x = new Float64Array(n);
+    const y = new Float64Array(n);
+    for (let i = 0; i < n; i += 1) { x[i] = restX[i]; y[i] = restY[i]; }
+    for (const p of cache.pinVertices) {
+      const t = readTarget(pinTargets, p);
+      if (t) { x[p] = t.x; y[p] = t.y; }
+    }
+
+    const rotC = new Float64Array(triCount);
+    const rotS = new Float64Array(triCount);
+    const bX = new Float64Array(n);
+    const bY = new Float64Array(n);
+
+    for (let it = 0; it < iterations; it += 1) {
+      // Local: best-fit rotation per triangle, comparing dynamic rest to
+      // current x/y.
+      for (let t = 0; t < triCount; t += 1) {
+        const ia = triA[t], ib = triB[t], ic = triC[t];
+        let s00 = 0, s01 = 0, s10 = 0, s11 = 0;
+        {
+          const erx = restX[ic] - restX[ib];
+          const ery = restY[ic] - restY[ib];
+          const ecx = x[ic] - x[ib];
+          const ecy = y[ic] - y[ib];
+          const w = cotA[t];
+          s00 += w * erx * ecx; s01 += w * erx * ecy;
+          s10 += w * ery * ecx; s11 += w * ery * ecy;
+        }
+        {
+          const erx = restX[ia] - restX[ic];
+          const ery = restY[ia] - restY[ic];
+          const ecx = x[ia] - x[ic];
+          const ecy = y[ia] - y[ic];
+          const w = cotB[t];
+          s00 += w * erx * ecx; s01 += w * erx * ecy;
+          s10 += w * ery * ecx; s11 += w * ery * ecy;
+        }
+        {
+          const erx = restX[ib] - restX[ia];
+          const ery = restY[ib] - restY[ia];
+          const ecx = x[ib] - x[ia];
+          const ecy = y[ib] - y[ia];
+          const w = cotC[t];
+          s00 += w * erx * ecx; s01 += w * erx * ecy;
+          s10 += w * ery * ecx; s11 += w * ery * ecy;
+        }
+        const tr = s00 + s11;
+        const cr = s10 - s01;
+        const norm = Math.sqrt(tr * tr + cr * cr);
+        if (norm < 1e-12) { rotC[t] = 1; rotS[t] = 0; }
+        else { rotC[t] = tr / norm; rotS[t] = cr / norm; }
+      }
+
+      // Global: assemble RHS from rotated dynamic-rest edges.
+      for (let i = 0; i < n; i += 1) { bX[i] = 0; bY[i] = 0; }
+      for (let t = 0; t < triCount; t += 1) {
+        const ia = triA[t], ib = triB[t], ic = triC[t];
+        const c = rotC[t], s = rotS[t];
+        addRotatedEdge(bX, bY, ib, ic, restX[ib] - restX[ic], restY[ib] - restY[ic], cotA[t] * 0.5, c, s);
+        addRotatedEdge(bX, bY, ia, ic, restX[ia] - restX[ic], restY[ia] - restY[ic], cotB[t] * 0.5, c, s);
+        addRotatedEdge(bX, bY, ia, ib, restX[ia] - restX[ib], restY[ia] - restY[ib], cotC[t] * 0.5, c, s);
+      }
+      for (const p of cache.pinVertices) {
+        const target = readTarget(pinTargets, p);
+        if (!target) continue;
+        bX[p] += PIN_PENALTY * target.x;
+        bY[p] += PIN_PENALTY * target.y;
+      }
+
+      SC.solve(cache.factor, bX, x);
+      SC.solve(cache.factor, bY, y);
+    }
+
+    const out = new Float32Array(n * 2);
+    for (let i = 0; i < n; i += 1) {
+      out[i * 2] = x[i];
+      out[i * 2 + 1] = y[i];
+    }
+    return out;
+  }
+
   function readTarget(targets, vertexIndex) {
     if (!targets) return null;
     if (typeof targets.get === "function") return targets.get(vertexIndex) || null;
@@ -384,9 +497,10 @@
 
   window.PuppetWarp = {
     __installed: true,
-    version: 1,
+    version: 2,
     precompute,
     solve,
+    solveAdaptive,
     invalidate,
     debugCacheSize,
   };
