@@ -891,6 +891,7 @@ function getSlotWeightMode(slot, attachment = null) {
   if (!slot) return "single";
   const att = attachment || getActiveAttachment(slot);
   if (!att) return "single";
+  if (att.puppetWarp && att.puppetWarp.mode === "standalone") return "free";
   if (att.weightMode === "single" || att.weightMode === "weighted" || att.weightMode === "free") {
     return att.weightMode;
   }

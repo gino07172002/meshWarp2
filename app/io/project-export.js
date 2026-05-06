@@ -155,6 +155,19 @@ function buildProjectPayload(opts) {
         a && a.meshContour && Array.isArray(a.meshContour.points)
           ? JSON.parse(JSON.stringify(a.meshContour))
           : null,
+      puppetWarp:
+        a && a.puppetWarp && Array.isArray(a.puppetWarp.pins)
+          ? {
+              mode: a.puppetWarp.mode === "post_skin" ? "post_skin" : "standalone",
+              pins: a.puppetWarp.pins.map((p) => ({
+                id: String(p.id),
+                vertexIndex: Number(p.vertexIndex),
+                restX: Number(p.restX),
+                restY: Number(p.restY),
+                label: String(p.label || ""),
+              })),
+            }
+          : null,
     }));
     // auto-weight stores weight data on the attachment object; prefer att.* over slot.* for serialization
     const sAtt = getActiveAttachment(s);

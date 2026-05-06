@@ -73,6 +73,50 @@
         { name: "format", type: "string", required: false, description: "'png' (default) or 'jpeg'" },
       ],
     },
+    "ai.puppetwarp_enable": {
+      args: [
+        { name: "slotIndex", type: "integer", required: false },
+        { name: "slotName", type: "string", required: false },
+        { name: "mode", type: "string", required: false, description: "'standalone' (default) or 'post_skin'" },
+      ],
+    },
+    "ai.puppetwarp_disable": {
+      args: [
+        { name: "slotIndex", type: "integer", required: false },
+        { name: "slotName", type: "string", required: false },
+      ],
+    },
+    "ai.puppetwarp_add_pin": {
+      args: [
+        { name: "slotIndex", type: "integer", required: false },
+        { name: "slotName", type: "string", required: false },
+        { name: "vertexIndex", type: "integer", required: true },
+        { name: "label", type: "string", required: false },
+      ],
+    },
+    "ai.puppetwarp_remove_pin": {
+      args: [
+        { name: "slotIndex", type: "integer", required: false },
+        { name: "slotName", type: "string", required: false },
+        { name: "pinId", type: "string", required: true },
+      ],
+    },
+    "ai.puppetwarp_drag_pin": {
+      args: [
+        { name: "slotIndex", type: "integer", required: false },
+        { name: "slotName", type: "string", required: false },
+        { name: "pinId", type: "string", required: true },
+        { name: "x", type: "number", required: true },
+        { name: "y", type: "number", required: true },
+        { name: "commit", type: "boolean", required: false, description: "If true, calls commitDrag (undo checkpoint)" },
+      ],
+    },
+    "ai.puppetwarp_get_state": {
+      args: [
+        { name: "slotIndex", type: "integer", required: false },
+        { name: "slotName", type: "string", required: false },
+      ],
+    },
   };
 
   // -- Lightweight write-side commands the AI bridge owns directly ---------
@@ -258,6 +302,87 @@
     return { ok: true, format, width: c.width, height: c.height, dataUrl };
   }
 
+  // -- Puppet warp -----------------------------------------------------------
+  function resolveSlotAndAttachment(args) {
+    const slots = Array.isArray(state.slots) ? state.slots : [];
+    let idx = -1;
+    if (Number.isFinite(args.slotIndex)) idx = Math.trunc(args.slotIndex);
+    else if (typeof args.slotName === "string") idx = slots.findIndex((s) => s && s.name === args.slotName);
+    else idx = state.activeSlot;
+    if (idx < 0 || idx >= slots.length) return { ok: false, error: `slot not found (slotIndex=${args.slotIndex}, slotName=${args.slotName})` };
+    const slot = slots[idx];
+    const att = (typeof getActiveAttachment === "function") ? getActiveAttachment(slot) : null;
+    if (!att) return { ok: false, error: "no active attachment on slot" };
+    if (!att.meshData) return { ok: false, error: "attachment has no mesh data" };
+    return { ok: true, slot, att, slotIndex: idx };
+  }
+
+  function aiPuppetWarpEnable(args) {
+    if (!window.PuppetWarpRuntime) return { ok: false, error: "PuppetWarpRuntime not loaded" };
+    const r = resolveSlotAndAttachment(args);
+    if (!r.ok) return r;
+    const pw = window.PuppetWarpRuntime.enableForAttachment(r.att, args.mode);
+    if (typeof requestRender === "function") requestRender("ai.puppetwarp_enable");
+    return { ok: true, slotIndex: r.slotIndex, mode: pw.mode, pinCount: pw.pins.length };
+  }
+
+  function aiPuppetWarpDisable(args) {
+    if (!window.PuppetWarpRuntime) return { ok: false, error: "PuppetWarpRuntime not loaded" };
+    const r = resolveSlotAndAttachment(args);
+    if (!r.ok) return r;
+    window.PuppetWarpRuntime.disableForAttachment(r.att);
+    if (typeof requestRender === "function") requestRender("ai.puppetwarp_disable");
+    return { ok: true, slotIndex: r.slotIndex };
+  }
+
+  function aiPuppetWarpAddPin(args) {
+    if (!window.PuppetWarpRuntime) return { ok: false, error: "PuppetWarpRuntime not loaded" };
+    const r = resolveSlotAndAttachment(args);
+    if (!r.ok) return r;
+    const pin = window.PuppetWarpRuntime.addPin(r.att, args.vertexIndex, args.label);
+    if (!pin) return { ok: false, error: "addPin failed (duplicate or out-of-range vertexIndex?)" };
+    if (typeof requestRender === "function") requestRender("ai.puppetwarp_add_pin");
+    return { ok: true, slotIndex: r.slotIndex, pin };
+  }
+
+  function aiPuppetWarpRemovePin(args) {
+    if (!window.PuppetWarpRuntime) return { ok: false, error: "PuppetWarpRuntime not loaded" };
+    const r = resolveSlotAndAttachment(args);
+    if (!r.ok) return r;
+    const removed = window.PuppetWarpRuntime.removePin(r.att, args.pinId);
+    if (!removed) return { ok: false, error: `pin not found: ${args.pinId}` };
+    if (typeof requestRender === "function") requestRender("ai.puppetwarp_remove_pin");
+    return { ok: true, slotIndex: r.slotIndex, pinId: args.pinId };
+  }
+
+  function aiPuppetWarpDragPin(args) {
+    if (!window.PuppetWarpRuntime) return { ok: false, error: "PuppetWarpRuntime not loaded" };
+    const r = resolveSlotAndAttachment(args);
+    if (!r.ok) return r;
+    const ok = window.PuppetWarpRuntime.dragPin(r.slot, r.att, args.pinId, args.x, args.y);
+    if (!ok) return { ok: false, error: "dragPin failed (no pin or solver error)" };
+    if (args.commit) window.PuppetWarpRuntime.commitDrag(r.slot, r.att, args.pinId);
+    if (typeof requestRender === "function") requestRender("ai.puppetwarp_drag_pin");
+    return { ok: true, slotIndex: r.slotIndex, pinId: args.pinId, target: { x: args.x, y: args.y } };
+  }
+
+  function aiPuppetWarpGetState(args) {
+    const r = resolveSlotAndAttachment(args);
+    if (!r.ok) return r;
+    const pw = r.att.puppetWarp;
+    if (!pw) return { ok: true, slotIndex: r.slotIndex, enabled: false };
+    return {
+      ok: true,
+      slotIndex: r.slotIndex,
+      enabled: true,
+      mode: pw.mode,
+      pinCount: pw.pins.length,
+      pins: pw.pins.map((p) => ({ id: p.id, vertexIndex: p.vertexIndex, restX: p.restX, restY: p.restY, label: p.label })),
+      lastTargets: pw.lastTargets || null,
+      bake: pw.bake,
+    };
+  }
+
   function aiExportAnimationFrame(args) {
     const t = Number(args && args.time);
     if (!Number.isFinite(t)) return { ok: false, error: "time must be a number" };
@@ -347,6 +472,54 @@
       group: "AI",
       domain: "timeline",
       action: aiExportAnimationFrame,
+      mutates: false,
+    },
+    {
+      id: "ai.puppetwarp_enable",
+      label: "AI: Puppet Warp - Enable on Attachment",
+      group: "AI",
+      domain: "mesh",
+      action: aiPuppetWarpEnable,
+      mutates: true,
+    },
+    {
+      id: "ai.puppetwarp_disable",
+      label: "AI: Puppet Warp - Disable",
+      group: "AI",
+      domain: "mesh",
+      action: aiPuppetWarpDisable,
+      mutates: true,
+    },
+    {
+      id: "ai.puppetwarp_add_pin",
+      label: "AI: Puppet Warp - Add Pin",
+      group: "AI",
+      domain: "mesh",
+      action: aiPuppetWarpAddPin,
+      mutates: true,
+    },
+    {
+      id: "ai.puppetwarp_remove_pin",
+      label: "AI: Puppet Warp - Remove Pin",
+      group: "AI",
+      domain: "mesh",
+      action: aiPuppetWarpRemovePin,
+      mutates: true,
+    },
+    {
+      id: "ai.puppetwarp_drag_pin",
+      label: "AI: Puppet Warp - Drag Pin",
+      group: "AI",
+      domain: "mesh",
+      action: aiPuppetWarpDragPin,
+      mutates: false,
+    },
+    {
+      id: "ai.puppetwarp_get_state",
+      label: "AI: Puppet Warp - Get State",
+      group: "AI",
+      domain: "mesh",
+      action: aiPuppetWarpGetState,
       mutates: false,
     },
   ];

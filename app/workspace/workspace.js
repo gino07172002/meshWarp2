@@ -369,6 +369,19 @@ function addSlotEntry(entry, activate = true) {
           baseImageTransform: normalizeBaseImageTransform(a && a.baseImageTransform),
           meshData: a && a.meshData ? cloneSlotMeshData(a.meshData) : null,
           meshContour: a && a.meshContour ? JSON.parse(JSON.stringify(a.meshContour)) : null,
+          puppetWarp: a && a.puppetWarp && Array.isArray(a.puppetWarp.pins)
+            ? {
+                mode: a.puppetWarp.mode === "post_skin" ? "post_skin" : "standalone",
+                pins: a.puppetWarp.pins.map((p) => ({
+                  id: String(p.id),
+                  vertexIndex: Number(p.vertexIndex),
+                  restX: Number(p.restX),
+                  restY: Number(p.restY),
+                  label: String(p.label || ""),
+                })),
+                bake: { dirty: true, lastTopologyHash: "" },
+              }
+            : null,
         }))
         // Keep visual-but-canvas:null entries -- they represent attachments
         // whose source image failed to decode. Renderers skip drawing them
@@ -1499,7 +1512,25 @@ function normalizeSlotAttachmentRecord(slot, a, fallbackName, fallbackPlaceholde
     clipEnabled: !!rec.clipEnabled || !!(legacy && legacy.clipEnabled),
     clipSource: rec.clipSource || (legacy && legacy.clipSource ? legacy.clipSource : "fill"),
     clipEndSlotId: rec.clipEndSlotId || (legacy && legacy.clipEndSlotId ? legacy.clipEndSlotId : null),
-    rect: rec.rect || (slot && slot.rect ? JSON.parse(JSON.stringify(slot.rect)) : null)
+    rect: rec.rect || (slot && slot.rect ? JSON.parse(JSON.stringify(slot.rect)) : null),
+    puppetWarp: rec.puppetWarp && Array.isArray(rec.puppetWarp.pins)
+      ? {
+          mode: rec.puppetWarp.mode === "post_skin" ? "post_skin" : "standalone",
+          pins: rec.puppetWarp.pins.map((p) => ({
+            id: String(p.id),
+            vertexIndex: Number(p.vertexIndex),
+            restX: Number(p.restX),
+            restY: Number(p.restY),
+            label: String(p.label || ""),
+          })),
+          bake: rec.puppetWarp.bake && typeof rec.puppetWarp.bake === "object"
+            ? { dirty: !!rec.puppetWarp.bake.dirty, lastTopologyHash: String(rec.puppetWarp.bake.lastTopologyHash || "") }
+            : { dirty: true, lastTopologyHash: "" },
+          lastTargets: rec.puppetWarp.lastTargets && typeof rec.puppetWarp.lastTargets === "object"
+            ? rec.puppetWarp.lastTargets
+            : null,
+        }
+      : null,
   };
   // Only synthesize a slot-canvas fallback when the caller didn't
   // explicitly mark this attachment as broken (canvas: null). Broken

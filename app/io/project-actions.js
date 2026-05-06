@@ -267,6 +267,20 @@ async function handleProjectLoadInputChange(e) {
                             : null,
                         meshData: a && a.meshData ? cloneSlotMeshData(a.meshData) : null,
                         meshContour: a && a.meshContour ? JSON.parse(JSON.stringify(a.meshContour)) : undefined,
+                        puppetWarp:
+                          a && a.puppetWarp && Array.isArray(a.puppetWarp.pins)
+                            ? {
+                                mode: a.puppetWarp.mode === "post_skin" ? "post_skin" : "standalone",
+                                pins: a.puppetWarp.pins.map((p) => ({
+                                  id: String(p.id),
+                                  vertexIndex: Number(p.vertexIndex),
+                                  restX: Number(p.restX),
+                                  restY: Number(p.restY),
+                                  label: String(p.label || ""),
+                                })),
+                                bake: { dirty: true, lastTopologyHash: "" },
+                              }
+                            : null,
                         baseImageTransform: normalizeBaseImageTransform(a && a.baseImageTransform),
                         rect:
                           a && a.rect && Number.isFinite(a.rect.w) && Number.isFinite(a.rect.h)
