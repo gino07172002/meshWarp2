@@ -272,9 +272,6 @@ function parsePuppetPinTrackId(trackId) {
   return { slotIndex: Number(m[1]), attachmentName: m[2], pinId: m[3] };
 }
 
-function isPuppetPinTrackId(trackId) {
-  return /^slot:\d+:attachment:[^:]+:puppetpin:/.test(String(trackId || ""));
-}
 
 // Linear-interp sampler for keyframe values. Returns the same shape as
 // the keyframe's value field — {x, y} for absolute targets or {dx, dy}

@@ -2099,6 +2099,64 @@ button:hover {
   margin-left: -8px;
 }
 
+/* Puppet warp pin list container */
+.pw-pin-list {
+  font-size: 11px;
+  line-height: 1.5;
+  max-height: 120px;
+  overflow-y: auto;
+  border: 1px solid var(--border, #444);
+  padding: 3px 0;
+  border-radius: 3px;
+}
+
+.pw-pin-empty {
+  padding: 4px 6px;
+  opacity: 0.55;
+  font-style: italic;
+}
+
+.pw-pin-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.pw-pin-row:hover { background: rgba(255, 170, 68, 0.1); }
+.pw-pin-row.pw-pin-selected { background: rgba(255, 170, 68, 0.2); }
+
+.pw-pin-dot {
+  color: #ff8844;
+  font-size: 8px;
+  flex-shrink: 0;
+}
+
+.pw-pin-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pw-pin-coords {
+  opacity: 0.45;
+}
+
+.pw-pin-del {
+  float: right;
+  font-size: 11px;
+  padding: 0 5px;
+  line-height: 1;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.pw-pin-del:hover { opacity: 1; color: #ff6655; }
+
 /* Panel h3 (panel title) gets consistent treatment */
 .left-tab-panel > h3 {
   margin: 0 0 10px;

@@ -6,13 +6,22 @@
 // Loaded after puppet-warp.js (depends on window.PuppetWarp).
 //
 // EXPORTS (under window.PuppetWarpRuntime):
-//   enableForAttachment(att, mode?)
-//   disableForAttachment(att)
-//   addPin(att, vertexIndex, label?) -> pin
-//   removePin(att, pinId)
-//   dragPin(slot, att, pinId, targetX, targetY)   // live preview, writes offsets
-//   commitDrag(slot, att, pinId)                  // bake into deform offsets at current time
-//   ensurePuppetWarp(att, mode?)                  // returns attachment.puppetWarp, creating it if missing
+//   ensurePuppetWarp(att, mode?)             -> att.puppetWarp, creating it if missing
+//   enableForAttachment(att, mode?)          -> att.puppetWarp
+//   disableForAttachment(att, slotIndex?)    clears puppetWarp, zeroes offsets, removes tracks
+//   addPin(att, vertexIndex, label?)         -> pin {id, vertexIndex, restX, restY, label}
+//   removePin(att, pinId, slotIndex?)        removes pin + its timeline track
+//   dragPin(slot, att, pinId, x, y)         live ARAP preview, writes meshData.offsets
+//   commitDrag(slot, att, pinId)            undo checkpoint; hotkeys also writes pin keyframe
+//   rebakeOffsets(att)                      re-apply current lastTargets to offsets
+//   queueBake(slotIndex, attName)           schedule idle re-bake after keyframe edit
+//   flushBakeQueue()                        run queued bakes immediately
+//   samplePuppetPinTracksAtTime(si, att, t) sample all pin tracks at time t, apply ARAP
+//   onAnimationFrame()                      called by samplePoseAtTime every frame
+//   bakeDeformKeyframeForTime(si, n, t)     ARAP-solve at t, write result to deform track
+//   refreshPanel()                          refresh #puppetWarpGroup UI state
+//   refreshToolBtn()                        sync #puppetWarpToolBtn active class
+//   setToolMode(on)                         enter/exit puppetwarp tool mode
 
 (function buildPuppetWarpRuntime() {
   if (typeof window === "undefined") return;
@@ -157,13 +166,20 @@
   // Find which slot owns this attachment. O(slots × atts) but slots are
   // usually < 50 in practice. Used to populate deformedLocal lazily for
   // post_skin's getDynamicRest.
+  // WeakMap cache so we only scan slots once per attachment object identity.
+  // The cache is automatically pruned when the attachment is GC'd.
+  const _slotIndexByAtt = new WeakMap();
   function findSlotIndexForAttachment(att) {
     if (!att) return -1;
+    if (_slotIndexByAtt.has(att)) return _slotIndexByAtt.get(att);
     const slots = state.slots || [];
     for (let i = 0; i < slots.length; i += 1) {
       const s = slots[i];
       if (!s || !Array.isArray(s.attachments)) continue;
-      if (s.attachments.indexOf(att) >= 0) return i;
+      if (s.attachments.indexOf(att) >= 0) {
+        _slotIndexByAtt.set(att, i);
+        return i;
+      }
     }
     return -1;
   }
@@ -419,14 +435,20 @@
   }
 
   // Called by the global animation playback loop on every frame.
+  // Guard: skip if time hasn't changed since the last solve — avoids
+  // running ARAP on every rAF when the animation is paused.
+  let _lastFrameTime = -Infinity;
   function onAnimationFrame() {
+    const t = state.anim ? state.anim.time : 0;
+    if (t === _lastFrameTime) return;
+    _lastFrameTime = t;
     const slots = state.slots || [];
     for (let i = 0; i < slots.length; i += 1) {
       const slot = slots[i];
       if (!slot) continue;
       const att = (typeof getActiveAttachment === "function") ? getActiveAttachment(slot) : null;
       if (!att || !att.puppetWarp || !Array.isArray(att.puppetWarp.pins) || att.puppetWarp.pins.length === 0) continue;
-      samplePuppetPinTracksAtTime(i, att, state.anim ? state.anim.time : 0);
+      samplePuppetPinTracksAtTime(i, att, t);
     }
   }
 
@@ -484,21 +506,21 @@
     if (els.puppetWarpMode) els.puppetWarpMode.value = pw.mode === "post_skin" ? "post_skin" : "standalone";
     if (els.puppetWarpPinList) {
       if (pw.pins.length === 0) {
-        els.puppetWarpPinList.innerHTML = '<div style="opacity:0.6">No pins. Alt-click on a vertex to add.</div>';
+        els.puppetWarpPinList.innerHTML = '<div class="pw-pin-empty">No pins — Alt+Click a vertex to add one.</div>';
       } else {
         const selectedId = state.puppetWarp && state.puppetWarp.selectedPinId;
         els.puppetWarpPinList.innerHTML = pw.pins.map((p) => {
-          const isSel = p.id === selectedId;
-          return `<div data-pin-id="${p.id}" style="padding:2px 4px;cursor:pointer;${isSel ? "background:rgba(255,170,68,0.2);" : ""}">
-            <span style="color:#ff9966">●</span>
-            v${p.vertexIndex} <small style="opacity:0.5">(${Math.round(p.restX)}, ${Math.round(p.restY)})</small>
-            <button data-pin-del="${p.id}" type="button" style="float:right;font-size:10px;padding:0 6px">×</button>
+          return `<div class="pw-pin-row${p.id === selectedId ? " pw-pin-selected" : ""}" data-pin-id="${p.id}">
+            <span class="pw-pin-dot">◆</span>
+            <span class="pw-pin-label">v${p.vertexIndex} <span class="pw-pin-coords">(${Math.round(p.restX)}, ${Math.round(p.restY)})</span></span>
+            <button class="pw-pin-del" data-pin-del="${p.id}" type="button" title="Remove pin">×</button>
           </div>`;
         }).join("");
       }
     }
     if (els.puppetWarpStatus) {
-      els.puppetWarpStatus.textContent = `${pw.pins.length} pin${pw.pins.length === 1 ? "" : "s"} · mode: ${pw.mode}`;
+      const modeLabel = pw.mode === "post_skin" ? "Post-skin (after bones)" : "Standalone";
+      els.puppetWarpStatus.textContent = `${pw.pins.length} pin${pw.pins.length === 1 ? "" : "s"} · ${modeLabel}`;
     }
   }
 

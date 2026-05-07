@@ -28,10 +28,11 @@
 //        L · x_new = b. Repeat with x_new as the new "current".
 //
 // EXPORTS (under window.PuppetWarp):
-//   precompute(att)            -> cache  (factorises the system)
-//   solve(att, pinTargets, iters=2) -> Float32Array deformed positions
-//   invalidate(att, reason)    drop cache (mesh topology changed)
-//   debugCacheSize()           introspection
+//   precompute(att)                       -> cache  (factorises the system)
+//   solve(att, pinTargets, iters=2)       -> Float32Array deformed positions (rest-mesh ARAP)
+//   solveAdaptive(att, dynamicRest, pinTargets, iters=2) -> Float32Array (bone-skinned ARAP)
+//   invalidate(att, reason)               drop cache (call when mesh topology changes)
+//   _debugCacheSize()                     dev console introspection only (not public API)
 
 (function buildPuppetWarp() {
   if (typeof window === "undefined") return;
@@ -502,6 +503,7 @@
     solve,
     solveAdaptive,
     invalidate,
-    debugCacheSize,
+    // debugCacheSize omitted from public API; call window.PuppetWarp._debugCacheSize() from console
+    _debugCacheSize: debugCacheSize,
   };
 })();
