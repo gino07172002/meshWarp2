@@ -430,17 +430,52 @@
     }
   }
 
+  // -- Tool button state -----------------------------------------------------
+  function refreshPuppetWarpToolBtn() {
+    if (!els.puppetWarpToolBtn) return;
+    const isActive = state.slotMesh &&
+      (typeof normalizeSlotMeshToolMode === "function"
+        ? normalizeSlotMeshToolMode(state.slotMesh.toolMode) === "puppetwarp"
+        : state.slotMesh.toolMode === "puppetwarp");
+    els.puppetWarpToolBtn.classList.toggle("active", !!isActive);
+    els.puppetWarpToolBtn.setAttribute("aria-pressed", isActive ? "true" : "false");
+  }
+
+  function setPuppetWarpToolMode(on) {
+    if (!state.slotMesh) state.slotMesh = {};
+    const slot = (typeof getActiveSlot === "function") ? getActiveSlot() : null;
+    const att = slot ? getActiveAttachment(slot) : null;
+    if (on) {
+      // Auto-enable puppet warp if the current attachment supports it
+      if (att && att.meshData && !att.puppetWarp) {
+        enableForAttachment(att, "standalone");
+        if (typeof refreshAttachmentPanel === "function") refreshAttachmentPanel(slot);
+      }
+      state.slotMesh.toolMode = "puppetwarp";
+      setStatus("Puppet Pin mode: Alt+Click to add pin · Drag pin to deform · Shift+Click pin to remove");
+    } else {
+      state.slotMesh.toolMode = "select";
+    }
+    if (typeof refreshSlotMeshToolModeUI === "function") refreshSlotMeshToolModeUI();
+    refreshPuppetWarpToolBtn();
+    refreshPuppetWarpPanel();
+    if (typeof requestRender === "function") requestRender("puppet_warp_tool_mode");
+  }
+
   // -- Property panel UI ----------------------------------------------------
   function refreshPuppetWarpPanel() {
     if (!els.puppetWarpGroup) return;
     const slot = (typeof getActiveSlot === "function") ? getActiveSlot() : null;
     const att = slot ? getActiveAttachment(slot) : null;
     const isMesh = att && (att.type === "mesh" || att.type === "linkedmesh");
+    // Show in both Mesh workspace and Rig workspace (when a mesh slot is selected)
     if (!isMesh) {
       els.puppetWarpGroup.style.display = "none";
+      refreshPuppetWarpToolBtn();
       return;
     }
     els.puppetWarpGroup.style.display = "";
+    refreshPuppetWarpToolBtn();
     const enabled = !!(att && att.puppetWarp);
     if (els.puppetWarpEnabled) els.puppetWarpEnabled.checked = enabled;
     if (els.puppetWarpControls) els.puppetWarpControls.style.display = enabled ? "" : "none";
@@ -573,12 +608,27 @@
     }
   }
 
+  function wirePuppetWarpToolBtn() {
+    if (!els.puppetWarpToolBtn || els.puppetWarpToolBtn.dataset.wired === "1") return;
+    els.puppetWarpToolBtn.dataset.wired = "1";
+    els.puppetWarpToolBtn.addEventListener("click", () => {
+      const isActive = state.slotMesh &&
+        (typeof normalizeSlotMeshToolMode === "function"
+          ? normalizeSlotMeshToolMode(state.slotMesh.toolMode) === "puppetwarp"
+          : state.slotMesh.toolMode === "puppetwarp");
+      setPuppetWarpToolMode(!isActive);
+    });
+  }
+
   // Wire on next tick so els is fully populated
   if (typeof window !== "undefined") {
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", wirePuppetWarpPanel);
+      document.addEventListener("DOMContentLoaded", () => {
+        wirePuppetWarpPanel();
+        wirePuppetWarpToolBtn();
+      });
     } else {
-      setTimeout(wirePuppetWarpPanel, 0);
+      setTimeout(() => { wirePuppetWarpPanel(); wirePuppetWarpToolBtn(); }, 0);
     }
   }
 
@@ -599,5 +649,7 @@
     onAnimationFrame,
     bakeDeformKeyframeForTime,
     refreshPanel: refreshPuppetWarpPanel,
+    refreshToolBtn: refreshPuppetWarpToolBtn,
+    setToolMode: setPuppetWarpToolMode,
   };
 })();

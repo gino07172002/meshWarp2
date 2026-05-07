@@ -1749,7 +1749,10 @@ function clearSlotMeshSelection(setName = "") {
 }
 
 function normalizeSlotMeshToolMode(mode) {
-  return String(mode || "").toLowerCase() === "add" ? "add" : "select";
+  const m = String(mode || "").toLowerCase();
+  if (m === "add") return "add";
+  if (m === "puppetwarp") return "puppetwarp";
+  return "select";
 }
 
 function cloneSlotMeshContour(contour) {
@@ -1896,6 +1899,10 @@ function setSlotMeshToolMode(mode, withStatus = false) {
     restoreTarget: normalizeSlotMeshEditTarget(state.slotMesh.toolRestoreTarget),
   });
   refreshSlotMeshToolModeUI();
+  // Sync puppet warp tool button active state when tool mode changes
+  if (window.PuppetWarpRuntime && typeof window.PuppetWarpRuntime.refreshToolBtn === "function") {
+    window.PuppetWarpRuntime.refreshToolBtn();
+  }
   if (withStatus) {
     setStatus(next === "add" ? "Slot Mesh tool: Add Vertex mode." : "Slot Mesh tool: Select mode.");
   }

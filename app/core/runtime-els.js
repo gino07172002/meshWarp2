@@ -597,6 +597,7 @@ const els = {
   glCanvas: document.getElementById("glCanvas"),
   glOverlayCanvas: document.getElementById("glOverlayCanvas"),
   overlay: document.getElementById("overlay"),
+  puppetWarpToolBtn: document.getElementById("puppetWarpToolBtn"),
   puppetWarpGroup: document.getElementById("puppetWarpGroup"),
   puppetWarpEnabled: document.getElementById("puppetWarpEnabled"),
   puppetWarpControls: document.getElementById("puppetWarpControls"),

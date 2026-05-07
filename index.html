@@ -352,6 +352,10 @@
             <span class="mesh-quick-dot"></span>
             <span class="mesh-quick-label">Weight Overlay</span>
           </button>
+          <button id="puppetWarpToolBtn" type="button" class="mesh-quick-btn" title="Puppet Pin mode: Alt+Click to add pin, drag pin to deform (ARAP). Editor-only — bakes to deform track on Spine export.">
+            <span class="mesh-quick-dot mesh-quick-diamond"></span>
+            <span class="mesh-quick-label">Puppet Pin</span>
+          </button>
         </div>
 
         <details class="mesh-section" open>
@@ -938,8 +942,11 @@
             </label>
           </div>
 
-          <section id="puppetWarpGroup" class="group" data-att-type="mesh linkedmesh">
-            <h4>Puppet Warp <small style="opacity:0.6">(ARAP)</small></h4>
+          <section id="puppetWarpGroup" class="group pw-group" data-att-type="mesh linkedmesh">
+            <h4 class="pw-group-title">
+              Puppet Warp
+              <span class="pw-editor-badge" title="Editor-only: pins and ARAP solve live here. On Spine export the deformation is baked into standard deform keyframes — Spine runtime never sees pins.">editor only</span>
+            </h4>
             <div class="field">
               <label class="slot-inline-check">
                 <input id="puppetWarpEnabled" type="checkbox" />
@@ -2156,7 +2163,7 @@
   <script src="app/core/debug.js?v=20260426-3"></script>
   <script src="vendor/sparse-cholesky.js?v=20260506-1"></script>
   <script src="app/core/puppet-warp.js?v=20260506-2"></script>
-  <script src="app/core/puppet-warp-runtime.js?v=20260506-4"></script>
+  <script src="app/core/puppet-warp-runtime.js?v=20260508-1"></script>
   <script src="app/core/runtime-ai-bridge.js?v=20260506-6"></script>
   <script src="app/render/gl-toolkit.js?v=20260426-19"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>

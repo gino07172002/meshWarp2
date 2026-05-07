@@ -452,6 +452,11 @@ window.addEventListener("keydown", async (ev) => {
     const activePoints = activeSet === "fill" ? contour.fillPoints : contour.points;
     if (hotkey === "v" && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
       const finishCapture = beginAICaptureCommand("mesh.hotkey.toggle_add_vertex", { key: "v" });
+      const curMode = normalizeSlotMeshToolMode(state.slotMesh.toolMode);
+      // Exit puppet warp mode first; V then lands on select, not add.
+      if (curMode === "puppetwarp" && window.PuppetWarpRuntime) {
+        window.PuppetWarpRuntime.setToolMode(false);
+      }
       const next = normalizeSlotMeshToolMode(state.slotMesh.toolMode) === "add" ? "select" : "add";
       setSlotMeshToolMode(next, true);
       finishCapture({ ok: true, nextMode: next });

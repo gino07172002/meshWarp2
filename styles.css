@@ -2041,6 +2041,64 @@ button:hover {
   box-shadow: 0 0 8px rgba(109, 255, 180, 0.85);
 }
 
+/* Puppet pin tool button — distinct warm colour so it reads differently
+   from the green weight-overlay button, but same pill shape & sizing. */
+#puppetWarpToolBtn.active {
+  border-color: rgba(255, 160, 80, 0.9);
+  background: linear-gradient(180deg, rgba(70, 42, 20, 0.95), rgba(45, 25, 10, 0.95));
+  color: #ffe5c0;
+  box-shadow: 0 0 8px rgba(255, 140, 60, 0.35);
+}
+
+#puppetWarpToolBtn.active .mesh-quick-dot {
+  background: #ffaa55;
+  border-color: #ffaa55;
+  box-shadow: 0 0 8px rgba(255, 170, 85, 0.85);
+}
+
+/* Diamond shape for the puppet-pin indicator dot */
+.mesh-quick-diamond {
+  border-radius: 2px;
+  transform: rotate(45deg);
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+}
+
+/* "editor only" badge on puppet warp section title */
+.pw-group-title {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c4d4db;
+  margin: 0 0 8px;
+}
+
+.pw-editor-badge {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #a8b8c0;
+  background: rgba(48, 64, 75, 0.9);
+  border: 1px solid rgba(80, 110, 130, 0.55);
+  border-radius: 3px;
+  padding: 1px 5px;
+  line-height: 1.4;
+  cursor: help;
+  flex-shrink: 0;
+}
+
+/* Puppet warp group gets a subtle left border to differentiate it
+   from pure Spine-native attachment sections, without being jarring. */
+.pw-group {
+  border-left: 2px solid rgba(255, 140, 60, 0.25);
+  padding-left: 8px;
+  margin-left: -8px;
+}
+
 /* Panel h3 (panel title) gets consistent treatment */
 .left-tab-panel > h3 {
   margin: 0 0 10px;
