@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Web Spine-like Mesh Deformer</title>
-  <link rel="stylesheet" href="styles.css?v=20260509-3" />
+  <link rel="stylesheet" href="styles.css?v=20260509-4" />
 </head>
 
 <body>
@@ -637,8 +637,40 @@
             <p id="imageInfoLabel" class="image-panel-hint">No image loaded</p>
           </section>
           <section class="image-panel-section">
-            <h4>Coming next</h4>
-            <p class="image-panel-hint muted">Phase 2 will add: Crop · Rotate · Flip · Scale · Trim transparency. Phase 3 adds AI background removal.</p>
+            <h4>Transform</h4>
+            <div class="image-panel-row">
+              <button id="imageRotate90Btn" type="button">Rotate 90°</button>
+              <button id="imageRotate180Btn" type="button">Rotate 180°</button>
+            </div>
+            <div class="image-panel-row">
+              <button id="imageFlipXBtn" type="button">Flip H</button>
+              <button id="imageFlipYBtn" type="button">Flip V</button>
+            </div>
+            <button id="imageTrimBtn" type="button">Trim Transparency</button>
+          </section>
+          <section class="image-panel-section">
+            <h4>Crop</h4>
+            <button id="imageCropToolBtn" type="button">Crop Tool</button>
+            <div class="image-panel-row">
+              <button id="imageCropApplyBtn" type="button" disabled>Apply Crop</button>
+              <button id="imageCropCancelBtn" type="button" disabled>Cancel</button>
+            </div>
+          </section>
+          <section class="image-panel-section">
+            <h4>Resize</h4>
+            <div class="image-size-row">
+              <input id="imageScaleWidth" type="number" min="1" step="1" placeholder="W" />
+              <span>×</span>
+              <input id="imageScaleHeight" type="number" min="1" step="1" placeholder="H" />
+            </div>
+            <button id="imageScaleApplyBtn" type="button" disabled>Scale</button>
+          </section>
+          <section class="image-panel-section">
+            <h4>View</h4>
+            <div class="image-panel-row">
+              <button id="imageFitBtn" type="button" disabled>Fit</button>
+              <button id="imageZoom100Btn" type="button" disabled>100%</button>
+            </div>
           </section>
         </aside>
 
@@ -2199,7 +2231,7 @@
     </section>
   </div>
 
-  <script src="app/core/runtime-els.js?v=20260426-1"></script>
+  <script src="app/core/runtime-els.js?v=20260509-1"></script>
   <script src="app/core/runtime.js?v=20260426-19"></script>
   <script src="app/core/runtime-ai-capture.js?v=20260426-1"></script>
   <script src="app/core/runtime-pose-autorig.js?v=20260426-1"></script>
@@ -2207,8 +2239,9 @@
   <script src="vendor/sparse-cholesky.js?v=20260506-1"></script>
   <script src="app/core/puppet-warp.js?v=20260506-2"></script>
   <script src="app/core/puppet-warp-runtime.js?v=20260508-1"></script>
-  <script src="app/image/image-workspace.js?v=20260509-3"></script>
-  <script src="app/image/image-io.js?v=20260509-2"></script>
+  <script src="app/image/image-ops.js?v=20260509-1"></script>
+  <script src="app/image/image-workspace.js?v=20260509-4"></script>
+  <script src="app/image/image-io.js?v=20260509-3"></script>
   <script src="app/core/runtime-ai-bridge.js?v=20260506-6"></script>
   <script src="app/render/gl-toolkit.js?v=20260426-19"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>

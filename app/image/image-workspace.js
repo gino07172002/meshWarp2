@@ -16,6 +16,9 @@
 //   undo() / redo()            move historyIndex; restore that canvas
 //   canUndo() / canRedo()
 //   resetToSource()            wipe history, reload source as work canvas
+//   setTool(tool)              set active tool ("select" | "crop")
+//   applyCrop() / cancelCrop()
+//   setZoom100() / zoomAtCanvasPoint(x, y, factor) / panByScreenDelta(dx, dy)
 //   refreshUI()                redraw image canvas + sync panels
 //   isActive()                 boolean
 
@@ -64,6 +67,7 @@
         view: { scale: 1, cx: 0, cy: 0 },
         tool: "select",
         cropRect: null,
+        cropDrag: null,
         bgRemoval: { modelLoaded: false, modelLoading: false, threshold: 0.5, feather: 1 },
       };
     }
@@ -110,6 +114,7 @@
     }];
     ie.historyIndex = 0;
     ie.cropRect = null;
+    ie.cropDrag = null;
     ie.tool = "select";
     fitViewToCanvas();
     refreshUI();
@@ -145,6 +150,8 @@
       ie.history = ie.history.slice(0, ie.historyIndex + 1);
     }
     ie.workCanvas = newCanvas;
+    ie.cropRect = null;
+    ie.cropDrag = null;
     ie.history.push({
       op: String(op || "edit"),
       canvas: cloneCanvas(newCanvas),
@@ -199,6 +206,9 @@
       params: null,
     }];
     ie.historyIndex = 0;
+    ie.cropRect = null;
+    ie.cropDrag = null;
+    ie.tool = "select";
     refreshUI();
     return true;
   }
@@ -219,6 +229,118 @@
     ie.view.scale = Math.max(0.05, Math.min(8, Math.min(sx, sy)));
     ie.view.cx = cw / 2;
     ie.view.cy = ch / 2;
+  }
+
+  function setZoom100() {
+    const ie = ensureState();
+    if (!ie.workCanvas) return false;
+    ie.view.scale = 1;
+    ie.view.cx = ie.workCanvas.width / 2;
+    ie.view.cy = ie.workCanvas.height / 2;
+    refreshUI();
+    return true;
+  }
+
+  function canvasPointFromEvent(ev) {
+    const cv = els.imageCanvas;
+    const r = cv.getBoundingClientRect();
+    return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+  }
+
+  function canvasToImage(x, y) {
+    const ie = ensureState();
+    const cv = els.imageCanvas;
+    const s = ie.view.scale || 1;
+    return {
+      x: ie.view.cx + (x - cv.width / 2) / s,
+      y: ie.view.cy + (y - cv.height / 2) / s,
+    };
+  }
+
+  function imageToCanvas(x, y) {
+    const ie = ensureState();
+    const cv = els.imageCanvas;
+    const s = ie.view.scale || 1;
+    return {
+      x: cv.width / 2 + (x - ie.view.cx) * s,
+      y: cv.height / 2 + (y - ie.view.cy) * s,
+    };
+  }
+
+  function clampImagePoint(pt) {
+    const ie = ensureState();
+    if (!ie.workCanvas) return { x: 0, y: 0 };
+    return {
+      x: Math.max(0, Math.min(ie.workCanvas.width, pt.x)),
+      y: Math.max(0, Math.min(ie.workCanvas.height, pt.y)),
+    };
+  }
+
+  function normalizeCropRect(a, b) {
+    const p0 = clampImagePoint(a);
+    const p1 = clampImagePoint(b);
+    const x = Math.min(p0.x, p1.x);
+    const y = Math.min(p0.y, p1.y);
+    const w = Math.abs(p1.x - p0.x);
+    const h = Math.abs(p1.y - p0.y);
+    return { x, y, w, h };
+  }
+
+  function zoomAtCanvasPoint(x, y, factor) {
+    const ie = ensureState();
+    if (!ie.workCanvas) return false;
+    const before = canvasToImage(x, y);
+    const nextScale = Math.max(0.05, Math.min(16, ie.view.scale * Number(factor || 1)));
+    ie.view.scale = nextScale;
+    ie.view.cx = before.x - (x - els.imageCanvas.width / 2) / nextScale;
+    ie.view.cy = before.y - (y - els.imageCanvas.height / 2) / nextScale;
+    refreshUI();
+    return true;
+  }
+
+  function panByScreenDelta(dx, dy) {
+    const ie = ensureState();
+    if (!ie.workCanvas) return false;
+    const s = ie.view.scale || 1;
+    ie.view.cx -= dx / s;
+    ie.view.cy -= dy / s;
+    refreshUI();
+    return true;
+  }
+
+  function setTool(tool) {
+    const ie = ensureState();
+    ie.tool = tool === "crop" ? "crop" : "select";
+    if (ie.tool !== "crop") {
+      ie.cropRect = null;
+      ie.cropDrag = null;
+    }
+    refreshUI();
+  }
+
+  function applyCrop() {
+    const ie = ensureState();
+    if (!ie.workCanvas || !ie.cropRect || !window.ImageOps) return false;
+    const r = {
+      x: Math.floor(ie.cropRect.x),
+      y: Math.floor(ie.cropRect.y),
+      w: Math.max(1, Math.round(ie.cropRect.w)),
+      h: Math.max(1, Math.round(ie.cropRect.h)),
+    };
+    if (r.w < 1 || r.h < 1) return false;
+    replaceWorkCanvas(window.ImageOps.crop(ie.workCanvas, r), "crop", r);
+    ie.tool = "select";
+    fitViewToCanvas();
+    refreshUI();
+    return true;
+  }
+
+  function cancelCrop() {
+    const ie = ensureState();
+    ie.cropRect = null;
+    ie.cropDrag = null;
+    ie.tool = "select";
+    refreshUI();
   }
 
   // -- Render ----------------------------------------------------------------
@@ -244,11 +366,41 @@
       const s = ie.view.scale;
       const w = ie.workCanvas.width * s;
       const h = ie.workCanvas.height * s;
-      const x = (cv.width - w) / 2;
-      const y = (cv.height - h) / 2;
+      const origin = imageToCanvas(0, 0);
+      const x = origin.x;
+      const y = origin.y;
       ctx.imageSmoothingEnabled = s < 1;
       ctx.drawImage(ie.workCanvas, x, y, w, h);
+      drawCropOverlay(ctx);
     }
+    ctx.restore();
+  }
+
+  function drawCropOverlay(ctx) {
+    const ie = ensureState();
+    if (!ie.cropRect || ie.cropRect.w < 1 || ie.cropRect.h < 1) return;
+    const a = imageToCanvas(ie.cropRect.x, ie.cropRect.y);
+    const b = imageToCanvas(ie.cropRect.x + ie.cropRect.w, ie.cropRect.y + ie.cropRect.h);
+    const x = Math.min(a.x, b.x);
+    const y = Math.min(a.y, b.y);
+    const w = Math.abs(b.x - a.x);
+    const h = Math.abs(b.y - a.y);
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+    ctx.fillRect(0, 0, els.imageCanvas.width, y);
+    ctx.fillRect(0, y + h, els.imageCanvas.width, els.imageCanvas.height - (y + h));
+    ctx.fillRect(0, y, x, h);
+    ctx.fillRect(x + w, y, els.imageCanvas.width - (x + w), h);
+    ctx.strokeStyle = "#f7d85b";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 5]);
+    ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#f7d85b";
+    const size = 6;
+    [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach((p) => {
+      ctx.fillRect(p[0] - size / 2, p[1] - size / 2, size, size);
+    });
     ctx.restore();
   }
 
@@ -319,10 +471,86 @@
       }
     }
     if (els.imageResetBtn) els.imageResetBtn.disabled = !has || ie.history.length <= 1;
+    if (els.imageCropToolBtn) els.imageCropToolBtn.classList.toggle("active", ie.tool === "crop");
+    if (els.imageCropApplyBtn) els.imageCropApplyBtn.disabled = !has || !ie.cropRect || ie.cropRect.w < 1 || ie.cropRect.h < 1;
+    if (els.imageCropCancelBtn) els.imageCropCancelBtn.disabled = !has || ie.tool !== "crop";
+    if (els.imageFitBtn) els.imageFitBtn.disabled = !has;
+    if (els.imageZoom100Btn) els.imageZoom100Btn.disabled = !has;
+    if (els.imageScaleWidth && has && document.activeElement !== els.imageScaleWidth) {
+      els.imageScaleWidth.value = String(ie.workCanvas.width);
+    }
+    if (els.imageScaleHeight && has && document.activeElement !== els.imageScaleHeight) {
+      els.imageScaleHeight.value = String(ie.workCanvas.height);
+    }
+    if (els.imageScaleApplyBtn) els.imageScaleApplyBtn.disabled = !has;
     if (els.imageInfoLabel) {
       if (!has) els.imageInfoLabel.textContent = "No image loaded";
       else els.imageInfoLabel.textContent = `${ie.workCanvas.width} × ${ie.workCanvas.height}px · ${ie.source.origin || "unknown"}`;
     }
+  }
+
+  function wireCanvasInteractions() {
+    const cv = els.imageCanvas;
+    if (!cv || cv.__imageWorkspaceWired) return;
+    cv.__imageWorkspaceWired = true;
+    let panDrag = null;
+
+    cv.addEventListener("wheel", (ev) => {
+      const ie = ensureState();
+      if (!ie.active || !ie.workCanvas) return;
+      ev.preventDefault();
+      const pt = canvasPointFromEvent(ev);
+      zoomAtCanvasPoint(pt.x, pt.y, ev.deltaY < 0 ? 1.12 : 1 / 1.12);
+    }, { passive: false });
+
+    cv.addEventListener("mousedown", (ev) => {
+      const ie = ensureState();
+      if (!ie.active || !ie.workCanvas) return;
+      const pt = canvasPointFromEvent(ev);
+      if (ev.button === 1) {
+        ev.preventDefault();
+        panDrag = { x: ev.clientX, y: ev.clientY };
+        return;
+      }
+      if (ev.button === 0 && ie.tool === "crop") {
+        ev.preventDefault();
+        const img = clampImagePoint(canvasToImage(pt.x, pt.y));
+        ie.cropDrag = { start: img };
+        ie.cropRect = { x: img.x, y: img.y, w: 0, h: 0 };
+        refreshUI();
+      }
+    });
+
+    window.addEventListener("mousemove", (ev) => {
+      const ie = ensureState();
+      if (panDrag) {
+        const dx = ev.clientX - panDrag.x;
+        const dy = ev.clientY - panDrag.y;
+        panDrag = { x: ev.clientX, y: ev.clientY };
+        panByScreenDelta(dx, dy);
+        return;
+      }
+      if (ie.cropDrag) {
+        const pt = canvasPointFromEvent(ev);
+        ie.cropRect = normalizeCropRect(ie.cropDrag.start, canvasToImage(pt.x, pt.y));
+        refreshUI();
+      }
+    });
+
+    window.addEventListener("mouseup", () => {
+      const ie = ensureState();
+      panDrag = null;
+      if (ie.cropDrag) {
+        ie.cropDrag = null;
+        refreshUI();
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wireCanvasInteractions);
+  } else {
+    setTimeout(wireCanvasInteractions, 0);
   }
 
   window.ImageWorkspace = {
@@ -340,8 +568,16 @@
     undo,
     redo,
     resetToSource,
+    setTool,
+    applyCrop,
+    cancelCrop,
+    setZoom100,
+    zoomAtCanvasPoint,
+    panByScreenDelta,
     refreshUI,
     fitView: fitViewToCanvas,
+    canvasToImage,
+    imageToCanvas,
     _makeCanvas: makeCanvas,
     _cloneCanvas: cloneCanvas,
   };

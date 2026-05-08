@@ -96,6 +96,34 @@
     if (els.imageFileInput) els.imageFileInput.click();
   }
 
+  function currentCanvas() {
+    return window.ImageWorkspace ? window.ImageWorkspace.getWorkCanvas() : null;
+  }
+
+  function runCanvasOp(op, label, params) {
+    const c = currentCanvas();
+    if (!c || !window.ImageOps) {
+      if (typeof setStatus === "function") setStatus("Load an image first.");
+      return false;
+    }
+    const next = op(c);
+    if (!next) return false;
+    window.ImageWorkspace.replaceWorkCanvas(next, label, params || null);
+    if (typeof setStatus === "function") setStatus(`Image ${label}.`);
+    return true;
+  }
+
+  function applyScaleFromFields() {
+    const c = currentCanvas();
+    if (!c) {
+      if (typeof setStatus === "function") setStatus("Load an image first.");
+      return false;
+    }
+    const w = Math.max(1, Math.round(Number(els.imageScaleWidth && els.imageScaleWidth.value) || c.width));
+    const h = Math.max(1, Math.round(Number(els.imageScaleHeight && els.imageScaleHeight.value) || c.height));
+    return runCanvasOp((src) => window.ImageOps.scale(src, { width: w, height: h }), "scale", { width: w, height: h });
+  }
+
   // -- Wiring ---------------------------------------------------------------
   function preventDefaults(ev) {
     ev.preventDefault();
@@ -167,6 +195,42 @@
     }
     if (els.imageOpenFileBtn) {
       els.imageOpenFileBtn.addEventListener("click", loadFromFileDialog);
+    }
+    if (els.imageRotate90Btn) {
+      els.imageRotate90Btn.addEventListener("click", () => runCanvasOp((c) => window.ImageOps.rotate(c, 90), "rotate 90", { degrees: 90 }));
+    }
+    if (els.imageRotate180Btn) {
+      els.imageRotate180Btn.addEventListener("click", () => runCanvasOp((c) => window.ImageOps.rotate(c, 180), "rotate 180", { degrees: 180 }));
+    }
+    if (els.imageFlipXBtn) {
+      els.imageFlipXBtn.addEventListener("click", () => runCanvasOp((c) => window.ImageOps.flip(c, "x"), "flip horizontal", { axis: "x" }));
+    }
+    if (els.imageFlipYBtn) {
+      els.imageFlipYBtn.addEventListener("click", () => runCanvasOp((c) => window.ImageOps.flip(c, "y"), "flip vertical", { axis: "y" }));
+    }
+    if (els.imageTrimBtn) {
+      els.imageTrimBtn.addEventListener("click", () => runCanvasOp((c) => window.ImageOps.trimTransparency(c), "trim transparency"));
+    }
+    if (els.imageCropToolBtn) {
+      els.imageCropToolBtn.addEventListener("click", () => window.ImageWorkspace.setTool("crop"));
+    }
+    if (els.imageCropApplyBtn) {
+      els.imageCropApplyBtn.addEventListener("click", () => window.ImageWorkspace.applyCrop());
+    }
+    if (els.imageCropCancelBtn) {
+      els.imageCropCancelBtn.addEventListener("click", () => window.ImageWorkspace.cancelCrop());
+    }
+    if (els.imageScaleApplyBtn) {
+      els.imageScaleApplyBtn.addEventListener("click", applyScaleFromFields);
+    }
+    if (els.imageFitBtn) {
+      els.imageFitBtn.addEventListener("click", () => {
+        window.ImageWorkspace.fitView();
+        window.ImageWorkspace.refreshUI();
+      });
+    }
+    if (els.imageZoom100Btn) {
+      els.imageZoom100Btn.addEventListener("click", () => window.ImageWorkspace.setZoom100());
     }
 
     // History list (delegate clicks on rows)

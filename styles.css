@@ -4101,11 +4101,31 @@ button:hover {
   color: #e0f4ff;
 }
 
+.image-panel-section button.active {
+  background: rgba(247, 216, 91, 0.18);
+  border-color: rgba(247, 216, 91, 0.65);
+  color: #fff2ae;
+}
+
 .image-panel-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px;
   margin-bottom: 4px;
+}
+
+.image-size-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.image-size-row input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .image-panel-hint {
