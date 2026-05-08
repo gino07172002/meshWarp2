@@ -455,3 +455,75 @@ node tools/demo-puppet-warp.js              # Phase 1 (pins + drag + native roun
 node tools/demo-puppet-warp-phase2.js       # Phase 2 (animated pins, ARAP playback)
 node tools/demo-puppet-warp-spine-roundtrip.js  # Phase 3 (Spine export contract)
 ```
+
+---
+
+## 16. Image Workspace
+
+Image Workspace is a 2D raster editor for imported images and attachment
+canvases. It is intentionally separate from the mesh/render pipeline: edits
+happen on a plain 2D work canvas, then the result is either downloaded, sent to
+a new slot, or applied back to the source attachment.
+
+### Files
+
+| File | Owns |
+|---|---|
+| `app/image/image-workspace.js` | workspace state, work canvas, history, crop state, zoom/pan, image AI Capture domain |
+| `app/image/image-ops.js` | pure canvas operations: rotate, flip, scale, crop, trim transparency |
+| `app/image/image-bg-removal.js` | lazy MediaPipe SelfieSegmentation loader and alpha-mask background removal |
+| `app/image/image-io.js` | drag/drop, file picker, PNG download, Edit in Image, Apply to attachment, Send to new slot |
+| `tools/test-image-ops.js` | pure canvas operation tests |
+| `tools/test-image-bg-removal.js` | background-removal masking tests |
+| `tools/test-image-attachment-ai.js` | attachment round-trip and `window.ai` image tool tests |
+
+### State
+
+`state.imageEditor` stores:
+
+```
+{
+  active,
+  source: { canvas, width, height, origin, slotIndex, attachmentName },
+  workCanvas,
+  history, historyIndex,
+  view: { scale, cx, cy },
+  tool: "select" | "crop",
+  cropRect, cropDrag,
+  bgRemoval: { modelLoaded, modelLoading, threshold, feather }
+}
+```
+
+If `source.origin === "attachment"`, Apply writes `workCanvas` back to
+`getSlotAttachmentEntry(state.slots[source.slotIndex], source.attachmentName)`.
+After mutating an attachment canvas, release the old GL texture when available,
+call `syncSourceCanvasToActiveAttachment(slot)`, `refreshSlotUI()`,
+`pushUndoCheckpoint(true)`, and `requestRender(...)`.
+
+### AI bridge tools
+
+The `window.ai` bridge exposes:
+
+- `ai.image_load`
+- `ai.image_crop`
+- `ai.image_rotate`
+- `ai.image_flip`
+- `ai.image_scale`
+- `ai.image_remove_bg`
+- `ai.image_apply_to_attachment`
+- `ai.image_export_png`
+
+Image Workspace also registers the AI Capture domain `"image"` with snapshot,
+diff, invariants, suspicions, and command coverage for UI operations such as
+`image.load`, `image.crop`, `image.scale`, `image.remove_background`, and
+`image.apply_to_attachment`.
+
+### Validation
+
+```bash
+node tools/test-image-ops.js
+node tools/test-image-bg-removal.js
+node tools/test-image-attachment-ai.js
+node tools/smoke-image-workspace.js
+node tools/check-ai-capture-image.js
+```

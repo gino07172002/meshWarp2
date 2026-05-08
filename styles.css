@@ -4047,6 +4047,8 @@ button:hover {
   border-color: rgba(80, 110, 130, 0.4);
   padding: 12px 14px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(104, 143, 163, 0.75) rgba(11, 18, 24, 0.35);
   font-size: 12px;
   color: #c4d4db;
   align-self: stretch;
@@ -4055,6 +4057,23 @@ button:hover {
 }
 
 .app.page-image .image-side-panel { display: block; }
+
+.image-side-panel::-webkit-scrollbar,
+.img-history-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.image-side-panel::-webkit-scrollbar-track,
+.img-history-list::-webkit-scrollbar-track {
+  background: rgba(11, 18, 24, 0.35);
+}
+
+.image-side-panel::-webkit-scrollbar-thumb,
+.img-history-list::-webkit-scrollbar-thumb {
+  background: rgba(104, 143, 163, 0.75);
+  border-radius: 8px;
+  border: 2px solid rgba(11, 18, 24, 0.35);
+}
 
 .image-side-panel-left {
   grid-column: 1;

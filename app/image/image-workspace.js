@@ -548,6 +548,129 @@
     });
   }
 
+  function buildImageCaptureSnapshot() {
+    const ie = ensureState();
+    const work = ie.workCanvas;
+    const source = ie.source || {};
+    return {
+      active: !!ie.active,
+      hasWorkCanvas: !!work,
+      workSize: work ? { width: work.width, height: work.height } : null,
+      source: {
+        origin: source.origin || "",
+        width: Number(source.width) || 0,
+        height: Number(source.height) || 0,
+        slotIndex: Number.isFinite(source.slotIndex) ? source.slotIndex : -1,
+        attachmentName: source.attachmentName || "",
+      },
+      history: {
+        length: Array.isArray(ie.history) ? ie.history.length : 0,
+        index: Number.isFinite(ie.historyIndex) ? ie.historyIndex : -1,
+        ops: Array.isArray(ie.history) ? ie.history.map((h) => h && h.op || "") : [],
+      },
+      view: {
+        scale: Number(ie.view && ie.view.scale) || 0,
+        cx: Number(ie.view && ie.view.cx) || 0,
+        cy: Number(ie.view && ie.view.cy) || 0,
+      },
+      tool: ie.tool || "select",
+      cropRect: ie.cropRect ? {
+        x: Number(ie.cropRect.x) || 0,
+        y: Number(ie.cropRect.y) || 0,
+        w: Number(ie.cropRect.w) || 0,
+        h: Number(ie.cropRect.h) || 0,
+      } : null,
+      bgRemoval: {
+        modelLoaded: !!(ie.bgRemoval && ie.bgRemoval.modelLoaded),
+        modelLoading: !!(ie.bgRemoval && ie.bgRemoval.modelLoading),
+        threshold: Number(ie.bgRemoval && ie.bgRemoval.threshold) || 0,
+        feather: Number(ie.bgRemoval && ie.bgRemoval.feather) || 0,
+      },
+    };
+  }
+
+  function buildImageCaptureDiffs(before, after) {
+    const b = before || {};
+    const a = after || buildImageCaptureSnapshot();
+    const diffs = [];
+    function add(id, from, to) {
+      if (JSON.stringify(from) !== JSON.stringify(to)) diffs.push({ id, before: from, after: to });
+    }
+    add("image.active", b.active, a.active);
+    add("image.work_size", b.workSize, a.workSize);
+    add("image.source", b.source, a.source);
+    add("image.history_index", b.history && b.history.index, a.history && a.history.index);
+    add("image.history_ops", b.history && b.history.ops, a.history && a.history.ops);
+    add("image.tool", b.tool, a.tool);
+    add("image.crop_rect", b.cropRect, a.cropRect);
+    add("image.bg_removal", b.bgRemoval, a.bgRemoval);
+    return diffs;
+  }
+
+  function runImageCaptureInvariants(snapshot) {
+    const snap = snapshot || buildImageCaptureSnapshot();
+    const issues = [];
+    const hist = snap.history || {};
+    const work = snap.workSize;
+    if (snap.hasWorkCanvas && (!work || work.width < 1 || work.height < 1)) {
+      issues.push({ id: "image.work_canvas_has_positive_size", severity: "error", message: "Work canvas has no positive dimensions." });
+    }
+    if (hist.length > 0 && (hist.index < 0 || hist.index >= hist.length)) {
+      issues.push({ id: "image.history_index_in_range", severity: "error", message: "History index is outside the history array." });
+    }
+    if (snap.source && snap.source.origin === "attachment") {
+      if (snap.source.slotIndex < 0 || !snap.source.attachmentName) {
+        issues.push({ id: "image.attachment_source_identified", severity: "error", message: "Attachment source is missing slot index or attachment name." });
+      }
+    }
+    if (snap.cropRect && (snap.cropRect.w < 0 || snap.cropRect.h < 0)) {
+      issues.push({ id: "image.crop_rect_nonnegative", severity: "error", message: "Crop rectangle has negative dimensions." });
+    }
+    return issues;
+  }
+
+  function buildImageCaptureSuspicions(context) {
+    const snap = context && context.snapshot ? context.snapshot : buildImageCaptureSnapshot();
+    const out = [];
+    if (snap.active && !snap.hasWorkCanvas) {
+      out.push({ id: "image.active_without_canvas", severity: "info", message: "Image workspace is active with no loaded image." });
+    }
+    if (snap.hasWorkCanvas && snap.history && snap.history.length === 0) {
+      out.push({ id: "image.canvas_without_history", severity: "warning", message: "Work canvas exists but history is empty." });
+    }
+    return out;
+  }
+
+  if (typeof registerAICaptureDomain === "function") {
+    registerAICaptureDomain("image", {
+      label: "Image Workspace",
+      snapshot: buildImageCaptureSnapshot,
+      diff: buildImageCaptureDiffs,
+      invariants: runImageCaptureInvariants,
+      suspicions: buildImageCaptureSuspicions,
+      commands: [
+        "image.load",
+        "image.crop",
+        "image.rotate",
+        "image.flip",
+        "image.scale",
+        "image.trim_transparency",
+        "image.remove_background",
+        "image.apply_to_attachment",
+        "image.send_to_new_slot",
+        "image.edit_attachment",
+        "ai.image_load",
+        "ai.image_crop",
+        "ai.image_rotate",
+        "ai.image_flip",
+        "ai.image_scale",
+        "ai.image_remove_bg",
+        "ai.image_apply_to_attachment",
+        "ai.image_export_png",
+      ],
+    });
+  }
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", wireCanvasInteractions);
   } else {

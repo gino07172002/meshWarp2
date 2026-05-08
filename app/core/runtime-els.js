@@ -503,6 +503,7 @@ const els = {
   slotAttachmentDuplicateBtn: document.getElementById("slotAttachmentDuplicateBtn"),
   slotAttachmentDeleteBtn: document.getElementById("slotAttachmentDeleteBtn"),
   slotAttachmentLoadBtn: document.getElementById("slotAttachmentLoadBtn"),
+  slotAttachmentEditImageBtn: document.getElementById("slotAttachmentEditImageBtn"),
   slotAttachmentFileInput: document.getElementById("slotAttachmentFileInput"),
   slotClipEnabled: document.getElementById("slotClipEnabled"),
   slotClipSource: document.getElementById("slotClipSource"),

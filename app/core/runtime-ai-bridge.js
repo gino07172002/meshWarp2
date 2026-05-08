@@ -62,6 +62,49 @@
         { name: "jsonString", type: "string", required: false, description: "Project payload as JSON string" },
       ],
     },
+    "ai.image_load": {
+      args: [
+        { name: "dataUrl", type: "string", required: true, description: "Image as data: URL" },
+        { name: "name", type: "string", required: false, description: "Optional image name" },
+      ],
+    },
+    "ai.image_crop": {
+      args: [
+        { name: "x", type: "number", required: true },
+        { name: "y", type: "number", required: true },
+        { name: "w", type: "number", required: true },
+        { name: "h", type: "number", required: true },
+      ],
+    },
+    "ai.image_rotate": {
+      args: [
+        { name: "degrees", type: "number", required: true, description: "Rotation in degrees, rounded to nearest 90" },
+      ],
+    },
+    "ai.image_flip": {
+      args: [
+        { name: "axis", type: "string", required: true, description: "'x'/'horizontal' or 'y'/'vertical'" },
+      ],
+    },
+    "ai.image_scale": {
+      args: [
+        { name: "width", type: "number", required: false },
+        { name: "height", type: "number", required: false },
+        { name: "factor", type: "number", required: false },
+      ],
+    },
+    "ai.image_remove_bg": {
+      args: [
+        { name: "threshold", type: "number", required: false },
+        { name: "feather", type: "number", required: false },
+      ],
+    },
+    "ai.image_apply_to_attachment": {
+      args: [],
+    },
+    "ai.image_export_png": {
+      args: [],
+    },
     "ai.screenshot": {
       args: [
         { name: "format", type: "string", required: false, description: "'png' (default) or 'jpeg'" },
@@ -254,6 +297,99 @@
     if (typeof updateWorkspaceUI === "function") updateWorkspaceUI();
     if (typeof requestRender === "function") requestRender("ai.import_image");
     return { ok: true, addedSlots: added, totalSlots: state.slots.length, activeSlot: state.activeSlot };
+  }
+
+  function requireImageWorkspace() {
+    if (!window.ImageWorkspace) return { ok: false, error: "ImageWorkspace unavailable" };
+    const canvas = window.ImageWorkspace.getWorkCanvas();
+    if (!canvas) return { ok: false, error: "no image loaded" };
+    return { ok: true, canvas };
+  }
+
+  async function aiImageLoad(args) {
+    if (!window.ImageWorkspace) return { ok: false, error: "ImageWorkspace unavailable" };
+    let blob = null;
+    try { blob = dataUrlToBlob(args.dataUrl); } catch (e) { return { ok: false, error: e.message }; }
+    if (typeof applyWorkspace === "function") applyWorkspace("image", "edit");
+    const ok = await window.ImageWorkspace.loadFromBlob(blob, "file");
+    const canvas = window.ImageWorkspace.getWorkCanvas();
+    return {
+      ok: !!ok,
+      width: canvas ? canvas.width : 0,
+      height: canvas ? canvas.height : 0,
+      name: args.name || "",
+    };
+  }
+
+  function aiImageReplace(next, op, params) {
+    if (!next) return { ok: false, error: "operation returned no canvas" };
+    window.ImageWorkspace.replaceWorkCanvas(next, op, params || null);
+    return { ok: true, width: next.width, height: next.height, op };
+  }
+
+  function aiImageCrop(args) {
+    const r = requireImageWorkspace();
+    if (!r.ok) return r;
+    if (!window.ImageOps) return { ok: false, error: "ImageOps unavailable" };
+    const rect = { x: Number(args.x), y: Number(args.y), w: Number(args.w), h: Number(args.h) };
+    return aiImageReplace(window.ImageOps.crop(r.canvas, rect), "crop", rect);
+  }
+
+  function aiImageRotate(args) {
+    const r = requireImageWorkspace();
+    if (!r.ok) return r;
+    if (!window.ImageOps) return { ok: false, error: "ImageOps unavailable" };
+    const degrees = Number(args.degrees);
+    return aiImageReplace(window.ImageOps.rotate(r.canvas, degrees), `rotate ${degrees}`, { degrees });
+  }
+
+  function aiImageFlip(args) {
+    const r = requireImageWorkspace();
+    if (!r.ok) return r;
+    if (!window.ImageOps) return { ok: false, error: "ImageOps unavailable" };
+    const axis = String(args.axis || "x");
+    const op = axis === "y" || axis === "vertical" ? "flip vertical" : "flip horizontal";
+    return aiImageReplace(window.ImageOps.flip(r.canvas, axis), op, { axis });
+  }
+
+  function aiImageScale(args) {
+    const r = requireImageWorkspace();
+    if (!r.ok) return r;
+    if (!window.ImageOps) return { ok: false, error: "ImageOps unavailable" };
+    const opts = {};
+    if (Number.isFinite(Number(args.width))) opts.width = Number(args.width);
+    if (Number.isFinite(Number(args.height))) opts.height = Number(args.height);
+    if (Number.isFinite(Number(args.factor))) opts.factor = Number(args.factor);
+    return aiImageReplace(window.ImageOps.scale(r.canvas, opts), "scale", opts);
+  }
+
+  async function aiImageRemoveBg(args) {
+    const r = requireImageWorkspace();
+    if (!r.ok) return r;
+    if (!window.ImageBgRemoval) return { ok: false, error: "ImageBgRemoval unavailable" };
+    const opts = {};
+    if (Number.isFinite(Number(args.threshold))) opts.threshold = Number(args.threshold);
+    if (Number.isFinite(Number(args.feather))) opts.feather = Number(args.feather);
+    const next = await window.ImageBgRemoval.removeBackground(r.canvas, opts);
+    return aiImageReplace(next, "remove background", opts);
+  }
+
+  function aiImageApplyToAttachment() {
+    if (!window.ImageIO || typeof window.ImageIO.applyToAttachment !== "function") {
+      return { ok: false, error: "ImageIO.applyToAttachment unavailable" };
+    }
+    return { ok: !!window.ImageIO.applyToAttachment() };
+  }
+
+  function aiImageExportPng() {
+    const r = requireImageWorkspace();
+    if (!r.ok) return r;
+    return {
+      ok: true,
+      dataUrl: r.canvas.toDataURL("image/png"),
+      width: r.canvas.width,
+      height: r.canvas.height,
+    };
   }
 
   function aiExportSpineJson() {
@@ -512,6 +648,70 @@
       domain: "io",
       action: aiImportImage,
       mutates: true,
+    },
+    {
+      id: "ai.image_load",
+      label: "AI: Image Workspace - Load Image",
+      group: "AI",
+      domain: "image",
+      action: aiImageLoad,
+      mutates: true,
+    },
+    {
+      id: "ai.image_crop",
+      label: "AI: Image Workspace - Crop",
+      group: "AI",
+      domain: "image",
+      action: aiImageCrop,
+      mutates: true,
+    },
+    {
+      id: "ai.image_rotate",
+      label: "AI: Image Workspace - Rotate",
+      group: "AI",
+      domain: "image",
+      action: aiImageRotate,
+      mutates: true,
+    },
+    {
+      id: "ai.image_flip",
+      label: "AI: Image Workspace - Flip",
+      group: "AI",
+      domain: "image",
+      action: aiImageFlip,
+      mutates: true,
+    },
+    {
+      id: "ai.image_scale",
+      label: "AI: Image Workspace - Scale",
+      group: "AI",
+      domain: "image",
+      action: aiImageScale,
+      mutates: true,
+    },
+    {
+      id: "ai.image_remove_bg",
+      label: "AI: Image Workspace - Remove Background",
+      group: "AI",
+      domain: "image",
+      action: aiImageRemoveBg,
+      mutates: true,
+    },
+    {
+      id: "ai.image_apply_to_attachment",
+      label: "AI: Image Workspace - Apply to Attachment",
+      group: "AI",
+      domain: "image",
+      action: aiImageApplyToAttachment,
+      mutates: true,
+    },
+    {
+      id: "ai.image_export_png",
+      label: "AI: Image Workspace - Export PNG",
+      group: "AI",
+      domain: "image",
+      action: aiImageExportPng,
+      mutates: false,
     },
     {
       id: "ai.export_spine_json",
