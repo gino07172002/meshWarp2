@@ -637,6 +637,19 @@
             <p id="imageInfoLabel" class="image-panel-hint">No image loaded</p>
           </section>
           <section class="image-panel-section">
+            <h4>AI Background</h4>
+            <button id="imageRemoveBgBtn" type="button" disabled>Remove Background</button>
+            <label class="image-slider-row">
+              <span>Threshold</span>
+              <input id="imageBgThreshold" type="range" min="0" max="1" step="0.01" value="0.5" />
+            </label>
+            <label class="image-slider-row">
+              <span>Feather</span>
+              <input id="imageBgFeather" type="range" min="0" max="0.5" step="0.01" value="0.03" />
+            </label>
+            <p id="imageBgStatus" class="image-panel-hint muted"></p>
+          </section>
+          <section class="image-panel-section">
             <h4>Transform</h4>
             <div class="image-panel-row">
               <button id="imageRotate90Btn" type="button">Rotate 90°</button>
@@ -2241,7 +2254,8 @@
   <script src="app/core/puppet-warp-runtime.js?v=20260508-1"></script>
   <script src="app/image/image-ops.js?v=20260509-1"></script>
   <script src="app/image/image-workspace.js?v=20260509-4"></script>
-  <script src="app/image/image-io.js?v=20260509-3"></script>
+  <script src="app/image/image-bg-removal.js?v=20260509-1"></script>
+  <script src="app/image/image-io.js?v=20260509-4"></script>
   <script src="app/core/runtime-ai-bridge.js?v=20260506-6"></script>
   <script src="app/render/gl-toolkit.js?v=20260426-19"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>

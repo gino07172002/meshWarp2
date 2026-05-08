@@ -452,6 +452,7 @@
     if (els.imageUndoBtn) els.imageUndoBtn.disabled = !canUndo();
     if (els.imageRedoBtn) els.imageRedoBtn.disabled = !canRedo();
     if (els.imageDownloadBtn) els.imageDownloadBtn.disabled = !has;
+    if (els.imageRemoveBgBtn) els.imageRemoveBgBtn.disabled = !has;
     // Apply only makes sense when this image came from a mesh attachment.
     if (els.imageApplyBtn) els.imageApplyBtn.style.display = hasAttachmentSource ? "" : "none";
     // "Send to New Slot" only makes sense when there's a project (state.mesh)

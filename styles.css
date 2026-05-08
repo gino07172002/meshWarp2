@@ -4137,6 +4137,21 @@ button:hover {
   box-sizing: border-box;
 }
 
+.image-slider-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 11px;
+  color: #9eb2bd;
+}
+
+.image-slider-row input {
+  width: 100%;
+  min-width: 0;
+}
+
 .image-panel-hint {
   font-size: 11px;
   opacity: 0.6;

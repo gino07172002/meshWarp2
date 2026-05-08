@@ -124,6 +124,34 @@
     return runCanvasOp((src) => window.ImageOps.scale(src, { width: w, height: h }), "scale", { width: w, height: h });
   }
 
+  async function removeBackgroundFromCurrent() {
+    const c = currentCanvas();
+    if (!c || !window.ImageBgRemoval) {
+      if (typeof setStatus === "function") setStatus("Load an image first.");
+      return false;
+    }
+    const threshold = Number(els.imageBgThreshold && els.imageBgThreshold.value);
+    const feather = Number(els.imageBgFeather && els.imageBgFeather.value);
+    if (els.imageRemoveBgBtn) els.imageRemoveBgBtn.disabled = true;
+    if (els.imageBgStatus) els.imageBgStatus.textContent = "Loading segmentation model...";
+    if (typeof setStatus === "function") setStatus("Removing image background...");
+    try {
+      const next = await window.ImageBgRemoval.removeBackground(c, { threshold, feather });
+      if (!next) return false;
+      window.ImageWorkspace.replaceWorkCanvas(next, "remove background", { threshold, feather });
+      if (els.imageBgStatus) els.imageBgStatus.textContent = "Background removed.";
+      if (typeof setStatus === "function") setStatus("Image background removed.");
+      return true;
+    } catch (err) {
+      const msg = err && err.message ? err.message : String(err);
+      if (els.imageBgStatus) els.imageBgStatus.textContent = msg;
+      if (typeof setStatus === "function") setStatus(`Background removal failed: ${msg}`);
+      return false;
+    } finally {
+      window.ImageWorkspace.refreshUI();
+    }
+  }
+
   // -- Wiring ---------------------------------------------------------------
   function preventDefaults(ev) {
     ev.preventDefault();
@@ -196,6 +224,9 @@
     if (els.imageOpenFileBtn) {
       els.imageOpenFileBtn.addEventListener("click", loadFromFileDialog);
     }
+    if (els.imageRemoveBgBtn) {
+      els.imageRemoveBgBtn.addEventListener("click", removeBackgroundFromCurrent);
+    }
     if (els.imageRotate90Btn) {
       els.imageRotate90Btn.addEventListener("click", () => runCanvasOp((c) => window.ImageOps.rotate(c, 90), "rotate 90", { degrees: 90 }));
     }
@@ -263,6 +294,7 @@
     applyToAttachment,
     sendToNewSlot,
     loadFromFileDialog,
+    removeBackgroundFromCurrent,
     wire,
   };
 })();
