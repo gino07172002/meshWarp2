@@ -46,6 +46,26 @@ async function main() {
   await page.waitForFunction(() => !!window.ImageWorkspace && !!window.ImageIO, { timeout: 10000 });
   await page.click("#workspaceTabImage");
 
+  const layout = await page.evaluate(() => {
+    const box = (id) => {
+      const r = document.getElementById(id).getBoundingClientRect();
+      return { x: r.x, y: r.y, width: r.width, height: r.height };
+    };
+    return {
+      stage: box("stage"),
+      imageStage: box("imageStage"),
+      left: box("imageLeftPanel"),
+      right: box("imageRightPanel"),
+      canvas: box("imageCanvas"),
+    };
+  });
+  console.log("  layout:", layout);
+  expect(Math.abs(layout.imageStage.y - layout.stage.y) <= 2, "image canvas column starts at top of stage");
+  expect(Math.abs(layout.left.y - layout.stage.y) <= 2 && Math.abs(layout.right.y - layout.stage.y) <= 2, "image side panels start at top of stage");
+  expect(Math.abs(layout.imageStage.height - layout.stage.height) <= 3, "image canvas column fills stage height");
+  expect(Math.abs(layout.left.height - layout.stage.height) <= 3 && Math.abs(layout.right.height - layout.stage.height) <= 3, "image side panels fill stage height");
+  expect(Math.abs(layout.canvas.height - layout.imageStage.height) < 1, "image canvas fills its column height");
+
   const opsResult = await page.evaluate(() => {
     const makeSource = () => {
       const c = document.createElement("canvas");
