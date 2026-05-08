@@ -536,7 +536,7 @@ const math = {
   clamp: (v, lo, hi) => Math.max(lo, Math.min(hi, v)),
 };
 
-const LEFT_TOOL_TABS = new Set(["canvas", "setup", "rig", "object", "ik", "constraint", "path", "skin", "tools", "slotmesh"]);
+const LEFT_TOOL_TABS = new Set(["canvas", "setup", "rig", "object", "ik", "constraint", "path", "skin", "tools", "slotmesh", "image"]);
 
 function getCurrentSystemMode() {
   return els.systemMode && els.systemMode.value === "animate" ? "animate" : "setup";

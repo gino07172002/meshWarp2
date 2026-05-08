@@ -3983,19 +3983,41 @@ button:hover {
   grid-template-rows: 46px minmax(0, 1fr);
 }
 
-/* Image workspace stage layer */
+/* ===== Image workspace: standalone editor with image-specific docks =====
+   When .page-image is active, the spine-style left/right docks are
+   replaced with image-editor-only side panels. The user feels they're
+   in a different application, but with familiar 3-column layout. */
+
 .image-stage {
   display: none;
-  position: absolute;
-  inset: 0;
+  position: relative;
   background: #14181c;
-  z-index: 10;
   overflow: hidden;
 }
 
 .app.page-image .image-stage { display: block; }
 
-/* Hide the spine canvases when in image workspace */
+/* Hide spine left + right docks; image workspace replaces them. */
+.app.page-image #leftDockSide,
+.app.page-image #rightCol {
+  display: none !important;
+}
+
+/* Restructure: stage-wrap stretches across the whole row; #stage
+   becomes the 3-column grid host (left panel | image canvas | right panel). */
+.app.page-image .stage-wrap {
+  grid-column: 1 / -1 !important;
+}
+
+.app.page-image #stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 260px;
+  gap: 0;
+  height: 100%;
+}
+
+/* Hide spine canvases + their controls */
 .app.page-image #glCanvas,
 .app.page-image #glOverlayCanvas,
 .app.page-image #overlay,
@@ -4005,11 +4027,92 @@ button:hover {
   display: none !important;
 }
 
-/* In image workspace, the right panel should hide spine-specific groups */
-.app.page-image #slotPropsGroup,
-.app.page-image #attachmentPropsGroup,
-.app.page-image #bonePropsGroup {
+/* Hide topbar items that are spine-project specific */
+.app.page-image .topbar-mid,
+.app.page-image .ai-capture-bar,
+.app.page-image #spineImportBtn,
+.app.page-image #fileExportSpineBtn,
+.app.page-image #openExportPanelBtn,
+.app.page-image .ws-mode-wrap,
+.app.page-image #workspaceModeLabel {
   display: none !important;
+}
+
+/* Image editor side panels (left & right) */
+.image-side-panel {
+  display: none;
+  background: #1a2026;
+  border-color: rgba(80, 110, 130, 0.4);
+  padding: 12px 14px;
+  overflow-y: auto;
+  font-size: 12px;
+  color: #c4d4db;
+  align-self: stretch;
+}
+
+.app.page-image .image-side-panel { display: block; }
+
+.image-side-panel-left {
+  grid-column: 1;
+  border-right: 1px solid rgba(80, 110, 130, 0.4);
+}
+
+.image-side-panel-right {
+  grid-column: 3;
+  border-left: 1px solid rgba(80, 110, 130, 0.4);
+}
+
+.image-stage {
+  grid-column: 2;
+}
+
+.image-panel-title {
+  margin: 0 0 12px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid rgba(80, 110, 130, 0.4);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #e4ecf0;
+}
+
+.image-panel-section {
+  margin-bottom: 18px;
+}
+
+.image-panel-section h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.image-panel-section button {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.image-panel-section button.primary {
+  background: rgba(80, 180, 230, 0.2);
+  border-color: rgba(80, 180, 230, 0.55);
+  color: #e0f4ff;
+}
+
+.image-panel-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.image-panel-hint {
+  font-size: 11px;
+  opacity: 0.6;
+  margin: 4px 0;
+  line-height: 1.4;
 }
 
 .image-canvas {

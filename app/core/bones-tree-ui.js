@@ -871,6 +871,7 @@ function updateWorkspaceUI() {
     skin: els.leftTabSkin,
     tools: els.leftTabTools,
     slotmesh: els.leftTabSlotMesh,
+    image: els.leftTabImage,
   };
   const tabPanelById = {
     canvas: els.leftCanvasTools,
@@ -884,6 +885,7 @@ function updateWorkspaceUI() {
     skin: els.leftSkinTools,
     tools: els.leftGeneralTools,
     slotmesh: els.slotMeshTools,
+    image: els.leftImageTools,
   };
   if (els.leftToolTabs) setVisible(els.leftToolTabs, !animAuxMode && visibleTabs.length > 1);
   for (const [tab, btn] of Object.entries(tabButtonById)) {
@@ -1034,4 +1036,5 @@ function setupLeftToolTabs() {
   bind(els.leftTabSkin, "skin");
   bind(els.leftTabTools, "tools");
   bind(els.leftTabSlotMesh, "slotmesh");
+  bind(els.leftTabImage, "image");
 }

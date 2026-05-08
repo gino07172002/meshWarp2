@@ -300,8 +300,24 @@
     if (els.imageUndoBtn) els.imageUndoBtn.disabled = !canUndo();
     if (els.imageRedoBtn) els.imageRedoBtn.disabled = !canRedo();
     if (els.imageDownloadBtn) els.imageDownloadBtn.disabled = !has;
+    // Apply only makes sense when this image came from a mesh attachment.
     if (els.imageApplyBtn) els.imageApplyBtn.style.display = hasAttachmentSource ? "" : "none";
-    if (els.imageSendNewSlotBtn) els.imageSendNewSlotBtn.style.display = has ? "" : "none";
+    // "Send to New Slot" only makes sense when there's a project (state.mesh)
+    // and the image isn't already an attachment we could just apply to.
+    const canSendToNewSlot = has && !!state.mesh && !hasAttachmentSource;
+    if (els.imageSendNewSlotBtn) els.imageSendNewSlotBtn.style.display = canSendToNewSlot ? "" : "none";
+    // Hint text: explain why Apply / New Slot may be hidden
+    if (els.imageOutputHint) {
+      if (hasAttachmentSource) {
+        els.imageOutputHint.textContent = "Apply writes the edits back to the source attachment.";
+      } else if (canSendToNewSlot) {
+        els.imageOutputHint.textContent = "Send creates a new slot in the current project.";
+      } else if (has) {
+        els.imageOutputHint.textContent = "Standalone mode — download the result, or import a project first to send back.";
+      } else {
+        els.imageOutputHint.textContent = "";
+      }
+    }
     if (els.imageResetBtn) els.imageResetBtn.disabled = !has || ie.history.length <= 1;
     if (els.imageInfoLabel) {
       if (!has) els.imageInfoLabel.textContent = "No image loaded";

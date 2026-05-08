@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Web Spine-like Mesh Deformer</title>
-  <link rel="stylesheet" href="styles.css?v=20260425-31" />
+  <link rel="stylesheet" href="styles.css?v=20260509-3" />
 </head>
 
 <body>
@@ -180,37 +180,7 @@
         <button id="leftTabObject" class="left-tab-btn" data-left-tab="object" type="button">Object</button>
         <button id="leftTabTools" class="left-tab-btn" data-left-tab="tools" type="button">Tools</button>
         <button id="leftTabSlotMesh" class="left-tab-btn" data-left-tab="slotmesh" type="button">Mesh</button>
-        <button id="leftTabImage" class="left-tab-btn" data-left-tab="image" type="button">Image</button>
       </div>
-      <section id="leftImageTools" class="group left-tab-panel" data-left-panel="image">
-        <h3>Image Editor</h3>
-        <details class="panel-section" open>
-          <summary class="panel-section-head"><span class="panel-section-title">Source</span></summary>
-          <div class="panel-section-body">
-            <button id="imageOpenFileBtn" type="button">Open Image…</button>
-            <p id="imageInfoLabel" class="muted">No image loaded</p>
-          </div>
-        </details>
-        <details class="panel-section" open>
-          <summary class="panel-section-head"><span class="panel-section-title">History</span></summary>
-          <div class="panel-section-body">
-            <div class="field two-col">
-              <button id="imageUndoBtn" type="button" disabled>Undo</button>
-              <button id="imageRedoBtn" type="button" disabled>Redo</button>
-            </div>
-            <button id="imageResetBtn" type="button" disabled>Reset to Source</button>
-            <div id="imageHistoryList" class="img-history-list"></div>
-          </div>
-        </details>
-        <details class="panel-section" open>
-          <summary class="panel-section-head"><span class="panel-section-title">Output</span></summary>
-          <div class="panel-section-body">
-            <button id="imageDownloadBtn" type="button" disabled>Download PNG</button>
-            <button id="imageApplyBtn" type="button" style="display:none">Apply to Attachment</button>
-            <button id="imageSendNewSlotBtn" type="button" style="display:none">Send to New Slot</button>
-          </div>
-        </details>
-      </section>
       <section id="leftCanvasTools" class="group left-tab-panel" data-left-panel="canvas">
         <h3>Base Transform</h3>
         <details class="panel-section" open>
@@ -658,6 +628,39 @@
           </div>
           <input id="imageFileInput" type="file" accept="image/*" hidden />
         </div>
+
+        <aside id="imageLeftPanel" class="image-side-panel image-side-panel-left" aria-label="Image tools">
+          <h3 class="image-panel-title">Tools</h3>
+          <section class="image-panel-section">
+            <h4>Source</h4>
+            <button id="imageOpenFileBtn" type="button">Open Image…</button>
+            <p id="imageInfoLabel" class="image-panel-hint">No image loaded</p>
+          </section>
+          <section class="image-panel-section">
+            <h4>Coming next</h4>
+            <p class="image-panel-hint muted">Phase 2 will add: Crop · Rotate · Flip · Scale · Trim transparency. Phase 3 adds AI background removal.</p>
+          </section>
+        </aside>
+
+        <aside id="imageRightPanel" class="image-side-panel image-side-panel-right" aria-label="Image properties">
+          <h3 class="image-panel-title">Edit</h3>
+          <section class="image-panel-section">
+            <h4>History</h4>
+            <div class="image-panel-row">
+              <button id="imageUndoBtn" type="button" disabled>↶ Undo</button>
+              <button id="imageRedoBtn" type="button" disabled>↷ Redo</button>
+            </div>
+            <button id="imageResetBtn" type="button" disabled>Reset to source</button>
+            <div id="imageHistoryList" class="img-history-list"></div>
+          </section>
+          <section class="image-panel-section">
+            <h4>Output</h4>
+            <button id="imageDownloadBtn" type="button" disabled>⬇ Download PNG</button>
+            <button id="imageApplyBtn" type="button" class="primary" style="display:none">↩ Apply to Attachment</button>
+            <button id="imageSendNewSlotBtn" type="button" style="display:none">+ Send to New Slot</button>
+            <p id="imageOutputHint" class="image-panel-hint muted">Apply / New Slot show up when this image came from a mesh attachment.</p>
+          </section>
+        </aside>
 <div id="viewZoomWrap" class="view-zoom" title="Canvas Zoom">
           <button id="viewPanToggleBtn" type="button" title="Pan Canvas">✋</button>
           <button id="viewFitAllBtn" type="button" title="Fit All">⊙</button>
@@ -2204,8 +2207,8 @@
   <script src="vendor/sparse-cholesky.js?v=20260506-1"></script>
   <script src="app/core/puppet-warp.js?v=20260506-2"></script>
   <script src="app/core/puppet-warp-runtime.js?v=20260508-1"></script>
-  <script src="app/image/image-workspace.js?v=20260509-1"></script>
-  <script src="app/image/image-io.js?v=20260509-1"></script>
+  <script src="app/image/image-workspace.js?v=20260509-3"></script>
+  <script src="app/image/image-io.js?v=20260509-2"></script>
   <script src="app/core/runtime-ai-bridge.js?v=20260506-6"></script>
   <script src="app/render/gl-toolkit.js?v=20260426-19"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>
