@@ -58,6 +58,11 @@ function applyWorkspace(type, mode) {
   if (els.systemMode) els.systemMode.value = mode === "animate" ? "animate" : "setup";
   if (els.editMode)   els.editMode.value   = type === "mesh" ? "mesh" : "skeleton";
 
+  // Image workspace deactivation: leave whenever switching to anything else.
+  if (type !== "image" && state.imageEditor && state.imageEditor.active) {
+    if (window.ImageWorkspace) window.ImageWorkspace.deactivate();
+  }
+
   if (mode === "edit") {
     if (type === "rig") {
       setWorkspacePage("rig");
@@ -65,6 +70,9 @@ function applyWorkspace(type, mode) {
       state.editMode = "mesh";
       state.workspaceMode = "slotmesh";
       setWorkspacePage("slot");
+    } else if (type === "image") {
+      setWorkspacePage("image");
+      if (window.ImageWorkspace) window.ImageWorkspace.activate();
     } else { // object
       if (!state.mesh) { setStatus("匯入專案後才能使用 Object workspace。"); return; }
       setWorkspacePage("object");
@@ -98,6 +106,9 @@ function setupWorkspaceTabs() {
   }
   if (els.workspaceTabObject) {
     els.workspaceTabObject.addEventListener("click", () => applyWorkspace("object", getCurrentWsMode()));
+  }
+  if (els.workspaceTabImage) {
+    els.workspaceTabImage.addEventListener("click", () => applyWorkspace("image", "edit"));
   }
 
   // Self-healing fallback for the "disabled tab swallows click" failure mode:

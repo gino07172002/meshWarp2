@@ -90,6 +90,7 @@
             <button id="workspaceTabRig"    class="ws-type-btn" type="button" title="骨架 Rig">Rig</button>
             <button id="workspaceTabSlot"   class="ws-type-btn" type="button" title="網格 Mesh">Mesh</button>
             <button id="workspaceTabObject" class="ws-type-btn" type="button" title="整體物件 Object">Object</button>
+            <button id="workspaceTabImage"  class="ws-type-btn" type="button" title="Image editor / background removal">Image</button>
           </div>
           <div class="ws-mode-wrap" aria-label="Mode">
             <select id="wsModeSelect" class="ws-mode-select" title="切換 Edit / Animate 模式">
@@ -179,7 +180,37 @@
         <button id="leftTabObject" class="left-tab-btn" data-left-tab="object" type="button">Object</button>
         <button id="leftTabTools" class="left-tab-btn" data-left-tab="tools" type="button">Tools</button>
         <button id="leftTabSlotMesh" class="left-tab-btn" data-left-tab="slotmesh" type="button">Mesh</button>
+        <button id="leftTabImage" class="left-tab-btn" data-left-tab="image" type="button">Image</button>
       </div>
+      <section id="leftImageTools" class="group left-tab-panel" data-left-panel="image">
+        <h3>Image Editor</h3>
+        <details class="panel-section" open>
+          <summary class="panel-section-head"><span class="panel-section-title">Source</span></summary>
+          <div class="panel-section-body">
+            <button id="imageOpenFileBtn" type="button">Open Image…</button>
+            <p id="imageInfoLabel" class="muted">No image loaded</p>
+          </div>
+        </details>
+        <details class="panel-section" open>
+          <summary class="panel-section-head"><span class="panel-section-title">History</span></summary>
+          <div class="panel-section-body">
+            <div class="field two-col">
+              <button id="imageUndoBtn" type="button" disabled>Undo</button>
+              <button id="imageRedoBtn" type="button" disabled>Redo</button>
+            </div>
+            <button id="imageResetBtn" type="button" disabled>Reset to Source</button>
+            <div id="imageHistoryList" class="img-history-list"></div>
+          </div>
+        </details>
+        <details class="panel-section" open>
+          <summary class="panel-section-head"><span class="panel-section-title">Output</span></summary>
+          <div class="panel-section-body">
+            <button id="imageDownloadBtn" type="button" disabled>Download PNG</button>
+            <button id="imageApplyBtn" type="button" style="display:none">Apply to Attachment</button>
+            <button id="imageSendNewSlotBtn" type="button" style="display:none">Send to New Slot</button>
+          </div>
+        </details>
+      </section>
       <section id="leftCanvasTools" class="group left-tab-panel" data-left-panel="canvas">
         <h3>Base Transform</h3>
         <details class="panel-section" open>
@@ -618,6 +649,15 @@
         <canvas id="glCanvas"></canvas>
         <canvas id="glOverlayCanvas"></canvas>
         <canvas id="overlay"></canvas>
+        <div id="imageStage" class="image-stage">
+          <canvas id="imageCanvas" class="image-canvas"></canvas>
+          <div id="imageDropZone" class="image-drop-zone">
+            <div class="image-drop-icon">⬇</div>
+            <div class="image-drop-label">Drop an image here</div>
+            <div class="image-drop-hint">or click to choose a file</div>
+          </div>
+          <input id="imageFileInput" type="file" accept="image/*" hidden />
+        </div>
 <div id="viewZoomWrap" class="view-zoom" title="Canvas Zoom">
           <button id="viewPanToggleBtn" type="button" title="Pan Canvas">✋</button>
           <button id="viewFitAllBtn" type="button" title="Fit All">⊙</button>
@@ -2164,6 +2204,8 @@
   <script src="vendor/sparse-cholesky.js?v=20260506-1"></script>
   <script src="app/core/puppet-warp.js?v=20260506-2"></script>
   <script src="app/core/puppet-warp-runtime.js?v=20260508-1"></script>
+  <script src="app/image/image-workspace.js?v=20260509-1"></script>
+  <script src="app/image/image-io.js?v=20260509-1"></script>
   <script src="app/core/runtime-ai-bridge.js?v=20260506-6"></script>
   <script src="app/render/gl-toolkit.js?v=20260426-19"></script>
   <script src="app/render/weight-heatmap-gpu.js?v=20260425-2"></script>

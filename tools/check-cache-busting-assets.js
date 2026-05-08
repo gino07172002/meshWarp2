@@ -15,6 +15,8 @@ const checks = [
   'src="vendor/sparse-cholesky.js?v=',
   'src="app/core/puppet-warp.js?v=',
   'src="app/core/puppet-warp-runtime.js?v=',
+  'src="app/image/image-workspace.js?v=',
+  'src="app/image/image-io.js?v=',
   'src="app/core/bones.js?v=',
   'src="app/core/bones-tree-ui.js?v=',
   'src="app/workspace/workspace.js?v=',

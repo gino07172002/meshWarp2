@@ -768,7 +768,7 @@ function updateWorkspaceUI() {
   const canBuildPages = state.boneMode === "edit";
   const isSysAnimate = systemMode === "animate";
   const canObjectPage = state.boneMode === "object" && (state.editMode === "skeleton" || state.editMode === "object");
-  let page = state.uiPage === "slot" || state.uiPage === "anim" || state.uiPage === "object" ? state.uiPage : "rig";
+  let page = state.uiPage === "slot" || state.uiPage === "anim" || state.uiPage === "object" || state.uiPage === "image" ? state.uiPage : "rig";
   if (isSysAnimate && page !== "anim") {
     page = "anim";
     state.uiPage = page;
@@ -798,6 +798,7 @@ function updateWorkspaceUI() {
     els.appRoot.classList.toggle("page-rig", page === "rig");
     els.appRoot.classList.toggle("page-object", page === "object");
     els.appRoot.classList.toggle("page-anim", page === "anim");
+    els.appRoot.classList.toggle("page-image", page === "image");
     els.appRoot.classList.toggle("timeline-minimized", timelineMinimized);
   }
   if (els.slotSelectWrap) setVisible(els.slotSelectWrap, false);
@@ -806,14 +807,18 @@ function updateWorkspaceUI() {
   const isSkeleton = state.editMode === "skeleton";
   const isMeshEdit = state.editMode === "mesh";
   // Sync type buttons and mode dropdown (must be after isMeshEdit is declared)
-  const wsType = isMeshEdit ? "mesh" : (state.boneMode === "object" ? "object" : "rig");
+  const isImagePage = page === "image";
+  const wsType = isImagePage ? "image" : (isMeshEdit ? "mesh" : (state.boneMode === "object" ? "object" : "rig"));
   const wsMode = isSysAnimate ? "animate" : "edit";
   if (els.workspaceTabRig)    { els.workspaceTabRig.classList.toggle("active",    wsType === "rig");    }
   if (els.workspaceTabSlot)   { els.workspaceTabSlot.classList.toggle("active",   wsType === "mesh");   }
   if (els.workspaceTabObject) { els.workspaceTabObject.classList.toggle("active", wsType === "object"); els.workspaceTabObject.disabled = !state.mesh; }
+  if (els.workspaceTabImage)  { els.workspaceTabImage.classList.toggle("active",  wsType === "image");  }
   if (els.wsModeSelect) {
     els.wsModeSelect.value = wsMode;
     els.wsModeSelect.dataset.mode = wsMode;
+    // Image workspace doesn't have edit/animate distinction
+    els.wsModeSelect.style.visibility = isImagePage ? "hidden" : "";
   }
   const isRigEdit = !isMeshEdit && isSkeleton && state.boneMode === "edit";
   const isRigObject = !isMeshEdit && (isSkeleton || state.editMode === "object") && state.boneMode === "object";
@@ -830,7 +835,9 @@ function updateWorkspaceUI() {
   const isObjPage   = page === "object";
   const isAnimPage  = page === "anim" && !animAuxMode;
   const tabVisible = animAuxMode
-    ? { canvas: false, setup: false, rig: false, object: false, ik: false, constraint: false, path: false, physics: false, skin: false, tools: false, slotmesh: false }
+    ? { canvas: false, setup: false, rig: false, object: false, ik: false, constraint: false, path: false, physics: false, skin: false, tools: false, slotmesh: false, image: false }
+    : isImagePage
+    ? { canvas: false, setup: false, rig: false, object: false, ik: false, constraint: false, path: false, physics: false, skin: false, tools: false, slotmesh: false, image: true }
     : {
       canvas:     isMeshPage || isAnimPage,
       setup:      isRigPage || isAnimPage,   // "Bones" tab
@@ -843,6 +850,7 @@ function updateWorkspaceUI() {
       skin:       (isRigPage || isAnimPage) && (isRigEdit || isRigPose),
       tools:      isRigPage || isObjPage || isAnimPage,
       slotmesh:   isMeshPage,
+      image:      false,
     };
   const visibleTabs = Object.keys(tabVisible).filter((k) => tabVisible[k]);
   if (!animAuxMode && !visibleTabs.includes(state.leftToolTab)) {
@@ -961,9 +969,14 @@ function updateWorkspaceUI() {
 function setWorkspacePage(page) {
   const prevMode = state.boneMode;
   const systemMode = getCurrentSystemMode();
-  const requested = page === "slot" || page === "anim" || page === "object" ? page : "rig";
+  const requested = page === "slot" || page === "anim" || page === "object" || page === "image" ? page : "rig";
   const next = systemMode === "animate" && requested === "object" ? "anim" : requested;
   state.uiPage = next;
+  if (requested === "image") {
+    if (state.leftToolTab !== "image") setLeftToolTab("image");
+    updateWorkspaceUI();
+    return;
+  }
   if (requested === "object") {
     state.editMode = "skeleton";
     state.boneMode = "object";

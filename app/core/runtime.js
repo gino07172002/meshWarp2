@@ -456,6 +456,17 @@ const state = {
     toolRestoreTarget: "boundary",
     gridReplaceContour: false,
   },
+  imageEditor: {
+    active: false,
+    source: { canvas: null, width: 0, height: 0, origin: "", slotIndex: -1, attachmentName: "" },
+    workCanvas: null,
+    history: [],
+    historyIndex: -1,
+    view: { scale: 1, cx: 0, cy: 0 },
+    tool: "select",
+    cropRect: null,
+    bgRemoval: { modelLoaded: false, modelLoading: false, threshold: 0.5, feather: 1 },
+  },
   pathEdit: {
     drawArmed: false,
     activePoint: -1,
