@@ -384,7 +384,7 @@
     const r = requireImageWorkspace();
     if (!r.ok) return r;
     if (!window.ImageOps) return { ok: false, error: "ImageOps unavailable" };
-    const next = window.ImageOps.trimTransparency(r.canvas);
+    const next = window.ImageOps.trimTransparency(r.canvas, 10);
     if (!next) return { ok: false, error: "Trim produced no result (image may be fully opaque)" };
     return aiImageReplace(next, "trim transparency", {});
   }

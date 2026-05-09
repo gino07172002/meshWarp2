@@ -181,7 +181,9 @@
 
   function trimImageTransparency() {
     return runImageCaptureCommand("image.trim_transparency", {}, () => {
-      return runCanvasOpRaw((c) => window.ImageOps.trimTransparency(c), "trim transparency");
+      // threshold=10 cuts sub-10 alpha fringe pixels that AI bg-removal
+      // leaves at image edges, preventing trim from returning full size.
+      return runCanvasOpRaw((c) => window.ImageOps.trimTransparency(c, 10), "trim transparency");
     });
   }
 
