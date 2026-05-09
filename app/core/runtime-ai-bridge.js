@@ -99,6 +99,12 @@
         { name: "feather", type: "number", required: false },
       ],
     },
+    "ai.image_trim": {
+      args: [],
+    },
+    "ai.image_send_to_new_slot": {
+      args: [],
+    },
     "ai.image_apply_to_attachment": {
       args: [],
     },
@@ -372,6 +378,23 @@
     if (Number.isFinite(Number(args.feather))) opts.feather = Number(args.feather);
     const next = await window.ImageBgRemoval.removeBackground(r.canvas, opts);
     return aiImageReplace(next, "remove background", opts);
+  }
+
+  function aiImageTrim() {
+    const r = requireImageWorkspace();
+    if (!r.ok) return r;
+    if (!window.ImageOps) return { ok: false, error: "ImageOps unavailable" };
+    const next = window.ImageOps.trimTransparency(r.canvas);
+    if (!next) return { ok: false, error: "Trim produced no result (image may be fully opaque)" };
+    return aiImageReplace(next, "trim transparency", {});
+  }
+
+  function aiImageSendToNewSlot() {
+    if (!window.ImageIO || typeof window.ImageIO.sendToNewSlot !== "function") {
+      return { ok: false, error: "ImageIO.sendToNewSlot unavailable" };
+    }
+    const result = window.ImageIO.sendToNewSlot();
+    return { ok: !!result };
   }
 
   function aiImageApplyToAttachment() {
@@ -695,6 +718,22 @@
       group: "AI",
       domain: "image",
       action: aiImageRemoveBg,
+      mutates: true,
+    },
+    {
+      id: "ai.image_trim",
+      label: "AI: Image Workspace - Trim Transparency",
+      group: "AI",
+      domain: "image",
+      action: aiImageTrim,
+      mutates: true,
+    },
+    {
+      id: "ai.image_send_to_new_slot",
+      label: "AI: Image Workspace - Send to New Slot",
+      group: "AI",
+      domain: "image",
+      action: aiImageSendToNewSlot,
       mutates: true,
     },
     {

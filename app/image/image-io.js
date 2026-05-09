@@ -63,6 +63,8 @@
       if (typeof syncSourceCanvasToActiveAttachment === "function") {
         syncSourceCanvasToActiveAttachment(slot);
       }
+      // Rebuild mesh geometry so deformation tools see the updated canvas
+      if (typeof rebuildMesh === "function") rebuildMesh();
       if (typeof refreshSlotUI === "function") refreshSlotUI();
       if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
       if (typeof requestRender === "function") requestRender("image_apply");
@@ -90,7 +92,17 @@
         docWidth: c.width,
         docHeight: c.height,
         rect: { x: 0, y: 0, w: c.width, h: c.height },
+        // Mesh type so that puppet warp, weight paint, and mesh editing all work
+        defaultAttachmentType: "mesh",
       }, true);
+      // syncSourceCanvas so rebuildMesh finds state.sourceCanvas
+      const addedSlot = state.slots[state.activeSlot >= 0 ? state.activeSlot : state.slots.length - 1];
+      if (addedSlot && typeof syncSourceCanvasToActiveAttachment === "function") {
+        syncSourceCanvasToActiveAttachment(addedSlot);
+      }
+      // Build the rig mesh so puppet warp and skinning tools can work
+      if (typeof rebuildMesh === "function") rebuildMesh();
+      if (typeof ensureSlotsHaveBoneBinding === "function") ensureSlotsHaveBoneBinding();
       if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
       if (typeof setStatus === "function") setStatus("Image sent to new slot.");
       if (typeof applyWorkspace === "function") applyWorkspace("mesh", "edit");
