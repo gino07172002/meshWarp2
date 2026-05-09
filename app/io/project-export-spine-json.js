@@ -189,6 +189,8 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
 
   function canUseMeshAttachment(slot, sm, boneCount, attachment = null) {
     if (!slot || !sm) return false;
+    // Puppet-warp standalone: always export as mesh so deform timelines work
+    if (attachment && attachment.puppetWarp) return true;
     const mode = getSlotWeightMode(slot, attachment);
     if (mode === "weighted") return true;
     if (mode === "single" && boneCount > 0 && sm.weights && sm.weights.length === (sm.positions.length / 2) * boneCount) {
@@ -1407,7 +1409,16 @@ function buildSpineJsonData(compatMode = state.export && state.export.spineCompa
           if (!arr || !sm) continue;
           const expectedLen = sm.positions.length;
           if (arr.length !== expectedLen) continue;
-          const att = skinDefault[slotName] && skinDefault[slotName][attName] ? skinDefault[slotName][attName] : null;
+          let att = skinDefault[slotName] && skinDefault[slotName][attName] ? skinDefault[slotName][attName] : null;
+          // Puppet-warp standalone attachments have type "free" weightMode so
+          // they are serialised as region (no type field). Force-build a mesh
+          // descriptor if the editor attachment has meshData and puppetWarp.
+          if (!att || att.type !== "mesh") {
+            const slotAtt = getSlotAttachmentEntry(s, attName);
+            if (slotAtt && slotAtt.meshData && slotAtt.puppetWarp) {
+              att = buildMeshAttachment(s, si, m.rigBones.length, 1, slotAtt.canvas, slotAtt);
+            }
+          }
           if (!att || att.type !== "mesh") continue;
           const base = sm.baseOffsets || new Float32Array(expectedLen);
           const delta = new Array(expectedLen);

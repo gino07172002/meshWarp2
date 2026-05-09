@@ -415,8 +415,8 @@
     // Snapshot current offsets to a deform-track keyframe
     const md = att.meshData;
     if (!md || !md.offsets) return;
-    const offsetsCopy = new Float32Array(md.offsets.length);
-    offsetsCopy.set(md.offsets);
+    // Store as plain Array so Spine export builder can Array.isArray() it.
+    const offsetsCopy = Array.from(md.offsets);
     const deformTrackId = getVertexTrackId(slotIndex, att.name);
     const keys = getTrackKeys(anim, deformTrackId);
     const epsilon = 1e-4;
