@@ -105,6 +105,18 @@
     "ai.image_send_to_new_slot": {
       args: [],
     },
+    "ai.mesh_auto_foreground": {
+      args: [
+        { name: "cols", type: "integer", required: false, description: "Grid columns (default 24)" },
+        { name: "rows", type: "integer", required: false, description: "Grid rows (default 24)" },
+        { name: "alphaThreshold", type: "number", required: false, description: "Alpha threshold 0-254 (default 8)" },
+        { name: "padding", type: "number", required: false, description: "Padding in pixels (default 1)" },
+        { name: "detail", type: "number", required: false, description: "Contour detail multiplier (default 1)" },
+      ],
+    },
+    "ai.mesh_apply": {
+      args: [],
+    },
     "ai.image_apply_to_attachment": {
       args: [],
     },
@@ -387,6 +399,81 @@
     const next = window.ImageOps.trimTransparency(r.canvas, 10);
     if (!next) return { ok: false, error: "Trim produced no result (image may be fully opaque)" };
     return aiImageReplace(next, "trim transparency", {});
+  }
+
+  function aiMeshAutoForeground(args) {
+    const slot = (typeof getActiveSlot === "function") ? getActiveSlot() : null;
+    if (!slot) return { ok: false, error: "no active slot" };
+    if (typeof autoBuildForegroundMeshForSlot !== "function")
+      return { ok: false, error: "autoBuildForegroundMeshForSlot unavailable" };
+    const cols = Number(args && args.cols) || 24;
+    const rows = Number(args && args.rows) || 24;
+    const alphaThreshold = Number.isFinite(Number(args && args.alphaThreshold)) ? Number(args.alphaThreshold) : 8;
+    const padding = Number.isFinite(Number(args && args.padding)) ? Number(args.padding) : 1;
+    const detail = Number.isFinite(Number(args && args.detail)) ? Number(args.detail) : 1;
+    const result = autoBuildForegroundMeshForSlot(slot, cols, rows, { alphaThreshold, padding, detail });
+    if (!result || !result.ok) return { ok: false, error: result && result.reason ? result.reason : "unknown" };
+    if (typeof clearSlotMeshSelection === "function") clearSlotMeshSelection();
+    return { ok: true, contourPoints: result.contourPoints, fillPoints: result.fillPoints, triangles: result.triangles };
+  }
+
+  function aiMeshApply(args) {
+    const slot = (typeof getActiveSlot === "function") ? getActiveSlot() : null;
+    if (!slot) return { ok: false, error: "no active slot" };
+    if (typeof applyContourMeshToSlot !== "function")
+      return { ok: false, error: "applyContourMeshToSlot unavailable" };
+    const ok = applyContourMeshToSlot(slot);
+    if (!ok) return { ok: false, error: "apply failed — need closed contour" };
+    if (typeof syncSlotContourFromMeshData === "function") syncSlotContourFromMeshData(slot, true);
+    if (typeof clearSlotMeshSelection === "function") clearSlotMeshSelection();
+    // Reset offsets and baseOffsets so the new mesh starts from rest
+    const att = (typeof getActiveAttachment === "function") ? getActiveAttachment(slot) : null;
+    if (att && att.meshData) {
+      const n = att.meshData.positions.length;
+      att.meshData.offsets = new Float32Array(n);
+      att.meshData.baseOffsets = new Float32Array(n);
+    }
+    // After a mesh topology change, old keyframe positions are invalid
+    // (vertex coordinates changed). Reset puppet warp state fully:
+    if (att && att.puppetWarp && att.meshData) {
+      att.puppetWarp.lastTargets = null;
+      att.puppetWarp.bake = { dirty: true, lastTopologyHash: "" };
+      // Update pin rest positions to match the new mesh
+      const pos = att.meshData.positions;
+      const n = pos.length / 2;
+      for (const pin of att.puppetWarp.pins) {
+        const vi = pin.vertexIndex;
+        if (vi >= 0 && vi < n) {
+          pin.restX = pos[vi * 2];
+          pin.restY = pos[vi * 2 + 1];
+        }
+      }
+      // Purge old puppetpin keyframes — their x/y values referred to the
+      // old mesh topology. User must re-keyframe after mesh apply.
+      if (typeof getCurrentAnimation === "function" && typeof getPuppetPinTrackId === "function") {
+        const anim = getCurrentAnimation();
+        if (anim && anim.tracks) {
+          const slotIndex = Array.isArray(state.slots) ? state.slots.indexOf(slot) : -1;
+          if (slotIndex >= 0) {
+            for (const pin of att.puppetWarp.pins) {
+              const trackId = getPuppetPinTrackId(slotIndex, att.name, pin.id);
+              if (anim.tracks[trackId]) delete anim.tracks[trackId];
+            }
+            // Also clear the stale baked deform track
+            if (typeof getVertexTrackId === "function") {
+              const deformId = getVertexTrackId(slotIndex, att.name);
+              if (anim.tracks[deformId]) delete anim.tracks[deformId];
+            }
+          }
+        }
+      }
+    }
+    if (typeof refreshSlotUI === "function") refreshSlotUI();
+    if (typeof pushUndoCheckpoint === "function") pushUndoCheckpoint(true);
+    // Invalidate puppet warp cache so it rebuilds against new topology
+    if (att && window.PuppetWarp) window.PuppetWarp.invalidate(att, "mesh_apply");
+    const vCount = att && att.meshData ? att.meshData.positions.length / 2 : 0;
+    return { ok: true, vertexCount: vCount };
   }
 
   function aiImageSendToNewSlot() {
@@ -718,6 +805,22 @@
       group: "AI",
       domain: "image",
       action: aiImageRemoveBg,
+      mutates: true,
+    },
+    {
+      id: "ai.mesh_auto_foreground",
+      label: "AI: Mesh - Auto Foreground (build contour from alpha)",
+      group: "AI",
+      domain: "mesh",
+      action: aiMeshAutoForeground,
+      mutates: true,
+    },
+    {
+      id: "ai.mesh_apply",
+      label: "AI: Mesh - Apply contour to slot mesh",
+      group: "AI",
+      domain: "mesh",
+      action: aiMeshApply,
       mutates: true,
     },
     {

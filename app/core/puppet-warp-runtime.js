@@ -216,6 +216,23 @@
     return out;
   }
 
+  // Determine if all pin targets are at rest position (within epsilon).
+  // When true, the deformation should be identity → zero offsets.
+  function allPinsAtRest(att, overrides, dynamicRest) {
+    if (!att || !att.puppetWarp || !att.meshData) return false;
+    const md = att.meshData;
+    const pw = att.puppetWarp;
+    const eps = 0.5;
+    for (const pin of pw.pins) {
+      const vi = pin.vertexIndex;
+      const tgt = resolveTargetAbs(overrides && overrides[pin.id] || null, vi, dynamicRest, pin.restX, pin.restY);
+      const rx = dynamicRest ? dynamicRest[vi * 2] : md.positions[vi * 2];
+      const ry = dynamicRest ? dynamicRest[vi * 2 + 1] : md.positions[vi * 2 + 1];
+      if (Math.abs(tgt.x - rx) > eps || Math.abs(tgt.y - ry) > eps) return false;
+    }
+    return true;
+  }
+
   function applyTargetsToOffsets(att, overrides) {
     if (!att || !att.puppetWarp || !att.meshData) return false;
     const md = att.meshData;
@@ -226,6 +243,18 @@
     }
     const dynamicRest = getDynamicRest(att);
     const targets = buildTargets(pw, overrides, dynamicRest);
+
+    // Shortcut: when every pin is at its rest position, skip the ARAP
+    // solve entirely and zero out offsets. This prevents numerical drift
+    // from the Laplacian system (large-extent meshes can have non-zero
+    // residuals even for the identity deformation).
+    if (allPinsAtRest(att, overrides, dynamicRest)) {
+      const n = (md.positions.length / 2) | 0;
+      if (!md.offsets || md.offsets.length !== n * 2) md.offsets = new Float32Array(n * 2);
+      else md.offsets.fill(0);
+      return true;
+    }
+
     let deformed;
     if (pw.mode === "post_skin" && dynamicRest !== md.positions) {
       // Adaptive: solve in skinned-space. Output is in skinned-space.
@@ -378,7 +407,10 @@
       }
     }
     if (!anyKeyed) {
-      // No keyframes yet: keep manual lastTargets (e.g. mid-drag preview)
+      // No keyframes on any pin: only keep manual lastTargets when there
+      // has been a drag interaction (non-null). If tracks were cleared
+      // (e.g. after mesh apply) lastTargets should also be null, so we
+      // fall through to rest with an empty override map.
       return applyTargetsToOffsets(att, att.puppetWarp.lastTargets || {});
     }
     if (!att.puppetWarp.lastTargets) att.puppetWarp.lastTargets = {};

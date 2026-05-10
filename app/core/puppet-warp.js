@@ -126,6 +126,13 @@
     // Output as a CSC of the lower triangle.
     const Mdense = new Float64Array(vCount * vCount);
     for (let i = 0; i < vCount * vCount; i += 1) Mdense[i] = L[i];
+    // Tikhonov regularization: only for vertices with zero diagonal (isolated
+    // vertices or those only in degenerate zero-area triangles). Adding it
+    // universally causes non-zero offsets even when pins are at rest.
+    const TIKHONOV = 1e-6;
+    for (let i = 0; i < vCount; i += 1) {
+      if (Math.abs(Mdense[i * vCount + i]) < 1e-10) Mdense[i * vCount + i] += TIKHONOV;
+    }
     for (let p = 0; p < pinVertices.length; p += 1) {
       const i = pinVertices[p];
       Mdense[i * vCount + i] += PIN_PENALTY;

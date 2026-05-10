@@ -88,14 +88,40 @@ async function main() {
   const sendR = await page.evaluate(() => window.ai.invoke("ai.image_send_to_new_slot"));
   if (!sendR.ok) { fail("3b", `sendToNewSlot: ${sendR.error}`); }
   await page.waitForTimeout(700);
-  await ss(page, "04-mesh");
+  await ss(page, "04-mesh-grid");
+
+  // ── Auto Foreground: replace rectangular grid with character-shaped mesh ─
+  // Switch to Mesh workspace so the slot is properly active
+  await page.evaluate(() => window.ai.invoke("mode.mesh"));
+  await page.waitForTimeout(300);
+
+  const afR = await page.evaluate(() =>
+    window.ai.invoke("ai.mesh_auto_foreground", {
+      cols: 24, rows: 24,
+      alphaThreshold: 8,
+      padding: 2,
+      detail: 1.5,   // More contour detail for complex character outline
+    })
+  );
+  console.log("  auto_foreground:", afR.result || afR.error);
+  if (afR.ok) ok("3c", `Auto foreground: ${afR.result.contourPoints} contour pts, ${afR.result.fillPoints} fill pts, ${afR.result.triangles} tris`);
+  else fail("3c", `Auto foreground failed: ${afR.error}`);
+  await ss(page, "05-auto-fg");
+
+  // Apply the contour mesh
+  const applyR = await page.evaluate(() => window.ai.invoke("ai.mesh_apply"));
+  if (applyR.ok) ok("3d", `Mesh applied: ${applyR.result.vertexCount} vertices (character-shaped)`);
+  else fail("3d", `Mesh apply failed: ${applyR.error}`);
+  await page.waitForTimeout(400);
+  await ss(page, "06-mesh-applied");
 
   const meshInfo = await page.evaluate(() => {
     const att = getActiveAttachment(state.slots[0]);
-    return { vCount: att?.meshData?.positions?.length / 2 | 0, type: att?.type };
+    return { vCount: att?.meshData?.positions?.length / 2 | 0, type: att?.type, triCount: att?.meshData?.indices?.length / 3 | 0 };
   });
-  ok("3b", `Mesh: ${meshInfo.vCount} verts, type=${meshInfo.type}`);
-  if (meshInfo.type !== "mesh") fail("3b", "Attachment is not mesh type!");
+  ok("3e", `Mesh shape: ${meshInfo.vCount} verts, ${meshInfo.triCount} tris, type=${meshInfo.type}`);
+  if (meshInfo.type !== "mesh") fail("3e", "Attachment is not mesh type!");
+  if (meshInfo.vCount < 50) warn("3e", `Only ${meshInfo.vCount} verts — auto-foreground may have found small region`);
 
   // ── STEP 4: Puppet warp — strategy ─────────────────────────────────────
   // We use fractional positions based on the mesh grid (25×25 = 625 verts,
@@ -119,6 +145,8 @@ async function main() {
   console.log("\n─── STEP 4: Enable puppet warp + place pins ───");
 
   const en = await page.evaluate(() => window.ai.invoke("ai.puppetwarp_enable", { slotIndex: 0, mode: "standalone" }));
+  const vAfterEnable = await page.evaluate(() => getActiveAttachment(state.slots[0])?.meshData?.positions?.length / 2 | 0);
+  console.log(`  vCount after enable: ${vAfterEnable}`);
   if (!en.ok) { fail("4", `enable failed: ${en.error}`); }
 
   // Helper: pick vertex closest to a fractional (fx, fy) position
@@ -200,21 +228,39 @@ async function main() {
   // ── STEP 5: Keyframe animation ─────────────────────────────────────────
   console.log("\n─── STEP 5: Keyframe animation ───");
 
-  // t=0: everything at rest
-  await page.evaluate(() => window.ai.invoke("ai.set_animation_time", { time: 0 }));
+  // FIRST: sync restX/restY from the current mesh (post-auto-foreground)
+  await page.evaluate(() => {
+    const att = getActiveAttachment(state.slots[0]);
+    if (!att || !att.puppetWarp || !att.meshData) return;
+    const pos = att.meshData.positions;
+    const n = pos.length / 2;
+    for (const pin of att.puppetWarp.pins) {
+      if (pin.vertexIndex >= 0 && pin.vertexIndex < n) {
+        pin.restX = pos[pin.vertexIndex * 2];
+        pin.restY = pos[pin.vertexIndex * 2 + 1];
+      }
+    }
+  });
+  for (const [label, pin] of [...Object.entries(anchorPins), ...Object.entries(ctrlPins)]) {
+    const fresh = await page.evaluate(pid => {
+      const att = getActiveAttachment(state.slots[0]);
+      const p = att?.puppetWarp?.pins?.find(p => p.id === pid);
+      return p ? { restX: p.restX, restY: p.restY } : null;
+    }, pin.id);
+    if (fresh) { pin.restX = fresh.restX; pin.restY = fresh.restY; }
+  }
 
-  // Keyframe ALL pins at t=0 (rest)
+  // t=0: everything at rest, keyframe with UPDATED restX/restY
+  await page.evaluate(() => window.ai.invoke("ai.set_animation_time", { time: 0 }));
   for (const [label, pin] of [...Object.entries(anchorPins), ...Object.entries(ctrlPins)]) {
     await page.evaluate(([pid, x, y]) =>
       window.ai.invoke("ai.puppetwarp_set_pin_keyframe", { slotIndex: 0, pinId: pid, time: 0, x, y }),
       [pin.id, pin.restX, pin.restY]);
   }
 
-  // t=1.0: right hand extends OUT (to the right) by 70px, down 20px
-  //         left hand extends OUT (to the left) by 70px, down 20px
+  // t=1: hands extend, anchors stay at rest
   const handRPin = ctrlPins["hand-R"];
   const handLPin = ctrlPins["hand-L"];
-
   if (handRPin) {
     await page.evaluate(([pid, x, y]) =>
       window.ai.invoke("ai.puppetwarp_set_pin_keyframe", { slotIndex: 0, pinId: pid, time: 1, x, y }),
@@ -225,15 +271,13 @@ async function main() {
       window.ai.invoke("ai.puppetwarp_set_pin_keyframe", { slotIndex: 0, pinId: pid, time: 1, x, y }),
       [handLPin.id, handLPin.restX + 70, handLPin.restY + 20]);
   }
-
-  // Keyframe anchors at t=1 also (unchanged = at rest)
   for (const [label, pin] of Object.entries(anchorPins)) {
     await page.evaluate(([pid, x, y]) =>
       window.ai.invoke("ai.puppetwarp_set_pin_keyframe", { slotIndex: 0, pinId: pid, time: 1, x, y }),
       [pin.id, pin.restX, pin.restY]);
   }
 
-  ok("5", "Keyframes written: t=0 (rest) and t=1 (hands extended)");
+  ok("5", "Keyframes written: t=0 (updated rest) and t=1 (hands extended)");
 
   // ── STEP 6: Verify deformation ─────────────────────────────────────────
   console.log("\n─── STEP 6: Verify deformation ───");
@@ -294,7 +338,26 @@ async function main() {
     return +m.toFixed(4);
   });
   if (t0MaxOff < 0.5) ok("6e", `t=0 reset: max offset=${t0MaxOff}px (returns to rest ✓)`);
-  else fail("6e", `t=0 reset: still has offset ${t0MaxOff}px`);
+  else {
+    // Find which vertex has max offset and what its keyframe says
+    const t0Diag = await page.evaluate(([hRv, hLv]) => {
+      const att = getActiveAttachment(state.slots[0]);
+      const md = att?.meshData;
+      // Find the vertex with max offset
+      let maxOff = 0, maxVert = -1;
+      if (md && md.offsets) {
+        for (let i = 0; i < md.offsets.length / 2; i++) {
+          const d = Math.hypot(md.offsets[i*2], md.offsets[i*2+1]);
+          if (d > maxOff) { maxOff = d; maxVert = i; }
+        }
+      }
+      const maxVertPos = maxVert >= 0 ? { x: md.positions[maxVert*2], y: md.positions[maxVert*2+1] } : null;
+      const maxVertOff = maxVert >= 0 ? { x: md.offsets[maxVert*2], y: md.offsets[maxVert*2+1] } : null;
+      return { maxOff, maxVert, maxVertPos, maxVertOff, lastTargets: att?.puppetWarp?.lastTargets ? 'has-targets' : 'null' };
+    }, [handRPin?.v ?? 0, handLPin?.v ?? 0]);
+    console.log("  t=0 diag:", JSON.stringify(t0Diag, null, 2).slice(0, 1000));
+    fail("6e", `t=0 reset: still has offset ${t0MaxOff}px`);
+  }
 
   // mid-point t=0.5
   await page.evaluate(() => window.ai.invoke("ai.set_animation_time", { time: 0.5 }));
