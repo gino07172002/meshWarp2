@@ -342,18 +342,22 @@ function buildProjectPayload(opts) {
         maskBones: Array.isArray(t.maskBones) ? t.maskBones.map((v) => Number(v) || 0) : [],
       })),
       selectedLayerTrackId: String(state.anim.selectedLayerTrackId || ""),
-      batchExportOpen: !!state.anim.batchExportOpen,
-      batchExport: {
-        format:
-          state.anim.batchExport && (state.anim.batchExport.format === "gif" || state.anim.batchExport.format === "pngseq")
-            ? state.anim.batchExport.format
-            : "webm",
-        fps: Math.max(1, Math.min(60, Math.round(Number(state.anim.batchExport && state.anim.batchExport.fps) || 15))),
-        prefix: String((state.anim.batchExport && state.anim.batchExport.prefix) || "batch"),
-        retries: Math.max(0, Math.min(5, Math.round(Number(state.anim.batchExport && state.anim.batchExport.retries) || 1))),
-        delayMs: Math.max(0, Math.min(5000, Math.round(Number(state.anim.batchExport && state.anim.batchExport.delayMs) || 120))),
-        zipPng: !!(state.anim.batchExport && state.anim.batchExport.zipPng),
-      },
+      exportModal: (() => {
+        const em = state.anim.exportModal || {};
+        return {
+          format: ["gif", "webm", "pngseq", "webp"].indexOf(String(em.format)) >= 0 ? String(em.format) : "gif",
+          fps: Math.max(1, Math.min(60, Math.round(Number(em.fps) || 30))),
+          scale: em.scale === "custom" ? "custom" : (Number(em.scale) || 1),
+          width: Math.max(0, Math.min(4096, Math.round(Number(em.width) || 0))),
+          height: Math.max(0, Math.min(4096, Math.round(Number(em.height) || 0))),
+          lockAspect: em.lockAspect !== false,
+          bgTransparent: em.bgTransparent !== false,
+          bgColor: String(em.bgColor || "#000000"),
+          loopCount: Math.max(0, Math.min(0xffff, Math.round(Number(em.loopCount) || 0))),
+          prefix: String(em.prefix || "export"),
+          zipPng: em.zipPng !== false,
+        };
+      })(),
       stateMachine: JSON.parse(JSON.stringify(ensureStateMachine())),
       onionSkin: JSON.parse(JSON.stringify(ensureOnionSkinSettings())),
     },

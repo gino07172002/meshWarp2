@@ -1998,13 +1998,17 @@ if (els.fileNewBtn) {
     state.anim.onlyKeyed = false;
     state.anim.autoKey = false;
     state.anim.autoKeyPending = false;
-    state.anim.batchExportOpen = false;
-    state.anim.batchExport = {
-      format: "webm",
-      fps: 15,
-      prefix: "batch",
-      retries: 1,
-      delayMs: 120,
+    state.anim.exportModal = {
+      format: "gif",
+      fps: 30,
+      scale: 1,
+      width: 0,
+      height: 0,
+      lockAspect: true,
+      bgTransparent: true,
+      bgColor: "#000000",
+      loopCount: 0,
+      prefix: "export",
       zipPng: true,
     };
     state.anim.onionSkin = {

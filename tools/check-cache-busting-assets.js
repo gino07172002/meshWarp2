@@ -37,6 +37,8 @@ const checks = [
   'src="app/ui/editor-panels.js?v=',
   'src="app/ui/constraint-panels.js?v=',
   'src="app/ui/animation-panels.js?v=',
+  'src="app/ui/export-animation-encoders.js?v=',
+  'src="app/ui/export-animation-modal.js?v=',
   'src="app/ui/timeline-pointer.js?v=',
   'src="app/ui/hotkeys.js?v=',
   'src="app/ui/bootstrap.js?v=',

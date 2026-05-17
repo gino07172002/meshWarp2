@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Web Spine-like Mesh Deformer</title>
-  <link rel="stylesheet" href="styles.css?v=20260509-6" />
+  <link rel="stylesheet" href="styles.css?v=20260517-1" />
 </head>
 
 <body>
@@ -25,6 +25,15 @@
                 class="menu-shortcut">Ctrl+S</span></button>
             <button type="button" role="menuitem" data-menu-action="file.load"><span>Load Project</span><span
                 class="menu-shortcut">Ctrl+L</span></button>
+            <div class="menu-item-submenu" id="recentProjectsItem">
+              <button type="button" role="menuitem" class="menu-item-has-sub" aria-haspopup="true">
+                <span>Recent Projects</span><span class="menu-sub-arrow">&#9658;</span>
+              </button>
+              <div class="menu-submenu" id="recentProjectsSubmenu" role="menu">
+                <div id="recentProjectsList"></div>
+                <div id="recentProjectsEmpty" style="display:none;padding:6px 14px;opacity:.5;font-size:12px">No recent projects</div>
+              </div>
+            </div>
             <hr />
             <button type="button" role="menuitem" data-menu-action="file.export"><span>Export Spine</span><span
                 class="menu-shortcut">Ctrl+E</span></button>
@@ -1876,6 +1885,7 @@
         <button id="timelineZoomResetBtn" type="button" title="Reset timeline zoom">100%</button>
         <button id="timelineZoomInBtn" type="button" title="Zoom in timeline">+</button>
         <button id="timelineCollapseBtn" type="button" title="Minimize timeline">Min</button>
+        <button id="exportAnimModalBtn" type="button" title="Export animation as GIF/WebM/PNG sequence/WebP">Export…</button>
         <div class="toolbar-hidden-actions" aria-hidden="true">
           <button id="addAnimBtn" type="button" tabindex="-1">+Anim</button>
           <button id="deleteAnimBtn" type="button" tabindex="-1">-Anim</button>
@@ -1991,11 +2001,9 @@
 
     <section id="exportDock" class="export-dock">
       <div class="timeline-head">Export</div>
-      <p class="muted">Preview and batch export are isolated from timeline editing.</p>
+      <p class="muted">Animation export is isolated from timeline editing.</p>
       <div class="field timeline-actions">
-        <button id="exportPreviewWebmBtn" type="button" title="Export preview as WebM">Preview WebM</button>
-        <button id="exportPreviewGifBtn" type="button" title="Export preview as GIF">Preview GIF</button>
-        <button id="batchExportToggleBtn" type="button" title="Batch export multiple animations">Batch Export</button>
+        <button id="exportAnimDockBtn" type="button" title="Export animation as GIF/WebM/PNG sequence/WebP">Export Animation…</button>
       </div>
       <div class="field atlas-options" title="Spine atlas packing options (used by Export Spine)">
         <span class="mini-label">Atlas</span>
@@ -2014,37 +2022,6 @@
         <label class="mini-flag" title="Allow rotating regions 90° to fit better"><input id="atlasAllowRotate" type="checkbox" />Rotate</label>
         <label class="mini-flag" title="Strip fully-transparent edges (emits orig/offset)"><input id="atlasAllowTrim" type="checkbox" />Trim</label>
         <label class="mini-flag" title="Spill onto extra pages when content overflows"><input id="atlasMultiPage" type="checkbox" checked />Multi-page</label>
-      </div>
-      <div id="batchExportPanel" class="field batch-export-panel collapsed">
-        <label>Format
-          <select id="batchExportFormat">
-            <option value="webm" selected>WebM</option>
-            <option value="gif">GIF</option>
-            <option value="pngseq">PNG Sequence</option>
-          </select>
-        </label>
-        <label>FPS
-          <input id="batchExportFps" type="number" min="1" max="60" step="1" value="15" />
-        </label>
-        <label>Prefix
-          <input id="batchExportPrefix" type="text" value="batch" />
-        </label>
-        <label>Retry
-          <input id="batchExportRetries" type="number" min="0" max="5" step="1" value="1" />
-        </label>
-        <label>Delay(ms)
-          <input id="batchExportDelayMs" type="number" min="0" max="5000" step="10" value="120" />
-        </label>
-        <label class="slot-inline-check">
-          <input id="batchExportZipPng" type="checkbox" checked />
-          <span>PNG Zip</span>
-        </label>
-        <select id="batchExportAnimList" multiple size="5" title="Animations for batch export"></select>
-        <div class="batch-export-actions">
-          <button id="batchExportSelectAllBtn" type="button">All</button>
-          <button id="batchExportSelectNoneBtn" type="button">None</button>
-          <button id="batchExportRunBtn" type="button">Export Selected</button>
-        </div>
       </div>
     </section>
 
@@ -2245,8 +2222,74 @@
     </section>
   </div>
 
+  <div id="exportAnimModalWrap" class="export-anim-wrap collapsed" aria-hidden="true">
+    <div id="exportAnimModalBackdrop" class="export-anim-backdrop"></div>
+    <section id="exportAnimModalPanel" class="export-anim-panel" role="dialog" aria-modal="true"
+      aria-label="Export Animation">
+      <div class="export-anim-head">
+        <strong>Export Animation</strong>
+        <button id="exportAnimCloseBtn" type="button" aria-label="Close">✕</button>
+      </div>
+      <div class="export-anim-body">
+        <div class="export-anim-controls">
+          <fieldset class="export-anim-fieldset">
+            <legend>Format</legend>
+            <label><input type="radio" name="exportAnimFormat" id="exportAnimFormatGif" value="gif" checked />GIF</label>
+            <label><input type="radio" name="exportAnimFormat" id="exportAnimFormatWebm" value="webm" />WebM</label>
+            <label><input type="radio" name="exportAnimFormat" id="exportAnimFormatPngseq" value="pngseq" />PNG Sequence</label>
+            <label><input type="radio" name="exportAnimFormat" id="exportAnimFormatWebp" value="webp" />Animated WebP</label>
+          </fieldset>
+          <label class="export-anim-row">FPS
+            <input id="exportAnimFps" type="number" min="1" max="60" step="1" value="30" />
+          </label>
+          <fieldset class="export-anim-fieldset">
+            <legend>Resolution</legend>
+            <label>Scale
+              <select id="exportAnimScalePreset">
+                <option value="0.25">0.25×</option>
+                <option value="0.5">0.5×</option>
+                <option value="1" selected>1×</option>
+                <option value="2">2×</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <label>W <input id="exportAnimWidth" type="number" min="1" max="4096" step="1" value="512" disabled /></label>
+            <label>H <input id="exportAnimHeight" type="number" min="1" max="4096" step="1" value="512" disabled /></label>
+            <label class="mini-flag"><input id="exportAnimLockAspect" type="checkbox" checked />Lock aspect</label>
+          </fieldset>
+          <fieldset class="export-anim-fieldset">
+            <legend>Background</legend>
+            <label><input type="radio" name="exportAnimBg" id="exportAnimBgTransparent" checked />Transparent</label>
+            <label><input type="radio" name="exportAnimBg" id="exportAnimBgSolid" />Solid</label>
+            <label>Color <input id="exportAnimBgColor" type="color" value="#000000" /></label>
+          </fieldset>
+          <label class="export-anim-row">Loop count (0 = infinite)
+            <input id="exportAnimLoopCount" type="number" min="0" max="65535" step="1" value="0" />
+          </label>
+          <label class="export-anim-row">Filename prefix
+            <input id="exportAnimPrefix" type="text" value="export" />
+          </label>
+          <label class="export-anim-row"><input id="exportAnimZipPng" type="checkbox" checked />Zip PNG sequence</label>
+        </div>
+        <div class="export-anim-anims">
+          <div class="export-anim-anims-head">
+            <span>Animations</span>
+            <button id="exportAnimSelectAllBtn" type="button">All</button>
+            <button id="exportAnimSelectNoneBtn" type="button">None</button>
+          </div>
+          <select id="exportAnimList" multiple size="10" title="Animations to export"></select>
+        </div>
+      </div>
+      <div class="export-anim-footer">
+        <span id="exportAnimStatus" class="export-anim-status"></span>
+        <button id="exportAnimCancelBtn" type="button">Cancel</button>
+        <button id="exportAnimRunBtn" type="button" class="primary">Export</button>
+      </div>
+    </section>
+  </div>
+
   <script src="app/core/runtime-els.js?v=20260509-2"></script>
-  <script src="app/core/runtime.js?v=20260426-19"></script>
+  <script src="app/core/runtime.js?v=20260517-1"></script>
   <script src="app/core/runtime-ai-capture.js?v=20260426-1"></script>
   <script src="app/core/runtime-pose-autorig.js?v=20260426-1"></script>
   <script src="app/core/debug.js?v=20260426-3"></script>
@@ -2275,14 +2318,16 @@
   <script src="app/io/tree-bindings.js?v=20260426-19"></script>
   <script src="app/io/project-export.js?v=20260426-19"></script>
   <script src="app/io/project-export-spine-json.js?v=20260509-1"></script>
-  <script src="app/io/project-actions.js?v=20260426-19"></script>
+  <script src="app/io/project-actions.js?v=20260517-1"></script>
   <script src="app/ui/editor-panels.js?v=20260426-1"></script>
   <script src="app/ui/constraint-panels.js?v=20260425-5"></script>
   <script src="app/ui/animation-panels.js?v=20260426-1"></script>
+  <script src="app/ui/export-animation-encoders.js?v=20260516-1"></script>
+  <script src="app/ui/export-animation-modal.js?v=20260516-1"></script>
   <script src="app/ui/timeline-pointer.js?v=20260420-2"></script>
   <script src="app/ui/dock-layout.js?v=20260425-18"></script>
   <script src="app/ui/hotkeys.js?v=20260425-7"></script>
-  <script src="app/ui/bootstrap.js?v=20260426-19"></script>
+  <script src="app/ui/bootstrap.js?v=20260517-1"></script>
 </body>
 
 </html>

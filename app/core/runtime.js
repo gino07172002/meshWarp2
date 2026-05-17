@@ -26,6 +26,8 @@ const stage2dCtx = !gl ? els.glCanvas.getContext("2d") : null;
 const AUTOSAVE_STORAGE_KEY = "mesh_deformer_autosave_v1";
 const AUTOSAVE_INTERVAL_MS = 15000;
 const AUTOSAVE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const RECENT_PROJECTS_KEY = "mesh_deformer_recent_v1";
+const RECENT_PROJECTS_MAX = 5;
 
 if (!backdropCtx || !overlayCtx || (!gl && !stage2dCtx)) {
   throw new Error("2D canvas context unavailable.");
@@ -334,13 +336,17 @@ const state = {
     },
     curveOpen: false,
     curveDrag: null,
-    batchExportOpen: false,
-    batchExport: {
-      format: "webm",
-      fps: 15,
-      prefix: "batch",
-      retries: 1,
-      delayMs: 120,
+    exportModal: {
+      format: "gif",
+      fps: 30,
+      scale: 1,
+      width: 0,
+      height: 0,
+      lockAspect: true,
+      bgTransparent: true,
+      bgColor: "#000000",
+      loopCount: 0,
+      prefix: "export",
       zipPng: true,
     },
     resizing: null,
@@ -1498,7 +1504,7 @@ function buildCommandPaletteItems() {
         els.onionEnabled.dispatchEvent(new Event("change", { bubbles: true }));
       },
     },
-    { id: "batch.toggle", label: "Batch Export: Toggle Panel", group: "Timeline", hotkey: "", action: () => triggerButtonAction(els.batchExportToggleBtn) },
+    { id: "export.animation", label: "Export Animation…", group: "Timeline", hotkey: "", action: () => triggerButtonAction(els.exportAnimModalBtn || els.exportAnimDockBtn) },
     { id: "diag.run", label: "Diagnostics: Run", group: "Diagnostics", hotkey: "", action: () => triggerButtonAction(els.diagnosticsRunBtn) },
     { id: "diag.fix", label: "Diagnostics: Auto Fix (Safe)", group: "Diagnostics", hotkey: "", action: () => triggerButtonAction(els.diagnosticsAutoFixBtn) },
     { id: "diag.clear", label: "Diagnostics: Clear", group: "Diagnostics", hotkey: "", action: () => triggerButtonAction(els.diagnosticsClearBtn) },

@@ -1991,40 +1991,11 @@ function refreshAnimationUI() {
   refreshAutoKeyUI();
   refreshEventKeyListUI();
   refreshDrawOrderUI();
-  refreshBatchExportUI();
   refreshTrackSelect();
   if (els.undoBtn) els.undoBtn.disabled = state.history.undo.length <= 1;
   if (els.redoBtn) els.redoBtn.disabled = state.history.redo.length <= 0;
   renderTimelineTracks();
   renderCurveEditor();
-}
-
-function refreshBatchExportUI() {
-  if (!els.batchExportPanel) return;
-  els.batchExportPanel.classList.toggle("collapsed", !state.anim.batchExportOpen);
-  const be = state.anim.batchExport || {};
-  if (els.batchExportFormat) els.batchExportFormat.value = be.format === "gif" || be.format === "pngseq" ? be.format : "webm";
-  if (els.batchExportFps) els.batchExportFps.value = String(Math.max(1, Math.min(60, Math.round(Number(be.fps) || 15))));
-  if (els.batchExportPrefix) els.batchExportPrefix.value = String(be.prefix || "batch");
-  if (els.batchExportRetries) els.batchExportRetries.value = String(Math.max(0, Math.min(5, Math.round(Number(be.retries) || 1))));
-  if (els.batchExportDelayMs) els.batchExportDelayMs.value = String(Math.max(0, Math.min(5000, Math.round(Number(be.delayMs) || 120))));
-  if (els.batchExportZipPng) {
-    els.batchExportZipPng.checked = be.zipPng !== false;
-    els.batchExportZipPng.disabled = (els.batchExportFormat ? els.batchExportFormat.value : be.format) !== "pngseq";
-  }
-  if (!els.batchExportAnimList) return;
-  const prevSelected = new Set(Array.from(els.batchExportAnimList.selectedOptions || []).map((o) => String(o.value)));
-  const currentAnimId = getCurrentAnimation() ? String(getCurrentAnimation().id) : "";
-  els.batchExportAnimList.innerHTML = "";
-  for (const a of state.anim.animations || []) {
-    const opt = document.createElement("option");
-    opt.value = a.id;
-    opt.textContent = `${a.name} (${Math.max(0.1, Number(a.duration) || 0.1).toFixed(2)}s)`;
-    if (prevSelected.has(String(a.id)) || (!prevSelected.size && currentAnimId && String(a.id) === currentAnimId)) {
-      opt.selected = true;
-    }
-    els.batchExportAnimList.appendChild(opt);
-  }
 }
 
 function refreshStateMachineUI() {

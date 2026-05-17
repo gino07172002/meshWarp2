@@ -9,17 +9,199 @@
 //   #spineImportBtn, #spineImportInput.
 // CONSUMERS: triggered via UI; produces side-effects on state.mesh,
 //   state.slots, state.anim. Calls rebuildMesh / scheduleDraw after.
+// ----------------------------------------------------------------
+// Recent Projects
+// Index (metadata only) → localStorage RECENT_PROJECTS_KEY
+//   Each entry: { id, name, savedAt, slotCount, imageCount }
+// Full payload → IndexedDB "mesh_deformer_db" / store "recent_payloads", key = id
+//
+// Keeping only metadata in localStorage means autosave quota is not affected
+// by recent entries. Full payloads live in IndexedDB which has a much larger
+// quota and does not compete with autosave.
+// ----------------------------------------------------------------
+
+function _openRecentDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("mesh_deformer_db", 1);
+    req.onupgradeneeded = (ev) => {
+      const db = ev.target.result;
+      if (!db.objectStoreNames.contains("recent_payloads")) {
+        db.createObjectStore("recent_payloads", { keyPath: "id" });
+      }
+    };
+    req.onsuccess = (ev) => resolve(ev.target.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function _idbPut(db, id, payload) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("recent_payloads", "readwrite");
+    tx.objectStore("recent_payloads").put({ id, payload });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function _idbGet(db, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("recent_payloads", "readonly");
+    const req = tx.objectStore("recent_payloads").get(id);
+    req.onsuccess = () => resolve(req.result ? req.result.payload : null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function _idbDelete(db, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("recent_payloads", "readwrite");
+    tx.objectStore("recent_payloads").delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function getRecentProjects() {
+  try {
+    const raw = localStorage.getItem(RECENT_PROJECTS_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function _saveRecentIndex(list) {
+  try {
+    localStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(list));
+  } catch { /* ignore — metadata is tiny, quota errors here are unexpected */ }
+}
+
+async function saveRecentProject(name, payload) {
+  try {
+    const id = `recent_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const meta = {
+      id,
+      name: String(name || "Untitled"),
+      savedAt: Date.now(),
+      slotCount: Array.isArray(payload.slots) ? payload.slots.length : 0,
+      imageCount: Array.isArray(payload.slotImages) ? payload.slotImages.length : 0,
+    };
+    // Persist full payload to IndexedDB (large quota, no autosave competition).
+    const db = await _openRecentDB();
+    // Remove IDB entries for any existing records with the same name.
+    let list = getRecentProjects();
+    const displaced = list.filter((e) => e.name === meta.name);
+    for (const old of displaced) {
+      _idbDelete(db, old.id).catch(() => {});
+    }
+    await _idbPut(db, id, payload);
+    // Evict oldest entries beyond the cap (delete their IDB payloads too).
+    list = list.filter((e) => e.name !== meta.name);
+    list.unshift(meta);
+    while (list.length > RECENT_PROJECTS_MAX) {
+      const evicted = list.pop();
+      _idbDelete(db, evicted.id).catch(() => {});
+    }
+    _saveRecentIndex(list);
+  } catch { /* non-fatal */ }
+}
+
+async function clearRecentProject(id) {
+  try {
+    let list = getRecentProjects();
+    list = list.filter((e) => e.id !== id);
+    _saveRecentIndex(list);
+    const db = await _openRecentDB();
+    _idbDelete(db, id).catch(() => {});
+  } catch { /* ignore */ }
+}
+
+async function loadFromRecentProject(meta) {
+  if (!meta || !meta.id) return;
+  try {
+    const db = await _openRecentDB();
+    const payload = await _idbGet(db, meta.id);
+    if (!payload) {
+      setStatus("Recent project not found (may have been cleared). Please load from file.");
+      return;
+    }
+    const data = upgradeLegacyProject(payload);
+    const ok = await applyProjectPayload(data);
+    if (ok) {
+      // Promote this entry to top (MRU behaviour): always update savedAt,
+      // even when the entry is already first (timestamp reflects last use).
+      let list = getRecentProjects();
+      const idx = list.findIndex((e) => e.id === meta.id);
+      if (idx >= 0) {
+        const [promoted] = list.splice(idx, 1);
+        promoted.savedAt = Date.now();
+        list.unshift(promoted);
+        _saveRecentIndex(list);
+      }
+      updateRecentProjectsMenu();
+    }
+  } catch (err) {
+    setStatus(`Recent project load failed: ${err.message}`);
+  }
+}
+
+function updateRecentProjectsMenu() {
+  const listEl = document.getElementById("recentProjectsList");
+  const emptyEl = document.getElementById("recentProjectsEmpty");
+  const itemEl = document.getElementById("recentProjectsItem");
+  if (!listEl || !emptyEl) return;
+  const list = getRecentProjects();
+  listEl.innerHTML = "";
+  if (list.length === 0) {
+    emptyEl.style.display = "";
+    if (itemEl) itemEl.style.opacity = "0.5";
+    return;
+  }
+  emptyEl.style.display = "none";
+  if (itemEl) itemEl.style.opacity = "";
+  for (let i = 0; i < list.length; i += 1) {
+    const entry = list[i];
+    const dateStr = new Date(entry.savedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.role = "menuitem";
+    btn.className = "menu-recent-item";
+    btn.innerHTML = `<span class="menu-recent-name">${entry.name.replace(/</g, "&lt;")}</span><span class="menu-recent-meta">${entry.slotCount} slot${entry.slotCount !== 1 ? "s" : ""} &middot; ${dateStr}</span>`;
+    btn.addEventListener("click", () => { loadFromRecentProject(entry); });
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "menu-recent-remove";
+    removeBtn.title = "Remove from list";
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      clearRecentProject(entry.id);
+      updateRecentProjectsMenu();
+    });
+    const row = document.createElement("div");
+    row.className = "menu-recent-row";
+    row.appendChild(btn);
+    row.appendChild(removeBtn);
+    listEl.appendChild(row);
+  }
+}
+
 if (els.fileSaveBtn) {
-  els.fileSaveBtn.addEventListener("click", () => {
+  els.fileSaveBtn.addEventListener("click", async () => {
     const payload = buildProjectPayload();
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "mesh_deformer_project.json";
+    const fileName = `mesh_deformer_project_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(a.href);
     saveAutosaveSnapshot("manual_save", true);
     setStatus(`Project saved (JSON, ${payload.slotImages.length} embedded image(s)).`);
+    await saveRecentProject(fileName, payload);
+    updateRecentProjectsMenu();
   });
 }
 
@@ -126,11 +308,7 @@ function upgradeLegacyProject(payload) {
   return data;
 }
 
-async function handleProjectLoadInputChange(e) {
-  const f = e.target.files?.[0];
-  if (!f) return;
-  try {
-    const data = upgradeLegacyProject(JSON.parse(await f.text()));
+async function applyProjectPayload(data) {
     if (Number.isFinite(Number(data.gridX))) els.gridX.value = String(math.clamp(Number(data.gridX), 2, 120));
     if (Number.isFinite(Number(data.gridY))) els.gridY.value = String(math.clamp(Number(data.gridY), 2, 120));
     state.slotMesh.gridReplaceContour = !!(data && data.slotMeshGridReplaceContour);
@@ -408,7 +586,7 @@ async function handleProjectLoadInputChange(e) {
       }
     } else if (!state.sourceCanvas && state.slots.length === 0) {
       setStatus("No embedded images in file. Import image/PSD first, then load this legacy project json.");
-      return;
+      return false;
     }
 
     const loadedRigCoordinateSpace =
@@ -557,38 +735,49 @@ async function handleProjectLoadInputChange(e) {
         maskBones: Array.isArray(t && t.maskBones) ? t.maskBones.map((v) => Number(v)).filter((v) => Number.isFinite(v)) : [],
       }));
       state.anim.selectedLayerTrackId = String(data.animationState.selectedLayerTrackId || "");
-      state.anim.batchExportOpen = !!data.animationState.batchExportOpen;
-      if (data.animationState.batchExport && typeof data.animationState.batchExport === "object") {
+      if (data.animationState.exportModal && typeof data.animationState.exportModal === "object") {
+        const em = data.animationState.exportModal;
+        state.anim.exportModal = {
+          format: ["gif", "webm", "pngseq", "webp"].indexOf(String(em.format)) >= 0 ? String(em.format) : "gif",
+          fps: Math.max(1, Math.min(60, Math.round(Number(em.fps) || 30))),
+          scale: em.scale === "custom" ? "custom" : (Number(em.scale) || 1),
+          width: Math.max(0, Math.min(4096, Math.round(Number(em.width) || 0))),
+          height: Math.max(0, Math.min(4096, Math.round(Number(em.height) || 0))),
+          lockAspect: em.lockAspect !== false,
+          bgTransparent: em.bgTransparent !== false,
+          bgColor: String(em.bgColor || "#000000"),
+          loopCount: Math.max(0, Math.min(0xffff, Math.round(Number(em.loopCount) || 0))),
+          prefix: String(em.prefix || "export"),
+          zipPng: em.zipPng !== false,
+        };
+      } else if (data.animationState.batchExport && typeof data.animationState.batchExport === "object") {
         const be = data.animationState.batchExport;
-        state.anim.batchExport = {
-          format: be.format === "gif" || be.format === "pngseq" ? be.format : "webm",
-          fps: Math.max(1, Math.min(60, Math.round(Number(be.fps) || 15))),
-          prefix: String(be.prefix || "batch"),
-          retries: Math.max(0, Math.min(5, Math.round(Number(be.retries) || 1))),
-          delayMs: Math.max(0, Math.min(5000, Math.round(Number(be.delayMs) || 120))),
+        const beFormat = String(be.format || "");
+        state.anim.exportModal = {
+          format: beFormat === "gif" || beFormat === "pngseq" || beFormat === "webm" ? beFormat : "gif",
+          fps: Math.max(1, Math.min(60, Math.round(Number(be.fps) || 30))),
+          scale: 1,
+          width: 0,
+          height: 0,
+          lockAspect: true,
+          bgTransparent: true,
+          bgColor: "#000000",
+          loopCount: 0,
+          prefix: String(be.prefix || "export"),
           zipPng: be.zipPng !== false,
         };
       } else {
-        state.anim.batchExport = {
-          format: "webm",
-          fps: 15,
-          prefix: "batch",
-          retries: 1,
-          delayMs: 120,
-          zipPng: true,
+        state.anim.exportModal = {
+          format: "gif", fps: 30, scale: 1, width: 0, height: 0, lockAspect: true,
+          bgTransparent: true, bgColor: "#000000", loopCount: 0, prefix: "export", zipPng: true,
         };
       }
     } else {
       state.anim.layerTracks = [];
       state.anim.selectedLayerTrackId = "";
-      state.anim.batchExportOpen = false;
-      state.anim.batchExport = {
-        format: "webm",
-        fps: 15,
-        prefix: "batch",
-        retries: 1,
-        delayMs: 120,
-        zipPng: true,
+      state.anim.exportModal = {
+        format: "gif", fps: 30, scale: 1, width: 0, height: 0, lockAspect: true,
+        bgTransparent: true, bgColor: "#000000", loopCount: 0, prefix: "export", zipPng: true,
       };
     }
     if (data && data.animationState && data.animationState.stateMachine && typeof data.animationState.stateMachine === "object") {
@@ -942,6 +1131,19 @@ async function handleProjectLoadInputChange(e) {
       pushUndoCheckpoint(true);
     }
     saveAutosaveSnapshot("project_load", true);
+    return true;
+}
+
+async function handleProjectLoadInputChange(e) {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  try {
+    const data = upgradeLegacyProject(JSON.parse(await f.text()));
+    const ok = await applyProjectPayload(data);
+    if (ok) {
+      await saveRecentProject(f.name, data);
+      updateRecentProjectsMenu();
+    }
   } catch (err) {
     setStatus(`Project load failed: ${err.message}`);
   } finally {

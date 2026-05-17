@@ -803,3 +803,5 @@ void (async () => {
   state.autosave.ready = true;
   startAutosaveLoop();
 })();
+
+if (typeof updateRecentProjectsMenu === "function") updateRecentProjectsMenu();
