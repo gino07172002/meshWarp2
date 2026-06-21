@@ -69,6 +69,11 @@ All `ai.*` tools take structured args (validated by JSON schema). Headless I/O:
 | `ai.export_animation_frame` | `time`, optional `format` | Sets pose to time `t` then screenshots |
 | `ai.select_slot` | `name` or `index` | Activates a slot |
 | `ai.select_bone` | `name` or `index` | Selects a bone |
+| `ai.add_bone` | optional `name`, `parent`/`parentName`, `connected`, `headX/headY/tailX/tailY` | Adds a rig bone in Skeleton/Edit mode |
+| `ai.set_bone` | `index` or `boneName`, optional transform/name/parent fields | Edits an existing rig bone |
+| `ai.delete_bone` | `index` or `boneName`, optional `slotPolicy` | Deletes a bone, moving bound slots to staging by default |
+| `ai.bind_slot_to_bone` | `slotIndex`/`slotName`, `boneIndex`/`boneName` | Binds or unbinds a slot to a bone |
+| `ai.list_bones` | — | Returns bone summaries for MCP clients |
 | `ai.set_animation_time` | `time` | Scrub the timeline |
 | `ai.set_active_animation` | `name` or `index` | Switch active animation |
 

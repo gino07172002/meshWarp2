@@ -375,16 +375,33 @@ function renderWaveformSvg(peaks) {
   return svg;
 }
 
-async function decodeAudioToPeaks(url) {
+async function decodeAudioToPeaks(url, { timeoutMs = 15000 } = {}) {
   const ctx = getOrCreateWaveformAudioCtx();
   if (!ctx) throw new Error("no AudioContext");
-  const resp = await fetch(url);
+  const ac = (typeof AbortController !== "undefined") ? new AbortController() : null;
+  const timer = ac ? setTimeout(() => ac.abort(), timeoutMs) : null;
+  let resp;
+  try {
+    resp = await fetch(url, ac ? { signal: ac.signal } : undefined);
+  } catch (err) {
+    if (timer) clearTimeout(timer);
+    if (err && err.name === "AbortError") throw new Error(`fetch timeout after ${timeoutMs}ms: ${url}`);
+    throw err;
+  }
+  if (timer) clearTimeout(timer);
   if (!resp.ok) throw new Error(`fetch failed: ${resp.status}`);
   const buf = await resp.arrayBuffer();
-  // decodeAudioData has both promise and callback APIs; promise form preferred.
+  // decodeAudioData has both promise and callback APIs. Prefer promise; fall back
+  // to callback only when no promise is returned (legacy Safari). Mixing both
+  // would double-settle the wrapper Promise.
   const audioBuf = await new Promise((resolve, reject) => {
-    const p = ctx.decodeAudioData(buf, resolve, reject);
-    if (p && typeof p.then === "function") p.then(resolve, reject);
+    let settled = false;
+    const done = (v) => { if (!settled) { settled = true; resolve(v); } };
+    const fail = (e) => { if (!settled) { settled = true; reject(e); } };
+    let p;
+    try { p = ctx.decodeAudioData(buf, done, fail); }
+    catch (e) { fail(e); return; }
+    if (p && typeof p.then === "function") p.then(done, fail);
   });
   // Mix to mono by averaging channels, then bucket-reduce to WAVEFORM_BUCKETS
   // peaks. Each bucket stores max(|sample|) — visually faithful for music.
@@ -416,6 +433,12 @@ function playTimelineEventAudio(detail) {
   let el = __timelineAudioCache.get(key);
   if (!el) {
     el = new Audio();
+    el.addEventListener("error", () => {
+      // Evict on load/decode failure so a later URL fix can re-attempt instead
+      // of being pinned to a permanently-broken element.
+      if (__timelineAudioCache.get(key) === el) __timelineAudioCache.delete(key);
+      console.warn("[timeline-audio] failed to load", key);
+    }, { once: true });
     el.src = key;
     __timelineAudioCache.set(key, el);
   }

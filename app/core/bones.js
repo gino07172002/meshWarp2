@@ -44,6 +44,7 @@ function applyBoneModeTransition(prevMode, nextMode) {
   }
 }
 
+
 function getParentMatrixForInherit(parentWorld, inheritMode) {
   const mode = normalizeBoneInheritValue(inheritMode);
   if (!parentWorld || mode === "normal") return parentWorld || createIdentity();
@@ -1907,7 +1908,7 @@ function addBone(opts = null) {
   const connected = opts && typeof opts.connected === "boolean" ? opts.connected : parent >= 0;
 
   bones.push({
-    name: `bone_${bones.length}`,
+    name: opts && typeof opts.name === "string" && opts.name.trim() ? opts.name.trim() : `bone_${bones.length}`,
     parent: safeParent,
     inherit: "normal",
     tx: parentBone ? parentBone.length : state.imageWidth * 0.5,
@@ -3510,4 +3511,3 @@ function refreshSetupQuickActions() {
     }
   }
 }
-

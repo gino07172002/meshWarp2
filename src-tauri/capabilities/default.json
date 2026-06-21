@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window — only core webview features are needed; all editor logic runs client-side.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}

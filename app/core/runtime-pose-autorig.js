@@ -51,16 +51,30 @@ let poseAutoRigDetectorConfigKey = "";
 let poseAutoRigRuntimeInfo = null;
 let poseAutoRigBusy = false;
 
+const POSE_SCRIPT_LOAD_TIMEOUT_MS = 30000;
+
 function loadExternalScriptOnce(url) {
   return new Promise((resolve, reject) => {
     if (!url) {
       reject(new Error("Invalid script url."));
       return;
     }
+    let settled = false;
+    let timer = null;
+    const finish = (fn, arg) => {
+      if (settled) return;
+      settled = true;
+      if (timer) { clearTimeout(timer); timer = null; }
+      fn(arg);
+    };
+    timer = setTimeout(() => {
+      finish(reject, new Error(`Timed out loading script after ${POSE_SCRIPT_LOAD_TIMEOUT_MS}ms: ${url}`));
+    }, POSE_SCRIPT_LOAD_TIMEOUT_MS);
+
     const existing = [...document.querySelectorAll("script[src]")].find((s) => String(s.src || "") === url || String(s.getAttribute("src") || "") === url);
     if (existing) {
       if (existing.dataset.loaded === "1") {
-        resolve();
+        finish(resolve);
         return;
       }
       const looksReady =
@@ -68,14 +82,14 @@ function loadExternalScriptOnce(url) {
         (url.includes("tfjs") && !!window.tf);
       if (looksReady) {
         existing.dataset.loaded = "1";
-        resolve();
+        finish(resolve);
         return;
       }
       existing.addEventListener("load", () => {
         existing.dataset.loaded = "1";
-        resolve();
+        finish(resolve);
       }, { once: true });
-      existing.addEventListener("error", () => reject(new Error(`Failed to load script: ${url}`)), { once: true });
+      existing.addEventListener("error", () => finish(reject, new Error(`Failed to load script: ${url}`)), { once: true });
       return;
     }
     const script = document.createElement("script");
@@ -85,9 +99,9 @@ function loadExternalScriptOnce(url) {
     script.dataset.poseAutoRig = "1";
     script.addEventListener("load", () => {
       script.dataset.loaded = "1";
-      resolve();
+      finish(resolve);
     }, { once: true });
-    script.addEventListener("error", () => reject(new Error(`Failed to load script: ${url}`)), { once: true });
+    script.addEventListener("error", () => finish(reject, new Error(`Failed to load script: ${url}`)), { once: true });
     document.head.appendChild(script);
   });
 }

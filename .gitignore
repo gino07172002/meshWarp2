@@ -17,3 +17,9 @@ warrior-*.png
 # Harness-engineering tool artifacts (tools/run-checks --runlog, etc.)
 runs/
 review-screenshots/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+src-tauri/Cargo.lock
+

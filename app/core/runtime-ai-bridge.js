@@ -38,6 +38,60 @@
         { name: "index", type: "integer", required: false, description: "Bone index, alternative to name" },
       ],
     },
+    "ai.add_bone": {
+      args: [
+        { name: "name", type: "string", required: false, description: "Optional bone name" },
+        { name: "parent", type: "integer", required: false, description: "Parent bone index; -1 for root" },
+        { name: "parentName", type: "string", required: false, description: "Parent bone name, alternative to parent" },
+        { name: "connected", type: "boolean", required: false, description: "Whether the new head follows the parent tail" },
+        { name: "headX", type: "number", required: false, description: "World-space head X; used with headY/tailX/tailY" },
+        { name: "headY", type: "number", required: false, description: "World-space head Y; used with headX/tailX/tailY" },
+        { name: "tailX", type: "number", required: false, description: "World-space tail X; used with headX/headY/tailY" },
+        { name: "tailY", type: "number", required: false, description: "World-space tail Y; used with headX/headY/tailX" },
+      ],
+    },
+    "ai.set_bone": {
+      args: [
+        { name: "index", type: "integer", required: false, description: "Bone index to edit" },
+        { name: "boneName", type: "string", required: false, description: "Bone name to edit, alternative to index" },
+        { name: "name", type: "string", required: false, description: "New bone name" },
+        { name: "parent", type: "integer", required: false, description: "New parent bone index; -1 for root" },
+        { name: "parentName", type: "string", required: false, description: "New parent bone name, alternative to parent" },
+        { name: "connected", type: "boolean", required: false },
+        { name: "tx", type: "number", required: false, description: "Local translation X" },
+        { name: "ty", type: "number", required: false, description: "Local translation Y" },
+        { name: "rotation", type: "number", required: false, description: "Local rotation in degrees" },
+        { name: "length", type: "number", required: false },
+        { name: "scaleX", type: "number", required: false },
+        { name: "scaleY", type: "number", required: false },
+        { name: "shearX", type: "number", required: false },
+        { name: "shearY", type: "number", required: false },
+        { name: "inherit", type: "string", required: false },
+        { name: "color", type: "string", required: false },
+        { name: "headX", type: "number", required: false, description: "World-space head X; used with headY/tailX/tailY" },
+        { name: "headY", type: "number", required: false, description: "World-space head Y; used with headX/tailX/tailY" },
+        { name: "tailX", type: "number", required: false, description: "World-space tail X; used with headX/headY/tailY" },
+        { name: "tailY", type: "number", required: false, description: "World-space tail Y; used with headX/headY/tailX" },
+      ],
+    },
+    "ai.delete_bone": {
+      args: [
+        { name: "index", type: "integer", required: false, description: "Bone index to delete" },
+        { name: "boneName", type: "string", required: false, description: "Bone name to delete, alternative to index" },
+        { name: "slotPolicy", type: "string", required: false, description: "'to_staging' (default) or 'delete_slots'" },
+      ],
+    },
+    "ai.bind_slot_to_bone": {
+      args: [
+        { name: "slotIndex", type: "integer", required: false, description: "Slot index to bind" },
+        { name: "slotName", type: "string", required: false, description: "Slot name, alternative to slotIndex" },
+        { name: "boneIndex", type: "integer", required: false, description: "Bone index; -1 unbinds" },
+        { name: "boneName", type: "string", required: false, description: "Bone name, alternative to boneIndex" },
+      ],
+    },
+    "ai.list_bones": {
+      args: [],
+    },
     "ai.set_animation_time": {
       args: [
         { name: "time", type: "number", required: true, description: "Animation time in seconds" },
@@ -244,6 +298,226 @@
     return { ok: true, selectedBone: idx, name: bones[idx].name };
   }
 
+  function getAIBones() {
+    const m = state.mesh;
+    return m && Array.isArray(m.rigBones) ? m.rigBones : [];
+  }
+
+  function ensureAIBoneEditMode() {
+    if (!state.mesh) return { ok: false, error: "no rig mesh; import an image or load a project first" };
+    if (state.editMode !== "skeleton") {
+      state.editMode = "skeleton";
+      if (els.editMode) els.editMode.value = "skeleton";
+    }
+    if (state.boneMode !== "edit") {
+      const prevMode = state.boneMode;
+      state.boneMode = "edit";
+      if (typeof applyBoneModeTransition === "function") applyBoneModeTransition(prevMode, state.boneMode);
+      if (els.systemMode) els.systemMode.value = "setup";
+    }
+    return { ok: true };
+  }
+
+  function resolveAIBoneIndex(args, keys = {}) {
+    const bones = getAIBones();
+    const indexKey = keys.indexKey || "index";
+    const nameKey = keys.nameKey || "boneName";
+    let idx = -1;
+    if (Number.isFinite(args[indexKey])) idx = Math.trunc(args[indexKey]);
+    else if (typeof args[nameKey] === "string") idx = bones.findIndex((b) => b && b.name === args[nameKey]);
+    else if (typeof args.name === "string" && nameKey === "name") idx = bones.findIndex((b) => b && b.name === args.name);
+    if (idx < 0 || idx >= bones.length) return { ok: false, error: `bone not found (${indexKey}=${args[indexKey]}, ${nameKey}=${args[nameKey]})` };
+    return { ok: true, index: idx, bone: bones[idx] };
+  }
+
+  function resolveAIParentIndex(args) {
+    const bones = getAIBones();
+    if (Number.isFinite(args.parent)) {
+      const idx = Math.trunc(args.parent);
+      if (idx === -1) return { ok: true, index: -1 };
+      if (idx >= 0 && idx < bones.length) return { ok: true, index: idx };
+      return { ok: false, error: `parent bone not found (parent=${args.parent})` };
+    }
+    if (typeof args.parentName === "string") {
+      const idx = bones.findIndex((b) => b && b.name === args.parentName);
+      if (idx >= 0) return { ok: true, index: idx };
+      return { ok: false, error: `parent bone not found (parentName=${args.parentName})` };
+    }
+    return { ok: true, index: null };
+  }
+
+  function aiBoneSummary(index, bone) {
+    const b = bone || getAIBones()[index];
+    if (!b) return null;
+    let head = null;
+    let tail = null;
+    try {
+      const world = state.boneMode === "edit" && typeof getEditAwareWorld === "function"
+        ? getEditAwareWorld(getAIBones())
+        : typeof computeWorld === "function"
+          ? computeWorld(getAIBones())
+          : null;
+      if (world && world[index]) {
+        head = transformPoint(world[index], 0, 0);
+        tail = transformPoint(world[index], Number(b.length) || 0, 0);
+      }
+    } catch (_) {
+      head = null;
+      tail = null;
+    }
+    return {
+      index,
+      name: String(b.name || `bone_${index}`),
+      parent: Number.isFinite(Number(b.parent)) ? Number(b.parent) : -1,
+      connected: !!b.connected,
+      tx: Number(b.tx) || 0,
+      ty: Number(b.ty) || 0,
+      rotation: Number(b.rot) || 0,
+      length: Number(b.length) || 0,
+      scaleX: Number.isFinite(Number(b.sx)) ? Number(b.sx) : 1,
+      scaleY: Number.isFinite(Number(b.sy)) ? Number(b.sy) : 1,
+      shearX: Number(b.shx) || 0,
+      shearY: Number(b.shy) || 0,
+      inherit: b.inherit || "normal",
+      color: b.color || "",
+      head,
+      tail,
+    };
+  }
+
+  function finishAIBoneEdit(reason) {
+    const m = state.mesh;
+    if (m) {
+      if (typeof markRigEditDirty === "function") markRigEditDirty();
+      if (typeof syncPoseFromRig === "function") syncPoseFromRig(m);
+      if (typeof syncBindPose === "function") syncBindPose(m);
+    }
+    if (typeof updateBoneUI === "function") updateBoneUI();
+    if (typeof renderBoneTree === "function") renderBoneTree();
+    if (typeof refreshSlotUI === "function") refreshSlotUI();
+    if (typeof requestRender === "function") requestRender(reason);
+  }
+
+  function hasAIEndpointArgs(args) {
+    return ["headX", "headY", "tailX", "tailY"].every((k) => Number.isFinite(args[k]));
+  }
+
+  function aiAddBone(args) {
+    if (typeof addBone !== "function") return { ok: false, error: "addBone unavailable" };
+    const mode = ensureAIBoneEditMode();
+    if (!mode.ok) return mode;
+    const parent = resolveAIParentIndex(args || {});
+    if (!parent.ok) return parent;
+    const opts = {};
+    if (typeof args.name === "string" && args.name.trim()) opts.name = args.name.trim();
+    if (parent.index !== null) opts.parent = parent.index;
+    if (typeof args.connected === "boolean") opts.connected = args.connected;
+    if (hasAIEndpointArgs(args)) {
+      opts.head = { x: Number(args.headX), y: Number(args.headY) };
+      opts.tail = { x: Number(args.tailX), y: Number(args.tailY) };
+    }
+    const idx = addBone(opts);
+    if (!Number.isFinite(idx) || idx < 0) return { ok: false, error: "addBone failed" };
+    finishAIBoneEdit("ai.add_bone");
+    return { ok: true, index: idx, bone: aiBoneSummary(idx) };
+  }
+
+  function aiSetBone(args) {
+    const mode = ensureAIBoneEditMode();
+    if (!mode.ok) return mode;
+    const r = resolveAIBoneIndex(args || {});
+    if (!r.ok) return r;
+    const bones = getAIBones();
+    const b = r.bone;
+    if (typeof args.name === "string" && args.name.trim()) b.name = args.name.trim();
+    const parent = resolveAIParentIndex(args || {});
+    if (!parent.ok) return parent;
+    if (parent.index !== null) {
+      if (parent.index === r.index) return { ok: false, error: "bone cannot be its own parent" };
+      b.parent = parent.index;
+    }
+    if (typeof args.connected === "boolean") b.connected = args.connected;
+    if (Number.isFinite(args.tx)) b.tx = Number(args.tx);
+    if (Number.isFinite(args.ty)) b.ty = Number(args.ty);
+    if (Number.isFinite(args.rotation)) b.rot = Number(args.rotation);
+    if (Number.isFinite(args.length)) b.length = Math.max(0, Number(args.length));
+    if (Number.isFinite(args.scaleX)) b.sx = Number(args.scaleX);
+    if (Number.isFinite(args.scaleY)) b.sy = Number(args.scaleY);
+    if (Number.isFinite(args.shearX)) b.shx = Number(args.shearX);
+    if (Number.isFinite(args.shearY)) b.shy = Number(args.shearY);
+    if (typeof args.inherit === "string" && args.inherit.trim()) b.inherit = args.inherit.trim();
+    if (typeof args.color === "string") b.color = args.color;
+    if (hasAIEndpointArgs(args) && typeof setBoneFromWorldEndpoints === "function") {
+      setBoneFromWorldEndpoints(
+        bones,
+        r.index,
+        { x: Number(args.headX), y: Number(args.headY) },
+        { x: Number(args.tailX), y: Number(args.tailY) }
+      );
+    }
+    state.selectedBone = r.index;
+    state.selectedBonesForWeight = [r.index];
+    finishAIBoneEdit("ai.set_bone");
+    return { ok: true, index: r.index, bone: aiBoneSummary(r.index) };
+  }
+
+  function aiDeleteBone(args) {
+    const mode = ensureAIBoneEditMode();
+    if (!mode.ok) return mode;
+    const r = resolveAIBoneIndex(args || {});
+    if (!r.ok) return r;
+    const before = aiBoneSummary(r.index);
+    state.selectedBone = r.index;
+    state.selectedBonesForWeight = [r.index];
+    const policy = args.slotPolicy === "delete_slots" ? "delete_slots" : "to_staging";
+    if (typeof deleteSelectedBoneTreeWithSlotPolicy !== "function") return { ok: false, error: "deleteSelectedBoneTreeWithSlotPolicy unavailable" };
+    const ok = deleteSelectedBoneTreeWithSlotPolicy(policy);
+    if (!ok) return { ok: false, error: "delete bone failed" };
+    finishAIBoneEdit("ai.delete_bone");
+    return { ok: true, deleted: before, remainingBones: getAIBones().length };
+  }
+
+  function resolveAISlotIndex(args) {
+    const slots = Array.isArray(state.slots) ? state.slots : [];
+    let idx = -1;
+    if (Number.isFinite(args.slotIndex)) idx = Math.trunc(args.slotIndex);
+    else if (typeof args.slotName === "string") idx = slots.findIndex((s) => s && s.name === args.slotName);
+    else idx = Number(state.activeSlot);
+    if (idx < 0 || idx >= slots.length) return { ok: false, error: `slot not found (slotIndex=${args.slotIndex}, slotName=${args.slotName})` };
+    return { ok: true, index: idx, slot: slots[idx] };
+  }
+
+  function aiBindSlotToBone(args) {
+    if (typeof assignSlotToBone !== "function") return { ok: false, error: "assignSlotToBone unavailable" };
+    const slot = resolveAISlotIndex(args || {});
+    if (!slot.ok) return slot;
+    let boneIndex = -1;
+    if (Number.isFinite(args.boneIndex)) {
+      boneIndex = Math.trunc(args.boneIndex);
+    } else if (typeof args.boneName === "string") {
+      const bone = resolveAIBoneIndex({ boneName: args.boneName });
+      if (!bone.ok) return bone;
+      boneIndex = bone.index;
+    } else {
+      const bone = resolveAIBoneIndex({ index: state.selectedBone });
+      if (!bone.ok) return { ok: false, error: "provide boneIndex/boneName or select a bone first" };
+      boneIndex = bone.index;
+    }
+    const ok = assignSlotToBone(slot.index, boneIndex);
+    if (!ok) return { ok: false, error: "slot bone assignment failed" };
+    if (typeof requestRender === "function") requestRender("ai.bind_slot_to_bone");
+    return {
+      ok: true,
+      slot: { index: slot.index, name: slot.slot.name || "", bone: Number(slot.slot.bone) },
+      bone: boneIndex >= 0 ? aiBoneSummary(boneIndex) : null,
+    };
+  }
+
+  function aiListBones() {
+    const bones = getAIBones();
+    return { ok: true, boneCount: bones.length, selectedBone: Number(state.selectedBone), bones: bones.map((b, i) => aiBoneSummary(i, b)) };
+  }
+
   function aiSetAnimationTime(args) {
     if (!state.anim) return { ok: false, error: "no animation state" };
     const t = Number(args.time);
@@ -287,11 +561,22 @@
     if (args.dataUrl) {
       try { blob = dataUrlToBlob(args.dataUrl); } catch (e) { return { ok: false, error: e.message }; }
     } else if (args.url) {
+      const timeoutMs = Number(args.timeoutMs) > 0 ? Number(args.timeoutMs) : 20000;
+      const ac = (typeof AbortController !== "undefined") ? new AbortController() : null;
+      const timer = ac ? setTimeout(() => ac.abort(), timeoutMs) : null;
       try {
-        const resp = await fetch(args.url);
+        const resp = await fetch(args.url, ac ? { signal: ac.signal } : undefined);
         if (!resp.ok) return { ok: false, error: `fetch failed: ${resp.status}` };
         blob = await resp.blob();
-      } catch (e) { return { ok: false, error: `fetch failed: ${e.message}` }; }
+        if (blob && blob.type && !/^image\//i.test(blob.type)) {
+          return { ok: false, error: `unexpected content-type: ${blob.type}` };
+        }
+      } catch (e) {
+        if (e && e.name === "AbortError") return { ok: false, error: `fetch timeout after ${timeoutMs}ms` };
+        return { ok: false, error: `fetch failed: ${e.message}` };
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
     } else {
       return { ok: false, error: "provide dataUrl or url" };
     }
@@ -734,6 +1019,46 @@
       domain: "bone",
       action: aiSelectBone,
       mutates: true,
+    },
+    {
+      id: "ai.add_bone",
+      label: "AI: Add Bone",
+      group: "AI",
+      domain: "bone",
+      action: aiAddBone,
+      mutates: false,
+    },
+    {
+      id: "ai.set_bone",
+      label: "AI: Set Bone",
+      group: "AI",
+      domain: "bone",
+      action: aiSetBone,
+      mutates: true,
+    },
+    {
+      id: "ai.delete_bone",
+      label: "AI: Delete Bone",
+      group: "AI",
+      domain: "bone",
+      action: aiDeleteBone,
+      mutates: false,
+    },
+    {
+      id: "ai.bind_slot_to_bone",
+      label: "AI: Bind Slot to Bone",
+      group: "AI",
+      domain: "bone",
+      action: aiBindSlotToBone,
+      mutates: true,
+    },
+    {
+      id: "ai.list_bones",
+      label: "AI: List Bones",
+      group: "AI",
+      domain: "bone",
+      action: aiListBones,
+      mutates: false,
     },
     {
       id: "ai.set_animation_time",

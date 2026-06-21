@@ -94,12 +94,89 @@
     return new Uint8Array(outBytes);
   }
 
+  // ── Median-cut colour quantizer ──────────────────────────────────────────
+  // Returns { palette: Uint8Array(paletteSize*3), map: (r,g,b)=>index }.
+  // paletteSize must be a power of two ≤ 256.
+  function medianCutQuantize(rgba, paletteSize, transparent, alphaThreshold) {
+    // Collect opaque pixels (sample for speed on large frames)
+    const maxSamples = 32768;
+    const total = rgba.length >> 2;
+    const step = Math.max(1, Math.floor(total / maxSamples));
+    const pixels = [];
+    for (let i = 0; i < total; i += step) {
+      const o = i << 2;
+      if (transparent && rgba[o + 3] < alphaThreshold) continue;
+      pixels.push([rgba[o], rgba[o + 1], rgba[o + 2]]);
+    }
+    if (pixels.length === 0) {
+      // fallback: black palette
+      return { palette: new Uint8Array(paletteSize * 3), map: () => 0 };
+    }
+    // Median-cut: recursively split buckets
+    const targetBuckets = transparent ? paletteSize - 1 : paletteSize;
+    function splitBucket(bucket) {
+      if (bucket.length <= 1) return [bucket];
+      let minR = 255, maxR = 0, minG = 255, maxG = 0, minB = 255, maxB = 0;
+      for (const [r, g, b] of bucket) {
+        if (r < minR) minR = r; if (r > maxR) maxR = r;
+        if (g < minG) minG = g; if (g > maxG) maxG = g;
+        if (b < minB) minB = b; if (b > maxB) maxB = b;
+      }
+      const rangeR = maxR - minR, rangeG = maxG - minG, rangeB = maxB - minB;
+      const axis = rangeR >= rangeG && rangeR >= rangeB ? 0 : rangeG >= rangeB ? 1 : 2;
+      bucket.sort((a, b) => a[axis] - b[axis]);
+      const mid = bucket.length >> 1;
+      return [bucket.slice(0, mid), bucket.slice(mid)];
+    }
+    let buckets = [pixels];
+    while (buckets.length < targetBuckets) {
+      // Split the largest bucket
+      let largest = 0;
+      for (let i = 1; i < buckets.length; i++) {
+        if (buckets[i].length > buckets[largest].length) largest = i;
+      }
+      if (buckets[largest].length <= 1) break;
+      const [a, b] = splitBucket(buckets[largest]);
+      buckets.splice(largest, 1, a, b);
+    }
+    // Build palette from bucket averages
+    const palOffset = transparent ? 1 : 0; // index 0 reserved for transparency
+    const palRGB = new Uint8Array(paletteSize * 3);
+    const palColors = []; // [{r,g,b}] indexed by palette slot
+    if (transparent) palColors.push({ r: 0, g: 0, b: 0 }); // slot 0 = transparent
+    for (const bucket of buckets) {
+      if (bucket.length === 0) { palColors.push({ r: 0, g: 0, b: 0 }); continue; }
+      let sr = 0, sg = 0, sb = 0;
+      for (const [r, g, b] of bucket) { sr += r; sg += g; sb += b; }
+      palColors.push({ r: Math.round(sr / bucket.length), g: Math.round(sg / bucket.length), b: Math.round(sb / bucket.length) });
+    }
+    // Fill palette bytes
+    for (let i = 0; i < Math.min(palColors.length, paletteSize); i++) {
+      palRGB[i * 3] = palColors[i].r;
+      palRGB[i * 3 + 1] = palColors[i].g;
+      palRGB[i * 3 + 2] = palColors[i].b;
+    }
+    // Fast nearest-colour lookup with a 15-bit RGB cache
+    const cache = new Int16Array(32768).fill(-1);
+    function nearestIndex(r, g, b) {
+      const key = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+      if (cache[key] >= 0) return cache[key];
+      let best = palOffset, bestD = Infinity;
+      for (let i = palOffset; i < palColors.length; i++) {
+        const dr = r - palColors[i].r, dg = g - palColors[i].g, db = b - palColors[i].b;
+        const d = dr * dr + dg * dg + db * db;
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      cache[key] = best;
+      return best;
+    }
+    return { palette: palRGB, map: nearestIndex };
+  }
+
   // frames: [{ data: Uint8ClampedArray|Uint8Array (RGBA) }]
   // loopCount: 0 = infinite (default), N = loop N times
   // opts: { transparent?: boolean, alphaThreshold?: number }
-  //   transparent: when true, palette reserves index 0 as transparent;
-  //     any pixel with alpha < alphaThreshold (default 128) gets index 0,
-  //     GCE flags bit 0 is set, and disposal method = 2 (restore to bg).
+  //   Uses per-frame local colour table (median-cut quantization) for full-colour GIF.
   function encodeGifFromImageDataFrames(frames, width, height, fps, loopCount, opts) {
     if (!frames || frames.length === 0) throw new Error("encodeGif: no frames");
     const loops = Math.max(0, Math.min(0xffff, Number(loopCount) || 0));
@@ -107,77 +184,65 @@
     const alphaThreshold = Math.max(0, Math.min(255, Number(opts && opts.alphaThreshold) || 128));
     const bytes = [];
     const pushByte = (b) => bytes.push(b & 0xff);
-    const pushWord = (w) => {
-      pushByte(w & 0xff);
-      pushByte((w >> 8) & 0xff);
-    };
-    const pushString = (s) => {
-      for (let i = 0; i < s.length; i += 1) pushByte(s.charCodeAt(i));
-    };
-    const palette = transparent ? buildGif332PaletteWithTransparent() : buildGif332Palette();
+    const pushWord = (w) => { pushByte(w & 0xff); pushByte((w >> 8) & 0xff); };
+    const pushString = (s) => { for (let i = 0; i < s.length; i++) pushByte(s.charCodeAt(i)); };
+
+    // GIF header — no global colour table (each frame has its own local table)
     pushString("GIF89a");
     pushWord(width);
     pushWord(height);
-    pushByte(0xf7);
-    pushByte(0);
-    pushByte(0);
-    for (let i = 0; i < palette.length; i += 1) pushByte(palette[i]);
-    pushByte(0x21);
-    pushByte(0xff);
-    pushByte(0x0b);
+    // Packed field: globalColorTableFlag=0, colorResolution=7, sort=0, globalColorTableSize=0
+    pushByte(0x70);
+    pushByte(0x00); // background colour index
+    pushByte(0x00); // pixel aspect ratio
+
+    // NETSCAPE loop extension
+    pushByte(0x21); pushByte(0xff); pushByte(0x0b);
     pushString("NETSCAPE2.0");
-    pushByte(0x03);
-    pushByte(0x01);
-    pushWord(loops);
-    pushByte(0x00);
+    pushByte(0x03); pushByte(0x01); pushWord(loops); pushByte(0x00);
+
     const delay = Math.max(1, Math.round(100 / Math.max(1, fps)));
+
     for (const frame of frames) {
       const rgba = frame.data;
+      // Per-frame median-cut quantization (256 colours, or 255+transparent slot)
+      const { palette, map } = medianCutQuantize(rgba, 256, transparent, alphaThreshold);
+
+      // Map each pixel to its nearest palette index
       const idx = new Uint8Array(width * height);
-      let p = 0;
-      if (transparent) {
-        for (let i = 0; i < rgba.length; i += 4) {
-          if (rgba[i + 3] < alphaThreshold) {
-            idx[p++] = 0;
-            continue;
-          }
-          const r = rgba[i] >> 5;
-          const g = rgba[i + 1] >> 5;
-          const b = rgba[i + 2] >> 6;
-          const idx332 = (r << 5) | (g << 2) | b;
-          // Map 0..254 from the trimmed palette into indices 1..255.
-          idx[p++] = (idx332 < 255 ? idx332 : 254) + 1;
-        }
-      } else {
-        for (let i = 0; i < rgba.length; i += 4) {
-          const r = rgba[i] >> 5;
-          const g = rgba[i + 1] >> 5;
-          const b = rgba[i + 2] >> 6;
-          idx[p++] = (r << 5) | (g << 2) | b;
+      const total = width * height;
+      for (let i = 0; i < total; i++) {
+        const o = i << 2;
+        if (transparent && rgba[o + 3] < alphaThreshold) {
+          idx[i] = 0;
+        } else {
+          idx[i] = map(rgba[o], rgba[o + 1], rgba[o + 2]);
         }
       }
-      pushByte(0x21);
-      pushByte(0xf9);
-      pushByte(0x04);
-      // packed: disposal(3 bits) | userInput(1) | transparentFlag(1)
-      // disposal = 2 (restore to background) when transparent, else 0
+
+      // Graphic Control Extension
+      pushByte(0x21); pushByte(0xf9); pushByte(0x04);
       pushByte(transparent ? (2 << 2) | 0x01 : 0x00);
       pushWord(delay);
-      pushByte(transparent ? 0x00 : 0x00); // transparent color index = 0
+      pushByte(0x00); // transparent colour index = 0
       pushByte(0x00);
+
+      // Image descriptor with local colour table flag set
       pushByte(0x2c);
-      pushWord(0);
-      pushWord(0);
-      pushWord(width);
-      pushWord(height);
-      pushByte(0x00);
+      pushWord(0); pushWord(0); pushWord(width); pushWord(height);
+      // packed: localColorTableFlag=1, interlace=0, sort=0, localColorTableSize=7 (256 colors)
+      pushByte(0x87);
+      // Local colour table (256 × 3 bytes)
+      for (let i = 0; i < palette.length; i++) pushByte(palette[i]);
+
+      // LZW image data
       pushByte(0x08);
       const lzw = lzwEncode8(idx);
       let off = 0;
       while (off < lzw.length) {
         const n = Math.min(255, lzw.length - off);
         pushByte(n);
-        for (let i = 0; i < n; i += 1) pushByte(lzw[off + i]);
+        for (let i = 0; i < n; i++) pushByte(lzw[off + i]);
         off += n;
       }
       pushByte(0x00);
